@@ -18,7 +18,9 @@ export interface ScorchMap {
   readonly texture: RawTexture
   /** Blackens a faceted blot of ground `radius` metres across around a burst, ragged splashes thrown out beyond it. */
   scorch(x: number, z: number, radius: number, random?: () => number): void
-  /** Sends the scorch painted since the last call to the GPU. Call once per frame. */
+  /** Rain washing the soot into the mud: fades every scorch mark by this fraction of what's left of it. */
+  wash(fraction: number): void
+  /** Sends the scorch painted or washed since the last call to the GPU. Call once per frame. */
   update(): void
   dispose(): void
 }
@@ -123,6 +125,17 @@ export function createScorchMap(scene: Scene, widthMetres: number, depthMetres: 
           0.5,
           random
         )
+      }
+      dirty = true
+    },
+    wash(fraction) {
+      const keep = 1 - Math.min(1, Math.max(0, fraction))
+      // Rounding down takes at least a step off every mark, however faint, so they wash away in the end.
+      for (let index = 0; index < texels.length; index++) {
+        const value = texels[index] ?? 0
+        if (value > 0) {
+          texels[index] = Math.floor(value * keep)
+        }
       }
       dirty = true
     },

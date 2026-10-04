@@ -61,4 +61,27 @@ describe("createScorchMap", () => {
     expect(upload).toHaveBeenCalledOnce()
     scorch.dispose()
   })
+
+  it("fades the scorch as rain washes it into the mud, the faintest marks to nothing", () => {
+    const engine = new NullEngine()
+    engines.push(engine)
+    const scorch = createScorchMap(new Scene(engine), 40, 40)
+    const upload = vi.spyOn(scorch.texture, "update")
+    scorch.scorch(20, 20, 4, steady())
+    scorch.update()
+    const texels = upload.mock.calls.at(-1)?.[0]
+    if (!(texels instanceof Uint8Array)) {
+      throw new Error("expected the scorch's texels")
+    }
+    const middle = texels[20 * 40 + 20] ?? 0
+
+    scorch.wash(0.5)
+    scorch.update()
+    expect(texels[20 * 40 + 20]).toBe(Math.floor(middle * 0.5))
+    expect(upload).toHaveBeenCalledTimes(2)
+    for (let shower = 0; shower < 12; shower++) {
+      scorch.wash(0.5)
+    }
+    expect(texels.every((value) => value === 0)).toBe(true)
+  })
 })

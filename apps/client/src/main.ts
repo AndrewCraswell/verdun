@@ -101,7 +101,8 @@ async function start(): Promise<void> {
     wind: () => sim.wind,
     files: kitFiles,
     surroundings,
-    wire: () => sim.wire
+    wire: () => sim.wire,
+    weather: () => sim.environment.weather
   })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null

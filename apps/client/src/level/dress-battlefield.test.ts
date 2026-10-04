@@ -208,6 +208,27 @@ describe("dressLevel", () => {
     expect(dressing?.wire).toBeNull()
   })
 
+  it("lets the rain wash the scorch away, and the snow not", async () => {
+    const { kit, scene } = kitOf([])
+    const { map, view: battlefield } = view({ scene })
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    vi.mocked(loadLevelKit).mockResolvedValueOnce(kit)
+    const falling = { precipitation: 400, snowFraction: 0 }
+    const dressing = await dressLevel(battlefield, map, { weather: () => falling })
+    const scorch = dressing?.scorch
+    if (!scorch) {
+      throw new Error("the level should be dressed")
+    }
+    const wash = vi.spyOn(scorch, "wash")
+    vi.spyOn(scene.getEngine(), "getDeltaTime").mockReturnValue(1000)
+
+    scene.render()
+    expect(wash).toHaveBeenCalledOnce()
+    falling.snowFraction = 1
+    scene.render()
+    expect(wash).toHaveBeenCalledOnce()
+  })
+
   it("keeps the wire's art in step with the simulation's wire, when it's given it", async () => {
     const { kit, scene } = kitOf(["Prop_Wire_Fence_01", "Prop_Wire_Fence_02"])
     const { map, view: battlefield } = view({ scene })

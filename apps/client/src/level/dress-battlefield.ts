@@ -22,7 +22,7 @@ import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
 import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
 import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
-import { createScorchMap } from "./scorch-map.ts"
+import { createScorchMap, type ScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
@@ -237,6 +237,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly postProcess: PostProcess | null
   /** The kit's effect sprites, for effects made outside the level such as the night's lights. */
   readonly fx: KitEffects
+  /** Where shells have blackened the ground, fading as rain washes it. */
+  readonly scorch: ScorchMap
   /** The ground round the sector out to the horizon, when the level was given it, and the woods on it. */
   readonly backdrop: Mesh | null
   readonly woods: readonly Mesh[]
@@ -263,7 +265,16 @@ interface LevelOptions {
    * shells tear the wire's art away round each crater, and it stays torn.
    */
   readonly wire?: () => WireField
+  /** How hard it's raining, in millimetres an hour, and how much of it is snow: rain washes the scorch away. */
+  readonly weather?: () => { readonly precipitation: number; readonly snowFraction: number }
 }
+
+/**
+ * Rain washes the soot of shell bursts into the mud: heavy rain (`heavy` mm an hour) halves the scorch every
+ * `halfLife` seconds, about two hours of the game's day, and lighter rain proportionately slower. It's washed in
+ * steps of `step`, so the scorch map goes to the GPU now and then rather than every frame.
+ */
+const SCORCH_WASH = { heavy: 4, halfLife: 600, step: 0.02 } as const
 
 const WESTERLY = { x: 2, z: 0 } as const
 
@@ -283,7 +294,7 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY, files, surroundings, wire }: LevelOptions = {}
+  { wind = () => WESTERLY, files, surroundings, wire, weather }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
   const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
@@ -323,11 +334,13 @@ export async function dressLevel(
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,
     fx: kit.fx,
+    scorch,
     backdrop,
     woods
   }
   const ambience = dressing.ambience
   let wireCuts = -1
+  let washing = 0
   // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night.
   const unlit = [
     atmosphere?.smoke,
@@ -351,6 +364,15 @@ export async function dressLevel(
     dressing.aftermath.update(frameSeconds)
     bursts.update()
     life.update(frameSeconds)
+    const falling = weather?.()
+    if (falling) {
+      const rain = falling.precipitation * (1 - falling.snowFraction)
+      washing += (Math.LN2 / SCORCH_WASH.halfLife) * (rain / SCORCH_WASH.heavy) * frameSeconds
+      if (washing >= SCORCH_WASH.step) {
+        scorch.wash(washing)
+        washing = 0
+      }
+    }
     const field = wire?.()
     if (field && field.cuts !== wireCuts) {
       wireCuts = field.cuts
