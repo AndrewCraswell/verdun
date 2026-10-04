@@ -17,6 +17,7 @@ import {
 import { createFootstepModel } from "./footstep-model.ts"
 import { createLevelSoundModel, fireLevel, type LevelSources } from "./level-sound-model.ts"
 import { type Bed, getMixer } from "./mixer.ts"
+import { playerVolume, volumeGain } from "./volume.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
 export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
@@ -223,7 +224,10 @@ async function startBattleSounds(
       mixer.play({
         name: call.cue,
         buffer,
-        volume: call.volume * mixer.tuning.level(call.cue),
+        volume:
+          call.volume *
+          mixer.tuning.level(call.cue) *
+          (call.cue.startsWith("voice-") ? volumeGain(playerVolume().level("voices")) : 1),
         pan: call.pan,
         delay: call.delay,
         cutoff: call.cutoff,

@@ -13,6 +13,7 @@
  */
 
 import { createTuning, type Tuning } from "./tuning.ts"
+import { playerVolume, type VolumeChannel, volumeGain } from "./volume.ts"
 
 /** How the listener's surroundings colour what they hear, each from 0 (not there) to 1. */
 export interface Space {
@@ -97,6 +98,14 @@ const BED_FADE = 1
 /** Sounds the mixer remembers having started, for the panel. */
 const RECENT = 24
 const BUSES = ["master", "battle", "ambience", "ears", "music"] as const
+/** The player's volume setting (volume.ts) each bus follows. Voices are set as each plays (battle-sounds.ts). */
+const BUS_CHANNELS: Readonly<Record<(typeof BUSES)[number], VolumeChannel>> = {
+  master: "master",
+  battle: "effects",
+  ears: "effects",
+  ambience: "ambience",
+  music: "music"
+}
 
 interface Reverb {
   readonly seconds: number
@@ -194,16 +203,32 @@ function createMixer(context: AudioContext): Mixer {
   }
   retrim()
   tuning.onChange(retrim)
-  trims.master.connect(context.destination)
+  // After each trim, the player's own volume for it, from the options screen: the mix stays as tuned.
+  const volume = playerVolume()
+  const player: Readonly<Record<(typeof BUSES)[number], GainNode>> = {
+    master: context.createGain(),
+    battle: context.createGain(),
+    ambience: context.createGain(),
+    ears: context.createGain(),
+    music: context.createGain()
+  }
+  const revolume = () => {
+    for (const bus of BUSES) {
+      player[bus].gain.value = volumeGain(volume.level(BUS_CHANNELS[bus]))
+    }
+  }
+  revolume()
+  volume.onChange(revolume)
+  trims.master.connect(player.master).connect(context.destination)
   const master = trims.master
   const battle = context.createGain()
-  battle.connect(trims.battle).connect(master)
+  battle.connect(trims.battle).connect(player.battle).connect(master)
   const ambience = context.createGain()
-  ambience.connect(trims.ambience).connect(master)
+  ambience.connect(trims.ambience).connect(player.ambience).connect(master)
   const ears = context.createGain()
-  ears.connect(trims.ears).connect(master)
+  ears.connect(trims.ears).connect(player.ears).connect(master)
   const music = context.createGain()
-  music.connect(trims.music).connect(master)
+  music.connect(trims.music).connect(player.music).connect(master)
   const recent: Played[] = []
   const send = context.createGain()
   const reverb = (name: keyof Space, seed: number): GainNode => {
