@@ -1,3 +1,4 @@
+import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
@@ -20,12 +21,14 @@ import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createDebugStats } from "./debug/stats.ts"
 import { createExplosions } from "./effects/explosions.ts"
 import { createTracers } from "./effects/tracers.ts"
+import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
 import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
 import { openKitFiles } from "./level/kit-files.ts"
+import { createNightLight, flareViews } from "./level/night-light.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
@@ -69,6 +72,24 @@ async function start(): Promise<void> {
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
   kitFiles?.close?.()
   const soldiers = soldierKit ? createSoldierCrowd(view.scene, sim, soldierKit) : null
+  // After dark: braziers, fires and rifle flashes light the ground around them; flares come when the sim fires them.
+  const night = level
+    ? createNightLight(
+        view.scene,
+        {
+          darkness: () => 1 - lightLevel(sim.environment.illuminance),
+          // Whichever camera is drawing: the player's, or one a dev tool switched to.
+          focus: () => {
+            const camera = view.scene.activeCamera
+            return camera instanceof TargetCamera ? camera.getTarget() : view.camera.getTarget()
+          },
+          fires: () => [...level.life.braziers, ...level.aftermath.fires].map((fire) => fire.position),
+          flares: () => flareViews(map, sim.flares, sim.tick + stepper.alpha)
+        },
+        level.fx.ember,
+        [view.groundMaterial, ...level.materials, ...(soldierKit?.materials ?? [])]
+      )
+    : null
   if (soldiers) {
     view.useSoldierRenderer(soldiers)
   }
@@ -122,7 +143,7 @@ async function start(): Promise<void> {
     const { installDeathMap } = await import("./dev/death-map.ts")
     const deaths = installDeathMap(view.scene, sim)
     Object.assign(window, {
-      verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths, environment, soldiers, sounds }
+      verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths, environment, soldiers, sounds, night }
     })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
     installInspectorToggle(view.scene)
@@ -141,7 +162,9 @@ async function start(): Promise<void> {
         stepSimulation(sim)
         hud.record(sim.events)
         sounds?.step()
-        tracers.add(shotEvents(sim.events))
+        const shots = shotEvents(sim.events)
+        tracers.add(shots)
+        night?.flash(shots.map((shot) => shot.from))
         for (const event of sim.events) {
           if (event.type === "burst") {
             explosions.add([event])
@@ -168,6 +191,7 @@ async function start(): Promise<void> {
       view.syncSoldiers(fog.isShown)
     }
     markers.update()
+    night?.update(frameSeconds)
     environment?.update(frameSeconds)
     sounds?.update()
     view.scene.render()

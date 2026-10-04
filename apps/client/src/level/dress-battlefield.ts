@@ -13,7 +13,7 @@ import { type Ambience, createAmbience } from "./ambience.ts"
 import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage } from "./battle-damage.ts"
 import type { KitFiles } from "./kit-files.ts"
-import { type LevelKit, loadLevelKit } from "./level-kit.ts"
+import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
 import type { Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
 import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
@@ -144,6 +144,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly life: TrenchLife
   /** The miniature look: depth of field, bloom, grain and antialiasing; null where the engine can't run it. */
   readonly postProcess: PostProcess | null
+  /** The kit's effect sprites, for effects made outside the level such as the night's lights. */
+  readonly fx: KitEffects
   /** The props' materials, for effects layered on them such as fog of war. */
   readonly materials: readonly Material[]
   /** The sector's ambient sound, following the camera, or null when the kit has none. */
@@ -205,7 +207,8 @@ export async function dressLevel(
     postProcess: createPostProcess(view.scene, view.camera),
     materials: [...kit.materials, ...(curtain.material ? [curtain.material] : [])],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
-    sfx: kit.sfx
+    sfx: kit.sfx,
+    fx: kit.fx
   }
   const ambience = dressing.ambience
   view.scene.onBeforeRenderObservable.add(() => {
