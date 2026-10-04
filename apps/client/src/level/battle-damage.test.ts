@@ -77,6 +77,15 @@ describe("createBattleDamage", () => {
     expect(pieces).not.toContain("Prop_Trench_Planks_02")
   })
 
+  it("leaves alone the pieces something else keeps in step with the battle", () => {
+    const { scenery } = field()
+    const damage = createBattleDamage(scenery, (piece) => piece.startsWith("Prop_Wire_Fence"))
+
+    damage.blast(10, 10, 4)
+
+    expect(scenery.near(10, 10, 4).map((placed) => placed.piece)).toContain("Prop_Wire_Fence_01")
+  })
+
   it("does nothing where nothing stands", () => {
     expect(field().damage.blast(200, 200, 5)).toBe(0)
   })

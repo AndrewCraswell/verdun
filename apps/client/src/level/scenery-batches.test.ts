@@ -188,6 +188,25 @@ describe("batchScenery", () => {
     expect(mesh.getBoundingInfo().boundingBox.maximumWorld.x).toBeCloseTo(30.5)
   })
 
+  it("hides a placed piece where it stands and draws it again", () => {
+    const { pieces } = kit()
+    const scenery = batchScenery(pieces, [{ piece: "crate", world: at(10, 10, 2) }])
+    const [crate] = scenery.near(10, 10, 1)
+    const [batch] = scenery.batches
+    if (!crate) {
+      throw new Error("expected a crate")
+    }
+
+    scenery.show(crate, false)
+    expect(batch?.mesh.thinInstanceGetWorldMatrices()[0]?.m[0]).toBe(0)
+    expect(batch?.mesh.thinInstanceGetWorldMatrices()[0]?.getTranslation().y).toBeCloseTo(2)
+    // Still there to find, to draw again.
+    expect(scenery.near(10, 10, 1)).toHaveLength(1)
+    scenery.show(crate, true)
+    expect(batch?.mesh.thinInstanceGetWorldMatrices()[0]?.m[0]).toBe(1)
+    scenery.show({ piece: "crate", world: Matrix.Identity(), position: Vector3.Zero() }, false)
+  })
+
   it("grows a batch's bounds for a piece added outside them", () => {
     const { pieces } = kit()
     const scenery = batchScenery(pieces, [{ piece: "tree", world: at(0, 0) }])

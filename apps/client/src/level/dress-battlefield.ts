@@ -7,6 +7,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
+import type { WireField } from "@verdun/sim"
 import type { BattleSoundFiles } from "../audio/battle-sounds.ts"
 import { backdropTrees, createBackdrop, type Surroundings } from "../terrain/backdrop.ts"
 import { GroundSplatPlugin } from "../terrain/ground-splat-plugin.ts"
@@ -26,6 +27,7 @@ import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
 import { brazierTops, createGasCurtain, createTrenchLife, type TrenchLife } from "./trench-life.ts"
+import { createWireArt, type WireArt } from "./wire-art.ts"
 
 export interface BattlefieldDressing {
   /** The kit pieces placed on the battlefield, drawn in batches. */
@@ -240,6 +242,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly woods: readonly Mesh[]
   /** The props' materials, for effects layered on them such as fog of war. */
   readonly materials: readonly Material[]
+  /** The wire belts' art, following the simulation's wire as it's cut and mended; null when the level wasn't given it. */
+  readonly wire: WireArt | null
   /** The sector's ambient sound, following the camera, or null when the kit has none. */
   readonly ambience: Ambience | null
   /** The battle's sound effects, for apps/client/src/audio/battle-sounds.ts, or null when the kit has none. */
@@ -254,6 +258,11 @@ interface LevelOptions {
   readonly files?: KitFiles | null
   /** The surveyed ground round the sector, drawn out to the horizon; without it the sector ends at its edges. */
   readonly surroundings?: Surroundings
+  /**
+   * The simulation's wire, which the belts' art follows as shells cut it and wiring parties mend it. Without it,
+   * shells tear the wire's art away round each crater, and it stays torn.
+   */
+  readonly wire?: () => WireField
 }
 
 const WESTERLY = { x: 2, z: 0 } as const
@@ -274,7 +283,7 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY, files, surroundings }: LevelOptions = {}
+  { wind = () => WESTERLY, files, surroundings, wire }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
   const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
@@ -296,7 +305,9 @@ export async function dressLevel(
     ...dressed,
     ground,
     atmosphere,
-    damage: createBattleDamage(dressed.scenery),
+    // Given the simulation's wire, the belts' art follows it, not the craters.
+    damage: createBattleDamage(dressed.scenery, (piece) => wire !== undefined && piece.startsWith("Prop_Wire_Fence")),
+    wire: wire ? createWireArt(dressed.scenery, dressed.placements) : null,
     bursts,
     aftermath: createShellAftermath(view.scene, map, view.camera, kit.fx, scorch, wind, (event) => {
       bursts.burst(event)
@@ -316,6 +327,7 @@ export async function dressLevel(
     woods
   }
   const ambience = dressing.ambience
+  let wireCuts = -1
   // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night.
   const unlit = [
     atmosphere?.smoke,
@@ -339,6 +351,11 @@ export async function dressLevel(
     dressing.aftermath.update(frameSeconds)
     bursts.update()
     life.update(frameSeconds)
+    const field = wire?.()
+    if (field && field.cuts !== wireCuts) {
+      wireCuts = field.cuts
+      dressing.wire?.sync(field)
+    }
     airLight(view.scene, light)
     particleLight.update(light)
     atmosphere?.update(light)

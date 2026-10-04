@@ -204,5 +204,42 @@ describe("dressLevel", () => {
       expect.stringContaining("missing"),
       expect.arrayContaining([TRENCH_PIECES.straights[0]])
     )
+    // Without the simulation's wire, the wire's art goes with the craters.
+    expect(dressing?.wire).toBeNull()
+  })
+
+  it("keeps the wire's art in step with the simulation's wire, when it's given it", async () => {
+    const { kit, scene } = kitOf(["Prop_Wire_Fence_01", "Prop_Wire_Fence_02"])
+    const { map, view: battlefield } = view({ scene })
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    vi.mocked(loadLevelKit).mockResolvedValueOnce(kit)
+    const field = { columns: 1, rows: 1, density: new Float32Array(1), staked: new Float32Array(1), cuts: 0 }
+
+    const dressing = await dressLevel(
+      battlefield,
+      {
+        ...map,
+        wire: [
+          {
+            points: [
+              [10, 50],
+              [40, 50]
+            ]
+          }
+        ]
+      },
+      {
+        wire: () => field
+      }
+    )
+    const sync = vi.spyOn(dressing?.wire ?? { sync: () => undefined }, "sync")
+    scene.render()
+    scene.render()
+    field.cuts++
+    scene.render()
+
+    expect(dressing?.wire?.strands).toBeGreaterThan(0)
+    // Once at the start, and again each time the wire is cut or mended.
+    expect(sync).toHaveBeenCalledTimes(2)
   })
 })

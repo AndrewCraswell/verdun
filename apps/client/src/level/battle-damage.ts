@@ -53,7 +53,11 @@ export interface BattleDamage {
  * Shell damage to the dressed battlefield. The simulation craters the ground itself; this keeps the props in step:
  * wire, duckboards and stores go, trees are shot down to stumps, and trench sections fill with blown-in earth.
  */
-export function createBattleDamage(scenery: SceneryBatches): BattleDamage {
+export function createBattleDamage(
+  scenery: SceneryBatches,
+  /** Pieces something else keeps in step with the battle, which shells leave alone here (see wire-art.ts). */
+  spared: (piece: string) => boolean = () => false
+): BattleDamage {
   /** Trench sections already filled with earth: a shell blows each one in once. */
   const collapsed = new WeakSet<PlacedPiece>()
 
@@ -80,6 +84,9 @@ export function createBattleDamage(scenery: SceneryBatches): BattleDamage {
       // Find everything first, so debris the blast throws down isn't itself caught by it.
       for (const placed of scenery.near(x, z, radius)) {
         const { piece, position } = placed
+        if (spared(piece)) {
+          continue
+        }
         if (DESTROYED.some((pattern) => pattern.test(piece))) {
           scenery.remove(placed)
           changed += 1

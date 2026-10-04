@@ -27,6 +27,8 @@ export interface SceneryBatches {
   near(x: number, z: number, radius: number): PlacedPiece[]
   /** Stops drawing a placed piece. */
   remove(placed: PlacedPiece): void
+  /** Draws a placed piece, or doesn't, keeping it in its place to draw again: the wire as it's cut and mended. */
+  show(placed: PlacedPiece, shown: boolean): void
   /** Places another piece, batched with its kind nearby; null when the kit lacks the piece. */
   add(piece: string, world: Matrix): PlacedPiece | null
   /**
@@ -318,6 +320,14 @@ export function batchScenery(
       const gone = GONE.clone().setTranslation(placed.position)
       placed.batch.mesh.thinInstanceSetMatrixAt(placed.index, gone, true)
       placed.batch.far?.thinInstanceSetMatrixAt(placed.index, gone, true)
+    },
+    show(placed, shown) {
+      if (!isSlot(placed)) {
+        return
+      }
+      const world = shown ? placed.world : GONE.clone().setTranslation(placed.position)
+      placed.batch.mesh.thinInstanceSetMatrixAt(placed.index, world, true)
+      placed.batch.far?.thinInstanceSetMatrixAt(placed.index, world, true)
     },
     add(piece, world) {
       const source = pieces.get(piece)
