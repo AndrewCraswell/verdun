@@ -3,6 +3,7 @@ import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup"
 import { AssetContainer } from "@babylonjs/core/assetContainer"
 import { Bone } from "@babylonjs/core/Bones/bone"
 import { Skeleton } from "@babylonjs/core/Bones/skeleton"
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
@@ -14,7 +15,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import { Scene } from "@babylonjs/core/scene"
 import { Side } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { BAKE_FPS, bakeClips, loadSoldierKit, prepareSoldierKit } from "./soldier-kit.ts"
+import { BAKE_FPS, bakeClips, loadSoldierKit, prepareSoldierKit, restingRifle, rifleBetween } from "./soldier-kit.ts"
 
 const engines: NullEngine[] = []
 
@@ -57,8 +58,14 @@ function clip(
   return group
 }
 
-/** What the glTF loader hands back for soldier.glb, in miniature: a mirrored root, a scaled armature, one bone. */
-function loadedContainer(target: Scene, { skip }: { skip?: string } = {}): AssetContainer {
+/**
+ * What the glTF loader hands back for soldier.glb, in miniature: a mirrored root, a scaled armature, one bone, the
+ * rifle unrigged under the root like the guns (or, from a kit built before that, rigged like the mask).
+ */
+function loadedContainer(
+  target: Scene,
+  { skip, riggedRifle }: { skip?: string; riggedRifle?: boolean } = {}
+): AssetContainer {
   const container = new AssetContainer(target)
   const root = new Mesh("__root__", target)
   root.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI)
@@ -74,15 +81,16 @@ function loadedContainer(target: Scene, { skip }: { skip?: string } = {}): Asset
   const palette = new PBRMaterial("Soldier_French", target)
   palette.albedoTexture = new Texture(null, target)
   const plain = new PBRMaterial("PolygonWarMap_01_A", target)
-  const names = ["Soldier_French", "Soldier_German", "Soldier_Rifle", "Soldier_Mask"].filter((name) => name !== skip)
-  for (const name of names) {
+  const rigged = ["Soldier_French", "Soldier_German", "Soldier_Mask", ...(riggedRifle ? ["Soldier_Rifle"] : [])]
+  for (const name of rigged.filter((candidate) => candidate !== skip)) {
     const mesh = CreateBox(name, { size: 0.5 }, target)
     mesh.parent = armature
     mesh.skeleton = skeleton
     mesh.material = name === "Soldier_French" ? palette : plain
     container.meshes.push(mesh)
   }
-  for (const name of ["MachineGun_French", "MachineGun_German"]) {
+  const unrigged = [...(riggedRifle ? [] : ["Soldier_Rifle"]), "MachineGun_French", "MachineGun_German"]
+  for (const name of unrigged) {
     const gun = CreateBox(name, { width: 0.2, height: 0.4, depth: 1 }, target)
     gun.position.z = 1
     gun.parent = root
@@ -101,6 +109,72 @@ function loadedContainer(target: Scene, { skip }: { skip?: string } = {}): Asset
   return container
 }
 
+/** Two hands, each a wrist with an index finger a tenth of a metre ahead of it, for clips to move about. */
+function hands(target: Scene) {
+  const skeleton = new Skeleton("hands", "hands0", target)
+  const joint = (name: string, parent: Bone | null, at: Vector3) => {
+    const node = new TransformNode(name, target)
+    node.position.copyFrom(at)
+    node.rotationQuaternion = Quaternion.Identity()
+    const bone = new Bone(name, skeleton, parent, Matrix.Identity())
+    bone.linkTransformNode(node)
+    return { node, bone }
+  }
+  const right = joint("Hand_R", null, new Vector3(0.2, 1, 0))
+  joint("IndexFinger_01.001", right.bone, new Vector3(0, 0, 0.1))
+  const left = joint("Hand_L", null, new Vector3(-0.1, 1.1, 0.4))
+  joint("IndexFinger_01", left.bone, new Vector3(0, 0, 0.1))
+  return { skeleton, right: right.node, left: left.node }
+}
+
+/** A one-second clip moving each node from where it is to where it's sent. */
+function moves(target: Scene, name: string, sent: readonly [TransformNode, Vector3][]): AnimationGroup {
+  const group = new AnimationGroup(name, target)
+  for (const [node, to] of sent) {
+    const animation = new Animation(`${name}-${node.name}`, "position", 60, Animation.ANIMATIONTYPE_VECTOR3)
+    animation.setKeys([
+      { frame: 0, value: node.position.clone() },
+      { frame: 60, value: to }
+    ])
+    group.addTargetedAnimation(animation, node)
+  }
+  group.normalize(0, 60)
+  return group
+}
+
+/** The rifle's matrix in one baked row: after the hands' four bones and Babylon's identity. */
+function rifleAt(data: Float32Array, row: number): Matrix {
+  const floatsPerFrame = (4 + 2) * 16
+  return Matrix.FromArray(data, row * floatsPerFrame + 5 * 16)
+}
+
+const forwardOf = (matrix: Matrix) => Vector3.TransformNormal(Vector3.Forward(), matrix)
+const upOf = (matrix: Matrix) => Vector3.TransformNormal(Vector3.Up(), matrix)
+
+describe("rifleBetween", () => {
+  it("puts the grip in the right palm, the muzzle through the left, and the sights up", () => {
+    const rifle = rifleBetween(new Vector3(0, 1, 0), new Vector3(0, 1.3, 0.4), new Matrix())
+
+    expect(rifle.getTranslation().asArray()).toEqual([0, 1, 0])
+    expect(
+      forwardOf(rifle)
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0, 0.6, 0.8])
+    expect(upOf(rifle).y).toBeGreaterThan(0)
+    expect(Vector3.Dot(upOf(rifle), forwardOf(rifle))).toBeCloseTo(0)
+    expect(rifle.determinant()).toBeCloseTo(1)
+  })
+
+  it("still has sights to point somewhere when the rifle points straight down, or the hands meet", () => {
+    const down = rifleBetween(Vector3.Zero(), new Vector3(0, -1, 0), new Matrix())
+    expect(upOf(down).z).toBeCloseTo(1)
+
+    const together = rifleBetween(Vector3.One(), Vector3.One(), new Matrix())
+    expect(forwardOf(together).z).toBeCloseTo(1)
+  })
+})
+
 describe("bakeClips", () => {
   it("bakes the crowd's clips frame by frame into rows of bone matrices, carried into the meshes' space", () => {
     const target = scene()
@@ -110,14 +184,15 @@ describe("bakeClips", () => {
       throw new Error("no skeleton")
     }
     const world = Matrix.Scaling(2, 2, -2)
-    const { data, drift, clips } = bakeClips(skeleton, container.animationGroups, world)
+    const { data, drift, clips, width } = bakeClips(skeleton, container.animationGroups, world)
 
     // One second at 24 frames a second, both ends included; the bazooka isn't among the crowd's clips.
-    expect(clips.get("idle")).toEqual({ start: 0, frames: BAKE_FPS + 1, fps: BAKE_FPS })
-    expect(clips.get("walk_forward")).toEqual({ start: BAKE_FPS + 1, frames: BAKE_FPS + 1, fps: BAKE_FPS })
+    expect(clips.get("idle")).toEqual({ start: 0, frames: BAKE_FPS + 1, fps: BAKE_FPS, turn: 0 })
+    expect(clips.get("walk_forward")).toEqual({ start: BAKE_FPS + 1, frames: BAKE_FPS + 1, fps: BAKE_FPS, turn: 0 })
     expect(clips.size).toBe(2)
-    // Two matrices a frame: the bone's, and the identity Babylon appends.
-    const floatsPerFrame = 2 * 16
+    // Three matrices a frame: the bone's, the identity Babylon appends, and the rifle's.
+    const floatsPerFrame = 3 * 16
+    expect(width).toBe(12)
     expect(data).toHaveLength(floatsPerFrame * 2 * (BAKE_FPS + 1))
     // Halfway through idle the hips are half a metre up, doubled by the armature's scale.
     const halfway = Matrix.FromArray(data, 12 * floatsPerFrame)
@@ -128,6 +203,83 @@ describe("bakeClips", () => {
     expect(drift[0]).toBe(0)
     // The appended identity picks up the world transform: the mirror reaches every matrix.
     expect(Matrix.FromArray(data, 16).determinant()).toBeLessThan(0)
+    // A skeleton without hands leaves the rifle where it was modelled.
+    expect(Matrix.FromArray(data, 32).isIdentity()).toBe(true)
+  })
+
+  it("holds the rifle between the palms in every frame, however the hands move", () => {
+    const target = scene()
+    const { skeleton, left } = hands(target)
+    // The left hand reaches further out and lower.
+    const idle = moves(target, "idle", [[left, new Vector3(0.6, 0.8, 0.4)]])
+    const { data } = bakeClips(skeleton, [idle], Matrix.Identity())
+
+    const first = rifleAt(data, 0)
+    // The right palm: halfway from the wrist to the base of the index finger.
+    expect(
+      first
+        .getTranslation()
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.2, 1, 0.05])
+    expect(Vector3.Dot(forwardOf(first), new Vector3(-0.3, 0.1, 0.4).normalize())).toBeCloseTo(1)
+    const last = rifleAt(data, BAKE_FPS)
+    expect(Vector3.Dot(forwardOf(last), new Vector3(0.4, -0.2, 0.4).normalize())).toBeCloseTo(1)
+  })
+
+  it("turns an aiming clip's soldier so the rifle points ahead, and no other", () => {
+    const target = scene()
+    const { skeleton, left } = hands(target)
+    const still = (name: string) => moves(target, name, [[left, left.position.clone()]])
+    const { clips } = bakeClips(skeleton, [still("idle"), still("idle_6")], Matrix.Identity())
+
+    // The rifle points from the right palm through the left: 0.3 m left for every 0.4 m ahead. Turn right that much.
+    expect(clips.get("idle_6")?.turn).toBeCloseTo(Math.atan2(0.3, 0.4))
+    expect(clips.get("idle")?.turn).toBe(0)
+  })
+
+  it("leaves the rifle in the right hand alone as a man falls, then lets it fall to the ground", () => {
+    const target = scene()
+    const { skeleton, right, left } = hands(target)
+    const death = moves(target, "death_prone", [
+      [right, new Vector3(0.2, 0.2, 0.5)],
+      [left, new Vector3(-1, 0, -1)]
+    ])
+    const { data } = bakeClips(skeleton, [death], Matrix.Identity())
+
+    const first = rifleAt(data, 0)
+    // A quarter of the way down it's carried with the right wrist, palm and all, pointing the way it began.
+    const falling = rifleAt(data, BAKE_FPS / 4)
+    expect(
+      falling
+        .getTranslation()
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.2, 0.8, 0.175])
+    expect(Vector3.Dot(forwardOf(falling), forwardOf(first))).toBeCloseTo(1)
+    // At the end it lies on its side on the ground below the hand, pointing the way it pointed, level.
+    const resting = rifleAt(data, BAKE_FPS)
+    expect(
+      resting
+        .getTranslation()
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.2, 0.1, 0.55])
+    expect(
+      forwardOf(resting)
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([-0.6, 0, 0.8])
+  })
+})
+
+describe("restingRifle", () => {
+  it("lays a rifle held straight down along where its sights faced", () => {
+    const held = rifleBetween(new Vector3(1, 1, 1), new Vector3(1, 0, 1), new Matrix())
+    const resting = restingRifle(held, new Matrix())
+
+    expect(forwardOf(resting).z).toBeCloseTo(1)
+    expect(resting.determinant()).toBeCloseTo(1)
   })
 })
 
@@ -140,6 +292,7 @@ describe("prepareSoldierKit", () => {
     expect(body.parent).toBeNull()
     expect(body.computeWorldMatrix(true).isIdentity()).toBe(true)
     expect(body.bakedVertexAnimationManager?.texture?.name).toBe("soldier-animation")
+    expect(body.bakedVertexAnimationManager?.texture?.getSize().width).toBe(12)
     expect(kit.rifle.bakedVertexAnimationManager).toBe(body.bakedVertexAnimationManager)
     expect(body.material).toBeInstanceOf(StandardMaterial)
     expect(body.material?.name).toBe("Soldier_French")
@@ -147,6 +300,21 @@ describe("prepareSoldierKit", () => {
     expect(kit.materials.every((material) => material instanceof StandardMaterial)).toBe(true)
     expect([...kit.clips.keys()]).toEqual(["idle", "walk_forward"])
     expect(target.animationGroups).toHaveLength(0)
+  })
+
+  it("skins every vertex of the rifle to its own column of the bake", () => {
+    const target = scene()
+    const container = loadedContainer(target)
+    const { rifle } = prepareSoldierKit(target, container)
+
+    expect(rifle.parent).toBeNull()
+    expect(rifle.skeleton).toBe(container.skeletons[0])
+    const indices = rifle.getVerticesData(VertexBuffer.MatricesIndicesKind) ?? []
+    const weights = rifle.getVerticesData(VertexBuffer.MatricesWeightsKind) ?? []
+    expect(indices).toHaveLength(rifle.getTotalVertices() * 4)
+    // One bone, then Babylon's identity, then the rifle.
+    expect(new Set(Array.from(indices).filter((_, index) => index % 4 === 0))).toEqual(new Set([2]))
+    expect(new Set(Array.from(weights).filter((_, index) => index % 4 === 0))).toEqual(new Set([1]))
   })
 
   it("bakes the guns' place into their vertices", () => {
@@ -159,7 +327,7 @@ describe("prepareSoldierKit", () => {
     expect(gun.getBoundingInfo().boundingBox.center.z).toBeCloseTo(1)
   })
 
-  it("refuses a kit missing a mesh, its skeleton or an idle", () => {
+  it("refuses a kit missing a mesh, its skeleton or an idle, or built before the rifle came unrigged", () => {
     const target = scene()
     expect(() => prepareSoldierKit(target, loadedContainer(target, { skip: "Soldier_Mask" }))).toThrow(/Soldier_Mask/)
 
@@ -170,6 +338,8 @@ describe("prepareSoldierKit", () => {
     const restless = loadedContainer(target)
     restless.animationGroups.splice(0, 1)
     expect(() => prepareSoldierKit(target, restless)).toThrow(/idle/)
+
+    expect(() => prepareSoldierKit(target, loadedContainer(target, { riggedRifle: true }))).toThrow(/rebuild/)
   })
 })
 

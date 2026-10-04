@@ -40,10 +40,21 @@ afterEach(() => {
   }
 })
 
-/** Every clip ten frames long at ten a second, one after another. */
+/** How far the aiming clips turn a soldier to put his rifle ahead: the real ones, about 39 degrees. */
+const AIM_TURN = 0.7
+
+/** Every clip ten frames long at ten a second, one after another; the standing and kneeling aims turn their men. */
 const CLIP_FRAMES = 10
 const clips = new Map<ClipName, BakedClip>(
-  CLIPS.map((name, index) => [name, { start: index * CLIP_FRAMES, frames: CLIP_FRAMES, fps: 10 }])
+  CLIPS.map((name, index) => [
+    name,
+    {
+      start: index * CLIP_FRAMES,
+      frames: CLIP_FRAMES,
+      fps: 10,
+      turn: name === "idle_6" || name === "idle_3" ? AIM_TURN : 0
+    }
+  ])
 )
 
 /** Every death carries the hips half a metre further along +x each frame; nothing else drifts. */
@@ -331,6 +342,67 @@ describe("createSoldierCrowd", () => {
     expect(kit.bodies[Side.French].thinInstanceCount).toBe(1)
     crowd.dispose()
     expect(scene.onBeforeCameraRenderObservable.hasObservers()).toBe(false)
+  })
+
+  it("turns an aiming man into his stance, rifle on target, but keeps a machine gun square to the front", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const rifleman = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 20, z: 10, weapon: Weapon.MachineGun })
+    sim.soldiers.target.id[rifleman] = gunner
+    const { crowd, kit, tick, matrices } = harness(sim)
+    crowd.sync()
+    tick(2)
+    crowd.update()
+    const headingOf = (matrix: Matrix | undefined) => {
+      const forward = matrix ? Vector3.TransformNormal(Vector3.Forward(), matrix) : Vector3.Zero()
+      return Math.atan2(forward.x, forward.z)
+    }
+
+    // Both face north; their clips turn their bodies, and the rifle with them, clockwise.
+    const [aiming, kneeling] = matrices(kit.bodies[Side.French])
+    expect(headingOf(aiming)).toBeCloseTo(AIM_TURN)
+    expect(headingOf(kneeling)).toBeCloseTo(AIM_TURN)
+    expect(headingOf(matrices(kit.rifle)[0])).toBeCloseTo(AIM_TURN)
+    expect(headingOf(matrices(kit.guns[Side.French])[0])).toBeCloseTo(0)
+  })
+
+  it("runs on a run order through ground that holds him to a walking pace, but not on a flag an old order left", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const runner = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const walker = spawnSoldier(sim, { side: Side.French, x: 30, z: 10 })
+    const { moveOrder, position } = sim.soldiers
+    moveOrder.run[runner] = 1
+    moveOrder.run[walker] = 1
+    // The runner heads for his order's target; the walker heads away from an old one.
+    moveOrder.z[runner] = 40
+    moveOrder.x[runner] = 10
+    moveOrder.z[walker] = 0
+    moveOrder.x[walker] = 30
+    const { crowd, kit, tick, rows } = harness(sim)
+    crowd.sync()
+    for (let step = 0; step < 5; step++) {
+      position.z[runner] += 1.2 * STEP_SECONDS
+      position.z[walker] += 1.2 * STEP_SECONDS
+      sim.tick += 1
+      tick(STEP_SECONDS)
+      crowd.sync()
+    }
+    crowd.update()
+
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["run_forward", "walk_forward"])
+  })
+
+  it("reads each soldier's weapon afresh", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const { crowd, kit } = harness(sim)
+    crowd.sync()
+    sim.soldiers.weapon.kind[soldier] = Weapon.MachineGun
+    crowd.sync()
+    crowd.update()
+
+    expect(kit.rifle.thinInstanceCount).toBe(0)
+    expect(kit.guns[Side.French].thinInstanceCount).toBe(1)
   })
 
   it("makes room for a larger crowd", () => {

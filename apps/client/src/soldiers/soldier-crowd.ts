@@ -54,8 +54,10 @@ const ACTION_CLIPS: Readonly<Record<Action, ClipName>> = {
 }
 /** Faster than this between syncs is a jump, not a walk: snap there. */
 const SNAP_SPEED = 15
-/** How quickly the drawn heading turns toward the simulation's, per second. */
+/** How quickly the drawn heading turns toward the simulation's, per second, and into or out of an aiming stance. */
 const TURN_RATE = 8
+/** How closely a move must head for the move order's target, as a cosine, to be that order being carried out. */
+const ON_ORDERS = 0.98
 /** A loss of health this large is a wound worth flinching at; gas wears health down more slowly. */
 const WOUND = 0.02
 /** How much of each new speed measurement goes into the smoothed speed. */
@@ -86,10 +88,14 @@ interface Track {
   x: number
   y: number
   z: number
+  /** Where the soldier faces, drawn turning toward the simulation's facing, `targetYaw`. */
   yaw: number
   targetYaw: number
+  /** How far the body is turned from that facing, toward the current clip's `BakedClip.turn`. */
+  turn: number
   speed: number
   heading: number
+  ordersToRun: boolean
   /** Turns a lying body from level onto the slope beneath it, or null when standing. */
   tilt: Matrix | null
   cooldown: number
@@ -249,8 +255,10 @@ export function createSoldierCrowd(
       z,
       yaw,
       targetYaw: yaw,
+      turn: 0,
       speed: 0,
       heading: 0,
+      ordersToRun: false,
       tilt: null,
       cooldown: soldiers.weapon.cooldown[id],
       grenades: soldiers.grenades.count[id],
@@ -310,6 +318,13 @@ export function createSoldierCrowd(
         const fx = soldiers.facing.x[id]
         const fz = soldiers.facing.z[id]
         track.heading = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz)
+        // The run flag outlives its order, so only a man heading straight for the order's target is running on it.
+        const aimX = soldiers.moveOrder.x[id] - track.toX
+        const aimZ = soldiers.moveOrder.z[id] - track.toZ
+        const along = (dx * aimX + dz * aimZ) / Math.sqrt((dx * dx + dz * dz) * (aimX * aimX + aimZ * aimZ) || 1)
+        track.ordersToRun = soldiers.moveOrder.run[id] === 1 && along > ON_ORDERS
+      } else {
+        track.ordersToRun = false
       }
       track.fromX = jumped ? x : track.x
       track.fromY = jumped ? heightAt(map, x, z) : track.y
@@ -322,6 +337,9 @@ export function createSoldierCrowd(
     track.toY = heightAt(map, x, z)
 
     const stance = soldiers.stance.value[id]
+    // A soldier's side and weapon are his for life, but cost nothing to read again.
+    track.side = soldiers.side.value[id] === Side.German ? Side.German : Side.French
+    track.weapon = soldiers.weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
     if (status === "fighting") {
       track.targetYaw = Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
       track.stance = stance === Stance.Prone ? Stance.Prone : Stance.Standing
@@ -358,6 +376,7 @@ export function createSoldierCrowd(
       weapon: track.weapon,
       speed: status === "fallen" ? 0 : track.speed,
       heading: track.heading,
+      ordersToRun: track.ordersToRun,
       aiming: soldiers.target.id[id] >= 0,
       pinned: soldiers.suppression.value[id] >= PINNED,
       broken: soldiers.morale.value[id] < BROKEN_MORALE,
@@ -402,18 +421,18 @@ export function createSoldierCrowd(
   const yawMatrix = new Matrix()
   const placed = new Matrix()
 
-  /** Writes a soldier's transform, standing at (x, y, z), into a layer. */
-  function writeMatrix(layer: Layer, index: number, track: Track, x: number, y: number, z: number): void {
+  /** Writes a soldier's transform, standing at (x, y, z) and turned `yaw`, into a layer. */
+  function writeMatrix(layer: Layer, index: number, track: Track, x: number, y: number, z: number, yaw: number): void {
     const offset = index * 16
     if (track.tilt) {
-      Matrix.RotationYToRef(track.yaw, yawMatrix)
+      Matrix.RotationYToRef(yaw, yawMatrix)
       yawMatrix.multiplyToRef(track.tilt, placed)
       placed.setTranslationFromFloats(x, y, z)
       placed.copyToArray(layer.matrices, offset)
       return
     }
-    const cos = Math.cos(track.yaw)
-    const sin = Math.sin(track.yaw)
+    const cos = Math.cos(yaw)
+    const sin = Math.sin(yaw)
     const m = layer.matrices
     m[offset] = cos
     m[offset + 1] = 0
@@ -433,12 +452,15 @@ export function createSoldierCrowd(
     m[offset + 15] = 1
   }
 
-  /** Where the soldier being added is drawn: his place, less any drift his clip has carried him. */
-  const at = { x: 0, z: 0 }
+  /**
+   * Where the soldier being added is drawn: his place, less any drift his clip has carried him, and his body's heading,
+   * turned into his clip's stance.
+   */
+  const at = { x: 0, z: 0, yaw: 0 }
 
-  function add(layer: Layer, track: Track, row: number, lift = 0): void {
+  function add(layer: Layer, track: Track, row: number): void {
     const index = claim(layer)
-    writeMatrix(layer, index, track, at.x, track.y + lift, at.z)
+    writeMatrix(layer, index, track, at.x, track.y, at.z, at.yaw)
     if (layer.animated) {
       const offset = index * 4
       layer.settings[offset] = row
@@ -473,21 +495,24 @@ export function createSoldierCrowd(
     const turning = Math.min(1, frameSeconds * TURN_RATE)
     for (const track of drawn) {
       place(track, now)
+      const clip = clipOf(track.pose.clip)
       if (track.status !== "fallen") {
         track.yaw += turn(track.yaw, track.targetYaw) * turning
       }
+      track.turn += (clip.turn - track.turn) * turning
       if (!inView(track)) {
         continue
       }
-      const row = poseFrame(clipOf(track.pose.clip), track.pose, now - track.poseStart, track.phase)
+      const row = poseFrame(clip, track.pose, now - track.poseStart, track.phase)
       at.x = track.x
       at.z = track.z
+      at.yaw = track.yaw + track.turn
       if (track.status === "fallen") {
         // Keep the hips over the spot where he fell: a body falling back a metre lands in the trench, not its wall.
         const driftX = kit.drift[row * 2] ?? 0
         const driftZ = kit.drift[row * 2 + 1] ?? 0
-        const cos = Math.cos(track.yaw)
-        const sin = Math.sin(track.yaw)
+        const cos = Math.cos(at.yaw)
+        const sin = Math.sin(at.yaw)
         at.x -= driftX * cos + driftZ * sin
         at.z -= driftZ * cos - driftX * sin
       }
@@ -499,7 +524,9 @@ export function createSoldierCrowd(
         add(layers.mask, track, row)
       }
       if (track.status === "fighting" && track.weapon === Weapon.MachineGun && track.speed < MOVING_SPEED) {
-        add(layers.guns[track.side], track, row, track.gunLift)
+        // The gun stands square to where he faces, on the ground ahead, however he kneels to it.
+        const gun = claim(layers.guns[track.side])
+        writeMatrix(layers.guns[track.side], gun, track, track.x, track.y + track.gunLift, track.z, track.yaw)
       }
     }
     for (const layer of allLayers) {

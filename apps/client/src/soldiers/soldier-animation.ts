@@ -1,15 +1,5 @@
 import { Stance, Weapon } from "@verdun/sim"
 
-/**
- * The clips the crowd plays, by their names in the soldier kit (scripts/retarget-animations.py names them). The
- * polyperfect set has no rifle clips of its own, no crawl, no throw and no hands up, so some stand in:
- *
- * - `idle_6` is a standing aim and `idle_5` a hunched one: aiming, and pinned down.
- * - `idle_3` kneels low over a rifle, which puts a machine gunner's hands near his gun's grips.
- * - `idle_1` and `idle_2` are lying aims: prone, still and crawling alike.
- * - `brengun_fire` is the rifle's recoil, `stengun_reload` a grenade being primed and thrown.
- * - The first frame of `death_crouch_back`, crouched with an arm over the head, is a broken man cowering.
- */
 /** Walks and runs clockwise from straight ahead, eighth turns apart, as `headingClip` picks them. */
 export const WALKS = [
   "walk_forward",
@@ -32,6 +22,16 @@ const RUNS = [
   "run_forward_left"
 ] as const
 
+/**
+ * The clips the crowd plays, by their names in the soldier kit (scripts/retarget-animations.py names them). The
+ * polyperfect set has no rifle clips of its own, no crawl, no throw and no hands up, so some stand in:
+ *
+ * - `idle_6` is a standing aim and `idle_5` a hunched one: aiming, and pinned down.
+ * - `idle_3` kneels low over a rifle, which puts a machine gunner's hands near his gun's grips.
+ * - `idle_1` and `idle_2` are lying aims: prone, still and crawling alike.
+ * - `brengun_fire` is the rifle's recoil, `stengun_reload` a grenade being primed and thrown.
+ * - The first frame of `death_crouch_back`, crouched with an arm over the head, is a broken man cowering.
+ */
 export const CLIPS = [
   "idle",
   "idle_1",
@@ -53,6 +53,12 @@ export const CLIPS = [
 
 export type ClipName = (typeof CLIPS)[number]
 
+/**
+ * The clips that aim along the rifle. Their soldiers stand bladed, shoulders turned, so the rifle points well left of
+ * where their feet face; the crowd turns them by each clip's `BakedClip.turn` to put the rifle on the target.
+ */
+export const AIMING: ReadonlySet<ClipName> = new Set(["idle_1", "idle_2", "idle_3", "idle_5", "idle_6", "brengun_fire"])
+
 const DEATHS_STANDING = [
   "death_standing_back",
   "death_standing_left",
@@ -62,7 +68,10 @@ const DEATHS_STANDING = [
 
 /** Below this ground speed, in metres per second, a soldier is standing still. A crawl is 0.35. */
 export const MOVING_SPEED = 0.15
-/** Above this a soldier is running: a walk is at most 1.4 and a run twice that. */
+/**
+ * Above this a soldier is running: a walk is at most 1.4 and a run twice that, though a run through mud or wire can be
+ * no faster than a walk, so `SoldierState.ordersToRun` counts too.
+ */
 export const RUNNING_SPEED = 2.1
 /** The ground speeds the walk and run clips were made for: playback scales from these, within `RATE_LIMITS`. */
 const WALK_CLIP_SPEED = 1.4
@@ -80,6 +89,8 @@ export interface SoldierState {
   readonly speed: number
   /** Which way the soldier moves, relative to where they face: radians clockwise from ahead. */
   readonly heading: number
+  /** Moving on an order to run, whatever the ground lets them make of it. */
+  readonly ordersToRun: boolean
   /** Has an enemy in their sights. */
   readonly aiming: boolean
   readonly pinned: boolean
@@ -115,7 +126,7 @@ function moving(state: SoldierState): Pose {
   if (state.broken) {
     return loop("run_forward", rateFor(state.speed, RUN_CLIP_SPEED))
   }
-  if (state.speed > RUNNING_SPEED) {
+  if (state.speed > RUNNING_SPEED || state.ordersToRun) {
     return loop(headingClip(RUNS, state.heading), rateFor(state.speed, RUN_CLIP_SPEED))
   }
   return loop(headingClip(WALKS, state.heading), rateFor(state.speed, WALK_CLIP_SPEED))
@@ -172,6 +183,11 @@ export interface BakedClip {
   readonly start: number
   readonly frames: number
   readonly fps: number
+  /**
+   * How far to turn a soldier playing this clip, in radians clockwise seen from above, so his rifle points where he
+   * faces: nonzero for `AIMING` clips only.
+   */
+  readonly turn: number
 }
 
 /**

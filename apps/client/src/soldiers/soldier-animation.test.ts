@@ -16,6 +16,7 @@ const standing: SoldierState = {
   weapon: Weapon.Rifle,
   speed: 0,
   heading: 0,
+  ordersToRun: false,
   aiming: false,
   pinned: false,
   broken: false,
@@ -50,6 +51,8 @@ describe("choosePose", () => {
     expect(walk.rate).toBeCloseTo(1)
     expect(pose({ speed: 0.7 }).rate).toBeCloseTo(0.6)
     expect(pose({ speed: 2.8, heading: Math.PI }).clip).toBe("run_back")
+    // Running through mud on orders is no faster than a walk, but it's still a run.
+    expect(pose({ speed: 1.2, ordersToRun: true })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.6 })
     // Moving outweighs firing on the move.
     expect(pose({ speed: 1.4, action: "fire" }).clip).toBe("walk_forward")
   })
@@ -96,7 +99,7 @@ describe("deathClip", () => {
 })
 
 describe("poseFrame", () => {
-  const clip = { start: 100, frames: 24, fps: 24 }
+  const clip = { start: 100, frames: 24, fps: 24, turn: 0 }
 
   it("loops from a phase, at the pose's rate", () => {
     const walk = { clip: "walk_forward", mode: "loop", rate: 1 } as const
