@@ -1,5 +1,6 @@
 import { createFlatMap, layOutFront, Surface } from "@verdun/map"
 import {
+  allotReinforcements,
   createSimulation,
   createSquad,
   MaskState,
@@ -33,7 +34,7 @@ describe("hudModel", () => {
     sim.pendingCommands.push({ type: "kill", soldier: members[2] ?? -1 })
     stepSimulation(sim)
     surrender(sim, german)
-    const model = hudModel(sim, squad)
+    const model = hudModel(sim, squad, TICK_RATE)
 
     expect(model.soldier).toEqual({
       alive: true,
@@ -55,14 +56,14 @@ describe("hudModel", () => {
     const { sim, squad, members } = battle()
     sim.soldiers.stance.value[members[0] ?? -1] = Stance.Sheltering
     sim.soldiers.mask.state[members[0] ?? -1] = MaskState.Donning
-    expect(hudModel(sim, squad).soldier.stance).toBe("In a dugout")
-    expect(hudModel(sim, squad).soldier.mask).toBe("Pulling on gas mask")
+    expect(hudModel(sim, squad, TICK_RATE).soldier.stance).toBe("In a dugout")
+    expect(hudModel(sim, squad, TICK_RATE).soldier.mask).toBe("Pulling on gas mask")
 
     for (const member of members) {
       sim.pendingCommands.push({ type: "kill", soldier: member })
     }
     stepSimulation(sim)
-    expect(hudModel(sim, squad).soldier).toEqual({
+    expect(hudModel(sim, squad, TICK_RATE).soldier).toEqual({
       alive: false,
       stance: "Fallen",
       mask: null,
@@ -70,6 +71,28 @@ describe("hudModel", () => {
       pinned: false,
       wounded: false
     })
+  })
+
+  it("counts down to the replacements once the squad is wiped out, and shows the reserves left", () => {
+    const { sim, squad, members } = battle()
+    expect(hudModel(sim, squad, TICK_RATE).reserves).toBeNull()
+
+    allotReinforcements(sim, Side.French, 40)
+    expect(hudModel(sim, squad, TICK_RATE).reserves).toBe("Reserves: 40 men")
+    for (const member of members) {
+      sim.pendingCommands.push({ type: "kill", soldier: member })
+    }
+    stepSimulation(sim)
+    expect(hudModel(sim, squad, TICK_RATE).squad).toBe("Squad wiped out: replacements in 30 s")
+
+    const log = createBattleLog(sim, squad, TICK_RATE)
+    for (let step = 0; step < 30 * TICK_RATE; step++) {
+      stepSimulation(sim)
+      log.record(sim.events)
+    }
+    expect(hudModel(sim, squad, TICK_RATE).squad).toBe("Squad 8 of 8")
+    expect(hudModel(sim, squad, TICK_RATE).reserves).toBe("Reserves: 32 men")
+    expect(log.messages.map((message) => message.text)).toContain("Replacements up in the rear trench: 8 men")
   })
 })
 

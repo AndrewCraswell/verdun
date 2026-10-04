@@ -1,5 +1,6 @@
 import { mapWidth, pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
 import {
+  allotReinforcements,
   createSquad,
   enqueueCommand,
   type EntityId,
@@ -85,9 +86,15 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number, p
 /**
  * Both sides man their front-line fire trench on the fire step, facing each other, in squads of eight holding their
  * ground and firing at whatever they can see, with reserves in the support line behind where the map has one. The
- * player commands the squad in the middle of the French line.
+ * player commands the squad in the middle of the French line. Each side holds `reinforcementsPerSide` men back behind
+ * the sector to replace squads that are wiped out.
  */
-export function setupSkirmish(sim: Simulation, soldiersPerSide = 200, reservesPerSide = 64): Skirmish {
+export function setupSkirmish(
+  sim: Simulation,
+  soldiersPerSide = 200,
+  reservesPerSide = 64,
+  reinforcementsPerSide = 160
+): Skirmish {
   const squadsPerSide = Math.ceil(soldiersPerSide / SQUAD_SIZE)
   const frenchSquads = manTrench(
     sim,
@@ -106,6 +113,8 @@ export function setupSkirmish(sim: Simulation, soldiersPerSide = 200, reservesPe
   for (const squad of reserves) {
     squad.order = { kind: "reserve" }
   }
+  allotReinforcements(sim, Side.French, reinforcementsPerSide)
+  allotReinforcements(sim, Side.German, reinforcementsPerSide)
   const playerSquad = frenchSquads.find((squad) => squad.controller === "player")
   if (!playerSquad) {
     throw new Error("The French line has no squads to command")

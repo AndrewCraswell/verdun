@@ -44,7 +44,7 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
   let sinceRedraw = Infinity
 
   function redraw(): void {
-    const model = hudModel(sim, squad)
+    const model = hudModel(sim, squad, tickRate)
     const { soldier } = model
     soldierPanel.replaceChildren(
       line(model.squad, "hud-title"),
@@ -52,7 +52,8 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
       ...(soldier.mask ? [line(soldier.mask, "hud-alarm")] : []),
       ...(soldier.pinned ? [line("Pinned down", "hud-alarm")] : []),
       ...(soldier.wounded ? [line("Wounded", "hud-alarm")] : []),
-      ...(soldier.grenades ? [line(soldier.grenades, "hud-muted")] : [])
+      ...(soldier.grenades ? [line(soldier.grenades, "hud-muted")] : []),
+      ...(model.reserves ? [line(model.reserves, "hud-muted")] : [])
     )
     sectorPanel.replaceChildren(
       line("Sector", "hud-title"),

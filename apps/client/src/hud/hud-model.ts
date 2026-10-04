@@ -1,4 +1,5 @@
 import {
+  arrivalOf,
   capturedIds,
   type EntityId,
   fallenIds,
@@ -42,8 +43,10 @@ export interface LogMessage {
 /** Everything the HUD shows, worked out from the simulation and nothing else. */
 export interface HudModel {
   readonly soldier: SoldierStatus
-  /** The player's squad: men still fighting, of how many. */
+  /** The player's squad: men still fighting, of how many, or when replacements arrive once it's wiped out. */
   readonly squad: string
+  /** Men the side still holds back to replace wiped-out squads, or nothing if it has no reserves to draw on. */
+  readonly reserves: string | null
   /** Each side's losses: killed and taken prisoner. */
   readonly losses: readonly { readonly side: string; readonly killed: number; readonly captured: number }[]
   /** The sector's objectives and who holds each. */
@@ -64,8 +67,19 @@ function maskName(state: number): string | null {
   return state === MaskState.On ? "Gas mask on" : null
 }
 
+/** The squad line: its strength, or once it's wiped out, how long until replacements reach the rear trench. */
+function squadLine(sim: Simulation, squad: Squad, fighting: number, tickRate: number): string {
+  if (fighting > 0) {
+    return `Squad ${fighting} of ${squad.members.length}`
+  }
+  const arrival = arrivalOf(sim, squad)
+  return arrival < 0
+    ? "Squad wiped out"
+    : `Squad wiped out: replacements in ${Math.max(1, Math.ceil((arrival - sim.tick) / tickRate))} s`
+}
+
 /** The HUD's view of the battle at this moment. */
-export function hudModel(sim: Simulation, squad: Squad): HudModel {
+export function hudModel(sim: Simulation, squad: Squad, tickRate: number): HudModel {
   const soldier: EntityId = squad.leader
   const alive = soldier >= 0 && isAlive(sim, soldier)
   const fighting = squad.members.filter((member) => isAlive(sim, member)).length
@@ -82,7 +96,11 @@ export function hudModel(sim: Simulation, squad: Squad): HudModel {
       pinned: alive && sim.soldiers.suppression.value[soldier] >= PINNED,
       wounded: alive && sim.soldiers.health.value[soldier] < 1
     },
-    squad: `Squad ${fighting} of ${squad.members.length}`,
+    squad: squadLine(sim, squad, fighting, tickRate),
+    reserves:
+      sim.reinforcements.full[squad.side] > 0
+        ? `Reserves: ${Math.floor(sim.reinforcements.pool[squad.side])} men`
+        : null,
     losses: [Side.French, Side.German].map((side) => ({
       side: SIDE_NAMES[side],
       killed: count(fallen, side),
@@ -132,6 +150,8 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number)
               : "Counter-attack ordered",
             event.side === enemy
           )
+        } else if (event.type === "reinforcement" && event.squad === squad.id) {
+          say(`Replacements up in the rear trench: ${event.men} men`, false)
         } else if (event.type === "capture") {
           if (sim.soldiers.side.value[event.soldier] === enemy) {
             prisoners++
