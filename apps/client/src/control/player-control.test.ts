@@ -216,6 +216,7 @@ describe("createPlayerControl", () => {
       { kind: "whistle" },
       { kind: "bombard" },
       { kind: "call-fire", x: 1, z: 2 },
+      { kind: "call-gas", x: 3, z: 4 },
       { kind: "toggle-fog" },
       { kind: "toggle-prone" },
       { kind: "grenade", x: 50, z: 70 }
@@ -229,7 +230,8 @@ describe("createPlayerControl", () => {
         commands: {
           whistle: () => whistles.push(sim.tick),
           bombard: () => whistles.push(-1),
-          callFire: () => whistles.push(-2)
+          callFire: () => whistles.push(-2),
+          callGas: () => whistles.push(-4)
         },
         toggleFog: () => whistles.push(-3)
       }
@@ -239,7 +241,7 @@ describe("createPlayerControl", () => {
     expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
     expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier: leader, prone: true })
     expect(sim.pendingCommands).toContainEqual({ type: "throw-grenade", soldier: leader, x: 50, z: 70 })
-    expect(whistles).toEqual([0, -1, -2, -3])
+    expect(whistles).toEqual([0, -1, -2, -4, -3])
     stepSimulation(sim)
     expect(shotEvents(sim.events).filter((event) => event.shooter === leader)).toHaveLength(1)
   })

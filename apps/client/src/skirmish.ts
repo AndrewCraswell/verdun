@@ -237,3 +237,25 @@ export function callForFire(sim: Simulation, side: Side, x: number, z: number): 
     }
   })
 }
+
+/**
+ * A gas shoot on a point: field guns fire gas shells (French No. 5 phosgene, German Green Cross) into a 100 m by 40 m
+ * area for a minute after the usual 30 seconds to pass the order and lay the guns. Gas shells were fired in quantity
+ * to build a cloud thick enough to catch men before their masks were on, and to keep them masked for long after.
+ */
+export function callGasOn(sim: Simulation, side: Side, x: number, z: number): void {
+  enqueueCommand(sim, {
+    type: "fire-mission",
+    plan: {
+      side,
+      shell: Shell.FieldGas,
+      fromX: x - 50,
+      toX: x + 50,
+      z,
+      band: 40,
+      roundsPerMinute: 60,
+      delay: 30,
+      duration: 60
+    }
+  })
+}

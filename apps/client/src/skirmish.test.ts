@@ -1,7 +1,14 @@
 import { createFlatMap, layOutFront, mapDepth } from "@verdun/map"
 import { createSimulation, Shell, Side, soldierIds, stepSimulation, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { attackBehindBarrage, bombardEnemyLine, CREEPING_BARRAGE, callForFire, setupSkirmish } from "./skirmish.ts"
+import {
+  attackBehindBarrage,
+  bombardEnemyLine,
+  CREEPING_BARRAGE,
+  callForFire,
+  callGasOn,
+  setupSkirmish
+} from "./skirmish.ts"
 
 const flat = createFlatMap({ name: "test", cellSize: 1, columns: 300, rows: 200 })
 const map = { ...flat, trenches: layOutFront(flat) }
@@ -118,6 +125,17 @@ describe("setupSkirmish", () => {
     expect(mission?.toX).toBe(150)
     expect(mission?.z).toBe(140)
     expect(mission?.delay).toBe(30)
+  })
+
+  it("calls a gas shoot on a point, after the same delay as any call for fire", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    setupSkirmish(sim, 16)
+    callGasOn(sim, Side.French, 120, 140)
+    stepSimulation(sim)
+    const [mission] = sim.artillery.missions
+
+    expect(mission?.shell).toBe(Shell.FieldGas)
+    expect([mission?.fromX, mission?.toX, mission?.z, mission?.delay]).toEqual([70, 170, 140, 30])
   })
 
   it("does nothing without front lines to work from", () => {

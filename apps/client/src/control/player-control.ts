@@ -35,6 +35,8 @@ export type PlayerAction =
   | { readonly kind: "bombard" }
   /** Call for artillery on a ground point. */
   | { readonly kind: "call-fire"; readonly x: number; readonly z: number }
+  /** Call a gas shoot onto a ground point. */
+  | { readonly kind: "call-gas"; readonly x: number; readonly z: number }
   /** Turn fog of war on or off. */
   | { readonly kind: "toggle-fog" }
   /** Lie down (and crawl), or get back up. */
@@ -96,6 +98,8 @@ export interface PlayerControlOptions {
     readonly whistle: () => void
     readonly bombard: () => void
     readonly callFire: (x: number, z: number) => void
+    /** A gas shoot on a point; absent where the scenario allows no gas. */
+    readonly callGas?: (x: number, z: number) => void
   }
   /** Turns fog of war on or off. */
   readonly toggleFog?: () => void
@@ -164,6 +168,9 @@ export function createPlayerControl(
         return
       case "bombard":
         commands?.bombard()
+        return
+      case "call-gas":
+        commands?.callGas?.(action.x, action.z)
         return
       case "call-fire":
         commands?.callFire(action.x, action.z)

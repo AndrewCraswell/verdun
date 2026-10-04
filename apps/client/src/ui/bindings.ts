@@ -44,6 +44,7 @@ export const CONTROLS: readonly BindingGroup[] = [
     bindings: [
       { keys: "B", action: "Bombard the enemy line and cut its wire, for two minutes" },
       { keys: "V", action: "Call artillery onto the point under the pointer" },
+      { keys: "C", action: "Call a gas shoot onto the point under the pointer" },
       { keys: "G", action: "Whistle: every squad attacks behind a creeping barrage" }
     ]
   },
@@ -60,7 +61,8 @@ export const CONTROLS: readonly BindingGroup[] = [
   {
     title: "Screen",
     bindings: [
-      { keys: "Esc", action: "Menu and controls" },
+      { keys: "Esc", action: "Menu and controls; the battle pauses while it's open" },
+      { keys: "P", action: "Pause or carry on" },
       { keys: "O", action: "Fog of war on or off" },
       { keys: "F3", action: "Debug statistics" }
     ]

@@ -3,6 +3,11 @@ import "./menu.css"
 
 export interface Menu {
   readonly open: boolean
+  /**
+   * Whether the battle should stand still: while the menu is open, or after P. Single-player only; online, the battle
+   * carries on regardless.
+   */
+  readonly paused: boolean
   show(open: boolean): void
   dispose(): void
 }
@@ -42,14 +47,16 @@ function controlsList(groups: readonly BindingGroup[]): HTMLElement {
 
 /**
  * The menu, opened and closed with Esc: the game's controls, every key and what it does, and a way back to the battle.
- * The battle carries on behind it, as it will online. While it's open it takes the keyboard, so keys meant for the
- * menu don't reach the game.
+ * The battle pauses while it's open, and P pauses it without the menu. While it's open it takes the keyboard, so keys
+ * meant for the menu don't reach the game.
  */
 export function createMenu(
   parent: HTMLElement,
   { development = false }: { readonly development?: boolean } = {}
 ): Menu {
   const hint = element("div", "menu-hint", "Esc for menu and controls")
+  const pausedBanner = element("div", "menu-paused", "Paused. P to carry on")
+  pausedBanner.hidden = true
   const backdrop = element("div", "menu-backdrop")
   backdrop.hidden = true
   const panel = element("div", "menu-panel")
@@ -64,13 +71,20 @@ export function createMenu(
   const body = element("div", "menu-body")
   panel.append(header, body)
   backdrop.append(panel)
-  parent.append(hint, backdrop)
+  parent.append(hint, pausedBanner, backdrop)
   let open = false
+  let held = false
+
+  function holdBattle(next: boolean): void {
+    held = next
+    pausedBanner.hidden = !held || open
+  }
 
   function show(next: boolean): void {
     open = next
     backdrop.hidden = !next
     hint.hidden = next
+    pausedBanner.hidden = !held || open
     if (next) {
       // Rebuilt on every open, so bindings other modules registered since show up.
       body.replaceChildren(controlsList(allBindings(development)))
@@ -85,6 +99,11 @@ export function createMenu(
       event.preventDefault()
       event.stopImmediatePropagation()
       show(!open)
+      return
+    }
+    if (event.code === "KeyP" && !event.repeat && !open) {
+      event.preventDefault()
+      holdBattle(!held)
       return
     }
     // Tab and Enter still move focus and press buttons in the menu: that's the browser's default, which this leaves be.
@@ -106,12 +125,16 @@ export function createMenu(
     get open() {
       return open
     },
+    get paused() {
+      return open || held
+    },
     show,
     dispose() {
       window.removeEventListener("keydown", onKey, { capture: true })
       backdrop.removeEventListener("click", onBackdrop)
       resume.removeEventListener("click", onResume)
       hint.remove()
+      pausedBanner.remove()
       backdrop.remove()
     }
   }

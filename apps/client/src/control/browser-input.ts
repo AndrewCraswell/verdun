@@ -4,8 +4,8 @@ import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.t
 
 /** Keys held to steer the soldier under control, by `KeyboardEvent.code`. */
 export const MOVEMENT_KEYS: ReadonlySet<string> = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
-/** Keys that act on the ground under the pointer: a grenade, a call for fire. */
-export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV"])
+/** Keys that act on the ground under the pointer: a grenade, a call for fire, a gas shoot. */
+export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV", "KeyC"])
 
 /** One-off keys, by `KeyboardEvent.code`. Digits 1-8 pick a squad slot. */
 export function actionForKey(code: string): PlayerAction | null {
@@ -62,6 +62,14 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
       const point = pointerGround()
       if (point) {
         actions.push({ kind: "grenade", x: point.x, z: point.z })
+      }
+      return
+    }
+    if (event.code === "KeyC" && !event.repeat) {
+      // Call a gas shoot onto whatever is under the pointer.
+      const point = pointerGround()
+      if (point) {
+        actions.push({ kind: "call-gas", x: point.x, z: point.z })
       }
       return
     }
