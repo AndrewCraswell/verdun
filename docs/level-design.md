@@ -272,6 +272,13 @@ The colour grade runs in the pipeline's image processing pass.
   over the scene (smoke, dust, earth, mist and flame) is set in it: left out, a burst's column of earth stood black
   against fog that hid the ground beneath it. Flashes and sparks add their light and stay out of the fog, shining
   through it as they would.
+- **Soft edges** ([soft-particles.ts](../apps/client/src/level/soft-particles.ts)): a particle is a flat card facing the
+  camera, so mist and smoke lying on the ground cut a hard line where their cards went into the earth. Each now fades
+  out over the last eighth of its size before the ground behind it, read from the depth map the depth of field already
+  draws. Babylon has no soft particles, so the fade is added to its own particle shaders behind a define, in GLSL and
+  WGSL, and only the puffs that lie on the ground pay for it: not the earth, sparks and shrapnel flung through the air.
+  A longer fade thins the mist, which lies close to the ground by design: a quarter of each puff cost up to a third of
+  its brightness at the usual view, an eighth about a tenth.
 
 Screen-space ambient occlusion was tried in planning and left out: the shadows already take the frame budget it would
 need, and the darkened spoil and wet hollows give much of the same grounding.

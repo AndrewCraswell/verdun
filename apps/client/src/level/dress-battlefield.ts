@@ -25,6 +25,7 @@ import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
 import { createScorchMap, type ScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
+import { softenParticles } from "./soft-particles.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
 import {
   brazierTops,
@@ -286,6 +287,12 @@ interface LevelOptions {
  */
 const SCORCH_WASH = { heavy: 4, halfLife: 600, step: 0.02 } as const
 
+/**
+ * Particles flung through the air (earth, clods, sparks, shrapnel's ball of smoke) are never long against the ground,
+ * so soft edges would cost their every fragment for nothing.
+ */
+const AIRBORNE = /earth|clods|sparks|shrapnel$/
+
 const WESTERLY = { x: 2, z: 0 } as const
 
 /** The parts of the battlefield view the level dresses. */
@@ -376,6 +383,14 @@ export async function dressLevel(
   ].filter((system) => system !== undefined)
   setInFog(unlit)
   const particleLight = lightParticles(unlit.filter(litByAir))
+  // Puffs lying on the ground fade out where they meet it rather than cut a line through it, against the depth map the
+  // depth of field draws (see soft-particles.ts).
+  if (dressing.postProcess) {
+    softenParticles(
+      unlit.filter((system) => !AIRBORNE.test(system.name)),
+      { depthMap: view.scene.enableDepthRenderer(view.camera).getDepthMap(), camera: view.camera }
+    )
+  }
   const light = new Color3()
   // Detail, far copy or nothing for each batch, by the drawing camera's distance, before the scene culls them.
   view.scene.onBeforeActiveMeshesEvaluationObservable.add(() => {
