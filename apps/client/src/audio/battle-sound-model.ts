@@ -45,7 +45,11 @@ export const SOUND_CUES = [
   "death",
   "gas-gong",
   "mask-breath",
-  "ear-ring"
+  "ear-ring",
+  "thunder",
+  "rain",
+  "wind",
+  "front-roar"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 
@@ -143,7 +147,12 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   death: { volume: 0.6, reference: 15 },
   "gas-gong": { volume: 0.5, reference: 30 },
   "mask-breath": { volume: 0.3, reference: 1 },
-  "ear-ring": { volume: 0.35, reference: 1 }
+  "ear-ring": { volume: 0.35, reference: 1 },
+  thunder: { volume: 1, reference: 1200 },
+  // Beds play everywhere at a level atmosphere-model.ts sets; they are never placed.
+  rain: { volume: 1, reference: 1 },
+  wind: { volume: 1, reference: 1 },
+  "front-roar": { volume: 1, reference: 1 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */

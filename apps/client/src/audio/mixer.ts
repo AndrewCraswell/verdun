@@ -37,8 +37,15 @@ export interface Voice {
   readonly reverb: number
   /** Detune in cents. */
   readonly detune: number
-  readonly bus: "battle" | "ears"
+  readonly bus: "battle" | "ears" | "ambience"
   readonly loop?: boolean
+}
+
+/** A looping bed whose level can be set while it plays. */
+export interface Bed {
+  /** Eases the bed toward `level` (0 to 1) over about a second. */
+  setLevel(level: number): void
+  stop(): void
 }
 
 export interface Mixer {
@@ -47,6 +54,8 @@ export interface Mixer {
   readonly ambience: AudioNode
   /** Plays a voice, or drops it when MAX_VOICES are sounding and it is quieter than all of them. */
   play(voice: Voice): AudioBufferSourceNode | null
+  /** Starts a looping bed on the ambience bus, silent until its level is set. */
+  bed(buffer: AudioBuffer): Bed
   /** Fades the reverbs toward the listener's surroundings. */
   setSpace(space: Space): void
   /** A near miss: muffles the battle and the ambience by `depth` (0 to 1), and lets them back after the ringing. */
@@ -64,6 +73,8 @@ const SHOCK_RECOVERY = 3
 const AMBIENCE_DUCK = 0.6
 /** Seconds the reverbs take to follow the listener into or out of a space. */
 const SPACE_FADE = 0.4
+/** Seconds a bed takes to reach a new level. */
+const BED_FADE = 1
 
 interface Reverb {
   readonly seconds: number
@@ -221,6 +232,8 @@ function createMixer(context: AudioContext): Mixer {
       source.connect(filter).connect(pan).connect(gain)
       if (voice.bus === "ears") {
         gain.connect(ears)
+      } else if (voice.bus === "ambience") {
+        gain.connect(ambience)
       } else {
         gain.connect(battle)
         if (voice.reverb > 0) {
@@ -236,6 +249,25 @@ function createMixer(context: AudioContext): Mixer {
       }
       source.start(context.currentTime + Math.max(0, voice.delay))
       return source
+    },
+    bed(buffer) {
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.loop = true
+      const gain = context.createGain()
+      gain.gain.value = 0
+      source.connect(gain).connect(ambience)
+      // Start somewhere in the loop, so beds made together don't repeat in step.
+      source.start(context.currentTime, Math.random() * buffer.duration)
+      return {
+        setLevel(level) {
+          gain.gain.setTargetAtTime(level, context.currentTime, BED_FADE / 3)
+        },
+        stop() {
+          source.stop()
+          source.disconnect()
+        }
+      }
     },
     setSpace(space) {
       const now = context.currentTime

@@ -50,7 +50,8 @@ def boom_rifle(rifle, metres):
 # cut may run, how many variations to keep, and how far below the loudest take (dB) a take may be and still be used.
 # `isolated` keeps only takes that die away (to `tail` dB) within the longest length, so a lone crack isn't a burst.
 # `lead` cuts the run-up to a take's loudest moment instead, ending there: an incoming rush that the game starts so it
-# ends as the shell lands.
+# ends as the shell lands. `bed` cuts a continuous recording into a loop instead, as (start, length, crossfade) in
+# seconds: the sound just past the loop's end fades out over its start, so it repeats without a seam.
 # Rifles stand in for the period ones: the Mosin-Nagant 1891 for the Lebel (both long, full-power 1890s rifles) and the
 # M1917 Enfield's Mauser-pattern action for the Gewehr 98. The Browning M1919 stands in for the Hotchkiss and MG 08,
 # whose rate of fire it shares; the MG 42 fires far too fast.
@@ -234,6 +235,26 @@ CUES = {
         length=2.5,
         take=4,
     ),
+    # Weather and the front, looped and set by the game: rain on leaves, a gusting wind, and the whole front's guns
+    # from far off, heard as the camera climbs.
+    "rain": dict(sources=[(GDC, "rain_shower of rain_steady rain_forest_leaves.wav")], take=1, bed=(0, 19, 3)),
+    "wind": dict(sources=[(GDC, "wind_blustery_08_loop.wav")], take=1, bed=(0, None, 0)),
+    "front-roar": dict(
+        sources=[(WARFARE, "VAR DISTANT FIRING 01 - AB - MKH8020.wav")], take=1, bed=(10, 100, 4)
+    ),
+    "thunder": dict(
+        sources=[
+            (GDC, "thunder_mountainous_distant_03.wav"),
+            (GDC, "thunder_clap_04.wav"),
+            (GDC, "thunder_strike_03.wav"),
+            (GDC, "THUN_InsJ_Thunder_Distant_01_EQ.wav"),
+            (GDC, "THUN_InsJ_Thunder_Very-Close_Rain_03.wav"),
+        ],
+        gap=20,
+        length=16,
+        take=5,
+        per_source=1,
+    ),
     # Breathing through the mask while the controlled soldier wears it.
     "mask-breath": dict(
         sources=[(GDC, "voice_male_breathing_mask_loop_run_02.wav")], gap=60, length=None, take=1, loop=True
@@ -341,7 +362,21 @@ def match_loudness(clips):
     return [limit(clip * min(target / max(level, 1e-9), boost)) for clip, level in zip(clips, levels)]
 
 
+def bed_clip(samples, start, length, crossfade):
+    """A loop cut from a continuous recording, its end crossfaded into its start."""
+    first = int(start * RATE)
+    last = len(samples) if length is None else min(len(samples), first + int(length * RATE))
+    clip = samples[first:last].copy()
+    fade = int(crossfade * RATE)
+    if fade and last + fade <= len(samples):
+        ramp = np.linspace(0, 1, fade, dtype=np.float32)
+        clip[:fade] = clip[:fade] * ramp + samples[last : last + fade] * (1 - ramp)
+    return clip
+
+
 def cue_clips(vendor, cue):
+    if "bed" in cue:
+        return match_loudness([bed_clip(load(find(vendor, folder, file)), *cue["bed"]) for folder, file in cue["sources"]])
     candidates = []
     for folder, file in cue["sources"]:
         samples = load(find(vendor, folder, file))
@@ -403,7 +438,7 @@ def build(vendor, output):
         clips = cue_clips(vendor, cue)
         for index, clip in enumerate(clips):
             write(sfx / f"{name}-{index}.ogg", clip)
-        manifest[name] = {"variations": len(clips), "loop": cue.get("loop", False)}
+        manifest[name] = {"variations": len(clips), "loop": cue.get("loop", False) or "bed" in cue}
         lengths = ", ".join(f"{len(clip) / RATE:.1f}" for clip in clips)
         print(f"[sound-effects] {name}: {len(clips)} variations ({lengths} s)", flush=True)
     write(sfx / "ear-ring-0.ogg", ear_ring())

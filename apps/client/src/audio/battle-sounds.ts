@@ -3,6 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Simulation } from "@verdun/sim"
 import { ambienceZones } from "../level/ambience.ts"
 import type { KitFiles } from "../level/kit-files.ts"
+import { createAtmosphereModel } from "./atmosphere-model.ts"
 import {
   createBattleSoundModel,
   type BattleSoundOptions,
@@ -11,7 +12,7 @@ import {
   SOUND_CUES,
   type SoundCue
 } from "./battle-sound-model.ts"
-import { getMixer } from "./mixer.ts"
+import { type Bed, getMixer } from "./mixer.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
 export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
@@ -28,6 +29,18 @@ const EARS: ReadonlySet<SoundCue> = new Set(["ear-ring", "mask-breath"])
 const SPACE_INTERVAL = 10
 /** Breathing in the mask, as loud as. */
 const BREATHING_VOLUME = 0.3
+/** The looping beds at full: rain, wind and the distant front (see atmosphere-model.ts). */
+const BED_VOLUMES = { rain: 0.45, wind: 0.35, "front-roar": 0.8 } as const
+/** Beds are re-levelled this often, in steps. */
+const BED_INTERVAL = 10
+
+/** Where a cue plays: inside the head, with the weather, or out on the battlefield. */
+function busFor(cue: SoundCue): "ears" | "ambience" | "battle" {
+  if (EARS.has(cue)) {
+    return "ears"
+  }
+  return cue === "thunder" ? "ambience" : "battle"
+}
 
 function isManifest(value: unknown): value is Record<string, { variations: number }> {
   return typeof value === "object" && value !== null
@@ -97,6 +110,12 @@ export async function createBattleSounds(
     })
   )
   const model = createBattleSoundModel(sim, options)
+  const atmosphere = createAtmosphereModel(sim)
+  const bed = (cue: keyof typeof BED_VOLUMES): Bed | null => {
+    const buffer = decoded.get(cue)?.[0]
+    return buffer ? mixer.bed(buffer) : null
+  }
+  const beds = { rain: bed("rain"), wind: bed("wind"), "front-roar": bed("front-roar") }
   const ruins = ambienceZones(sim.map).ruins
   let breathing: AudioBufferSourceNode | null = null
 
@@ -106,7 +125,13 @@ export async function createBattleSounds(
       if (sim.tick % SPACE_INTERVAL === 0) {
         mixer.setSpace(listenerSpace(sim, listener, options.soldier(), ruins))
       }
-      const calls = model.step(listener)
+      const calls = [...model.step(listener), ...atmosphere.step(listener)]
+      if (sim.tick % BED_INTERVAL === 0) {
+        const levels = atmosphere.levels(listener)
+        beds.rain?.setLevel(levels.rain * BED_VOLUMES.rain)
+        beds.wind?.setLevel(levels.wind * BED_VOLUMES.wind)
+        beds["front-roar"]?.setLevel(levels.roar * BED_VOLUMES["front-roar"])
+      }
       const shock = model.takeShock()
       if (shock > 0) {
         mixer.shock(MUFFLE * shock)
@@ -116,15 +141,16 @@ export async function createBattleSounds(
         const buffer = variations?.[Math.floor(Math.random() * variations.length)]
         if (buffer) {
           const ears = EARS.has(call.cue)
+          const bus = busFor(call.cue)
           mixer.play({
             buffer,
             volume: call.volume,
             pan: call.pan,
             delay: call.delay,
             cutoff: call.cutoff,
-            reverb: ears ? 0 : REVERB_SEND,
+            reverb: bus === "battle" ? REVERB_SEND : 0,
             detune: ears ? 0 : (Math.random() * 2 - 1) * DETUNE,
-            bus: ears ? "ears" : "battle"
+            bus
           })
         }
       }
@@ -151,6 +177,9 @@ export async function createBattleSounds(
     },
     dispose() {
       breathing?.stop()
+      for (const playing of Object.values(beds)) {
+        playing?.stop()
+      }
     }
   }
 }

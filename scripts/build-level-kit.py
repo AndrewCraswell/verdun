@@ -188,9 +188,9 @@ GROUND_NORMALS = {
 }
 GROUND_SIZE = 1024
 
-# Ambience from the Sonniss GDC bundles (vendor/audio/sonniss-gdc, royalty-free, not CC0: pack only).
-# (output name, file, start in seconds, length in seconds, loops). Loops get their ends crossfaded so they repeat
-# without a seam.
+# Ambience from vendor/audio: the Sonniss GDC bundles and Pole Position's Warfare Library (royalty-free or bought, not
+# CC0: pack only). (output name, file, start in seconds, length in seconds, loops). Files are found by name anywhere
+# under vendor/audio. Loops get their ends crossfaded so they repeat without a seam.
 AUDIO = [
     (
         "no-mans-land",
@@ -203,7 +203,8 @@ AUDIO = [
     ("wood", "2018/Ivo Vicic - Bora wind - European local wind/31 Wind_squeaking_tree_leaves_branches_bird.wav", 5, 90, True),
     ("rear", "2016/Mindful Audio - Woodland Atmosphere/MAFX001 wind robin blackbird 01.wav", 5, 90, True),
     ("ruins", "2016/Detunized - Urban Crows/Detunized_Urban-Crows_01.wav", 2, 60, True),
-    ("guns-far-1", "2017/Gamemaster Audio -  Explosion Sound Pack/explosion_far_distant_02.wav", 0, 3.6, False),
+    # One distant report from Pole Position's Warfare Library, bought, in place of a free sampler's.
+    ("guns-far-1", "VAR DISTANT FIRING 01 - AB - MKH8020.wav", 72.8, 7, False),
     ("guns-far-2", "2017/Pole Position - The Warfare Library/warfare_t1b_cannon_firing_forest_distant_MKH8060_2.wav", 0, 9, False),
 ]
 AUDIO_CROSSFADE = 3
@@ -416,7 +417,7 @@ def build_audio(vendor, output):
 
     audio_dir = output / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
-    source_dir = vendor.parent / "audio" / "sonniss-gdc"
+    source_dir = vendor.parent / "audio"
     matches = sorted(source_dir.rglob("*.wav"))
     for name, relative, start, length, loops in AUDIO:
         # Folder names in the bundle carry odd spacing and characters; match on the file name.
