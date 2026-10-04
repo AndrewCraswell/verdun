@@ -1,8 +1,12 @@
-import { mapWidth } from "@verdun/map"
+import { mapWidth, type Trench } from "@verdun/map"
 import { frontLineSpan, type LineSpan, Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
-import { Side } from "./components.ts"
+import { NEVER, Side } from "./components.ts"
+import { isNight } from "./routine.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
+import { isAlive, raidGoal, type Squad } from "./squads.ts"
+import { isInTrench } from "./stance.ts"
+import { mendWire, wiringPartyCanReach } from "./wire.ts"
 
 /**
  * Each side's commander takes stock of its front line this often, in seconds. Kept in seconds and converted where
@@ -29,7 +33,30 @@ const COUNTER_BARRAGE = { openAhead: 70, lift: 50, interval: 90, standoff: 70, r
  */
 const PREPARATION = { seconds: 120, fieldRoundsPerMinute: 120, heavyRoundsPerMinute: 24 } as const
 
-/** What a side's commander has done about its front line. */
+/**
+ * A trench raid: one squad of the front-line garrison, about once a night per side. Each phase gives up after this
+ * long, in seconds; the raid turns for home once half the raiders are down.
+ */
+const RAID = { chancePerCheck: 1 / 40, minimumMen: 4, outSeconds: 900, inSeconds: 60, homeSeconds: 900 } as const
+/** Raiders count as at their goal this close to it, in metres. */
+const RAID_ARRIVED = 12
+/**
+ * Gas shelling by night, at most once a night per side: only with a steady wind toward the enemy that won't blow the
+ * cloud back or scatter it, and no rain to wash it out. Field-gun gas shells on a stretch of the enemy's front line.
+ */
+const NIGHT_GAS = {
+  chancePerCheck: 1 / 240,
+  minimumToward: 1,
+  maximumSpeed: 5,
+  maximumRain: 0.3,
+  width: 200,
+  band: 40,
+  roundsPerMinute: 40,
+  delay: 30,
+  seconds: 300
+} as const
+
+/** What a side's commander has done about its front line, and by night. */
 export interface CommanderState {
   /** The step the front line was found lost, or -1. */
   lostAt: number
@@ -37,6 +64,15 @@ export interface CommanderState {
   counterAttackedAt: number
   /** The step the reserves leave their dugouts and go in, or -1 once they have (or before it's planned). */
   assaultAt: number
+  /** The squad out on a raid, or -1. */
+  raidSquad: number
+  /** The step the raid's current phase began. */
+  raidPhaseAt: number
+  /** How many raiders went out. */
+  raidStrength: number
+  /** The step the last raid went out, and the last gas shelling began. */
+  lastRaidAt: number
+  lastGasAt: number
 }
 
 /** A counter-attack going in, for renderers and battle reports. */
@@ -45,10 +81,23 @@ export interface CounterAttackEvent {
   readonly side: Side
 }
 
+function freshCommander(): CommanderState {
+  return {
+    lostAt: -1,
+    counterAttackedAt: -1,
+    assaultAt: -1,
+    raidSquad: -1,
+    raidPhaseAt: -1,
+    raidStrength: 0,
+    lastRaidAt: NEVER,
+    lastGasAt: NEVER
+  }
+}
+
 export function createCommanders(): Record<Side, CommanderState> {
   return {
-    [Side.French]: { lostAt: -1, counterAttackedAt: -1, assaultAt: -1 },
-    [Side.German]: { lostAt: -1, counterAttackedAt: -1, assaultAt: -1 }
+    [Side.French]: freshCommander(),
+    [Side.German]: freshCommander()
   }
 }
 
@@ -126,9 +175,175 @@ function assault(sim: Simulation, side: Side, front: LineSpan): void {
   })
 }
 
+/** Steps in one day and night of battle: the cooldown for things done once a night. */
+function dayTicks(sim: Simulation): number {
+  return sim.environment.clock.minutesPerDay * 60 * TICK_RATE
+}
+
+/** The nearest point on the enemy's fire trenches to a point: where raiders go in. */
+function nearestEnemyTrench(trenches: readonly Trench[], side: Side, x: number, z: number): { x: number; z: number } {
+  const enemyFacing = side === Side.French ? "south" : "north"
+  let best = { x, z }
+  let bestDistance = Infinity
+  for (const trench of trenches) {
+    if (trench.kind !== "fire" || trench.facing !== enemyFacing) {
+      continue
+    }
+    for (let index = 1; index < trench.points.length; index++) {
+      const [ax, az] = trench.points[index - 1]!
+      const [bx, bz] = trench.points[index]!
+      const dx = bx - ax
+      const dz = bz - az
+      const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)))
+      const px = ax + t * dx
+      const pz = az + t * dz
+      const distance = (px - x) ** 2 + (pz - z) ** 2
+      if (distance < bestDistance) {
+        best = { x: px, z: pz }
+        bestDistance = distance
+      }
+    }
+  }
+  return best
+}
+
+function livingMembers(sim: Simulation, squad: Squad): number {
+  return squad.members.filter((member) => isAlive(sim, member)).length
+}
+
+/**
+ * Sends a raid out: the bot squad of the front-line garrison nearest the enemy, strong enough to go, crawls out toward
+ * the nearest bay of his line.
+ */
+function startRaid(sim: Simulation, side: Side, state: CommanderState): void {
+  const { position } = sim.soldiers
+  let chosen: { squad: Squad; target: { x: number; z: number }; distance: number } | null = null
+  for (const squad of sim.squads) {
+    const leader = squad.leader
+    if (
+      squad.side !== side ||
+      squad.controller !== "ai" ||
+      squad.order.kind !== "hold" ||
+      !isAlive(sim, leader) ||
+      !isInTrench(sim.map, position.x[leader], position.z[leader]) ||
+      livingMembers(sim, squad) < RAID.minimumMen
+    ) {
+      continue
+    }
+    const target = nearestEnemyTrench(sim.map.trenches, side, position.x[leader], position.z[leader])
+    const distance = (target.x - position.x[leader]) ** 2 + (target.z - position.z[leader]) ** 2
+    if (distance > 0 && (chosen === null || distance < chosen.distance)) {
+      chosen = { squad, target, distance }
+    }
+  }
+  if (chosen === null) {
+    return
+  }
+  const leader = chosen.squad.leader
+  chosen.squad.order = {
+    kind: "raid",
+    x: chosen.target.x,
+    z: chosen.target.z,
+    homeX: position.x[leader],
+    homeZ: position.z[leader],
+    phase: "out"
+  }
+  state.raidSquad = chosen.squad.id
+  state.raidPhaseAt = sim.tick
+  state.raidStrength = livingMembers(sim, chosen.squad)
+  state.lastRaidAt = sim.tick
+}
+
+/** Moves a raid on: out to the wire, the rush in, and home, turning back early if it goes badly or takes too long. */
+function advanceRaid(sim: Simulation, state: CommanderState): void {
+  const squad = sim.squads[state.raidSquad]
+  const order = squad?.order
+  if (!squad || order?.kind !== "raid" || squad.leader < 0) {
+    state.raidSquad = -1
+    return
+  }
+  const seconds = (sim.tick - state.raidPhaseAt) / TICK_RATE
+  const goal = raidGoal(order)
+  const leader = squad.leader
+  const arrived =
+    (sim.soldiers.position.x[leader] - goal.x) ** 2 + (sim.soldiers.position.z[leader] - goal.z) ** 2 <=
+    RAID_ARRIVED * RAID_ARRIVED
+  const mauled = livingMembers(sim, squad) * 2 <= state.raidStrength
+  const next = (phase: "in" | "home") => {
+    squad.order = { ...order, phase }
+    state.raidPhaseAt = sim.tick
+  }
+  if (order.phase === "out") {
+    if (mauled || seconds > RAID.outSeconds) {
+      next("home")
+    } else if (arrived) {
+      next("in")
+    }
+  } else if (order.phase === "in") {
+    if (mauled || seconds > RAID.inSeconds) {
+      next("home")
+    }
+  } else if (arrived || seconds > RAID.homeSeconds) {
+    squad.order = { kind: "hold" }
+    state.raidSquad = -1
+  }
+}
+
+/** Whether the wind would carry a side's gas onto the enemy: steady toward him, not too strong, and no rain. */
+export function gasWeather(sim: Simulation, side: Side): boolean {
+  const { wind, precipitation } = sim.environment.weather
+  const toward = (side === Side.French ? 1 : -1) * wind.z
+  const speed = Math.sqrt(wind.x * wind.x + wind.z * wind.z)
+  return toward >= NIGHT_GAS.minimumToward && speed <= NIGHT_GAS.maximumSpeed && precipitation <= NIGHT_GAS.maximumRain
+}
+
+/** Gas shells on a stretch of the enemy's front line, centred on a random point along it. */
+function shellWithGas(sim: Simulation, side: Side, enemyFront: LineSpan, state: CommanderState): void {
+  const width = mapWidth(sim.map)
+  const centre = NIGHT_GAS.width / 2 + sim.rng.next() * Math.max(0, width - NIGHT_GAS.width)
+  applyCommand(sim, {
+    type: "fire-mission",
+    plan: {
+      side,
+      shell: Shell.FieldGas,
+      fromX: centre - NIGHT_GAS.width / 2,
+      toX: centre + NIGHT_GAS.width / 2,
+      z: (enemyFront.forward + enemyFront.rear) / 2,
+      band: NIGHT_GAS.band,
+      roundsPerMinute: NIGHT_GAS.roundsPerMinute,
+      delay: NIGHT_GAS.delay,
+      duration: NIGHT_GAS.seconds
+    }
+  })
+  state.lastGasAt = sim.tick
+}
+
+/** A side's work by night: wiring parties, a raid, and gas shelling if the wind serves. */
+function nightWork(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): void {
+  const enemyFront = frontLineSpan(sim.map.trenches, side === Side.French ? Side.German : Side.French)
+  if (enemyFront === null) {
+    return
+  }
+  const midZ = (front.forward + enemyFront.forward) / 2
+  mendWire(sim, front.forward, midZ, (x, z) => wiringPartyCanReach(sim, side, x, z))
+  if (state.raidSquad >= 0) {
+    advanceRaid(sim, state)
+  } else if (sim.tick - state.lastRaidAt >= dayTicks(sim) && sim.rng.next() < RAID.chancePerCheck) {
+    startRaid(sim, side, state)
+  }
+  if (
+    sim.tick - state.lastGasAt >= dayTicks(sim) &&
+    gasWeather(sim, side) &&
+    sim.rng.next() < NIGHT_GAS.chancePerCheck
+  ) {
+    shellWithGas(sim, side, enemyFront, state)
+  }
+}
+
 /**
  * The commanders on both sides, every few seconds: a side that finds its front line lost sends its reserves to retake
- * it once they've had time to organise, after two minutes of shelling it. One counter-attack per side.
+ * it once they've had time to organise, after two minutes of shelling it. One counter-attack per side. By night they
+ * send out wiring parties, a raid, and gas when the wind serves; a raid still out at dawn keeps coming home.
  */
 export function commanderSystem(sim: Simulation): void {
   if (sim.tick % (CHECK_SECONDS * TICK_RATE) !== 0) {
@@ -139,6 +354,11 @@ export function commanderSystem(sim: Simulation): void {
     const front = frontLineSpan(sim.map.trenches, side)
     if (front === null) {
       continue
+    }
+    if (isNight(sim)) {
+      nightWork(sim, side, front, state)
+    } else if (state.raidSquad >= 0) {
+      advanceRaid(sim, state)
     }
     if (state.assaultAt >= 0 && sim.tick >= state.assaultAt) {
       state.assaultAt = -1

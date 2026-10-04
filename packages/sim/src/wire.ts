@@ -1,5 +1,8 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
+import type { Side } from "./components.ts"
 import type { Simulation } from "./simulation.ts"
+import { soldiersNear } from "./spatial.ts"
+import { isAlive } from "./squads.ts"
 
 /** Wire is tracked on a grid of cells this many metres across. */
 export const WIRE_CELL = 1
@@ -24,7 +27,7 @@ export interface WireField {
   readonly density: Float32Array
   /** The density each cell started with, so a save need only record what has been cut. */
   readonly staked: Float32Array
-  /** Counts cuts, so anything derived from the wire (routes through it) knows when to look again. */
+  /** Counts cuts and mends, so anything derived from the wire (routes through it) knows when to look again. */
   cuts: number
 }
 
@@ -161,6 +164,76 @@ export function cutWire(sim: Simulation, x: number, z: number, radius: number): 
 }
 
 /** The cells cut so far and how much wire is left in each: all a save needs, since the rest is as staked. */
+/** Cut wire a wiring party mends in one go, in cells (square metres of belt). */
+const MENDED_PER_PARTY = 3
+/** Wiring parties stay away from enemies this close, in metres. */
+const MENDERS_KEEP_CLEAR = 30
+/** Wiring parties go out from a trench garrison this near, in metres. */
+const MENDERS_FROM = 60
+
+/**
+ * A wiring party's work on a night: the cut wire nearest `ownFront`, on the near side of `midZ`, staked again where no
+ * enemy is close and friends are near enough to go out to it. Wiring parties went out every night the shelling allowed,
+ * with stakes, coils and mallets wrapped in sacking against the noise. Returns the cells mended.
+ */
+export function mendWire(
+  sim: Simulation,
+  ownFront: number,
+  midZ: number,
+  canReach: (x: number, z: number) => boolean
+): number {
+  const field = sim.wire
+  const ownSide = Math.sign(ownFront - midZ) || 1
+  const candidates: { cell: number; distance: number }[] = []
+  for (let cell = 0; cell < field.density.length; cell++) {
+    if (field.density[cell]! >= field.staked[cell]!) {
+      continue
+    }
+    const z = (Math.floor(cell / field.columns) + 0.5) * WIRE_CELL
+    if ((z - midZ) * ownSide > 0) {
+      candidates.push({ cell, distance: Math.abs(z - ownFront) })
+    }
+  }
+  candidates.sort((a, b) => a.distance - b.distance || a.cell - b.cell)
+  let mended = 0
+  for (const { cell } of candidates) {
+    if (mended >= MENDED_PER_PARTY) {
+      break
+    }
+    const x = ((cell % field.columns) + 0.5) * WIRE_CELL
+    const z = (Math.floor(cell / field.columns) + 0.5) * WIRE_CELL
+    if (canReach(x, z)) {
+      field.density[cell] = field.staked[cell]!
+      mended++
+    }
+  }
+  if (mended > 0) {
+    field.cuts++
+  }
+  return mended
+}
+
+/** Whether a wiring party could work at a point: friends near enough to go out, no enemy close by. */
+export function wiringPartyCanReach(sim: Simulation, side: Side, x: number, z: number): boolean {
+  let friends = false
+  for (const soldier of soldiersNear(sim, x, z, MENDERS_FROM)) {
+    if (!isAlive(sim, soldier)) {
+      continue
+    }
+    const distance = Math.sqrt(
+      (sim.soldiers.position.x[soldier] - x) ** 2 + (sim.soldiers.position.z[soldier] - z) ** 2
+    )
+    if (sim.soldiers.side.value[soldier] !== side) {
+      if (distance <= MENDERS_KEEP_CLEAR) {
+        return false
+      }
+    } else {
+      friends = true
+    }
+  }
+  return friends
+}
+
 export function wireCuts(field: WireField): [number, number][] {
   const cuts: [number, number][] = []
   field.density.forEach((density, cell) => {

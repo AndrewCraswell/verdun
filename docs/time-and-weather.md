@@ -193,15 +193,15 @@ themselves from the spec and the clock.
 
 Seven patterns, each a spell lasting hours to days:
 
-| Pattern  | Cloud   | Rain (mm/h)                | Visibility | Wind near the ground        | Lasts   | Notes                                       |
-| -------- | ------- | -------------------------- | ---------- | --------------------------- | ------- | ------------------------------------------- |
-| Clear    | 0–15%   | 0                          | 20–40 km   | 1–3 m/s from the NE         | 12–60 h | Warm in summer, cold in winter; morning fog |
-| Fair     | 25–55%  | 0                          | 15–30 km   | 1.5–4 m/s from the W        | 8–36 h  | Morning fog sometimes                       |
-| Overcast | 85–100% | 0                          | 6–15 km    | 1.5–5 m/s from the SW       | 6–36 h  | Mild in winter                              |
-| Fog      | 100%    | 0                          | 80–400 m   | Calm                        | 4–30 h  | Winter only                                 |
-| Drizzle  | 100%    | 0.1–0.25                   | 3–6 km     | 1.5–4 m/s from the SW       | 3–12 h  | More in winter                              |
-| Rain     | 100%    | 0.4–1.6                    | 5–10 km    | 3–7 m/s from the SW         | 3–14 h  | A passing front                             |
-| Storm    | 90–100% | 3–8, peaking at twice that | 4–8 km     | 5–10 m/s, gusty, from the W | 1–3 h   | Summer thunderstorms, lightning             |
+| Pattern  | Cloud   | Rain (mm/h)                | Visibility | Wind                        | Gas and shell smoke drift with it; the bots shell with gas by night only when the wind blows toward the enemy |                                             |
+| -------- | ------- | -------------------------- | ---------- | --------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Clear    | 0–15%   | 0                          | 20–40 km   | 1–3 m/s from the NE         | 12–60 h                                                                                                       | Warm in summer, cold in winter; morning fog |
+| Fair     | 25–55%  | 0                          | 15–30 km   | 1.5–4 m/s from the W        | 8–36 h                                                                                                        | Morning fog sometimes                       |
+| Overcast | 85–100% | 0                          | 6–15 km    | 1.5–5 m/s from the SW       | 6–36 h                                                                                                        | Mild in winter                              |
+| Fog      | 100%    | 0                          | 80–400 m   | Calm                        | 4–30 h                                                                                                        | Winter only                                 |
+| Drizzle  | 100%    | 0.1–0.25                   | 3–6 km     | 1.5–4 m/s from the SW       | 3–12 h                                                                                                        | More in winter                              |
+| Rain     | 100%    | 0.4–1.6                    | 5–10 km    | 3–7 m/s from the SW         | 3–14 h                                                                                                        | A passing front                             |
+| Storm    | 90–100% | 3–8, peaking at twice that | 4–8 km     | 5–10 m/s, gusty, from the W | 1–3 h                                                                                                         | Summer thunderstorms, lightning             |
 
 - **Succession**: a Markov chain: fronts clear to fair skies, fair skies cloud over, and so on, weighted by the season
   (no thunderstorms in winter, no all-day fog in summer, drizzle mostly in winter, clear spells mostly in summer).
@@ -233,16 +233,36 @@ Seven patterns, each a spell lasting hours to days:
 - **Gas and smoke**: rain washes phosgene out of the air (an extra half-life of 5 minutes in 1 mm/h of rain, shorter in
   heavier) and beats down shell smoke (2 minutes); snow a third as well.
 
+## The night routine
+
+Both armies kept the same routine, and the bots now keep it too (`packages/sim/src/routine.ts`, `commander.ts`):
+
+- **Stand-to** at dawn and dusk, while the sun is between 10° below the horizon and 2° above it (`isStandTo`): every man
+  up on the fire step, since these were the hours attacks came. About an hour of game time each.
+- **Night** proper (`isNight`): dark and not stand-to. In every bot squad holding a trench, all but the sentry (the
+  squad's leader) and one other man go down the dugouts to sleep (`restsTonight`). They come up for stand-to, or when
+  the sentry sees enemies close, as under shellfire. A player's squad stays up.
+- **Raids**: about once a night per side (a 1-in-40 chance every 5 s once dark, then not again for a day of battle), the
+  bot squad of the front-line garrison nearest the enemy, at least four strong, raids the nearest bay of his fire trench
+  (`raid` squad order). The raiders crawl out to the edge of his wire (25 m short), rush in to bomb, kill and take
+  prisoners (sleepers caught below surrender), and after a minute crawl home. They turn back once half are down, or if a
+  phase takes over 15 minutes; a raid still out at dawn keeps coming home.
+- **Wiring parties**: every 5 s at night each side re-stakes up to 3 square metres of cut wire nearest its own front
+  line, on its own half of no man's land, where friends are within 60 m and no enemy within 30 m (`mendWire`). Enough to
+  close most of a night's gaps.
+- **Gas** by night: at most once a night per side, and only when the wind blows toward the enemy at 1 m/s or more, no
+  faster than 5 m/s, with no rain (`gasWeather`): 5 minutes of field-gun gas shells on 200 m of the enemy's front line.
+
 ## Effects on play
 
-| Condition   | Now                                                                                                                                                                                        | Planned                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Night       | Sight range closes to tens of metres; flares light the ground and muzzle flashes give shooters away; aim falls with the light; the player sees only what his men can                       | Reliefs, rations and ammunition come up only at night; raids and wire work                  |
-| Dawn, dusk  | The light changes                                                                                                                                                                          | Stand-to: both sides man the parapet, the usual hour of attack                              |
-| Fog         | Sight range closes to tens of metres                                                                                                                                                       | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails |
-| Rain, mud   | Sodden mud slows men by up to 45% (trenches 25%, grass and chalk 15%); shells bursting in it lose 30% of their reach; rain washes gas out (half-life 5 min in 1 mm/h) and beats smoke down | Routes that avoid the worst mud                                                             |
-| Wind        | Gas and shell smoke drift with it                                                                                                                                                          | Gas attacks wait for a wind toward the enemy                                                |
-| Snow, frost | Snow falls; deep lying snow slows men by up to a quarter; frozen ground goes like dry                                                                                                      | Tracks give patrols away; snow drawn lying                                                  |
+| Condition   | Now                                                                                                                                                                                                                                 | Planned                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Night       | Sight range closes to tens of metres; flares light the ground and muzzle flashes give shooters away; aim falls with the light; the player sees only what his men can; garrisons sleep but for their sentries; raids, wiring parties | Reliefs, rations and ammunition come up only at night                                       |
+| Dawn, dusk  | Stand-to: every bot squad mans the parapet                                                                                                                                                                                          | Attacks timed for dawn                                                                      |
+| Fog         | Sight range closes to tens of metres                                                                                                                                                                                                | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails |
+| Rain, mud   | Sodden mud slows men by up to 45% (trenches 25%, grass and chalk 15%); shells bursting in it lose 30% of their reach; rain washes gas out (half-life 5 min in 1 mm/h) and beats smoke down                                          | Routes that avoid the worst mud                                                             |
+| Wind        | Gas and shell smoke drift with it                                                                                                                                                                                                   | Gas attacks wait for a wind toward the enemy                                                |
+| Snow, frost | Snow falls; deep lying snow slows men by up to a quarter; frozen ground goes like dry                                                                                                                                               | Tracks give patrols away; snow drawn lying                                                  |
 
 ## Rendering
 

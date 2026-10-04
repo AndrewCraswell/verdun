@@ -30,6 +30,34 @@ export type SquadOrder =
       readonly objectiveZ: number
     }
 
+  /**
+   * A trench raid by night: crawl out to the enemy's wire, rush into his trench at `x, z` to bomb, kill and take
+   * prisoners, then crawl home to `homeX, homeZ`. The commander moves the raid from phase to phase.
+   */
+  | {
+      readonly kind: "raid"
+      readonly x: number
+      readonly z: number
+      readonly homeX: number
+      readonly homeZ: number
+      readonly phase: RaidPhase
+    }
+
+/** Out to the enemy's wire, into his trench, and home again. */
+export type RaidPhase = "out" | "in" | "home"
+
+/** Raiders wait this far short of the enemy's trench, in metres: at the edge of his wire, before the rush. */
+export const RAID_STANDOFF = 25
+
+/** Where a raid is heading in its current phase. */
+export function raidGoal(order: Extract<SquadOrder, { kind: "raid" }>): { x: number; z: number } {
+  if (order.phase === "home") {
+    return { x: order.homeX, z: order.homeZ }
+  }
+  const direction = Math.sign(order.z - order.homeZ) || 1
+  return { x: order.x, z: order.phase === "out" ? order.z - direction * RAID_STANDOFF : order.z }
+}
+
 export interface Squad {
   readonly id: number
   readonly side: Side
@@ -231,10 +259,11 @@ export function squadSystem(sim: Simulation): void {
         })
         return
       }
-      orderMoveTo(sim, member, advanceSlot(sim, order, slot, followers.length), {
+      const goal = order.kind === "raid" ? raidGoal(order) : order
+      orderMoveTo(sim, member, advanceSlot(sim, goal, slot, followers.length), {
         kind: "point",
-        x: order.x,
-        z: order.z,
+        x: goal.x,
+        z: goal.z,
         radius: ADVANCE_GOAL_RADIUS
       })
     })

@@ -3,6 +3,7 @@ import { type EntityId, hasComponent } from "bitecs"
 import { PINNED, Weapon } from "./combat.ts"
 import { Stance } from "./components.ts"
 import { EYE_HEIGHT, type WorldPoint } from "./line-of-sight.ts"
+import { restsTonight } from "./routine.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
@@ -119,6 +120,12 @@ function inReserve(sim: Simulation, soldier: EntityId): boolean {
   return sim.squads[sim.soldiers.squad.id[soldier]]?.order.kind === "reserve"
 }
 
+/** Raiders crawl across no man's land out and home, and get up only for the rush into the enemy's trench. */
+function isCrawling(sim: Simulation, soldier: EntityId): boolean {
+  const order = sim.squads[sim.soldiers.squad.id[soldier]]?.order
+  return order?.kind === "raid" && order.phase !== "in"
+}
+
 /** A squad's sentry stays on the fire step through a bombardment, watching for the attack: its leader. */
 function isSentry(sim: Simulation, soldier: EntityId): boolean {
   const squad = sim.squads[sim.soldiers.squad.id[soldier]]
@@ -165,7 +172,8 @@ export function stanceSystem(sim: Simulation): void {
     const moving = hasComponent(sim.world, soldier, moveOrder) || hasComponent(sim.world, soldier, sim.soldiers.steer)
     if (stance.value[soldier] === Stance.Sheltering) {
       if (shelter.emergeAt[soldier] < 0) {
-        const calm = sinceShelled >= SHELTER_CALM && !inReserve(sim, soldier)
+        // Sleepers come up for stand-to at dawn and dusk, or when the sentry raises the alarm.
+        const calm = sinceShelled >= SHELTER_CALM && !inReserve(sim, soldier) && !restsTonight(sim, soldier)
         const alarm = sinceShelled >= ALARM_CALM && enemyWithin(sim, soldier, ALARM_RANGE)
         // An order to move, such as going over the top, gets them up the steps whatever is falling.
         if (calm || alarm || moving) {
@@ -180,8 +188,12 @@ export function stanceSystem(sim: Simulation): void {
     if (isInTrench(sim.map, position.x[soldier], position.z[soldier])) {
       // Stances run before artillery each step, so a burst can be up to a whole interval old by now.
       const justShelled = sim.tick - shelter.lastShelled[soldier] <= STANCE_INTERVAL
-      const goesDown = justShelled || inReserve(sim, soldier)
+      const goesDown = justShelled || inReserve(sim, soldier) || restsTonight(sim, soldier)
       stance.value[soldier] = goesDown && !moving && !isSentry(sim, soldier) ? Stance.Sheltering : Stance.Standing
+      continue
+    }
+    if (isCrawling(sim, soldier)) {
+      stance.value[soldier] = Stance.Prone
       continue
     }
     stance.value[soldier] = !moving || suppression.value[soldier] >= PINNED ? Stance.Prone : Stance.Standing
