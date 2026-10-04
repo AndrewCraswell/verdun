@@ -1,6 +1,7 @@
 import { createFlatMap, layOutFront, mapDepth, Surface } from "@verdun/map"
 import {
   createSimulation,
+  createSquad,
   isInTrench,
   type LineOfSight,
   MaskState,
@@ -293,5 +294,32 @@ describe("listenerSpace", () => {
     sim.soldiers.stance.value[french] = Stance.Sheltering
     expect(listenerSpace(sim, close, french, () => 0.5)).toEqual({ trench: 0, dugout: 1, ruins: 0 })
     expect(listenerSpace(sim, { ...close, z: 150 }, french, none).dugout).toBe(0)
+  })
+})
+
+describe("voices", () => {
+  it("hears a man cry out when hit nearby, but not when he falls or is far off", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    sim.tick = 4
+    happen(sim)
+    sim.soldiers.health.value[french] = 0.5
+    sim.soldiers.health.value[german] = 0.5
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["pain"])
+    sim.tick = 8
+    expect(model.step(LISTENER)).toEqual([])
+  })
+
+  it("cheers when a squad nearby goes over the top, once, and hears the enemy's counter-attack", () => {
+    const { sim, french } = battle()
+    const squad = createSquad(sim, Side.French, [french], "ai")
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(sim)
+    expect(model.step(LISTENER)).toEqual([])
+    squad.order = { kind: "advance", x: 100, z: 150 }
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["charge"])
+    expect(model.step(LISTENER)).toEqual([])
+    happen(sim, { type: "counter-attack", side: Side.German })
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["charge"])
   })
 })

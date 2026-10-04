@@ -3,6 +3,7 @@ import {
   type EntityId,
   eyeAt,
   fallenIds,
+  frontLineZ,
   isInTrench,
   isSheltering,
   MaskState,
@@ -43,6 +44,8 @@ export const SOUND_CUES = [
   "battery-field",
   "battery-heavy",
   "death",
+  "pain",
+  "charge",
   "gas-gong",
   "mask-breath",
   "ear-ring",
@@ -145,6 +148,8 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "battery-field": { volume: 1, reference: 400 },
   "battery-heavy": { volume: 1, reference: 500 },
   death: { volume: 0.6, reference: 15 },
+  pain: { volume: 0.45, reference: 12 },
+  charge: { volume: 0.9, reference: 40 },
   "gas-gong": { volume: 0.5, reference: 30 },
   "mask-breath": { volume: 0.3, reference: 1 },
   "ear-ring": { volume: 0.35, reference: 1 },
@@ -188,6 +193,18 @@ const DEATH_RANGE = 120
 const DEATH_INTERVAL = 0.5
 /** The batteries' reports: at most one this often, in seconds, however fast they fire. */
 const BATTERY_INTERVAL = 0.4
+/** Men are heard crying out when hit within this many metres, at most one this often (seconds). */
+const PAIN_RANGE = 60
+const PAIN_INTERVAL = 0.6
+/** Wounds are looked for this often, in steps. */
+const WOUND_CHECK_INTERVAL = 4
+/**
+ * A squad going over the top (its order turning to an advance, a creeping barrage or a raid) is heard cheering
+ * within CHARGE_RANGE metres, at most once in CHARGE_REPEAT seconds for each side.
+ */
+const CHARGE_RANGE = 250
+const CHARGE_REPEAT = 5
+const ATTACKS: ReadonlySet<string> = new Set(["advance", "creep", "raid"])
 /** The gas alarm sounds when men within this range of the listener start masking, at most once in this many seconds. */
 const GAS_ALARM_RANGE = 150
 const GAS_ALARM_REPEAT = 30
@@ -288,8 +305,8 @@ export interface BattleSoundOptions {
  * Turns the simulation's events and changes into sounds: every shot by weapon and side (machine guns round by round up
  * close, in whole bursts from afar, and riflemen nearby working the bolt), rounds cracking past and striking the ground nearby, grenades thrown, every shell
  * and grenade burst by type with the rush of heavy shells coming in and earth raining down after near ones, the
- * batteries firing far behind the lines, men falling nearby, the ringing of a near miss, and the shell-case gong when
- * men nearby start pulling on gas masks.
+ * batteries firing far behind the lines, men hit or falling nearby, squads going over the top and counter-attacks
+ * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks.
  */
 export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
@@ -303,6 +320,10 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   let masksNear = 0
   let lastImpact = -Infinity
   let shock = 0
+  let lastPain = -Infinity
+  const health = Float32Array.from(sim.soldiers.health.value)
+  const orders = new Map(sim.squads.map((squad) => [squad.id, squad.order.kind]))
+  const lastCharge = new Map<Side, number>()
   const seconds = (ticks: number) => ticks / TICK_RATE
   let occlusionChecks = 0
 
@@ -465,6 +486,58 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
     fallen = new Set(current)
   }
 
+  function woundSounds(listener: Listener, calls: SoundCall[]): void {
+    if (sim.tick % WOUND_CHECK_INTERVAL !== 0) {
+      return
+    }
+    const now = seconds(sim.tick)
+    const current = sim.soldiers.health.value
+    for (const id of soldierIds(sim)) {
+      const before = health[id] ?? 0
+      const after = current[id] ?? 0
+      health[id] = after
+      const x = sim.soldiers.position.x[id] ?? 0
+      const z = sim.soldiers.position.z[id] ?? 0
+      if (after < before && after > 0 && now - lastPain >= PAIN_INTERVAL) {
+        if (Math.hypot(x - listener.x, z - listener.z) < PAIN_RANGE) {
+          lastPain = now
+          push(calls, place(listener, "pain", x, z))
+        }
+      }
+    }
+  }
+
+  function chargeSounds(listener: Listener, calls: SoundCall[]): void {
+    const now = seconds(sim.tick)
+    const cheer = (side: Side, x: number, z: number) => {
+      if (now - (lastCharge.get(side) ?? -Infinity) >= CHARGE_REPEAT) {
+        lastCharge.set(side, now)
+        push(calls, place(listener, "charge", x, z))
+      }
+    }
+    for (const squad of sim.squads) {
+      const before = orders.get(squad.id)
+      const after = squad.order.kind
+      orders.set(squad.id, after)
+      if (before === after || !ATTACKS.has(after) || squad.leader < 0) {
+        continue
+      }
+      const x = sim.soldiers.position.x[squad.leader] ?? 0
+      const z = sim.soldiers.position.z[squad.leader] ?? 0
+      if (Math.hypot(x - listener.x, z - listener.z) < CHARGE_RANGE) {
+        cheer(squad.side, x, z)
+      }
+    }
+    for (const event of sim.events) {
+      if (event.type === "counter-attack") {
+        const z = frontLineZ(sim.map.trenches, event.side)
+        if (z !== null) {
+          cheer(event.side, listener.x, z)
+        }
+      }
+    }
+  }
+
   function gasAlarm(listener: Listener, calls: SoundCall[]): void {
     if (sim.tick % MASK_CHECK_INTERVAL !== 0) {
       return
@@ -499,6 +572,8 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       incomingSounds(listener, calls)
       batterySounds(listener, calls)
       deathSounds(listener, calls)
+      woundSounds(listener, calls)
+      chargeSounds(listener, calls)
       gasAlarm(listener, calls)
       return calls
     },
