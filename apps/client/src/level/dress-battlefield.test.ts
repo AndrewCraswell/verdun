@@ -6,7 +6,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
-import { carveTrenches, createFlatMap, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { surfaceColors } from "../palette.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
@@ -114,6 +114,36 @@ describe("dressBattlefield", () => {
     )
   })
 
+  it("tags grass and trees with how freely they sway in the wind, and nothing else", () => {
+    const grass = [
+      "Gen_Env_Grass_01",
+      "Gen_Env_Grass_02",
+      "Gen_Env_Grass_03",
+      "Gen_Env_Grass_Tall_01",
+      "Gen_Env_Grass_Tall_02"
+    ]
+    const trees = ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"]
+    const { kit } = kitOf([...grass, ...trees, ...TRENCH_PIECES.straights])
+    // A meadow with a tree in it, and the trench beside it.
+    const meadow = {
+      ...createFlatMap({ name: "meadow", cellSize: 0.5, columns: 160, rows: 160 }, 5, Surface.Grass),
+      scenery: [{ kind: "tree" as const, x: 40, z: 60, heading: 0, variant: 0, scale: 1 }]
+    }
+    const dressing = dressBattlefield(meadow, kit)
+    const trench = dressBattlefield(trenchMap(), kit)
+    const swayOf = (pieces: readonly string[]) =>
+      new Set(
+        dressing.scenery.batches
+          .filter((batch) => pieces.includes(batch.piece))
+          .map((batch) => batch.mesh.metadata?.sway)
+      )
+
+    expect(swayOf(grass)).toEqual(new Set([1]))
+    expect(swayOf(trees)).toEqual(new Set([0.25]))
+    const straight = trench.scenery.batches.find((batch) => batch.piece === TRENCH_PIECES.straights[0])
+    expect(straight?.mesh.metadata).toBeNull()
+  })
+
   it("stands pieces modelled off their middle on their middle", () => {
     const { kit } = kitOf([])
     const dressing = dressBattlefield(trenchMap(), kit)
@@ -163,11 +193,12 @@ describe("dressLevel", () => {
     const update = vi.spyOn(scenery, "update")
     scene.render()
     expect(update).toHaveBeenCalledWith(battlefield.camera.globalPosition)
-    // The depth of field takes grass's depth from the ground under it.
+    // The depth of field blurs by the ground's depth alone, props and all.
     const depth = scene.enableDepthRenderer(battlefield.camera).getDepthMap()
-    const grass = new Mesh("Gen_Env_Grass_01@0,0", scene)
+    const ground = scene.meshes.filter((mesh) => mesh.name.startsWith("terrain-"))
     const end = new Mesh(`${TRENCH_PIECES.end}@0,0`, scene)
-    expect(depth.getCustomRenderList?.(0, [grass, end], 2)).toEqual([end])
+    expect(ground.length).toBeGreaterThan(0)
+    expect(depth.getCustomRenderList?.(0, [...ground, end], ground.length + 1)).toEqual(ground)
     // The stand-in kit has no straight sections, so it warns which pieces are missing.
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("missing"),

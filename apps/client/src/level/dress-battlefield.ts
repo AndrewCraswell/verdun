@@ -1,5 +1,6 @@
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import type { Material } from "@babylonjs/core/Materials/material"
+import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
@@ -15,6 +16,7 @@ import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage } from "./battle-damage.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
+import { airLight, lightParticles, litByAir } from "./particle-light.ts"
 import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
 import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
@@ -77,7 +79,36 @@ export function dressBattlefield(map: BattlefieldMap, kit: LevelKit): Battlefiel
       missing.add(placement.piece)
     }
   }
-  return { scenery: batchScenery(kit.pieces, placed, DRAW_DISTANCE), placements, missing }
+  const scenery = batchScenery(kit.pieces, placed, DRAW_DISTANCE)
+  for (const batch of scenery.batches) {
+    const sway = SWAY[batch.piece]
+    for (const mesh of sway === undefined ? [] : [batch.mesh, batch.far]) {
+      if (mesh) {
+        mesh.metadata = { sway }
+      }
+    }
+  }
+  return { scenery, placements, missing }
+}
+
+/**
+ * How freely each kind of plant sways in the wind, grass at 1, for the wind's sway on the kit's materials (see
+ * environment/). The dead trees are stiff: their crowns stir a little.
+ */
+const SWAY: Readonly<Record<string, number>> = {
+  Gen_Env_Grass_01: 1,
+  Gen_Env_Grass_02: 1,
+  Gen_Env_Grass_03: 1,
+  Gen_Env_Grass_Tall_01: 1,
+  Gen_Env_Grass_Tall_02: 1,
+  Env_Tree_Dead_04: 0.25,
+  Gen_Env_Tree_Dead_01: 0.25,
+  Gen_Env_Tree_Dead_02: 0.25,
+  Gen_Env_Tree_Dead_03: 0.25,
+  // Stripped to poles, only a stub of a branch left to stir.
+  Env_Tree_Dead_01: 0.1,
+  Env_Tree_Dead_02: 0.1,
+  Env_Tree_Dead_03: 0.1
 }
 
 /**
@@ -97,6 +128,12 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Env_Tree_Shards_03: 140,
   Env_Tree_Branch_01: 140,
   Env_Tree_Branch_02: 140,
+  Env_Tree_Branch_03: 140,
+  Env_Tree_Branch_04: 140,
+  Tree_Branch_01: 140,
+  Gen_Env_Twig_02: 70,
+  Gen_Env_Twig_03: 70,
+  Gen_Env_Twig_04: 70,
   Env_Brick_Debris_01: 160,
   Env_Brick_Debris_02: 160,
   Env_Brick_Debris_03: 160,
@@ -266,9 +303,10 @@ export async function dressLevel(
       life.crows.scare(event.at.x, event.at.z)
     }),
     life,
-    // Small pieces lie flat on the ground: the depth of field takes their depth from the ground under them.
+    // The depth of field blurs by the ground's depth alone: from the game's camera, looking down on the battlefield,
+    // what stands on the ground is near enough the ground's depth, and every prop drawn again costs a draw call.
     postProcess: createPostProcess(view.scene, view.camera, {
-      inDepth: (mesh) => DRAW_DISTANCE[mesh.name.split("@")[0] ?? ""] === undefined
+      inDepth: (mesh) => mesh.name.startsWith("terrain-") || mesh.name === "backdrop"
     }),
     materials: [...kit.materials, ...(curtain.material ? [curtain.material] : [])],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
@@ -278,6 +316,16 @@ export async function dressLevel(
     woods
   }
   const ambience = dressing.ambience
+  // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night.
+  const unlit = [
+    atmosphere?.smoke,
+    atmosphere?.mist,
+    dressing.aftermath.smoke,
+    dressing.aftermath.clods,
+    ...bursts.systems
+  ]
+  const particleLight = lightParticles(unlit.filter((system) => system !== undefined).filter(litByAir))
+  const light = new Color3()
   // Detail, far copy or nothing for each batch, by the drawing camera's distance, before the scene culls them.
   view.scene.onBeforeActiveMeshesEvaluationObservable.add(() => {
     dressed.scenery.update((view.scene.activeCamera ?? view.camera).globalPosition)
@@ -291,6 +339,7 @@ export async function dressLevel(
     dressing.aftermath.update(frameSeconds)
     bursts.update()
     life.update(frameSeconds)
+    particleLight.update(airLight(view.scene, light))
     dressing.postProcess?.update()
   })
   if (dressing.missing.size > 0) {
