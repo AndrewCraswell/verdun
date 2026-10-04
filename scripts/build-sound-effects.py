@@ -561,15 +561,19 @@ def voice_takes(vendor):
 
 
 def voice_cues(vendor):
-    """Each voice cue's takes, as chosen by ear."""
+    """Each voice cue's takes, as chosen by ear, every shout matched to the same loudness: one man's cry for help is as
+    loud as another's alarm, in either language."""
     takes = voice_takes(vendor)
-    cues = {}
+    chosen = []
     for name in json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []):
         if name not in takes:
             print(f"[sound-effects] kept take {name} isn't in {VOICES}; generate it first", flush=True)
             continue
-        cues.setdefault(takes[name]["cue"], []).append(trimmed(load(vendor / VOICES / f"{name}.mp3")))
-    return {cue: match_loudness(clips) for cue, clips in cues.items()}
+        chosen.append((takes[name]["cue"], trimmed(load(vendor / VOICES / f"{name}.mp3"))))
+    cues = {}
+    for (cue, _), clip in zip(chosen, match_loudness([clip for _, clip in chosen])):
+        cues.setdefault(cue, []).append(clip)
+    return cues
 
 
 def shortlist(vendor):

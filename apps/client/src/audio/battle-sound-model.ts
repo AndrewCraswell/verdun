@@ -202,18 +202,19 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "step-earth": { volume: 0.3, reference: 4 },
   "step-snow": { volume: 0.3, reference: 4 },
   "step-stone": { volume: 0.3, reference: 4 },
-  "voice-charge-fr": { volume: 0.7, reference: 15 },
-  "voice-charge-de": { volume: 0.7, reference: 15 },
-  "voice-cover-fr": { volume: 0.7, reference: 15 },
-  "voice-cover-de": { volume: 0.7, reference: 15 },
-  "voice-gas-fr": { volume: 0.7, reference: 15 },
-  "voice-gas-de": { volume: 0.7, reference: 15 },
-  "voice-grenade-fr": { volume: 0.7, reference: 15 },
-  "voice-grenade-de": { volume: 0.7, reference: 15 },
-  "voice-hit-fr": { volume: 0.7, reference: 15 },
-  "voice-hit-de": { volume: 0.7, reference: 15 },
-  "voice-pinned-fr": { volume: 0.7, reference: 15 },
-  "voice-pinned-de": { volume: 0.7, reference: 15 }
+  // Shouts sit under the guns and shells nearby but over a wounded man's groan: heard, without drowning the battle.
+  "voice-charge-fr": { volume: 0.45, reference: 15 },
+  "voice-charge-de": { volume: 0.45, reference: 15 },
+  "voice-cover-fr": { volume: 0.45, reference: 15 },
+  "voice-cover-de": { volume: 0.45, reference: 15 },
+  "voice-gas-fr": { volume: 0.45, reference: 15 },
+  "voice-gas-de": { volume: 0.45, reference: 15 },
+  "voice-grenade-fr": { volume: 0.45, reference: 15 },
+  "voice-grenade-de": { volume: 0.45, reference: 15 },
+  "voice-hit-fr": { volume: 0.45, reference: 15 },
+  "voice-hit-de": { volume: 0.45, reference: 15 },
+  "voice-pinned-fr": { volume: 0.45, reference: 15 },
+  "voice-pinned-de": { volume: 0.45, reference: 15 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */
