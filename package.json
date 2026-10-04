@@ -18,6 +18,7 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "verify": "run-s check:format check:lint check:types check:unused test:coverage build",
+    "lockfile:normalize": "node scripts/normalize-lockfile.mjs",
     "prepare": "lefthook install"
   },
   "devDependencies": {

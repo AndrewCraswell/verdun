@@ -9,6 +9,11 @@ pre-commit:
       glob: "*.{js,jsx,ts,tsx}"
       run: pnpm oxlint --fix --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
+    lockfile:
+      # Installs on a VPN go through a corporate npm mirror; make the lockfile installable from public npm in CI.
+      glob: "pnpm-lock.yaml"
+      run: pnpm lockfile:normalize
+      stage_fixed: true
     format:
       glob: "*.{js,jsx,ts,tsx,json,css,yaml,yml,md}"
       run: pnpm oxfmt --no-error-on-unmatched-pattern {staged_files}

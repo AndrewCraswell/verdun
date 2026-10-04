@@ -32,6 +32,9 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 - `pnpm dev`: run the client at http://localhost:5173
 - `pnpm verify`: format check, lint, types, knip, tests with coverage, build. Must pass before finishing.
 - `pnpm format`: apply oxfmt
+- `pnpm lockfile:normalize`: this machine's VPN forces npm through a Microsoft package feed, which writes feed tarball
+  URLs and SHA-1 hashes into `pnpm-lock.yaml`. CI installs from public npm and rejects them. The pre-commit hook runs
+  this automatically whenever the lockfile is staged; never commit a lockfile containing `tarball:` feed URLs.
 - Git hooks (lefthook): pre-commit runs `oxlint --fix` and `oxfmt` on staged files; pre-push runs `check:types`. Don't
   use `--no-verify`.
 
