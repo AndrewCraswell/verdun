@@ -1,32 +1,36 @@
-import { mapDepth, mapWidth } from "@verdun/map"
-import { enqueueCommand, type EntityId, Side, type Simulation, spawnSoldier } from "@verdun/sim"
+import { pointsAlong, type Trench } from "@verdun/map"
+import { type EntityId, Side, type Simulation, spawnSoldier } from "@verdun/sim"
 
 export interface Skirmish {
   readonly french: readonly EntityId[]
   readonly german: readonly EntityId[]
 }
 
-/**
- * Placeholder scenario until trenches and bots land: a French line at the south end of the map advances on a German
- * line at the north end.
- */
+/** The front-line fire trench for a side: the one facing the enemy that sits closest to no man's land. */
+function frontLine(trenches: readonly Trench[], facing: "north" | "south"): Trench {
+  const fire = trenches.filter((trench) => trench.kind === "fire" && trench.facing === facing)
+  const forwardZ = (trench: Trench) => trench.points[0]?.[1] ?? 0
+  const [front] = fire.sort((a, b) => (facing === "north" ? forwardZ(b) - forwardZ(a) : forwardZ(a) - forwardZ(b)))
+  if (!front) {
+    throw new Error(`The map has no ${facing}-facing fire trench to man`)
+  }
+  return front
+}
+
+function manTrench(sim: Simulation, trench: Trench, side: Side, count: number): EntityId[] {
+  const length = trench.points.slice(1).reduce((total, b, index) => {
+    const a = trench.points[index]
+    return total + Math.hypot(b[0] - a[0], b[1] - a[1])
+  }, 0)
+  return pointsAlong(trench, length / count)
+    .slice(0, count)
+    .map(([x, z]) => spawnSoldier(sim, { side, x, z }))
+}
+
+/** Placeholder scenario until bots land: both sides man their front-line fire trench, facing each other. */
 export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish {
-  const width = mapWidth(sim.map)
-  const depth = mapDepth(sim.map)
-  const frontage = width * 0.6
-  const left = (width - frontage) / 2
-  const spacing = frontage / soldiersPerSide
-
-  const french: EntityId[] = []
-  const german: EntityId[] = []
-  for (let index = 0; index < soldiersPerSide; index++) {
-    const x = left + index * spacing
-    french.push(spawnSoldier(sim, { side: Side.French, x, z: depth * 0.15 + sim.rng.next() * 6 }))
-    german.push(spawnSoldier(sim, { side: Side.German, x, z: depth * 0.85 - sim.rng.next() * 6 }))
+  return {
+    french: manTrench(sim, frontLine(sim.map.trenches, "north"), Side.French, soldiersPerSide),
+    german: manTrench(sim, frontLine(sim.map.trenches, "south"), Side.German, soldiersPerSide)
   }
-
-  for (const soldier of french) {
-    enqueueCommand(sim, { type: "move-to", soldier, x: sim.soldiers.position.x[soldier], z: depth * 0.8 })
-  }
-  return { french, german }
 }

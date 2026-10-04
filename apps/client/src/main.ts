@@ -1,7 +1,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
-import { generateRollingTerrain } from "@verdun/map"
+import { generatePrototypeSector } from "@verdun/map"
 import { createFixedStepper, createSimulation, STEP_SECONDS, stepSimulation } from "@verdun/sim"
 import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { setupSkirmish } from "./skirmish.ts"
@@ -25,7 +25,7 @@ async function start(): Promise<void> {
 
   const engine = await createEngine(canvas)
   // Prototype sector: 600 m x 400 m at the simulation's 0.5 m resolution.
-  const map = generateRollingTerrain({
+  const map = generatePrototypeSector({
     name: "Prototype sector",
     widthMeters: 600,
     depthMeters: 400,

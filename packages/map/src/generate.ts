@@ -1,5 +1,6 @@
 import { type BattlefieldMap, createFlatMap, mapDepth, sampleIndex, Surface } from "./format.ts"
 import { valueNoise } from "./noise.ts"
+import { carveTrenches, layOutFront } from "./trenches.ts"
 
 export interface RollingTerrainOptions {
   readonly name: string
@@ -85,4 +86,12 @@ export function generateRollingTerrain(options: RollingTerrainOptions): Battlefi
     }
   }
   return map
+}
+
+/** The prototype sector: rolling ground, no man's land between the lines, and both sides' trench systems carved in. */
+export function generatePrototypeSector(options: RollingTerrainOptions): BattlefieldMap {
+  const terrain = generateRollingTerrain(options)
+  const trenches = layOutFront(terrain)
+  carveTrenches(terrain, trenches)
+  return { ...terrain, trenches }
 }

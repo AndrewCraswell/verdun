@@ -10,7 +10,16 @@ export {
   Surface,
   SURFACE_COUNT
 } from "./format.ts"
-export { generateRollingTerrain, type RollingTerrainOptions } from "./generate.ts"
+export { generatePrototypeSector, generateRollingTerrain, type RollingTerrainOptions } from "./generate.ts"
 export { latticeValue, valueNoise } from "./noise.ts"
 export { heightAt } from "./sampling.ts"
 export { fromMapDocument, type MapDocument, toMapDocument } from "./serialization.ts"
+export {
+  carveTrenches,
+  type GroundPoint,
+  layOutFront,
+  pointsAlong,
+  type Trench,
+  TRENCH_PROFILE,
+  type TrenchSystemOptions
+} from "./trenches.ts"

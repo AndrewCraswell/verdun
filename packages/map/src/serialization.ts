@@ -1,4 +1,5 @@
 import { type BattlefieldMap, isSurface, MAP_FORMAT_VERSION, sampleCount, Surface, SURFACE_COUNT } from "./format.ts"
+import type { GroundPoint, Trench } from "./trenches.ts"
 
 /** JSON-safe form of a map, as written to a map file. */
 export interface MapDocument {
@@ -10,6 +11,8 @@ export interface MapDocument {
   readonly heights: readonly number[]
   /** Added in version 2. */
   readonly surfaces?: readonly number[]
+  /** Added in version 3. */
+  readonly trenches?: readonly Trench[]
 }
 
 export function toMapDocument(map: BattlefieldMap): MapDocument {
@@ -20,7 +23,8 @@ export function toMapDocument(map: BattlefieldMap): MapDocument {
     columns: map.columns,
     rows: map.rows,
     heights: Array.from(map.heights),
-    surfaces: Array.from(map.surfaces)
+    surfaces: Array.from(map.surfaces),
+    trenches: map.trenches
   }
 }
 
@@ -36,20 +40,34 @@ function isNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((item) => typeof item === "number" && Number.isFinite(item))
 }
 
+function isGroundPoint(value: unknown): value is GroundPoint {
+  return Array.isArray(value) && value.length === 2 && isNumberArray(value)
+}
+
+function isTrench(value: unknown): value is Trench {
+  if (!isRecord(value)) {
+    return false
+  }
+  const { kind, points, facing } = value
+  const validKind = kind === "fire" || kind === "communication"
+  const validFacing = kind === "fire" ? facing === "north" || facing === "south" : facing === null
+  return validKind && validFacing && Array.isArray(points) && points.length >= 2 && points.every(isGroundPoint)
+}
+
 function isSurfaceArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every(isSurface)
 }
 
 /**
  * Validates a parsed map file and migrates older versions. Throws with the reason when the document is not a readable
- * map. Version 1 files have no surface layer; they load as all mud.
+ * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches.
  */
 export function fromMapDocument(document: unknown): BattlefieldMap {
   if (!isRecord(document)) {
     throw new TypeError("Map document must be an object")
   }
-  const { version, name, cellSize, columns, rows, heights, surfaces } = document
-  if (version !== 1 && version !== MAP_FORMAT_VERSION) {
+  const { version, name, cellSize, columns, rows, heights, surfaces, trenches } = document
+  if (version !== 1 && version !== 2 && version !== MAP_FORMAT_VERSION) {
     throw new TypeError(`Unsupported map format version ${String(version)}; expected 1 to ${MAP_FORMAT_VERSION}`)
   }
   if (typeof name !== "string") {
@@ -75,6 +93,14 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     throw new TypeError(`Map surfaces must hold ${samples} surface types from 0 to ${SURFACE_COUNT - 1}`)
   }
 
+  let trenchLines: readonly Trench[] = []
+  if (version === MAP_FORMAT_VERSION) {
+    if (!Array.isArray(trenches) || !trenches.every(isTrench)) {
+      throw new TypeError("Map trenches must be a list of fire or communication trench lines")
+    }
+    trenchLines = trenches
+  }
+
   return {
     version: MAP_FORMAT_VERSION,
     name,
@@ -82,6 +108,7 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     columns,
     rows,
     heights: Float32Array.from(heights),
-    surfaces: surfaceLayer
+    surfaces: surfaceLayer,
+    trenches: trenchLines
   }
 }

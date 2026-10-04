@@ -1,5 +1,7 @@
+import type { Trench } from "./trenches.ts"
+
 /** Bump when the shape of a saved map changes, and add a migration for older files in serialization.ts. */
-export const MAP_FORMAT_VERSION = 2
+export const MAP_FORMAT_VERSION = 3
 
 /** Ground surface types. Stored per height sample, so terrain materials blend smoothly between them. */
 export const Surface = {
@@ -31,6 +33,8 @@ export interface BattlefieldMap {
   readonly heights: Float32Array
   /** One `Surface` per sample. */
   readonly surfaces: Uint8Array
+  /** Trench lines, already carved into `heights`. Added in version 3. */
+  readonly trenches: readonly Trench[]
 }
 
 interface MapDimensions {
@@ -63,7 +67,8 @@ export function createFlatMap(
     columns,
     rows,
     heights: new Float32Array(samples).fill(height),
-    surfaces: new Uint8Array(samples).fill(surface)
+    surfaces: new Uint8Array(samples).fill(surface),
+    trenches: []
   }
 }
 

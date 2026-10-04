@@ -29,8 +29,11 @@ Scope:
 - [x] **M0 Scaffold**: pnpm monorepo (`sim`, `map`, `client`), Vite, Vitest, oxlint, oxfmt, Turborepo. ECS library
       chosen (bitECS). Babylon scene with camera, procedural terrain and 400 placeholder soldiers driven by the
       simulation.
-- [ ] **M1 Terrain and trenches**: height grid with layers, chunked terrain mesh, splat material, one generated trench
-      line with revetment meshes.
+- [x] **M1 Terrain foundation**: height grid with surface layer, 64 m terrain chunks with per-chunk rebuilds, and a
+      placeholder splat material from four CC0 textures. Visual quality is deliberately deferred to the art phase.
+- [ ] **M1b Gameplay trenches (greybox)**: trench polylines in the map format, carved into the height grid with a fire
+      step and parapet, so they give cover and block sight. Plain geometry, no revetments or props. Soldiers spawn in
+      the lines.
 - [ ] **M2 One soldier**: player-controlled soldier with movement, aiming, line of sight (Rapier ray casts against
       chunked terrain colliders), fog of war.
 - [ ] **M3 Squad**: 8 soldiers, orders, switching, death moves control to the next soldier.
@@ -46,6 +49,16 @@ Scope:
 - [ ] **M9 Playtest build**: deployed to Railway as a static site with a shareable link.
 
 The prototype answers the riskiest question first: is it fun? If not, we change the design before building networking.
+Until then everything stays greybox: placeholder terrain, capsule soldiers, plain trench slots.
+
+### Art and level design phase (after the playtest)
+
+Only once the playtest shows the core loop is fun:
+
+- Terrain materials to the quality bar in [art direction](assets/art-direction.md), from purchased and Megascans assets.
+- Trench meshes along the trench polylines: revetments, duckboards, sandbags, wire, dugout entrances.
+- Level authoring: the in-game editor and Tiled import (see [tooling](tooling.md#editor-plan)), and real elevation data.
+- Lighting, smoke, weather and the global colour grade.
 
 ## Stage 2 and later
 

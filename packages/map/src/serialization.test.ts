@@ -30,6 +30,67 @@ describe("map documents", () => {
     expect(Array.from(map.surfaces)).toEqual([Surface.Mud, Surface.Mud, Surface.Mud, Surface.Mud])
   })
 
+  it("round-trip trench lines, and load older files without any", () => {
+    const map = {
+      ...createFlatMap({ name: "m", cellSize: 1, columns: 2, rows: 2 }),
+      trenches: [
+        {
+          kind: "fire" as const,
+          points: [
+            [0, 1],
+            [2, 1]
+          ] as const,
+          facing: "north" as const
+        }
+      ]
+    }
+    const legacy = { ...toMapDocument(map), version: 2, trenches: undefined }
+    const file = JSON.stringify(toMapDocument(map))
+
+    expect(fromMapDocument(JSON.parse(file)).trenches).toEqual(map.trenches)
+    expect(fromMapDocument(legacy).trenches).toEqual([])
+  })
+
+  it("rejects malformed trench lines", () => {
+    const valid = toMapDocument(createFlatMap({ name: "m", cellSize: 1, columns: 1, rows: 1 }))
+
+    expect(() => fromMapDocument({ ...valid, trenches: undefined })).toThrow("trench")
+    expect(() =>
+      fromMapDocument({
+        ...valid,
+        trenches: [
+          {
+            kind: "fire",
+            points: [
+              [0, 0],
+              [1, 1]
+            ],
+            facing: null
+          }
+        ]
+      })
+    ).toThrow("trench")
+    expect(() =>
+      fromMapDocument({
+        ...valid,
+        trenches: [
+          {
+            kind: "sap",
+            points: [
+              [0, 0],
+              [1, 1]
+            ],
+            facing: null
+          }
+        ]
+      })
+    ).toThrow("trench")
+    expect(() =>
+      fromMapDocument({ ...valid, trenches: [{ kind: "communication", points: [[0, 0]], facing: null }] })
+    ).toThrow("trench")
+    expect(() => fromMapDocument({ ...valid, trenches: ["line"] })).toThrow("trench")
+  })
+
   it("rejects documents that are not objects", () => {
     expect(() => fromMapDocument(null)).toThrow("must be an object")
     expect(() => fromMapDocument("map")).toThrow("must be an object")

@@ -1,17 +1,18 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap, sampleIndex } from "@verdun/map"
+import { createFlatMap, sampleIndex, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { CHUNK_SIZE_METERS, createTerrainChunks } from "./terrain-chunks.ts"
 
 const engines: NullEngine[] = []
 
-function setup(widthMeters: number, depthMeters: number, renderStep?: number) {
+function setup(widthMeters: number, depthMeters: number, renderStep?: number, trenches: readonly Trench[] = []) {
   const engine = new NullEngine()
   engines.push(engine)
   const scene = new Scene(engine)
-  const map = createFlatMap({ name: "test", cellSize: 0.5, columns: widthMeters * 2, rows: depthMeters * 2 })
+  const flat = createFlatMap({ name: "test", cellSize: 0.5, columns: widthMeters * 2, rows: depthMeters * 2 })
+  const map = { ...flat, trenches }
   const material = new StandardMaterial("ground", scene)
   return { map, terrain: createTerrainChunks(scene, map, { material, renderStep }) }
 }
@@ -34,6 +35,22 @@ describe("createTerrainChunks", () => {
     expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65)
     // Every vertex carries four splat weights for the ground material.
     expect(terrain.meshes[0]?.getVerticesData("splat")).toHaveLength(65 * 65 * 4)
+  })
+
+  it("renders chunks with trenches at full 0.5 m detail, so trench steps keep their shape", () => {
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [10, 20],
+        [50, 20]
+      ],
+      facing: "north"
+    }
+    const { terrain } = setup(128, 128, 2, [trench])
+
+    // The trench chunk at every sample: 129 x 129. Its neighbour to the north at 1 m: 65 x 65.
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(129 * 129)
+    expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65)
   })
 
   it("rebuilds only the chunks a change touches", () => {
