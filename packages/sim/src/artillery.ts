@@ -2,15 +2,17 @@ import { type ChangedArea, heightAt, mapDepth, mapWidth, mergeAreas, stampCrater
 import type { EntityId } from "bitecs"
 import { applyCommand } from "./commands.ts"
 import { Side, Stance } from "./components.ts"
+import { refreshGasGround, releaseGas } from "./gas.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
- * howitzer is the 15 cm class (German sFH 13, French 155 mm).
+ * howitzer is the 15 cm class (German sFH 13, French 155 mm). Field gas shells are the German Green Cross
+ * (diphosgene) and the French No. 5 (phosgene), both first fired in quantity at Verdun in 1916.
  */
-export const Shell = { FieldHighExplosive: 0, FieldShrapnel: 1, HeavyHighExplosive: 2 } as const
+export const Shell = { FieldHighExplosive: 0, FieldShrapnel: 1, HeavyHighExplosive: 2, FieldGas: 3 } as const
 export type Shell = (typeof Shell)[keyof typeof Shell]
 
 interface ShellStats {
@@ -30,6 +32,8 @@ interface ShellStats {
   readonly deflectionError: number
   /** Shrapnel bursts in the air short of the target and sprays balls forward in a cone; zero for ground bursts. */
   readonly airburstHeight: number
+  /** Gas released on bursting, in milligrams: about 0.6 kg of liquid agent in a field gun's gas shell. */
+  readonly gasMass: number
 }
 
 export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
@@ -42,7 +46,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     flightSpeed: 420,
     rangeError: 20,
     deflectionError: 4,
-    airburstHeight: 0
+    airburstHeight: 0,
+    gasMass: 0
   },
   [Shell.FieldShrapnel]: {
     craterRadius: 0,
@@ -53,7 +58,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     flightSpeed: 420,
     rangeError: 20,
     deflectionError: 4,
-    airburstHeight: 6
+    airburstHeight: 6,
+    gasMass: 0
   },
   [Shell.HeavyHighExplosive]: {
     craterRadius: 2.5,
@@ -64,7 +70,21 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     flightSpeed: 300,
     rangeError: 30,
     deflectionError: 6,
-    airburstHeight: 0
+    airburstHeight: 0,
+    gasMass: 0
+  },
+  // A small burster just opens the shell: a quiet pop that men often didn't notice over the barrage.
+  [Shell.FieldGas]: {
+    craterRadius: 0.4,
+    craterDepth: 0.2,
+    lethalExposed: 1.5,
+    lethalCovered: 0.3,
+    suppressionRadius: 8,
+    flightSpeed: 420,
+    rangeError: 20,
+    deflectionError: 4,
+    airburstHeight: 0,
+    gasMass: 600_000
   }
 }
 
@@ -303,6 +323,10 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     depth: stats.craterDepth
   })
   sim.artillery.pendingSightRebuild = mergeAreas(sim.artillery.pendingSightRebuild, crater)
+  refreshGasGround(sim.gas, sim.map, crater)
+  if (stats.gasMass > 0) {
+    releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
+  }
   return { type: "burst", shell: landed.shell, at, crater }
 }
 

@@ -74,6 +74,13 @@ export interface StanceCommand {
   readonly prone: boolean
 }
 
+/** Sets the wind near the ground, in metres per second toward +x (east) and +z (north). */
+export interface WindCommand {
+  readonly type: "wind"
+  readonly x: number
+  readonly z: number
+}
+
 /** Orders a side's batteries to fire on a target: a bombardment, a call for fire, or any other barrage. */
 export interface FireMissionCommand {
   readonly type: "fire-mission"
@@ -116,6 +123,7 @@ export type Command =
   | KillCommand
   | FireCommand
   | StanceCommand
+  | WindCommand
   | FireMissionCommand
   | BarrageAttackCommand
 
@@ -206,6 +214,13 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "stance": {
       if (isSoldier(sim, command.soldier)) {
         sim.soldiers.stance.value[command.soldier] = command.prone ? Stance.Prone : Stance.Standing
+      }
+      return
+    }
+    case "wind": {
+      if (Number.isFinite(command.x) && Number.isFinite(command.z)) {
+        sim.wind.x = command.x
+        sim.wind.z = command.z
       }
       return
     }

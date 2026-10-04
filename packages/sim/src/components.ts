@@ -8,6 +8,10 @@ export type Side = (typeof Side)[keyof typeof Side]
 export const Stance = { Standing: 0, Prone: 1, Sheltering: 2 } as const
 export type Stance = (typeof Stance)[keyof typeof Stance]
 
+/** A soldier's gas mask: off, being pulled on, or on. */
+export const MaskState = { Off: 0, Donning: 1, On: 2 } as const
+export type MaskState = (typeof MaskState)[keyof typeof MaskState]
+
 /** A step long before any battle starts, for "never shelled". */
 export const NEVER = -1_000_000
 
@@ -54,6 +58,13 @@ export interface SoldierComponents {
    * fire step, or -1 while they stay down.
    */
   readonly shelter: { readonly lastShelled: Int32Array; readonly emergeAt: Int32Array }
+  /**
+   * Gas mask: its `MaskState`, the step a mask being pulled on is on, and the step the air around a masked soldier
+   * cleared (-1 while there's still gas).
+   */
+  readonly mask: { readonly state: Uint8Array; readonly at: Int32Array; readonly clearSince: Int32Array }
+  /** Gas breathed so far, in mg·min/m³ (concentration times minutes): the measure of a gas casualty. */
+  readonly gasDose: { readonly value: Float32Array }
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -73,6 +84,12 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     suppression: { value: new Float32Array(capacity) },
     morale: { value: new Float32Array(capacity) },
     stance: { value: new Uint8Array(capacity) },
-    shelter: { lastShelled: new Int32Array(capacity).fill(NEVER), emergeAt: new Int32Array(capacity).fill(-1) }
+    shelter: { lastShelled: new Int32Array(capacity).fill(NEVER), emergeAt: new Int32Array(capacity).fill(-1) },
+    mask: {
+      state: new Uint8Array(capacity),
+      at: new Int32Array(capacity).fill(-1),
+      clearSince: new Int32Array(capacity).fill(-1)
+    },
+    gasDose: { value: new Float32Array(capacity) }
   }
 }

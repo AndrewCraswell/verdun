@@ -50,7 +50,11 @@ Scope:
       sight lines. Soldiers lie prone in the open, garrisons shelter in dugouts under shellfire and race back to the
       parapet when it lifts, and men caught below or broken and outnumbered surrender. A barrage attack on the prototype
       sector takes the German trench for about half the attackers, with most of the garrison captured.
-- [ ] **M6 Gas**: density grid, wind, settling, masks.
+- [x] **M6 Gas**: field gas shells (Green Cross, French No. 5) release phosgene into a 4 m density grid that the wind
+      carries, turbulence spreads and gravity drains into trenches and craters, where it lingers. Soldiers smell it,
+      raise the alarm and mask up in 5-12 s; masks let 3% through, slow men and spoil their aim. Breathing past about
+      1,600 mg·min/m³ disables. A 240-shell gas bombardment mostly forces masks, as at Fleury in June 1916. Drawn as a
+      ground tint and a low cloud. A key to call gas fire waits on `main.ts`.
 - [ ] **M7 Crowd**: 400 soldiers with VAT instancing and LODs from the
       [Synty soldiers](assets/art-direction.md#version-1-synty-polygon), through the full
       [asset pipeline](assets/pipeline.md) including the encrypted pack.

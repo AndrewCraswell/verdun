@@ -10,7 +10,17 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { Scene } from "@babylonjs/core/scene"
 import { heightAt, mapDepth, mapWidth } from "@verdun/map"
-import { capturedIds, type EntityId, fallenIds, Side, type Simulation, soldierIds, Stance } from "@verdun/sim"
+import {
+  capturedIds,
+  type EntityId,
+  fallenIds,
+  GAS_INTERVAL,
+  Side,
+  type Simulation,
+  soldierIds,
+  Stance
+} from "@verdun/sim"
+import { createGasCloud, type GasCloud } from "./effects/gas-cloud.ts"
 import { palette, surfaceColors } from "./palette.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
 
@@ -31,6 +41,8 @@ export interface BattlefieldView {
   readonly fallenMeshes: Readonly<Record<Side, Mesh>>
   /** Prisoners on their way to the rear, by the side they fought for. */
   readonly prisonerMeshes: Readonly<Record<Side, Mesh>>
+  /** Gas drifting over the ground; it redraws itself as the simulation moves the cloud. */
+  readonly gas: GasCloud
   /**
    * Copies soldier positions from the simulation into the render meshes. Call after stepping, or when what is visible
    * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
@@ -153,6 +165,16 @@ export function createBattlefieldScene(
     renderStep: terrainStep
   })
 
+  const gas = createGasCloud(scene, sim, groundMaterial)
+  // Gas moves a few times a second in the simulation: redraw it when it has stepped on, not every frame.
+  let gasDrawnAt = -1
+  scene.onBeforeRenderObservable.add(() => {
+    if (sim.tick - gasDrawnAt >= GAS_INTERVAL) {
+      gasDrawnAt = sim.tick
+      gas.update()
+    }
+  })
+
   const soldierMeshes = {
     [Side.French]: createSoldierMesh(scene, "french", palette.horizonBlue),
     [Side.German]: createSoldierMesh(scene, "german", palette.feldgrau)
@@ -219,5 +241,5 @@ export function createBattlefieldScene(
   }
 
   syncSoldiers()
-  return { scene, camera, terrain, groundMaterial, soldierMeshes, fallenMeshes, prisonerMeshes, syncSoldiers }
+  return { scene, camera, terrain, groundMaterial, soldierMeshes, fallenMeshes, prisonerMeshes, gas, syncSoldiers }
 }

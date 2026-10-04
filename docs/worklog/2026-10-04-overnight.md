@@ -60,3 +60,35 @@ Without the bombardment the attack still succeeds (136 captured). That's defensi
 1916 breakthrough, but the bombardment's real job was cutting wire, and there is no wire mechanic yet. Next once the
 level-design agent's `WireBelt` lands in the committed map format: uncut wire stops or slows infantry, and HE shells cut
 it.
+
+## CI fix
+
+CI had failed on both artillery commits: the HE casualty test builds 120 Rapier heightfields and timed out at 5 s under
+coverage instrumentation (about 7 s on the runner, 0.8 s locally). `packages/sim/vitest.config.ts` now allows 30 s per
+test. CI is green from `acabf87`.
+
+## Gas (M6)
+
+Committed as "Add gas: phosgene shells, drifting clouds and masks".
+
+- **Grid** (`packages/sim/src/gas.ts`): 4 m cells of concentration in mg/m³ in a 2 m layer near the ground, stepped at 5
+  Hz. Semi-Lagrangian wind advection, turbulent diffusion (3 m²/s), drainage toward lower neighbours (so gas fills
+  trenches and craters), and decay with a 4-minute half-life in the open and 15 minutes in hollows. It costs nothing
+  while the field is clear. Craters refresh the grid's ground.
+- **Shells**: `Shell.FieldGas`, 0.6 kg of agent with a small burster.
+- **Masks**: a soldier smells gas at 10 mg/m³, shouts the alarm (friends within 60 m start masking), loses some morale
+  and gets the mask on in 5-12 s. A mask lets 3% through, cuts accuracy to 70% and walking pace to 85%, and comes off
+  after a minute of clean air. Men in dugouts breathe 60% of the air above.
+- **Casualties**: dose in mg·min/m³; past about 1,600 (±40% per man) the soldier chokes and is out within a minute.
+- **Wind** is part of the simulation (default 2 m/s from the west, slightly north) and a `wind` command sets it.
+  Snapshots are version 7 (gas grid, wind, masks, doses).
+- **Client**: `effects/gas-cloud.ts` tints the ground and draws a low, jittered, translucent cloud where gas is
+  dangerous. The battlefield scene creates and redraws it itself, so `main.ts` needed no change.
+- **Calibration**: German Green Cross on the French front line, 120 rounds a minute for 2 minutes (240 shells). It
+  killed no one by gas (7 by bursters); masks went on in time and about 250 men were still masked 5 minutes later.
+  Historically the 22 June 1916 Fleury bombardment caused about one casualty per 70 shells, so the order of magnitude is
+  right: gas shells harass and blind more than they kill.
+
+**Not done: a key to call gas fire.** Wiring a new command into `main.ts` would mean editing a file the level-design
+agent has uncommitted changes in. Until then, from the dev console:
+`verdun.sim.pendingCommands.push({ type: "fire-mission", plan: { side: 0, shell: 3, fromX: 250, toX: 350, z: 280, band: 30, roundsPerMinute: 60, delay: 0, duration: 60 } })`.

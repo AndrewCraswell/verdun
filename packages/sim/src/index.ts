@@ -23,9 +23,10 @@ export type {
   SquadOrderCommand,
   StanceCommand,
   SteerCommand,
+  WindCommand,
   TakeCommandCommand
 } from "./commands.ts"
-export { Side, Stance } from "./components.ts"
+export { MaskState, Side, Stance } from "./components.ts"
 export { type CaptureEvent, surrender } from "./capture.ts"
 export {
   capturedIds,
@@ -55,3 +56,14 @@ export {
 export { createFixedStepper, type FixedStepper } from "./stepper.ts"
 export { createLineOfSight, EYE_HEIGHT, eyeAt, type LineOfSight, type WorldPoint } from "./line-of-sight.ts"
 export { CRAWL_FACTOR, isInTrench, isSheltering, PRONE_EYE_HEIGHT, SHELTER_CALM, soldierEye } from "./stance.ts"
+export {
+  concentrationAt,
+  GAS_CELL,
+  GAS_DETECTED,
+  GAS_INTERVAL,
+  type GasField,
+  gasTolerance,
+  INCAPACITATING_DOSE,
+  MASK_LEAK,
+  releaseGas
+} from "./gas.ts"

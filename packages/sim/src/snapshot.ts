@@ -2,12 +2,12 @@ import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
 import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
-import { Side, Stance } from "./components.ts"
+import { MaskState, Side, Stance } from "./components.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 6
+export const SIM_STATE_VERSION = 7
 
 export interface SoldierState {
   readonly id: number
@@ -29,6 +29,10 @@ export interface SoldierState {
   readonly stance: Stance
   readonly lastShelled: number
   readonly emergeAt: number
+  readonly mask: MaskState
+  readonly maskAt: number
+  readonly maskClearSince: number
+  readonly gasDose: number
 }
 
 export interface SquadState {
@@ -49,10 +53,18 @@ export interface SimulationSnapshot {
   readonly squads: readonly SquadState[]
   /** Fire missions and shells in flight. Craters already dug are in the map, which saves separately. */
   readonly artillery: ArtilleryState
+  /** Gas concentration in each cell of the gas grid, in mg/m³, and the wind carrying it. */
+  readonly gas: readonly number[]
+  readonly wind: { readonly x: number; readonly z: number }
 }
 
 function toSide(value: number): Side {
   return value === Side.German ? Side.German : Side.French
+}
+
+function toMask(value: number): MaskState {
+  const states: readonly MaskState[] = [MaskState.Off, MaskState.Donning, MaskState.On]
+  return states.find((state) => state === value) ?? MaskState.Off
 }
 
 function toStance(value: number): Stance {
@@ -84,7 +96,11 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       morale: morale.value[id],
       stance: toStance(sim.soldiers.stance.value[id]),
       lastShelled: sim.soldiers.shelter.lastShelled[id],
-      emergeAt: sim.soldiers.shelter.emergeAt[id]
+      emergeAt: sim.soldiers.shelter.emergeAt[id],
+      mask: toMask(sim.soldiers.mask.state[id]),
+      maskAt: sim.soldiers.mask.at[id],
+      maskClearSince: sim.soldiers.mask.clearSince[id],
+      gasDose: sim.soldiers.gasDose.value[id]
     }))
   const squads = sim.squads.map((squad): SquadState => ({
     side: squad.side,
@@ -99,7 +115,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     rngState: sim.rng.state,
     soldiers,
     squads,
-    artillery: copyArtilleryState(sim.artillery)
+    artillery: copyArtilleryState(sim.artillery),
+    gas: Array.from(sim.gas.concentration),
+    wind: { x: sim.wind.x, z: sim.wind.z }
   }
 }
 
@@ -109,7 +127,7 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
  * index so recycled ids restore identically.
  */
 export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnapshot): Simulation {
-  const sim = createSimulation({ map, seed: snapshot.rngState })
+  const sim = createSimulation({ map, seed: snapshot.rngState, wind: snapshot.wind })
   sim.tick = snapshot.tick
   for (const soldier of snapshot.soldiers) {
     const id = spawnSoldier(sim, {
@@ -141,6 +159,10 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.soldiers.stance.value[id] = soldier.stance
     sim.soldiers.shelter.lastShelled[id] = soldier.lastShelled
     sim.soldiers.shelter.emergeAt[id] = soldier.emergeAt
+    sim.soldiers.mask.state[id] = soldier.mask
+    sim.soldiers.mask.at[id] = soldier.maskAt
+    sim.soldiers.mask.clearSince[id] = soldier.maskClearSince
+    sim.soldiers.gasDose.value[id] = soldier.gasDose
     if (soldier.dead) {
       addComponent(sim.world, id, sim.soldiers.dead)
     }
@@ -166,5 +188,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   sim.artillery.shells.push(...artillery.shells)
   sim.artillery.pendingSightRebuild = artillery.pendingSightRebuild
   Object.assign(sim.artillery.sosCalledAt, artillery.sosCalledAt)
+  sim.gas.concentration.set(snapshot.gas)
+  sim.gas.active = snapshot.gas.some((value) => value > 0)
   return sim
 }

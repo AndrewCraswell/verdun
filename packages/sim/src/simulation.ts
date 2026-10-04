@@ -4,7 +4,8 @@ import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryS
 import { captureSystem, type CaptureEvent } from "./capture.ts"
 import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
 import { applyCommand, type Command } from "./commands.ts"
-import { createSoldierComponents, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
+import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
+import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
@@ -36,6 +37,10 @@ export interface Simulation {
   lineOfSight: LineOfSight | null
   /** Batteries' fire missions and shells in flight. */
   readonly artillery: ArtilleryState
+  /** Gas drifting over the battlefield. */
+  readonly gas: GasField
+  /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
+  readonly wind: { x: number; z: number }
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
@@ -49,9 +54,16 @@ export interface SimulationOptions {
   readonly seed: number
   /** Highest entity id + 1 the component stores can hold. */
   readonly capacity?: number
+  /** Wind near the ground, in metres per second. Defaults to a light westerly, Verdun's prevailing wind. */
+  readonly wind?: { readonly x: number; readonly z: number }
 }
 
-export function createSimulation({ map, seed, capacity = DEFAULT_CAPACITY }: SimulationOptions): Simulation {
+export function createSimulation({
+  map,
+  seed,
+  capacity = DEFAULT_CAPACITY,
+  wind = { x: 2, z: 0.5 }
+}: SimulationOptions): Simulation {
   return {
     map,
     world: createWorld(),
@@ -62,6 +74,8 @@ export function createSimulation({ map, seed, capacity = DEFAULT_CAPACITY }: Sim
     squads: [],
     lineOfSight: null,
     artillery: createArtilleryState(),
+    gas: createGasField(map),
+    wind: { x: wind.x, z: wind.z },
     events: [],
     tick: 0
   }
@@ -113,6 +127,10 @@ export function spawnSoldier(
   sim.soldiers.stance.value[soldier] = Stance.Standing
   sim.soldiers.shelter.lastShelled[soldier] = NEVER
   sim.soldiers.shelter.emergeAt[soldier] = -1
+  sim.soldiers.mask.state[soldier] = MaskState.Off
+  sim.soldiers.mask.at[soldier] = -1
+  sim.soldiers.mask.clearSince[soldier] = -1
+  sim.soldiers.gasDose.value[soldier] = 0
   const towardEnemy = side === Side.French ? 1 : -1
   facingStore.x[soldier] = facing?.x ?? 0
   facingStore.z[soldier] = facing?.z ?? towardEnemy
@@ -150,6 +168,7 @@ export function stepSimulation(sim: Simulation): void {
   captureSystem(sim)
   combatSystem(sim)
   artillerySystem(sim)
+  gasSystem(sim)
   movementSystem(sim, STEP_SECONDS)
   sim.tick += 1
 }

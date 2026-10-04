@@ -1,6 +1,6 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { applyCommand } from "./commands.ts"
-import { Stance } from "./components.ts"
+import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { isAlive } from "./squads.ts"
@@ -42,6 +42,8 @@ export const PINNED = 0.6
 const COVERED_TARGET_RANGE = 100
 const MOVING_TARGET_FACTOR = 0.75
 const MOVING_SHOOTER_FACTOR = 0.5
+/** Fogged eyepieces and a narrow field of view: a masked soldier shoots worse. */
+const MASKED_SHOOTER_FACTOR = 0.7
 /**
  * Suppression lost per second. Slow enough that defenders stay down for a while after a barrage lifts: the race to
  * the parapet that decided so many WW1 attacks.
@@ -115,6 +117,9 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   }
   if (isMoving(sim, shooter)) {
     chance *= MOVING_SHOOTER_FACTOR
+  }
+  if (sim.soldiers.mask.state[shooter] === MaskState.On) {
+    chance *= MASKED_SHOOTER_FACTOR
   }
   const suppression = sim.soldiers.suppression.value[shooter]
   const morale = sim.soldiers.morale.value[shooter]
