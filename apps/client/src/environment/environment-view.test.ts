@@ -185,6 +185,9 @@ describe("the environment view", () => {
     expect(view?.surface.rain).toBeGreaterThan(0.5)
     expect(view?.wind.strength).toBeGreaterThan(0.5)
     expect(view?.wind.towardX).toBeCloseTo(1)
+    // The low fog's numbers follow the weather, for the particles and materials that draw it.
+    expect(view?.heightFog.density).toBeCloseTo(3.912 / storm.visibility, 6)
+    expect(view?.heightFog.color.equals(battlefield.fogColor)).toBe(true)
     expect(ground.diffuseColor.r).toBeLessThan(dryGround * 0.7)
     expect(ground.specularPower).toBe(48)
     expect(smoke.gravity.x).toBeGreaterThan(0)

@@ -13,6 +13,7 @@ import { heightAt } from "@verdun/map"
 import { type Simulation, soldierIds, type Weather, WeatherPattern } from "@verdun/sim"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createGroundMarks } from "./ground-marks.ts"
+import { createHeightFog, type HeightFog, heightFogFor } from "./height-fog.ts"
 import { createPrecipitation, type Precipitation } from "./precipitation.ts"
 import { createCloudTexture, type WeatherSurface, WeatherSurfacePlugin } from "./weather-surface-plugin.ts"
 import { type Wind, WindSwayPlugin } from "./wind-sway-plugin.ts"
@@ -37,6 +38,8 @@ export interface EnvironmentView {
   readonly surface: Readonly<WeatherSurface>
   /** The wind the grass and trees sway in. */
   readonly wind: Readonly<Wind>
+  /** The fog lying low over the field now (see height-fog.ts), for anything that draws it: particles, materials. */
+  readonly heightFog: Readonly<HeightFog>
   /** Fires on each lightning flash with how far off it struck, in metres: thunder follows at 3 s a kilometre. */
   readonly onLightning: Observable<number>
   /** Draws the simulation's time of day and weather. Call once a frame. */
@@ -164,6 +167,9 @@ export function createEnvironmentView(
   }
   const clouds = createCloudTexture(scene)
   const marks = createGroundMarks(scene, sim.map)
+  // The fog lies on the low ground: the height a tenth of the map lies below.
+  const heights = Float32Array.from(sim.map.heights).sort()
+  const heightFog = createHeightFog(heights[Math.floor(heights.length * 0.1)] ?? 0)
   const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, marks, surface))
   const wind: Wind = { towardX: 1, towardZ: 0, strength: SWAY.least, time: 0 }
   const swaying = materials.map((material) => new WindSwayPlugin(material, wind))
@@ -180,6 +186,7 @@ export function createEnvironmentView(
     precipitation,
     surface,
     wind,
+    heightFog,
     onLightning,
     update(frameSeconds) {
       const { environment } = sim
@@ -209,6 +216,10 @@ export function createEnvironmentView(
       surface.snowBrightness = 0.15 + 0.85 * light
 
       surface.groundFog = groundFogFor(weather, windSpeed, light)
+      const { density, falloff } = heightFogFor(weather)
+      heightFog.density = density
+      heightFog.falloff = falloff
+      heightFog.color.copyFrom(scene.fogColor)
 
       // Puddles rise in the hollows as the ground soaks, mirror the haze, and ripple in rain; frozen, they lie still.
       const soaking = smoothstep(PUDDLES.from, PUDDLES.full, weather.wetness)
