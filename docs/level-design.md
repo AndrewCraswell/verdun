@@ -156,12 +156,15 @@ the art matches line of sight), broken here and there where a shell blew a stret
 stores and tools against the walls, and telephone poles beside the communication trenches. Burst bags, planks, sheets of
 iron, ammunition boxes, spare duckboards, spades and duds lie on the lips of spoil, behind a bay and either side of a
 sap, so the kit's smooth lips don't read as pillows. The lines are lived in: rainwater stands on the floor under the
-duckboards wherever the floor dips and in about a third of the rest, every dugout's doorway has a gas curtain (a damp
-blanket, made in code since the kit has none), braziers made from oil drums burn beside about half the dugouts with
-sparks rising from them, and a signboard stands where each communication trench joins a fire trench. A 0.5 m height grid
-can't follow vertical revetments, so once the kit is placed the terrain is drawn slightly differently from the
-simulation's heights ([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's
-walls, floor and lips, and darkened on the spoil so the seams between pieces read as shadow.
+duckboards wherever the floor dips and in about a third of the rest, and the boards over it have settled into the mud,
+each tipped its own way; every dugout's doorway has a gas curtain (a damp blanket, made in code since the kit has none);
+braziers made from oil drums burn beside about half the dugouts with sparks rising from them; about three in five have a
+stovepipe poking up through the earth over the room, wood smoke rising from it on the wind; washing hangs out to dry on
+a line behind about one in three; and a signboard stands where each communication trench joins a fire trench. The
+stovepipe and the washing are made in code too. A 0.5 m height grid can't follow vertical revetments, so once the kit is
+placed the terrain is drawn slightly differently from the simulation's heights
+([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's walls, floor and lips,
+and darkened on the spoil so the seams between pieces read as shadow.
 
 **Shellfire wrecks the props** ([battle-damage.ts](../apps/client/src/level/battle-damage.ts)). Every burst that makes a
 crater reaches a little past the crater's bowl: duckboards, ladders, stores, poles and parapet sandbags within it are
@@ -231,7 +234,8 @@ What a shell leaves once the flash and the column of earth have gone
 - **Scorch**: the ground blackened in a faceted blot about the burst, a black core and a browner ring, with ragged
   splashes thrown out around it. Scorch is painted into a one-byte-per-metre texture over the whole map
   ([scorch-map.ts](../apps/client/src/level/scorch-map.ts)) that the ground material darkens by, so it survives the
-  terrain being rebuilt under it.
+  terrain being rebuilt under it. Rain washes it into the mud: heavy rain halves it every ten real minutes, about two
+  hours of the game's day, drizzle more slowly and snow not at all.
 - **Smoke** left hanging over shelled ground for half a minute, drifting with the simulation's wind.
 - **Clods of earth** thrown out and falling back.
 - **Fires**, now and then, burning for a minute or so with sparks rising: four times likelier where there's timber to
