@@ -428,6 +428,17 @@ In `apps/client/src/environment/`:
   out of it. How thick it lies (`groundFogFor`) follows the fog in the forecast, and on clear, calm, damp nights the
   cooling air drains into the hollows as radiation fog even when the forecast is clear; wind stirs both away. The
   level's mist particles drift over it.
+- **Low-lying fog** (`height-fog.ts`; on with `?heightfog` until it has been measured, then by default): fog that lies
+  low, as real fog does, instead of Babylon's fog, which thickens only with distance from the camera and from above
+  looks flat. Its density falls off exponentially with height above the map's low ground (its 10th-percentile height):
+  `density × exp(−falloff × (y − base))`, with the density from the visibility (Koschmieder, 3.912 / V) and the falloff
+  from the weather, a layer about 40 m deep in fog and 600 m deep in haze or rain (`heightFogFor`). The light reaching
+  the eye from each point is integrated analytically along the ray from the camera (`heightFogTransmittance`), so
+  ravines and valleys fill, ridges and tree tops stand out, and a camera high above a fog bank looks down through only
+  its thin top. One function in GLSL and WGSL, `HEIGHT_FOG_GLSL` and `HEIGHT_FOG_WGSL`, is drawn by the weather-surface
+  plugin on the ground and props, on the soldiers (fog only, no puddles or snow on men), and by Level design's particle
+  shader on smoke, dust and mist (`level/particle-fog.ts`), so all are fogged alike. With it on, Babylon's fog is turned
+  off on those materials. The environment view hands the numbers over each frame (`environment.heightFog`).
 - **Wind in the grass and trees** (`wind-sway-plugin.ts`): a vertex plugin on the kit's shared materials, in GLSL and
   WGSL. The level tags its plant batches with a stiffness (`metadata.sway`: grass 1, crowned dead trees 0.25, trunks
   stripped to poles 0.1), and only tagged meshes compile the swaying variant, one per stiffness band, so there is no
@@ -437,6 +448,27 @@ In `apps/client/src/environment/`:
 - **Trails in snow**: every half second the view presses where each man stands into a 1 m texture of trodden snow, which
   thins the snow there and greys it with mud. Fresh snow fills trails (two thirds filled by 2 mm of water), and a thaw
   wipes them.
+
+## Graphics quality
+
+The battle is limited by the graphics card on modest laptops (22 fps on a GeForce 860M at 1080p), and most of the
+weather and battle effects are drawn per pixel. The graphics setting (`apps/client/src/settings/graphics.ts`) is High or
+Low: kept in the browser (`verdun.graphics`), set from the settings screen, or with `?quality=low` in the address. It's
+read once at load, since effects choose their shaders as the battle is built: a change takes a reload.
+
+Low drops what costs most for least:
+
+| Effect                              | Low                                                              |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| Puddles, their ripples, snow trails | Not drawn: the weather plugin skips the ground-marks textures    |
+| Fog pooling in the hollows          | Not drawn (the low-lying fog itself stays)                       |
+| Grass and trees swaying             | Still                                                            |
+| Rain splashes                       | None                                                             |
+| Flares                              | One light, for the brightest flare, instead of three; no shadows |
+| Gunfire                             | No muzzle smoke; two grains of dirt a strike instead of five     |
+
+Cloud shadows, lying snow, rain and snow falling, and the fog stay on both settings. Other sessions' costly effects (the
+post-process, the sun's shadows) can read the same setting.
 
 ## Saves and networking
 
