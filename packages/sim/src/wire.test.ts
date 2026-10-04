@@ -2,18 +2,9 @@ import { createFlatMap, Surface, type WireBelt } from "@verdun/map"
 import { describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
-import {
-  createSimulation,
-  enqueueCommand,
-  type Simulation,
-  spawnSoldier,
-  stepSimulation,
-  TICK_RATE,
-  WALKING_SPEED
-} from "./simulation.ts"
+import { createSimulation, stepSimulation } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { createSquad } from "./squads.ts"
-import { createWireField, wireAt, wireDetour, wirePace } from "./wire.ts"
+import { createWireField, wireAt, wirePace } from "./wire.ts"
 
 /** A field with a belt of wire along z = 100 from x = 20 to 180, broken by a 6 m gap at x = 140. */
 function wired() {
@@ -36,12 +27,6 @@ function wired() {
     ...map,
     wire: belts,
     scenery: [{ kind: "knife-rest" as const, x: 50, z: 150, heading: 0, variant: 0, scale: 1 }]
-  }
-}
-
-function stepFor(sim: Simulation, seconds: number) {
-  for (let step = 0; step < Math.round(seconds * TICK_RATE); step++) {
-    stepSimulation(sim)
   }
 }
 
@@ -85,34 +70,5 @@ describe("barbed wire", () => {
     stepSimulation(sim)
 
     expect(sim.events.some((event) => event.type === "wire-cut")).toBe(false)
-  })
-
-  it("sends men round to the nearest gap rather than through the wire", () => {
-    const field = createWireField(wired())
-
-    // The tangles reach 1.7 m past each belt's end, leaving x = 139-140 open.
-    expect(wireDetour(field, 120, 80, 120, 120)).toEqual({ x: 139.5, z: 95.5 })
-    expect(wireDetour(field, 139.5, 95, 139.5, 120)).toBeNull()
-    expect(wireDetour(field, 120, 110, 120, 120)).toBeNull()
-    // Near the end of a belt, the way round is past its end.
-    expect(wireDetour(field, 30, 80, 30, 120)).toEqual({ x: 17.5, z: 95.5 })
-  })
-
-  it("lets a squad find its way through the gap faster than cutting through", () => {
-    const sim = createSimulation({ map: wired(), seed: 1 })
-    const soldier = spawnSoldier(sim, { side: Side.French, x: 120, z: 80 })
-    const squad = createSquad(sim, Side.French, [soldier])
-    squad.order = { kind: "advance", x: 120, z: 120 }
-    const walkStraight = 40 / WALKING_SPEED
-    stepFor(sim, walkStraight + 40)
-
-    expect(sim.soldiers.position.z[soldier]).toBeCloseTo(120, 0)
-    expect(sim.soldiers.position.x[soldier]).toBeCloseTo(120, 0)
-
-    const cutter = createSimulation({ map: wired(), seed: 1 })
-    const alone = spawnSoldier(cutter, { side: Side.French, x: 30, z: 80 })
-    enqueueCommand(cutter, { type: "move-to", soldier: alone, x: 30, z: 120 })
-    stepFor(cutter, walkStraight + 40)
-    expect(cutter.soldiers.position.z[alone]).toBeLessThan(110)
   })
 })

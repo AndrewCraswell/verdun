@@ -24,6 +24,8 @@ export interface WireField {
   readonly density: Float32Array
   /** The density each cell started with, so a save need only record what has been cut. */
   readonly staked: Float32Array
+  /** Counts cuts, so anything derived from the wire (routes through it) knows when to look again. */
+  cuts: number
 }
 
 /** A shell cutting wire, for renderers to tear away the wire art around the burst. */
@@ -86,7 +88,8 @@ export function createWireField(map: BattlefieldMap): WireField {
     columns,
     rows,
     density: new Float32Array(columns * rows),
-    staked: new Float32Array(columns * rows)
+    staked: new Float32Array(columns * rows),
+    cuts: 0
   }
   for (const belt of map.wire) {
     for (let index = 1; index < belt.points.length; index++) {
@@ -151,6 +154,7 @@ export function cutWire(sim: Simulation, x: number, z: number, radius: number): 
     }
   }
   if (cut) {
+    field.cuts++
     sim.events.push({ type: "wire-cut", x, z, radius })
   }
   return cut
@@ -165,77 +169,4 @@ export function wireCuts(field: WireField): [number, number][] {
     }
   })
   return cuts
-}
-
-/** Wire this intact or more stops a man; less, he can push or step through. */
-const BLOCKING = 0.5
-/** Men look this far along a belt either way for a gap, in metres, before resigning themselves to cutting through. */
-const MAX_DETOUR = 80
-
-function blocked(field: WireField, x: number, z: number): boolean {
-  return wireAt(field, x, z) >= BLOCKING
-}
-
-/**
- * Where to go first, to get from one point to another without cutting through intact wire: to the near side of the
- * nearest gap in the belts across the way (a patrol gap, or a lane shells have cut), then through it to the far side.
- * Null when the way is clear, or when there's no gap within reach and the wire must be cut through.
- */
-export function wireDetour(
-  field: WireField,
-  fromX: number,
-  fromZ: number,
-  toX: number,
-  toZ: number
-): { x: number; z: number } | null {
-  const dx = toX - fromX
-  const dz = toZ - fromZ
-  const distance = length(dx, dz)
-  if (distance < 1) {
-    return null
-  }
-  // Find the stretch of the way that runs through wire.
-  let entry = -1
-  let exit = -1
-  for (let step = 0; step <= Math.ceil(distance); step++) {
-    const along = Math.min(step, distance) / distance
-    if (blocked(field, fromX + dx * along, fromZ + dz * along)) {
-      if (entry < 0) {
-        entry = along
-      }
-      exit = along
-    }
-  }
-  if (entry < 0) {
-    return null
-  }
-  const entryZ = fromZ + dz * entry
-  const exitZ = fromZ + dz * exit
-  const crossX = fromX + dx * entry
-  const direction = Math.sign(dz) || 1
-  const nearZ = Math.min(entryZ, exitZ) - 1.5
-  const farZ = Math.max(entryZ, exitZ) + 1.5
-  const open = (x: number) => {
-    for (let z = nearZ; z <= farZ; z += WIRE_CELL) {
-      if (blocked(field, x, z)) {
-        return false
-      }
-    }
-    return true
-  }
-  for (let offset = 0; offset <= MAX_DETOUR; offset += WIRE_CELL) {
-    for (const x of offset === 0 ? [crossX] : [crossX - offset, crossX + offset]) {
-      if (x < 0 || x >= field.columns * WIRE_CELL || !open(x)) {
-        continue
-      }
-      const gapX = Math.floor(x / WIRE_CELL) * WIRE_CELL + WIRE_CELL / 2
-      const beforeZ = direction > 0 ? nearZ - 1 : farZ + 1
-      const beyondZ = direction > 0 ? farZ + 1 : nearZ - 1
-      // Line up on the gap first; once in line with it, go on through.
-      return Math.abs(fromX - gapX) > WIRE_CELL && (fromZ - beforeZ) * direction < 0
-        ? { x: gapX, z: beforeZ }
-        : { x: gapX, z: beyondZ }
-    }
-  }
-  return null
 }

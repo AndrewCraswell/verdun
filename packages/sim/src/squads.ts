@@ -3,8 +3,8 @@ import { barrageLine } from "./artillery.ts"
 import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
+import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
-import { wireDetour } from "./wire.ts"
 
 /** What a squad's soldiers do when the player isn't steering them. */
 export type SquadOrder =
@@ -34,7 +34,7 @@ export interface Squad {
   readonly id: number
   readonly side: Side
   /** Members in slot order: slot 1 first. Fallen members stay listed. */
-  readonly members: readonly EntityId[]
+  members: EntityId[]
   /** The soldier the squad forms on; for the player's squad, the one they control. -1 once everyone has fallen. */
   leader: EntityId
   order: SquadOrder
@@ -158,16 +158,28 @@ function barrageLifted(sim: Simulation, order: { mission: number; objectiveZ: nu
  * Sends a soldier to a point unless they're already close. Applied directly rather than queued: commands are for input
  * from outside the simulation, and squad decisions are made inside it.
  */
-function orderMoveTo(sim: Simulation, soldier: EntityId, target: { x: number; z: number }, run = false): void {
+function orderMoveTo(
+  sim: Simulation,
+  soldier: EntityId,
+  target: { x: number; z: number },
+  goal: NavGoal,
+  run = false
+): void {
   const { position } = sim.soldiers
   const dx = target.x - position.x[soldier]
   const dz = target.z - position.z[soldier]
   if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
-    // Make for a gap rather than cut through the wire, if there's one within reach.
-    const via = wireDetour(sim.wire, position.x[soldier], position.z[soldier], target.x, target.z) ?? target
+    // Round ruins and pools and through gaps in the wire, rather than straight through them.
+    const via = nextWaypoint(sim, soldier, target, goal)
     applyCommand(sim, { type: "move-to", soldier, x: via.x, z: via.z, run })
   }
 }
+
+/** Advancing squads head for a stretch of ground this wide around their point, in metres. */
+const ADVANCE_GOAL_RADIUS = 12
+/** Squads following their leader head for ground this close to him, in metres, his place snapped to this grid. */
+const FOLLOW_GOAL_RADIUS = 8
+const FOLLOW_GOAL_SNAP = 8
 
 /**
  * Keeps squads together a few times a second: replaces fallen leaders, then sends members to their place in the
@@ -203,15 +215,28 @@ export function squadSystem(sim: Simulation): void {
         // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on. Once the
         // barrage has lifted off the objective, they run for it.
         if ((target.z - sim.soldiers.position.z[member]) * direction >= 0) {
-          orderMoveTo(sim, member, target, barrageLifted(sim, order))
+          const goal: NavGoal = { kind: "line", z: target.z, direction: direction || 1 }
+          orderMoveTo(sim, member, target, goal, barrageLifted(sim, order))
         }
         return
       }
-      orderMoveTo(
-        sim,
-        member,
-        order.kind === "follow" ? followSlot(sim, squad.leader, slot) : advanceSlot(sim, order, slot, followers.length)
-      )
+      if (order.kind === "follow") {
+        const { x, z } = sim.soldiers.position
+        // Snapped to a coarse grid, so a moving leader doesn't call for a new route every few steps.
+        orderMoveTo(sim, member, followSlot(sim, squad.leader, slot), {
+          kind: "point",
+          x: Math.round(x[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
+          z: Math.round(z[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
+          radius: FOLLOW_GOAL_RADIUS
+        })
+        return
+      }
+      orderMoveTo(sim, member, advanceSlot(sim, order, slot, followers.length), {
+        kind: "point",
+        x: order.x,
+        z: order.z,
+        radius: ADVANCE_GOAL_RADIUS
+      })
     })
   }
 }

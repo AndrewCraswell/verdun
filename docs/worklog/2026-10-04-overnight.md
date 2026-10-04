@@ -288,3 +288,24 @@ inputs:
   with a "Back to the battle" button. The battle carries on behind it, as it will online. While open it takes key
   presses away from the game (key releases still get through, so held keys don't stick). It needs
   `createMenu(document.body, { development: import.meta.env.DEV })` in `main.ts`; the level-design agent has been asked.
+
+## Pathfinding
+
+`packages/sim/src/navigation.ts` gives every move a route, the way RTS games move big formations:
+
+- **Cost grid**: 2 m cells costed from walking pace by surface and duckboards, the map's scenery as obstacles (ruins,
+  walls, bunkers, guns, wrecks and trees impassable; rubble, logs, machine-gun pits and flooded shell holes slow), and
+  wire (averaged across the cell, so a lane shows as passable). It's rebuilt when shells have cut wire, at most every 10
+  s.
+- **Flow fields**: one per destination (a creeping-barrage line, an advance point, a follow point snapped to an 8 m
+  grid) by Dijkstra over the grid, with uphill grades dear and steep drops a little dear. Up to 12 are cached and shared
+  by every soldier heading there, so the cost doesn't grow with the number of soldiers.
+- **Steering**: a soldier walks straight when the line is clear of obstacles and wire, checked at the wire's own 1 m
+  grain. Otherwise he heads for the furthest point along the field he can walk to in a straight line, starting from the
+  middle of his own cell, so he never clips a gap's tangles. It replaces the earlier wire-gap detour.
+- **Known limit**: fields are caches derived from the ground. A restored save rebuilds them from the ground as it is, so
+  routes can differ from the original game until the next rebuild. Within a run everything is deterministic.
+- Results: three bombardments then the whistle on Fleury: 130-137 of 264 French left, 46-50 Germans captured. Cost is
+  about 2.5 ms a step for 528 soldiers on Fleury, up from about 1.6 ms before the night's later systems; profiling is
+  next.
+- `Squad.members` is now mutable, for the Game mechanics session's squad redeploy.

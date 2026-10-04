@@ -232,6 +232,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   for (const [cell, density] of snapshot.wireCuts) {
     sim.wire.density[cell] = density
   }
+  sim.wire.cuts = snapshot.wireCuts.length
   snapshot.objectives.forEach((saved, index) => {
     const objective = sim.objectives[index]
     if (objective) {

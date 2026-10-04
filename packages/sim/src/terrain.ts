@@ -31,15 +31,24 @@ function surfaceAt(map: BattlefieldMap, x: number, z: number): Surface {
   return value === Surface.Mud || value === Surface.Chalk || value === Surface.Churned ? value : Surface.Grass
 }
 
+/** Walking pace on the ground at a point, as a fraction of firm ground, before any slope: duckboards or the surface. */
+export function surfacePace(map: BattlefieldMap, x: number, z: number): number {
+  return isInTrench(map, x, z) ? TRENCH_PACE : SURFACE_PACE[surfaceAt(map, x, z)]
+}
+
+/** How much a grade costs to walk, as a multiple of the time on the flat: uphill is dear, steep downhill a little. */
+export function slopeCost(grade: number): number {
+  return grade > 0 ? 1 + UPHILL_COST * grade : 1 + DOWNHILL_COST * Math.max(0, -grade - EASY_DOWNHILL)
+}
+
 /**
  * How fast the ground lets a soldier walk from a point in a direction (a unit vector), as a fraction of their walking
  * pace: the surface underfoot, and the slope ahead.
  */
 export function groundPace(map: BattlefieldMap, x: number, z: number, directionX: number, directionZ: number): number {
-  const surface = isInTrench(map, x, z) ? TRENCH_PACE : SURFACE_PACE[surfaceAt(map, x, z)]
+  const surface = surfacePace(map, x, z)
   const grade =
     (heightAt(map, x + directionX * SLOPE_PROBE, z + directionZ * SLOPE_PROBE) - heightAt(map, x, z)) / SLOPE_PROBE
-  const slope =
-    grade > 0 ? 1 / (1 + UPHILL_COST * grade) : 1 / (1 + DOWNHILL_COST * Math.max(0, -grade - EASY_DOWNHILL))
+  const slope = 1 / slopeCost(grade)
   return Math.max(SLOWEST, surface * slope)
 }
