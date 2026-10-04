@@ -23,8 +23,6 @@ export interface Space {
   readonly ruins: number
 }
 
-export const OPEN: Space = { trench: 0, dugout: 0, ruins: 0 }
-
 /** One sound to play through the mixer. */
 export interface Voice {
   readonly buffer: AudioBuffer

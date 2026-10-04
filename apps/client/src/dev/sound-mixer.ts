@@ -25,8 +25,8 @@ function decibels(level: number): string {
 
 /**
  * Dev builds only: M opens a panel with a slider for every bus, battle sound and ambience bed, and a readout of what
- * is playing. Changes are heard at once and kept between reloads; Copy puts the changed levels on the clipboard (and
- * the console) as the TUNING table in audio/tuning.ts, to ship them.
+ * is playing. Changes are heard at once and kept between reloads; Copy puts the changed levels on the clipboard (and in
+ * a box to select) as the TUNING table in audio/tuning.ts, to ship them.
  */
 export function installSoundMixer(mixer: Mixer): void {
   const panel = document.createElement("div")
