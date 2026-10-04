@@ -3,10 +3,10 @@ import { blendWeather, createForecast, typicalWeather, type Weather, WeatherPatt
 
 const HOUR = 3_600_000
 
-/** A month of hourly weather from a cycle. */
+/** A month of weather from a cycle, every 3 hours: fine enough for spells that last hours to days. */
 function month(seed: number, monthIndex: number): Weather[] {
   const forecast = createForecast({ kind: "cycle", seed })
-  return Array.from({ length: 30 * 24 }, (_, hour) => forecast.at(Date.UTC(1916, monthIndex, 1) + hour * HOUR))
+  return Array.from({ length: 30 * 8 }, (_, step) => forecast.at(Date.UTC(1916, monthIndex, 1) + step * 3 * HOUR))
 }
 
 describe("a cycling forecast", () => {
@@ -48,7 +48,7 @@ describe("a cycling forecast", () => {
 
   it("keeps to the Verdun climate: about a metre of rain a year, westerly winds, cold winters, warm summers", () => {
     const year = Array.from({ length: 12 }, (_, index) => month(1916, index)).flat()
-    const rain = year.reduce((sum, weather) => sum + weather.precipitation, 0)
+    const rain = year.reduce((sum, weather) => sum + weather.precipitation * 3, 0)
     expect(rain).toBeGreaterThan(700)
     expect(rain).toBeLessThan(1300)
     expect(year.reduce((sum, weather) => sum + weather.wind.x, 0) / year.length).toBeGreaterThan(0.5)

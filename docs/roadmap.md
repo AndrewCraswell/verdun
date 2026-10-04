@@ -76,9 +76,9 @@ encrypted asset pack (M7) exists. Still to come:
 - Lighting, smoke, weather and the global colour grade. Started: a day and night every 117 real minutes and a week of
   the war each real day, the sun and moon follow the 1914–1918 calendar, the weather cycles through seasonal patterns
   with rain, snow, fog and thunderstorms, and night and fog limit sight in combat (see
-  [architecture](architecture.md#time-of-day-and-weather)). Still to come: flares and fires lighting the night, snow
-  lying on the ground, mud slowing men, and the historical weather of 1914–1918 (see
-  [time and weather](time-and-weather.md)).
+  [architecture](architecture.md#time-of-day-and-weather)). Since then: history's weather of 1914–1918, flares and
+  muzzle flashes in night fighting, mud, the trench routine of stand-to, sentries, raids and wiring parties, cloud
+  shadows and lying snow (see [time and weather](time-and-weather.md)).
 
 ## After version 1: art remaster
 

@@ -38,11 +38,6 @@ Decisions still to make. Move each to the relevant doc once decided.
 
 ## Technical
 
-- **Historical weather.** The weather cycles through seasonal patterns from a seed. The weather of 1914–1918 can be
-  rebuilt 3-hourly from the 20th Century Reanalysis corrected by Météo-France station records, both licensed for
-  commercial use ([research notes](research/notes/weather/historical_weather_1916.md)). Cut over by adding a `records`
-  forecast kind fed by a generated table; nothing else in the simulation changes
-  ([time and weather](time-and-weather.md#historical-weather)). Decide when it's worth the pipeline.
 - **UI library for menus, HUD and war map.** No Fluent UI. Leaning **shadcn/ui** (Radix + Tailwind): we own the
   component source, so it can be restyled to the period art direction instead of looking like a web app. Mantine is the
   faster, batteries-included alternative. The in-game HUD itself should stay custom and minimal. Decide when the first

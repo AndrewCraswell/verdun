@@ -66,13 +66,20 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | K                               | Dev builds only: kill the soldier you control                                  |
 | [ ]                             | Dev builds only: move the clock an hour back or forward                        |
 | Shift + [ ]                     | Dev builds only: move to the week before or after (the daily turn)             |
-| N                               | Dev builds only: hold each weather in turn, then cycle again                   |
+| N                               | Dev builds only: hold each weather in turn, then history's again               |
 | J                               | Dev builds only: mark where soldiers have fallen                               |
 | \`                              | Dev builds only: open Babylon's Inspector                                      |
 
 ## Credits
 
 Terrain of the Fleury sector: © IGN, LiDAR HD, under
+[Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
+
+Weather of 1914–1918: NOAA-CIRES-DOE [20th Century Reanalysis version 3](https://psl.noaa.gov/data/20thC_Rean/), under
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Support for the Twentieth Century Reanalysis Project version
+3 dataset is provided by the U.S. Department of Energy, Office of Science Biological and Environmental Research (BER),
+by the National Oceanic and Atmospheric Administration Climate Program Office, and by the NOAA Earth System Research
+Laboratory Physical Sciences Laboratory. Corrected with Météo-France daily station records, under
 [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
 
 ## Documentation

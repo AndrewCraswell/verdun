@@ -1,3 +1,4 @@
+import { createRecordsForecast } from "./records.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { FLEURY, interpolate } from "./sky.ts"
 
@@ -41,11 +42,13 @@ export interface Weather {
 
 /**
  * Where the weather comes from, as plain data so it saves with the world. A cycle draws a plausible succession of
- * patterns for the season from a seed. A steady forecast holds one weather. Historical records, once sourced, become a
- * third kind here.
+ * patterns for the season from a seed. Records play history's weather at Fleury, 1914–1918. A steady forecast holds
+ * one weather.
  */
 export type ForecastSpec =
   | { readonly kind: "cycle"; readonly seed: number }
+  /** History's weather at Fleury, August 1914 to November 1918; the cycle from the same seed outside it. */
+  | { readonly kind: "records"; readonly seed: number }
   | { readonly kind: "steady"; readonly weather: Weather }
 
 export interface Forecast {
@@ -251,7 +254,7 @@ function hash(seed: number, value: number): number {
 }
 
 /** Smooth noise between -1 and 1 over time, with a knot every `period` milliseconds. */
-function smoothNoise(seed: number, utc: number, period: number): number {
+export function smoothNoise(seed: number, utc: number, period: number): number {
   const position = utc / period
   const knot = Math.floor(position)
   const along = position - knot
@@ -326,7 +329,7 @@ function nextPattern(rng: Rng, previous: WeatherPattern, utc: number): WeatherPa
  * How thick radiation fog lies at a moment, from 0 to 1: it forms in the small hours, is thickest about sunrise, and
  * burns off through the morning, later in winter. Sunrise comes from the sun's declination, near enough for fog.
  */
-function morningFogAt(utc: number, latitude: number, longitude: number): number {
+export function morningFogAt(utc: number, latitude: number, longitude: number): number {
   const declination = 23.44 * Math.sin((2 * Math.PI * (dayOfYear(utc) - 81)) / 365)
   const radians = Math.PI / 180
   const cosine = -Math.tan(latitude * radians) * Math.tan(declination * radians)
@@ -346,7 +349,7 @@ function morningFogAt(utc: number, latitude: number, longitude: number): number 
 }
 
 /** Visibility through falling rain or snow, in metres: about 10 km in light rain, 1 km in a cloudburst or light snow. */
-function precipitationVisibility(precipitation: number, snowFraction: number): number {
+export function precipitationVisibility(precipitation: number, snowFraction: number): number {
   if (precipitation <= 0) {
     return Infinity
   }
@@ -378,12 +381,12 @@ export function blendWeather(from: Weather, to: Weather, t: number): Weather {
 }
 
 /**
- * A forecast that cycles through the weather patterns, each spell drawn from the season and from what came before.
+ * The air of a cycle: a succession of weather patterns, each spell drawn from the season and from what came before.
  * The same seed always gives the same weather on the same day, from New Year 1914 to the end of the war and beyond,
  * whenever the battle starts.
  */
-function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: number }): Forecast {
-  const rng = createRng(spec.seed)
+export function createCycleAir(seed: number): AirAt {
+  const rng = createRng(seed)
   const spells = [drawSpell(rng, CYCLE_ORIGIN, WeatherPattern.Overcast)]
   const spellAt = (utc: number): number => {
     let last = spells[spells.length - 1]!
@@ -405,7 +408,7 @@ function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: numb
   }
 
   /** Everything but the ground, which needs the weather of the days before. */
-  const airAt = (utc: number): Omit<Weather, "wetness" | "snowCover"> => {
+  const airAt: AirAt = (utc) => {
     const index = spellAt(utc)
     const spell = spells[index]!
     const previous = spells[index - 1] ?? spell
@@ -416,7 +419,7 @@ function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: numb
     const surge =
       spell.pattern === WeatherPattern.Storm
         ? 2 * Math.sin((Math.PI * (utc - spell.start)) / (spell.end - spell.start))
-        : 1 + 0.6 * smoothNoise(spec.seed + 1, utc, SHOWER_MINUTES * 60_000)
+        : 1 + 0.6 * smoothNoise(seed + 1, utc, SHOWER_MINUTES * 60_000)
     const precipitation = lerp(previous.precipitation, spell.precipitation, arrived) * Math.max(0, surge)
     const daily = monthly(DAILY_RANGE, utc) * (1 - 0.7 * cloudCover)
     const solarHour = utc / HOUR + FLEURY.longitude / 15
@@ -435,13 +438,13 @@ function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: numb
     const gust = spell.pattern === WeatherPattern.Storm ? 0.5 : 0.3
     const speed =
       lerp(previous.windSpeed, spell.windSpeed, arrived) *
-      (1 + gust * smoothNoise(spec.seed + 2, utc, GUST_MINUTES * 60_000))
+      (1 + gust * smoothNoise(seed + 2, utc, GUST_MINUTES * 60_000))
     const toward =
       Math.atan2(
         lerp(Math.sin(previous.windToward), Math.sin(spell.windToward), arrived),
         lerp(Math.cos(previous.windToward), Math.cos(spell.windToward), arrived)
       ) +
-      0.35 * smoothNoise(spec.seed + 3, utc, GUST_MINUTES * 60_000)
+      0.35 * smoothNoise(seed + 3, utc, GUST_MINUTES * 60_000)
     return {
       pattern: spell.pattern,
       cloudCover,
@@ -453,27 +456,37 @@ function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: numb
     }
   }
 
-  return {
-    spec,
-    at(utc) {
-      // Walk the last few days forward an hour at a time: rain wets the ground, sun and wind dry it, snow lies until
-      // it thaws.
-      const summer = summerness(utc)
-      const dryingHours = 24 * lerp(DRYING_DAYS[0], DRYING_DAYS[1], summer)
-      let water = 0
-      let snow = 0
-      for (let hoursAgo = WETNESS_HOURS; hoursAgo >= 1; hoursAgo--) {
-        const past = airAt(utc - hoursAgo * HOUR)
-        water = water * Math.exp(-1 / dryingHours) + past.precipitation * (1 - past.snowFraction)
-        const thaw = Math.max(0, past.temperature) * 0.15
-        snow = Math.max(0, snow + past.precipitation * past.snowFraction - thaw)
-        if (past.temperature > 0) {
-          water += Math.min(snow, thaw)
-        }
-      }
-      return { ...airAt(utc), wetness: 1 - Math.exp(-water / 6), snowCover: snow }
+  return airAt
+}
+
+/** A forecast that cycles through the weather patterns, from a seed. */
+function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: number }): Forecast {
+  const airAt = createCycleAir(spec.seed)
+  return { spec, at: (utc) => withGround(airAt, utc) }
+}
+
+/** The weather in the air at a moment: everything but the ground, which needs the weather of the days before. */
+export type AirAt = (utc: number) => Omit<Weather, "wetness" | "snowCover">
+
+/**
+ * The weather at a moment with the ground's state added. Walks the last few days forward an hour at a time: rain wets
+ * the ground, sun and wind dry it, snow lies until it thaws.
+ */
+export function withGround(airAt: AirAt, utc: number): Weather {
+  const summer = summerness(utc)
+  const dryingHours = 24 * lerp(DRYING_DAYS[0], DRYING_DAYS[1], summer)
+  let water = 0
+  let snow = 0
+  for (let hoursAgo = WETNESS_HOURS; hoursAgo >= 1; hoursAgo--) {
+    const past = airAt(utc - hoursAgo * HOUR)
+    water = water * Math.exp(-1 / dryingHours) + past.precipitation * (1 - past.snowFraction)
+    const thaw = Math.max(0, past.temperature) * 0.15
+    snow = Math.max(0, snow + past.precipitation * past.snowFraction - thaw)
+    if (past.temperature > 0) {
+      water += Math.min(snow, thaw)
     }
   }
+  return { ...airAt(utc), wetness: 1 - Math.exp(-water / 6), snowCover: snow }
 }
 
 /** Typical weather of a pattern on a June day, for holding the weather steady. */
@@ -498,6 +511,9 @@ export function typicalWeather(pattern: WeatherPattern, wind: { readonly x: numb
 export function createForecast(spec: ForecastSpec): Forecast {
   if (spec.kind === "cycle") {
     return createCycleForecast(spec)
+  }
+  if (spec.kind === "records") {
+    return createRecordsForecast(spec)
   }
   const weather = { ...spec.weather, wind: { ...spec.weather.wind } }
   return { spec, at: () => weather }

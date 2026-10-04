@@ -25,9 +25,12 @@ export const WEEK = 7 * DAY
  * between two phases. See docs/time-and-weather.md.
  */
 export const DEFAULT_MINUTES_PER_DAY = 117
-/** The week of 23 June 1916, the German attack on Fleury, and 07:00 French summer time (06:00 UTC) on its first day. */
-export const DEFAULT_WEEK = Date.UTC(1916, 5, 23)
-export const DEFAULT_ELAPSED = 6 * 3_600_000
+/**
+ * The week of the war beginning Tuesday 20 June 1916, and 07:00 French summer time (06:00 UTC) on its fourth day, the
+ * 23rd: the morning of the German attack on Fleury. Weeks of the war run from Tuesdays, counted from 4 August 1914.
+ */
+export const DEFAULT_WEEK = Date.UTC(1916, 5, 20)
+export const DEFAULT_ELAPSED = 3 * DAY + 6 * 3_600_000
 /** Ticks between weather and sky updates: once a second. They change slowly, and the sun's place costs a little. */
 export const ENVIRONMENT_INTERVAL = 20
 /** Game time the weather takes to change when the sky's date jumps: a wrap of the week or a new week. */

@@ -4,11 +4,13 @@ import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
 import { type ChangedArea, decodeElevation, generateFleurySector, mergeAreas } from "@verdun/map"
 import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
+import surroundingsUrl from "@verdun/map/data/fleury-surroundings.bin?url"
 import {
   createFixedStepper,
   createLineOfSight,
   shotEvents,
   createSimulation,
+  scheduleForWeek,
   STEP_SECONDS,
   TICK_RATE,
   stepSimulation
@@ -23,6 +25,7 @@ import { createExplosions } from "./effects/explosions.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
+import { createWarClock } from "./environment/war-clock.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
 import { blastRadius } from "./level/battle-damage.ts"
@@ -56,10 +59,13 @@ async function start(): Promise<void> {
   // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
   const elevation = decodeElevation(await (await fetch(elevationUrl)).arrayBuffer())
   const map = generateFleurySector({ seed: 1916, elevation })
-  // The weather cycles through the season's patterns from a seed until historical records replace it.
+  // History's weather at Fleury, 1914-1918 (scripts/build-historical-weather.mjs); the seed drives gusts and showers.
   const weatherSeed = 1916
-  const sim = createSimulation({ map, seed: 1916, environment: { forecast: { kind: "cycle", seed: weatherSeed } } })
+  const sim = createSimulation({ map, seed: 1916, environment: { forecast: { kind: "records", seed: weatherSeed } } })
   const { playerSquad } = setupSkirmish(sim)
+  // The war's calendar, until the war map runs it: today's turn is the battle's week, and each daily cutoff moves the
+  // battle on a week and stands it to.
+  const war = createWarClock(sim, scheduleForWeek(sim.environment.clock.week, Date.now()))
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE)
@@ -67,7 +73,13 @@ async function start(): Promise<void> {
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
   const kitFiles = openKitFiles()
-  const level = await dressLevel(view, map, { wind: () => sim.wind, files: kitFiles })
+  // The real ground round the sector out to the horizon: a 3 km survey centred on it (scripts/fetch-elevation.mjs).
+  const surroundings = {
+    elevation: decodeElevation(await (await fetch(surroundingsUrl)).arrayBuffer()),
+    sectorBase: elevation.base,
+    sectorOrigin: { x: 1200, z: 1300 }
+  }
+  const level = await dressLevel(view, map, { wind: () => sim.wind, files: kitFiles, surroundings })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
   kitFiles?.close?.()
@@ -145,20 +157,22 @@ async function start(): Promise<void> {
     const { installDeathMap } = await import("./dev/death-map.ts")
     const deaths = installDeathMap(view.scene, sim)
     Object.assign(window, {
-      verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths, environment, soldiers, sounds, night }
+      verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths, environment, soldiers, sounds, night, war }
     })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
     installInspectorToggle(view.scene)
     const { installEnvironmentKeys } = await import("./dev/environment-keys.ts")
-    installEnvironmentKeys(sim, weatherSeed)
+    installEnvironmentKeys(sim, weatherSeed, war)
   }
 
   let cratered: ChangedArea | null = null
   engine.runRenderLoop(() => {
     const frameSeconds = engine.getDeltaTime() / 1000
     control.update(frameSeconds)
-    // Paused while the menu is open, or after P: the picture keeps moving, the battle doesn't.
-    const steps = menu.paused ? 0 : stepper.advance(frameSeconds)
+    // Paused while the menu is open, after P, or through the stand-to at the daily cutoff: the picture keeps moving, the
+    // battle doesn't.
+    war.update(Date.now())
+    const steps = menu.paused || war.paused ? 0 : stepper.advance(frameSeconds)
     stats.time("simulation", () => {
       for (let step = 0; step < steps; step++) {
         stepSimulation(sim)
@@ -169,8 +183,12 @@ async function start(): Promise<void> {
         night?.flash(shots.map((shot) => shot.from))
         for (const event of sim.events) {
           if (event.type === "burst") {
-            explosions.add([event])
-            level?.aftermath.burst(event)
+            // The level draws bursts with the kit's flames, earth and smoke; the greybox has its spheres.
+            if (level) {
+              level.aftermath.burst(event)
+            } else {
+              explosions.add([event])
+            }
             if (event.crater) {
               cratered = mergeAreas(cratered, event.crater)
               level?.damage.blast(event.at.x, event.at.z, blastRadius(event.crater))

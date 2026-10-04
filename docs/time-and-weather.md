@@ -111,11 +111,33 @@ Everything that moves the clock is a command, so a server, the campaign, tests a
 | `{ type: "forecast", forecast }`   | Changes where the weather comes from                                                     |
 | `{ type: "wind", x, z }`           | Holds the weather as it is, with that wind                                               |
 
+## The war's calendar
+
+`packages/sim/src/war-calendar.ts` is the calendar the clocks hang on: pure arithmetic on real and war time, so the
+war-map server, sector servers and clients all agree on the date without being told it.
+
+- **Weeks of the war** run from Tuesdays, counted from Tuesday 4 August 1914 (`WAR_BEGINS`, `warWeekOf`). A season is
+  the weeks starting in its year (`seasonWeeks`): 22 in 1914, 52 in 1915, 1916 and 1917, and 45 in 1918, the last being
+  the week of the armistice on 11 November. These are exactly the design's season lengths.
+- **A war's schedule** (`WarSchedule`) is plain data: the real moment its first turn begins (a daily cutoff), the days
+  off between seasons (7) and the minutes of stand-to after each cutoff (10). The cutoff is 05:00 UTC (`CUTOFF_HOUR`),
+  the working assumption until there is telemetry.
+- **Where the war stands** at a real moment (`warDayAt`): before it, a turn (season, turn, turns, the week, whether it
+  is stand-to, the next cutoff), between seasons (and when the next begins), or over.
+- **The prototype** has no war map yet, so the client schedules a war that puts the battle's week on today's turn
+  (`scheduleForWeek`): from 05:00 UTC tomorrow the battle is in the next week of 1916, and so on.
+
+In the client, `apps/client/src/environment/war-clock.ts` keeps the battle on the calendar: when a turn begins it sends
+the battle to the new week with the `clock` command's `week` (the hour carries on, the weather eases into the new week),
+and through the stand-to, between seasons, and before and after the war, the battle waits: `main.ts` doesn't step the
+simulation while `war.paused`. It only acts when the turn changes, so the dev keys can still move the week.
+
 ## What players see
 
-- **The week**, on the communiqué and in the HUD: "Week of 21 February 1916" (`weekLabel`).
+- **The week**, on the communiqué and in the HUD: "Week of 20 June 1916" (`weekLabel`).
 - **The hour**, as a small clock in the HUD: "07:12" (`battleHour`).
-- Once the campaign exists: the turn within the season ("Day 23 of 52, 1916") and a countdown to the next communiqué.
+- **The turn** within the season, "Day 23 of 52, 1916" (`turnLabel`), and a countdown, "Next communiqué in 5 h 12 min",
+  or "Stand-to" just after the cutoff (`countdownLabel`). Between seasons: "1917 begins in 6 days".
 - **Never a speed ratio** such as "12× time". "One real day is one week of the war" and the hour are all anyone needs.
 
 The hour is French civil time, read through the browser's time-zone data for Europe/Paris, which has the history:
@@ -180,10 +202,11 @@ leaders standing in a trench act as sentries:
 Where the weather comes from is plain data (`ForecastSpec`) saved with the world, and swapped with the `forecast`
 command without touching anything else:
 
-- **cycle**: a seeded succession of patterns, below. The default in the game.
+- **cycle**: a seeded succession of patterns, below. Used outside the records, and wherever history is not wanted.
 - **steady**: one weather held. The default for tests and headless battles, so their outcomes don't drift with the
   weather; also the dev tools and the `wind` command.
-- **records** (to come): the historical weather of 1914–1918. See [the cutover](#historical-weather).
+- **records**: history's weather at Fleury, August 1914 to November 1918; the cycle outside it. The game's default. See
+  [historical weather](#historical-weather).
 
 Every forecast is a pure function of time: the same moment always gives the same weather. Weather never draws from the
 simulation's random number generator, so it doesn't disturb the combat's random sequence, and clients can compute it
@@ -316,15 +339,34 @@ In `apps/client/src/environment/`:
 
 ## Historical weather
 
-The weather of 1914–1918 can be rebuilt 3-hourly for Fleury from the 20th Century Reanalysis (CC-BY 4.0), corrected by
-Météo-France's daily station records for Metz, Nancy, Bar-le-Duc and Sainte-Menehould (Licence Ouverte 2.0), with fog
-inferred from humidity, wind and the hour and overrides for documented events. Sources, licences and the pipeline are in
-the [research notes](research/notes/weather/historical_weather_1916.md).
+The game plays history's weather: the `records` forecast (`packages/sim/src/records.ts`) reads a 3-hourly table of the
+weather at Fleury from 1 August 1914 to 30 November 1918, `packages/sim/data/fleury-weather-1914-1918.json`, built by
+`scripts/build-historical-weather.mjs`. Sources, licences and the reasoning are in the
+[research notes](research/notes/weather/historical_weather_1916.md); credits are in the README.
 
-The cutover: generate an hourly table offline, add a `records` kind to `ForecastSpec` that reads it (interpolating, and
-adding the same seeded gusts and showers), and switch the game's forecast to it. The clock already steps the sky through
-each week's real dates, so the records' weather plays out over the turn. Nothing else changes. Whether and when is an
-[open question](open-questions.md).
+**The build** (rerun with `pnpm weather:build`; downloads cache in `.asset-cache/weather/`):
+
+1. The NOAA-CIRES-DOE 20th Century Reanalysis v3 ensemble mean, every 3 hours, from NOAA's OPeNDAP server: 2 m
+   temperature and humidity, total cloud, precipitation rate and its frozen share, and the 10 m wind, interpolated
+   bilinearly from the four 1° grid points around Fleury (49–50° N, 5–6° E).
+2. Météo-France's daily station records (pre-1949 files on data.gouv.fr) correct it:
+   - each day's temperatures are stretched to the mean of the lowest and highest at Metz-Les Récollets and
+     Nancy-Faculté, adjusted by 6.5 °C per km for Fleury's 330 m;
+   - each day's rain (06:00 to 06:00 UTC, as French stations measure it) is set to the mean of Sainte-Menehould,
+     Bar-le-Duc and Metz: none on days they stayed dry, the reanalysis's own rain scaled to their total otherwise. The
+     reanalysis on its own drizzles nearly every day;
+   - on days the stations saw snow, precipitation below 2 °C falls as snow.
+3. The wind is scaled to a man's height (three quarters of the 10 m wind). Values are stored as fixed-point integers.
+
+**At play** the forecast interpolates temperature, cloud, humidity and wind between the 3-hourly records and holds the
+rain, adding the cycle's seeded gusts and showers. Neither source records fog, so radiation fog forms in damp (93% or
+more), still (under 2.5 m/s) air in the small hours and at dawn, and fogs history records are written in: the fog the
+French attacked Fort Douaumont under on 24 October 1916, lifting about 14:00. Haze thickens with humidity. Outside the
+records the cycle takes over from the same seed. The clock steps the sky through each week's dates, so a turn plays out
+that week's real weather.
+
+To add a recorded fog or other event, add it to `FOGS` in the build script and rebuild. To build another sector's
+weather, change `FLEURY` and the station lists there.
 
 ## Dev tools and tests
 
