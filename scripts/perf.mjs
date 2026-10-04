@@ -321,6 +321,22 @@ async function buildCommit(ref, outDir) {
   await run("pnpm", ["--filter", "@verdun/client", "exec", "vite", "build", "--outDir", outDir, "--emptyOutDir"], tree)
 }
 
+/** A CPU profile's costliest functions by their own time, as lines of milliseconds, name and place. */
+function costliest(profile, count) {
+  const nodes = new Map(profile.nodes.map((node) => [node.id, node]))
+  const own = new Map()
+  profile.samples.forEach((id, index) => {
+    const { functionName, url, lineNumber } = nodes.get(id).callFrame
+    const key = `${functionName || "(anonymous)"} ${url.split("/").pop()}:${lineNumber + 1}`
+    own.set(key, (own.get(key) ?? 0) + (profile.timeDeltas[index] ?? 0))
+  })
+  return [...own]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([key, micros]) => `${(micros / 1000).toFixed(0).padStart(38)} ms  ${key}`)
+    .join("\n")
+}
+
 async function main() {
   let preview = null
   let url = option("--url", "")
@@ -448,7 +464,18 @@ async function main() {
         continue
       }
       await evaluate(scenario.setup)
+      // --profile: a CPU profile of each scenario's sample, for Chrome's DevTools, and its costliest functions here.
+      const profiles = option("--profile", "")
+      if (profiles) {
+        await cdp.send("Profiler.enable", {}, sessionId)
+        await cdp.send("Profiler.start", {}, sessionId)
+      }
       const result = await evaluate(`__perf.sample(${SECONDS})`)
+      if (profiles) {
+        const { profile } = await cdp.send("Profiler.stop", {}, sessionId)
+        writeFileSync(join(profiles, `${scenario.name.replace(/[^\w]+/g, "-")}.cpuprofile`), JSON.stringify(profile))
+        print(costliest(profile, 15))
+      }
       const shots = option("--shots", "")
       if (shots) {
         // What each scenario looked like, to check a faster setting still draws the same picture.
