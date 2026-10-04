@@ -6,10 +6,11 @@ import {
   typicalWeather,
   WEEK,
   WeatherPattern,
-  weekOutlook
+  forecastFrom
 } from "@verdun/sim"
 import { debugDock } from "../debug/dock.ts"
-import { battleHour, countdownLabel, outlookLabel, turnLabel, weekLabel } from "../environment/calendar.ts"
+import { battleHour, countdownLabel, turnLabel, weekLabel } from "../environment/calendar.ts"
+import { forecastLabel } from "../environment/forecast-label.ts"
 import type { WarClock } from "../environment/war-clock.ts"
 import { registerBindings } from "../ui/bindings.ts"
 
@@ -72,7 +73,7 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
     }
   })
 
-  let outlookWeek = Number.NaN
+  let forecastDayShown = Number.NaN
   let outlook = ""
   window.setInterval(() => {
     if (!dock.visible) {
@@ -82,12 +83,11 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
     const skyDate = new Date(clockMoment(clock)).toISOString().slice(0, 10)
     const source = sim.environment.forecast.spec.kind === "steady" ? "held" : sim.environment.forecast.spec.kind
     const turn = war ? `${turnLabel(war.day)}  ·  ${countdownLabel(war.day, Date.now())}\n` : ""
-    // The weather to come: the first days of the week the next turn will fight in.
-    if (clock.week !== outlookWeek) {
-      outlookWeek = clock.week
-      outlook = weekOutlook(sim.environment.forecast, clock.week + WEEK, 3)
-        .map(outlookLabel)
-        .join("\n  ")
+    // The staff's forecast, issued today: exact for today, a forecaster's call for the two days after.
+    const today = Math.floor(clockMoment(clock) / 86_400_000) * 86_400_000
+    if (today !== forecastDayShown) {
+      forecastDayShown = today
+      outlook = forecastFrom(sim.environment.forecast, today, 3).map(forecastLabel).join("\n  ")
     }
     readout.textContent =
       turn +
@@ -98,6 +98,6 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
       `sun ${sky.sun.altitude.toFixed(0)}°  moon ${sky.moon.altitude.toFixed(0)}° ${(sky.moon.phase * 100).toFixed(0)}%  ` +
       `sight ${sightRange >= 1000 ? `${(sightRange / 1000).toFixed(1)} km` : `${sightRange.toFixed(0)} m`}  ` +
       `wind ${Math.sqrt(sim.wind.x ** 2 + sim.wind.z ** 2).toFixed(1)} m/s\n` +
-      `Next week:\n  ${outlook}`
+      `Forecast:\n  ${outlook}`
   }, 250)
 }

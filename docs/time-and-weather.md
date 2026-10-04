@@ -142,13 +142,28 @@ simulation while `war.paused`. It only acts when the turn changes, so the dev ke
 - **The hour**, as a small clock in the HUD: "07:12" (`battleHour`).
 - **The turn** within the season, "Day 23 of 52, 1916" (`turnLabel`), and a countdown, "Next communiqué in 5 h 12 min",
   or "Stand-to" just after the cutoff (`countdownLabel`). Between seasons: "1917 begins in 6 days".
-- **The weather to come**, for the communiqué: a line a day, "Tue 27 Jun: rain, 11–17 °C, fog at times, wind W 4 m/s"
-  (`outlookLabel`, from the simulation's `dayOutlook` and `weekOutlook` in `packages/sim/src/outlook.ts`). The day's
-  weather is what most of its daylight hours (06:00–18:00 UTC) were; the temperatures are its lowest and highest; fog is
-  noted if visibility fell under 1 km at any hour; snow replaces rain when most of the water fell as snow; the wind is
-  the afternoon's, by the compass point it blows from. It reads the forecast the battle will use, so with historical
-  weather it is the real weather to come, a perfect forecast the staff of 1916 never had. Whether to blur it is a design
-  question in [open questions](open-questions.md). The dev panel shows the next week's first three days.
+- **The weather to come**, for the communiqué: the staff's forecast, a line a day (`forecastLabel` in
+  `apps/client/src/environment/forecast-label.ts`, from the simulation's `forecastFrom` in
+  `packages/sim/src/outlook.ts`).
+  - **The day it's issued is exact**: "Tue 27 Jun: rain, 11–17 °C, fog at times, wind W 4 m/s". The day's weather is
+    what most of its daylight hours (06:00–18:00 UTC) were; the temperatures its lowest and highest; fog if visibility
+    fell under 1 km at any hour; snow when most of the water fell as snow; the wind the afternoon's, by the compass
+    point it blows from (`dayOutlook`).
+  - **The days after are a forecaster's call**, vaguer and more often wrong the further ahead: "Wed 28 Jun: rain likely,
+    about 10–18 °C, fog possible, wind W". Decided October 2026: players plan attacks round fog and rain, and a forecast
+    they can trust for today but only guess by for next week keeps that a gamble, as it was for the staffs of 1916.
+  - **How it's made** (`forecastDay`): the forecaster's skill falls to 0.6 of the day before's each day ahead. Each
+    chance (rain or snow, fog) leans toward the truth as far as the skill goes, toward the season's odds beyond it (rain
+    two days in five, fog seldom), and wanders by an error that grows as the skill fades. Temperatures carry an error of
+    up to 1.5 °C a day ahead and the wind's direction 25°. The errors come from a fixed hash of the issue day and the
+    day forecast, never the simulation's dice: the same forecast always reads the same, and a day's forecast sharpens as
+    it comes closer.
+  - **How good it is**, over 1915–16 at Fleury: whether it will rain, right 82% of the time a day ahead, 62% two days
+    ahead, and no better than a coin toss from three days out; fog called on the days it came, almost never otherwise;
+    the day's high off by about 1 °C a day ahead, 4–5 °C a week ahead.
+  - The words: rain or snow "likely" at a chance of 0.65, "showers possible" or "a chance of snow" at 0.4, else the sky
+    and "dry"; fog "likely" at 0.55, "possible" at 0.3; temperatures widened to even degrees. The dev panel (F3) shows
+    today and the next two days.
 - **Never a speed ratio** such as "12× time". "One real day is one week of the war" and the hour are all anyone needs.
 
 The hour is French civil time, read through the browser's time-zone data for Europe/Paris, which has the history:

@@ -134,7 +134,7 @@ export {
   WEEK,
   type WorldClock
 } from "./environment.ts"
-export { FLEURY, type GeoLocation, type Sky, type SkyPosition } from "./sky.ts"
+export { FLEURY, type GeoLocation, type Sky, type SkyPosition, skyAt } from "./sky.ts"
 export { type Forecast, type ForecastSpec, typicalWeather, type Weather, WeatherPattern } from "./weather.ts"
 export {
   DARK_LUX,
@@ -147,6 +147,8 @@ export {
   isDark
 } from "./flares.ts"
 export { aimInLight, canMakeOut, FLASH_REACH, FLASH_SECONDS, isFlashing, lightAt, sightReach } from "./sight.ts"
+export { isNight, isStandTo } from "./routine.ts"
+export { weatherPace } from "./ground.ts"
 export {
   ARMISTICE,
   CUTOFF_HOUR,
@@ -162,5 +164,13 @@ export {
   warWeekOf,
   type WarSchedule
 } from "./war-calendar.ts"
-export { type DayOutlook, dayOutlook, weekOutlook, windFrom } from "./outlook.ts"
+export {
+  type DayOutlook,
+  dayOutlook,
+  type ForecastDay,
+  forecastDay,
+  forecastFrom,
+  weekOutlook,
+  windFrom
+} from "./outlook.ts"
 export { loadWeatherRegion, WEATHER_REGIONS, type WeatherRegion } from "./records.ts"
