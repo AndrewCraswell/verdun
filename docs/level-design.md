@@ -216,8 +216,7 @@ blender -b --factory-startup -P scripts/build-sound-effects.py -- vendor/audio .
 ```
 
 It writes mono Opus files and a manifest to `.asset-cache/level/sfx/` (about 2.5 MB), which the asset pack encrypts with
-the rest of the kit. Still missing, for want of recordings: the trench whistle, French and German voices, footsteps,
-digging and wire cutting (see the [sound effects report](research/ww1-sound-effects-report.md)).
+the rest of the kit. What's still missing (recordings, game hooks and sound design) is listed in [sound](sound.md).
 
 ## Level kit
 

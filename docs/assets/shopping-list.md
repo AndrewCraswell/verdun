@@ -229,10 +229,6 @@ loading, stripper clips and bayonet fixing.
 
 ### Audio: known gaps (no product found)
 
-- Recordings of the Lebel, Berthier, Chauchat, Hotchkiss M1914, St. Étienne, MG08 and Lewis gun. Use proxies: Vickers
-  for the MG08, Kar98k for the Gewehr 98, Springfield or Mosin for the Lebel.
-- Any WW1 artillery firing live, including the French 75 and German 77. Field-gun shells should arrive with almost no
-  warning; howitzer shells get the long incoming rush.
-- A gas-attack library, field telephones and French bugle calls.
-- French soldier voices of any kind; German is limited to drill shouts.
-- WW1 trucks, field kitchens, horse-drawn limbers and Verdun's church bells.
+Every recording no store sells, what stands in for it today and how to get it are listed in
+[sound](../sound.md#recordings-we-dont-have): period French and German weapons, the French 75 and German 77, the trench
+whistle, French and German voices, gas rattles, Very lights, footsteps, digging and wire.
