@@ -1,6 +1,6 @@
 import { createFlatMap, sampleIndex, type Scenery, Surface } from "@verdun/map"
 import { describe, expect, it } from "vitest"
-import { CENTRED_PIECES, layOutGroundCover, layOutScenery } from "./scenery-dressing.ts"
+import { CENTRED_PIECES, layOutGroundCover, layOutLitter, layOutScenery } from "./scenery-dressing.ts"
 
 const flat = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5)
 const item = (kind: Scenery["kind"], overrides: Partial<Scenery> = {}): Scenery => ({
@@ -97,6 +97,41 @@ describe("layOutScenery", () => {
       (placement) => placement.piece === "Prop_Chimney_01"
     )
     expect(chimney?.scale).toEqual([0.6, 0.6, 0.6])
+  })
+
+  it("strews no man's land with the litter of battle, thickest near the trenches and never in one", () => {
+    const trench = {
+      kind: "fire" as const,
+      points: [
+        [10, 20],
+        [90, 20]
+      ] as [number, number][],
+      facing: "north" as const
+    }
+    const field = {
+      ...createFlatMap({ name: "nml", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Churned),
+      trenches: [trench]
+    }
+    const litter = layOutLitter(field)
+    const near = litter.filter((placement) => placement.z > 24 && placement.z < 50)
+    const far = litter.filter((placement) => placement.z > 70)
+
+    expect(litter.length).toBeGreaterThan(30)
+    expect(near.length).toBeGreaterThan(far.length)
+    expect(litter.every((placement) => Math.abs(placement.z - 20) > 4 || placement.x < 6 || placement.x > 94)).toBe(
+      true
+    )
+    expect(new Set(litter.map((placement) => placement.piece)).size).toBeGreaterThan(5)
+    // Nothing on ground the shells didn't churn.
+    expect(layOutLitter(flat)).toHaveLength(0)
+  })
+
+  it("draws each wall variant with its own piece", () => {
+    const pieces = [0, 1, 2, 3].map(
+      (variant) => layOutScenery({ ...flat, scenery: [item("wall", { variant })] })[0]?.piece
+    )
+
+    expect(new Set(pieces).size).toBe(4)
   })
 
   it("lists the pieces modelled off their middle", () => {

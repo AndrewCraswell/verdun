@@ -136,7 +136,20 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Prop_Rubble_House_Plank_02: 150,
   Prop_Rubble_House_Tile_01: 110,
   Prop_Rubble_House_Tile_02: 110,
-  Prop_Fireplace_01: 160
+  Prop_Fireplace_01: 160,
+  Chr_Attach_French_Helmet_01: 60,
+  Chr_Attach_German_Helmet_2: 60,
+  Wep_German_Rifle_01: 70,
+  Gen_Prop_Plank_01: 90,
+  Gen_Prop_Plank_02: 90,
+  Prop_Iron_Sheet_03: 120,
+  Prop_Shell_01: 60,
+  Prop_Shell_02: 70,
+  Env_Sandbag_01: 80,
+  Env_Sandbag_03: 80,
+  Char_Attach_German_Pack_01: 60,
+  Char_Attach_German_Canteen_01: 50,
+  Prop_Stretcher_01: 100
 }
 
 /** Dead trees for the backdrop's woods and its scattered survivors along the front. */

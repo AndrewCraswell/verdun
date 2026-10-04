@@ -128,19 +128,13 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
       }
     ]
   ],
+  // One wall piece per variant, so the simulation's sight shapes (sim/sight-shapes.ts) can match each exactly.
   wall: [
-    [
-      {
-        pieces: [
-          "Env_StoneWall_Rubble_01",
-          "Env_StoneWall_Rubble_02",
-          "Env_StoneWall_Rubble_03",
-          "Env_StoneWall_Rubble_04"
-        ],
-        lift: -0.1
-      }
-    ]
-  ],
+    "Env_StoneWall_Rubble_01",
+    "Env_StoneWall_Rubble_02",
+    "Env_StoneWall_Rubble_03",
+    "Env_StoneWall_Rubble_04"
+  ].map((piece) => [{ pieces: [piece], lift: -0.1 }]),
   tree: [
     [
       {
@@ -370,11 +364,98 @@ export function layOutGroundCover(map: BattlefieldMap): Placement[] {
   return placements
 }
 
+/**
+ * What a battle leaves on the ground, how often each turns up, and how much larger than life it's drawn: a helmet is a
+ * third of a metre across, a speck from the game's camera, so the small kit is drawn half as large again, as Synty's
+ * style draws it.
+ */
+const LITTER: readonly (readonly [piece: string, weight: number, size: number])[] = [
+  ["Chr_Attach_French_Helmet_01", 10, 1.5],
+  ["Chr_Attach_German_Helmet_2", 10, 1.5],
+  ["Wep_German_Rifle_01", 10, 1.3],
+  ["Gen_Prop_Plank_01", 7, 1],
+  ["Gen_Prop_Plank_02", 7, 1],
+  ["Prop_Iron_Sheet_03", 5, 1],
+  ["Prop_Shell_01", 6, 1.3],
+  ["Prop_Shell_02", 4, 1.2],
+  ["Env_Sandbag_01", 7, 1.1],
+  ["Env_Sandbag_03", 6, 1.1],
+  ["Char_Attach_German_Pack_01", 4, 1.5],
+  ["Char_Attach_German_Canteen_01", 4, 1.5],
+  ["Prop_Stretcher_01", 1, 1]
+]
+const LITTER_WEIGHT = LITTER.reduce((total, [, weight]) => total + weight, 0)
+/** Litter is considered every this many metres, jittered within the square. */
+const LITTER_SPACING = 5
+/** Clear of the trenches' walls and spoil, in metres from a trench's centre line. */
+const LITTER_CLEARANCE = 4
+
+/**
+ * What a battle leaves lying in no man's land: helmets of both sides, rifles, planks and sheets of iron, burst
+ * sandbags, packs and canteens, duds, now and then a stretcher. It lies on the churned ground between the lines,
+ * thickest within a few dozen metres of the trenches, where the attacks went in and were stopped, and never in a
+ * trench or a pool.
+ */
+export function layOutLitter(map: BattlefieldMap): Placement[] {
+  const segments = map.trenches.flatMap((trench) =>
+    trench.points
+      .slice(1)
+      .map((b, index): [readonly [number, number], readonly [number, number]] => [trench.points[index] ?? b, b])
+  )
+  const nearestTrench = (x: number, z: number) => {
+    let nearest = Infinity
+    for (const [a, b] of segments) {
+      const abx = b[0] - a[0]
+      const abz = b[1] - a[1]
+      const lengthSquared = abx * abx + abz * abz
+      const t =
+        lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / lengthSquared))
+      nearest = Math.min(nearest, Math.hypot(x - (a[0] + abx * t), z - (a[1] + abz * t)))
+    }
+    return nearest
+  }
+  const pools = map.scenery.filter((item) => item.kind === "pool")
+  const placements: Placement[] = []
+  for (let gz = LITTER_SPACING / 2; gz < map.rows * map.cellSize; gz += LITTER_SPACING) {
+    for (let gx = LITTER_SPACING / 2; gx < map.columns * map.cellSize; gx += LITTER_SPACING) {
+      const x = gx + (hashOf(gx, gz, 50) - 0.5) * LITTER_SPACING
+      const z = gz + (hashOf(gx, gz, 51) - 0.5) * LITTER_SPACING
+      const column = Math.round(Math.min(map.columns, Math.max(0, x / map.cellSize)))
+      const row = Math.round(Math.min(map.rows, Math.max(0, z / map.cellSize)))
+      if (map.surfaces[sampleIndex(map, column, row)] !== Surface.Churned || hashOf(x, z, 52) > 0.3) {
+        continue
+      }
+      const fromTrench = nearestTrench(x, z)
+      // Thickest where the attacks broke on the wire, a few dozen metres out from the trenches.
+      const chance = Math.min(0.3, 0.08 + 0.4 * Math.exp(-Math.max(0, fromTrench - LITTER_CLEARANCE) / 30))
+      if (fromTrench < LITTER_CLEARANCE || hashOf(x, z, 53) > chance / 0.3) {
+        continue
+      }
+      if (pools.some((pool) => Math.hypot(pool.x - x, pool.z - z) < pool.scale + 0.5)) {
+        continue
+      }
+      let roll = hashOf(x, z, 54) * LITTER_WEIGHT
+      const [piece, , size] = LITTER.find(([, weight]) => (roll -= weight) < 0) ?? LITTER[0] ?? ["", 0, 1]
+      placements.push({
+        piece,
+        x,
+        y: heightAt(map, x, z) - 0.03,
+        z,
+        yaw: hashOf(x, z, 55) * Math.PI * 2,
+        up: groundNormal(map, x, z),
+        scale: [size, size, size]
+      })
+    }
+  }
+  return placements
+}
+
 /** Places the art for every scenery item and wire belt on the map, and the grass on the ground the shells spared. */
 export function layOutScenery(map: BattlefieldMap): Placement[] {
   return [
     ...map.scenery.flatMap((item) => sceneryPlacements(map, item)),
     ...map.wire.flatMap((belt) => wirePlacements(map, belt)),
-    ...layOutGroundCover(map)
+    ...layOutGroundCover(map),
+    ...layOutLitter(map)
   ]
 }

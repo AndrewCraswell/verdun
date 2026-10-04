@@ -83,6 +83,30 @@ PIECES = [
     (WAR_MAP, "SM_Env_Crater_Water_02"),
     # Life in the line: the brazier's drum, a trench signboard, and tufts of grass on the slopes the shells spared.
     (NATURE, "SM_Prop_RoadSign_01"),
+    # What a battle leaves on the ground: helmets of both sides, rifles, planks and iron, duds, burst sandbags, kit.
+    *[
+        (WAR_MAP, f"SM_{name}")
+        for name in [
+            "Chr_Attach_French_Helmet_01",
+            "Chr_Attach_German_Helmet_2",
+            "Wep_German_Rifle_01",
+            "Gen_Prop_Plank_01",
+            "Gen_Prop_Plank_02",
+            "Prop_Iron_Sheet_03",
+        ]
+    ],
+    *[
+        (WAR_PACK, f"SM_{name}")
+        for name in [
+            "Prop_Shell_01",
+            "Prop_Shell_02",
+            "Env_Sandbag_01",
+            "Env_Sandbag_03",
+            "Prop_Stretcher_01",
+            "Char_Attach_German_Pack_01",
+            "Char_Attach_German_Canteen_01",
+        ]
+    ],
     (WAR_MAP, "SM_Env_Tree_Dead_04"),
     *[
         (WAR_MAP, f"SM_Gen_{name}")
@@ -170,6 +194,8 @@ PIECES = [
 ]
 
 WAR_PACK_SCALE = 100
+# War Pack pieces that convert at full size, unlike the rest of the pack.
+FULL_SIZE = {"SM_Prop_Stretcher_01", "SM_Char_Attach_German_Pack_01", "SM_Char_Attach_German_Canteen_01"}
 PALETTE_SIZE = 1024
 # Synty's generic props (SM_Gen_*) have no prefab in the pack, so the converter gave them the pack's palette. They use
 # the generic palette instead, in its weathered B colours: pale, splintered wood reads against the mud.
@@ -341,7 +367,8 @@ def build_kit(converted, vendor, output):
     generic = None
     for pack, name in PIECES:
         piece_id = name.removeprefix("SM_")
-        piece = import_piece(find_model(converted, pack, name), piece_id, WAR_PACK_SCALE if pack == WAR_PACK else 1)
+        scale = WAR_PACK_SCALE if pack == WAR_PACK and name not in FULL_SIZE else 1
+        piece = import_piece(find_model(converted, pack, name), piece_id, scale)
         if piece_id.startswith(GENERIC_PREFIX):
             generic = generic or generic_material(vendor)
             for slot in piece.material_slots:
