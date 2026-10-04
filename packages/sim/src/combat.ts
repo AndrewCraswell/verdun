@@ -3,8 +3,9 @@ import { Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
 import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
+import { aimInLight, canMakeOut } from "./sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
-import { seesThroughSmoke, smokeBetween } from "./smoke.ts"
+import { smokeBetween } from "./smoke.ts"
 import { nearestSoldiers, soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
@@ -157,6 +158,8 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   if (sim.soldiers.mask.state[shooter] === MaskState.On) {
     chance *= MASKED_SHOOTER_FACTOR
   }
+  // Aiming by moonlight, starlight or at a muzzle flash is guesswork.
+  chance *= aimInLight(sim, target)
   // Smoke and dust between them blur the aim, even when the shape can still be made out.
   chance *= Math.exp(-smokeBetween(sim, soldierEye(sim, shooter), soldierEye(sim, target)))
   const suppression = sim.soldiers.suppression.value[shooter]
@@ -173,14 +176,12 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   const stats = WEAPONS[sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
-  // Darkness, fog and falling rain or snow hide men well inside a weapon's range.
-  const reach = Math.min(stats.range, sim.environment.sightRange)
-  if (dx * dx + dz * dz > reach * reach) {
+  if (dx * dx + dz * dz > stats.range * stats.range) {
     return false
   }
-  const eye = soldierEye(sim, shooter)
-  const head = soldierEye(sim, target)
-  return sim.lineOfSight.isClear(eye, head) && seesThroughSmoke(sim, eye, head)
+  // Darkness, fog and falling rain or snow hide men well inside a weapon's range, unless a flare lights them or their
+  // own muzzle flash gives them away.
+  return canMakeOut(sim, soldierEye(sim, shooter), target)
 }
 
 /**
@@ -288,6 +289,7 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
     }
   }
   sim.soldiers.weapon.cooldown[shooter] = stats.interval * (0.85 + sim.rng.next() * 0.3)
+  sim.soldiers.weapon.firedAt[shooter] = sim.tick
   sim.events.push({
     type: "shot",
     shooter,
@@ -337,6 +339,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   }
   const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
   sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
+  sim.soldiers.weapon.firedAt[shooter] = sim.tick
   const from = soldierEye(sim, shooter)
   sim.events.push({
     type: "shot",

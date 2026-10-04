@@ -9,6 +9,8 @@ import {
   isAlive,
   isSheltering,
   type LineOfSight,
+  seesThroughSmoke,
+  sightReach,
   type Simulation,
   soldierEye,
   soldierIds,
@@ -16,6 +18,9 @@ import {
 } from "@verdun/sim"
 import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
 import { computeViewshed, createFogGrid } from "./viewshed.ts"
+
+/** However dark it is, the viewer sees the ground this far around, in metres: his own trench bay. */
+const MIN_GROUND_RANGE = 30
 
 export interface FogOfWarOptions {
   /**
@@ -27,7 +32,7 @@ export interface FogOfWarOptions {
   readonly groundMaterial: Material
   /** Other materials darkened the same way, such as the props standing on the ground. */
   readonly materials?: readonly Material[]
-  /** How far the viewer can see, in metres. */
+  /** How far the viewer can see by day, in metres. Night, fog and falling rain or snow shorten it. */
   readonly range?: number
   /** How often sight is recomputed, per second. */
   readonly updatesPerSecond?: number
@@ -93,19 +98,25 @@ export function createFogOfWar(
       texture.update(grid.values)
       return
     }
-    computeViewshed(sim.map, soldierEye(sim, viewer), range, grid)
+    // The ground shows as far as the light and weather let the viewer see, but never under a few tens of metres.
+    const seen = Math.min(range, Math.max(MIN_GROUND_RANGE, sim.environment.sightRange))
+    computeViewshed(sim.map, soldierEye(sim, viewer), seen, grid)
     texture.update(grid.values)
 
     const spotters = squad.members.filter((member) => isAlive(sim, member)).map((member) => soldierEye(sim, member))
-    const rangeSquared = range * range
     for (const soldier of soldierIds(sim)) {
       // Men down a dugout can't be seen.
       if (sim.soldiers.side.value[soldier] === squad.side || isSheltering(sim, soldier)) {
         continue
       }
+      // As the simulation decides sight: by the light on him, a flare overhead or his muzzle flash, through the weather.
       const head = soldierEye(sim, soldier)
+      const reach = Math.min(range, sightReach(sim, soldier))
       const spotted = spotters.some(
-        (eye) => (head.x - eye.x) ** 2 + (head.z - eye.z) ** 2 <= rangeSquared && lineOfSight.isClear(eye, head)
+        (eye) =>
+          (head.x - eye.x) ** 2 + (head.z - eye.z) ** 2 <= reach * reach &&
+          lineOfSight.isClear(eye, head) &&
+          seesThroughSmoke(sim, eye, head)
       )
       if (spotted) {
         visibleEnemies.add(soldier)

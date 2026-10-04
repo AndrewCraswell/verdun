@@ -43,8 +43,11 @@ export interface SoldierComponents {
   readonly dead: Record<string, never>
   /** Tag: present once a soldier has surrendered. Prisoners walk to their captors' rear and take no part. */
   readonly captured: Record<string, never>
-  /** The soldier's weapon (a `Weapon`) and seconds until it can fire again. */
-  readonly weapon: { readonly kind: Uint8Array; readonly cooldown: Float32Array }
+  /**
+   * The soldier's weapon (a `Weapon`), seconds until it can fire again, and the step it last fired: at night the muzzle
+   * flash gives the shooter away for a moment.
+   */
+  readonly weapon: { readonly kind: Uint8Array; readonly cooldown: Float32Array; readonly firedAt: Int32Array }
   /** The enemy the soldier is shooting at, or -1. */
   readonly target: { readonly id: Int32Array }
   /** How pinned down the soldier is by incoming fire, from 0 to 1. */
@@ -81,7 +84,11 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     health: { value: new Float32Array(capacity) },
     dead: {},
     captured: {},
-    weapon: { kind: new Uint8Array(capacity), cooldown: new Float32Array(capacity) },
+    weapon: {
+      kind: new Uint8Array(capacity),
+      cooldown: new Float32Array(capacity),
+      firedAt: new Int32Array(capacity).fill(NEVER)
+    },
     target: { id: new Int32Array(capacity).fill(-1) },
     suppression: { value: new Float32Array(capacity) },
     morale: { value: new Float32Array(capacity) },

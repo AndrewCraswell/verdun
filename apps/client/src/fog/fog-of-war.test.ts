@@ -9,10 +9,12 @@ import {
   createLineOfSight,
   createSimulation,
   createSquad,
+  enqueueCommand,
   EYE_HEIGHT,
   type LineOfSight,
   Side,
   spawnSoldier,
+  Stance,
   stepSimulation
 } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -201,6 +203,31 @@ describe("createFogOfWar", () => {
     shortSighted.update(0)
 
     expect(shortSighted.isShown(enemyInOpen)).toBe(false)
+  })
+
+  it("loses an enemy in the dark, finds him again under a flare, and shrinks the lit ground", async () => {
+    const { sim, player, enemyInOpen, fog } = await trenchSetup()
+    sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    enqueueCommand(sim, { type: "clock", at: Date.UTC(1916, 5, 30, 23) })
+    stepSimulation(sim)
+    // Stepping lets the squad lay him down; stand him on the fire step to look out.
+    sim.soldiers.stance.value[player] = Stance.Standing
+    fog.update(0)
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+
+    sim.flares.push({
+      side: Side.French,
+      fromX: 50,
+      fromZ: 30,
+      x: 55,
+      z: 80,
+      vx: 0,
+      vz: 0,
+      firedAt: sim.tick - 40,
+      burnsOutAt: sim.tick + 100
+    })
+    fog.update(1)
+    expect(fog.isShown(enemyInOpen)).toBe(true)
   })
 
   it("shows enemies any squad member can see, even when the soldier in control can't", async () => {

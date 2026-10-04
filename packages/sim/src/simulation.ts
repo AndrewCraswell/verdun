@@ -7,6 +7,7 @@ import { type CommanderState, commanderSystem, type CounterAttackEvent, createCo
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
 import { createEnvironment, type Environment, environmentSystem, type EnvironmentOptions } from "./environment.ts"
+import { type Flare, type FlareEvent, flareSystem } from "./flares.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
@@ -65,6 +66,8 @@ export interface Simulation {
   readonly objectives: ObjectiveState[]
   /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
   readonly reinforcements: ReinforcementState
+  /** Very lights in the air over no man's land at night, lighting the ground beneath them. */
+  readonly flares: Flare[]
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
@@ -80,6 +83,7 @@ export type SimEvent =
   | WireCutEvent
   | ObjectiveTakenEvent
   | ReinforcementEvent
+  | FlareEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -123,6 +127,7 @@ export function createSimulation({
     environment,
     commanders: createCommanders(),
     objectives: createObjectives(map),
+    flares: [],
     reinforcements: createReinforcements(reinforcements),
     events: [],
     tick: 0
@@ -226,6 +231,7 @@ export function stepSimulation(sim: Simulation): void {
   squadSystem(sim)
   reinforcementSystem(sim)
   stanceSystem(sim)
+  flareSystem(sim)
   captureSystem(sim)
   combatSystem(sim)
   artillerySystem(sim)

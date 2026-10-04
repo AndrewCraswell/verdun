@@ -5,13 +5,14 @@ import { Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
+import type { Flare } from "./flares.ts"
 import type { ReinforcementState } from "./reinforcements.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 15
+export const SIM_STATE_VERSION = 16
 
 export interface SoldierState {
   readonly id: number
@@ -38,6 +39,8 @@ export interface SoldierState {
   readonly maskClearSince: number
   readonly gasDose: number
   readonly grenades: number
+  /** The step the soldier last fired: the muzzle flash shows at night. */
+  readonly firedAt: number
 }
 
 export interface SquadState {
@@ -73,6 +76,8 @@ export interface SimulationSnapshot {
   readonly environment: EnvironmentState
   /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
   readonly reinforcements: ReinforcementState
+  /** Very lights in the air. */
+  readonly flares: readonly Flare[]
 }
 
 function toSide(value: number): Side {
@@ -120,7 +125,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       maskAt: sim.soldiers.mask.at[id],
       maskClearSince: sim.soldiers.mask.clearSince[id],
       gasDose: sim.soldiers.gasDose.value[id],
-      grenades: sim.soldiers.grenades.count[id]
+      grenades: sim.soldiers.grenades.count[id],
+      firedAt: sim.soldiers.weapon.firedAt[id]
     }))
   const squads = sim.squads.map((squad): SquadState => ({
     side: squad.side,
@@ -150,7 +156,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       pool: { ...sim.reinforcements.pool },
       full: { ...sim.reinforcements.full },
       arrivals: sim.reinforcements.arrivals.map((arrival) => ({ ...arrival }))
-    }
+    },
+    flares: sim.flares.map((flare) => ({ ...flare }))
   }
 }
 
@@ -206,6 +213,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.soldiers.mask.clearSince[id] = soldier.maskClearSince
     sim.soldiers.gasDose.value[id] = soldier.gasDose
     sim.soldiers.grenades.count[id] = soldier.grenades
+    sim.soldiers.weapon.firedAt[id] = soldier.firedAt
     if (soldier.dead) {
       addComponent(sim.world, id, sim.soldiers.dead)
     }
@@ -244,6 +252,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   Object.assign(sim.reinforcements.pool, snapshot.reinforcements.pool)
   Object.assign(sim.reinforcements.full, snapshot.reinforcements.full)
   sim.reinforcements.arrivals.push(...snapshot.reinforcements.arrivals.map((arrival) => ({ ...arrival })))
+  sim.flares.push(...snapshot.flares.map((flare) => ({ ...flare })))
   snapshot.objectives.forEach((saved, index) => {
     const objective = sim.objectives[index]
     if (objective) {

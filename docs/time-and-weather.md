@@ -144,7 +144,34 @@ clock to both sides, since the battlefield is in France.
 | Daylight            | 300 and up | Not limited by light |
 
 Fog, rain and snow cap it at 0.6 of the visibility, since a soldier is a small, drab target and visibility is measured
-against large dark landmarks: a 150 m fog bank hides men beyond about 90 m. Combat never engages beyond the sight range.
+against large dark landmarks: a 150 m fog bank hides men beyond about 90 m.
+
+### Seeing at night
+
+Sight is decided per man by the light where he stands (`packages/sim/src/sight.ts`), and both combat and the player's
+fog of war use the same rule (`canMakeOut`, `sightReach`):
+
+- **The light on him**: the sky's, through the cloud, plus any **flare** overhead (`lightAt`). Reach is
+  `sightRange(light, visibility)` from the table above, so a man under a flare can be seen from a few hundred metres
+  while the ground around him stays dark.
+- **His muzzle flash**: for 1.5 s after firing in the dark (`FLASH_SECONDS`), a shooter can be seen from up to 800 m
+  (`FLASH_REACH`), capped by the visibility. Whoever saw the flash can fire back at it.
+- **Aim** falls with the light on the target (`aimInLight`): full by day and in twilight, about a third by a full moon,
+  0.3 by starlight or at a muzzle flash, most of daylight's under a flare.
+- **The player's view** (`apps/client/src/fog/fog-of-war.ts`) shows enemies by the same rule, and lights the ground only
+  as far as the sight range, but never less than 30 m around the viewer.
+
+**Flares** (`packages/sim/src/flares.ts`) are Very lights. When it is dark (under 3 lux, past civil twilight), squad
+leaders standing in a trench act as sentries:
+
+- A sentry who hears an enemy moving in front of him (walking within 150 m, crawling within 40 m) sends a flare up over
+  him, unless a flare already lights the spot.
+- On a quiet night each sentry sends one up over the ground in front about every three minutes, 70–140 m out.
+- At most six of a side's flares are in the air at once.
+- A flare rises to 60 m in 1.5 s, then sinks at 3 m/s and drifts with the wind, burning 8 s in all. It lights the ground
+  within 70 m of the point beneath it, up to 2 lux at the centre (`FLARE`).
+- By day nothing happens and no random numbers are drawn, so daytime battles are unchanged.
+- The renderer draws flares from `sim.flares` with `flarePosition(flare, tick)`; a `flare` event marks each launch.
 
 ## Weather
 
@@ -194,14 +221,14 @@ Seven patterns, each a spell lasting hours to days:
 
 ## Effects on play
 
-| Condition   | Now                                                               | Planned                                                                                                                                                  |
-| ----------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Night       | Sight range closes to tens of metres; combat holds fire beyond it | Flares light the ground for a few seconds; muzzle flashes give shooters away; reliefs, rations and ammunition come up only at night; raids and wire work |
-| Dawn, dusk  | The light changes                                                 | Stand-to: both sides man the parapet, the usual hour of attack                                                                                           |
-| Fog         | Sight range closes to tens of metres                              | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails                                                              |
-| Rain, mud   | Ground wetness is simulated and drawn                             | Mud slows men and guns; shells bury themselves and burst less effectively; rain washes gas out                                                           |
-| Wind        | Gas and shell smoke drift with it                                 | Gas attacks wait for a wind toward the enemy                                                                                                             |
-| Snow, frost | Snow falls; lying snow is simulated                               | Tracks give patrols away; frozen ground firms up mud; snow drawn lying                                                                                   |
+| Condition   | Now                                                                                                                                                                  | Planned                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Night       | Sight range closes to tens of metres; flares light the ground and muzzle flashes give shooters away; aim falls with the light; the player sees only what his men can | Reliefs, rations and ammunition come up only at night; raids and wire work                     |
+| Dawn, dusk  | The light changes                                                                                                                                                    | Stand-to: both sides man the parapet, the usual hour of attack                                 |
+| Fog         | Sight range closes to tens of metres                                                                                                                                 | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails    |
+| Rain, mud   | Ground wetness is simulated and drawn                                                                                                                                | Mud slows men and guns; shells bury themselves and burst less effectively; rain washes gas out |
+| Wind        | Gas and shell smoke drift with it                                                                                                                                    | Gas attacks wait for a wind toward the enemy                                                   |
+| Snow, frost | Snow falls; lying snow is simulated                                                                                                                                  | Tracks give patrols away; frozen ground firms up mud; snow drawn lying                         |
 
 ## Rendering
 
