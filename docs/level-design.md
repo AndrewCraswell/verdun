@@ -292,6 +292,11 @@ The colour grade runs in the pipeline's image processing pass.
   WGSL, and only the puffs that lie on the ground pay for it: not the earth, sparks and shrapnel flung through the air.
   A longer fade thins the mist, which lies close to the ground by design: a quarter of each puff cost up to a third of
   its brightness at the usual view, an eighth about a tenth.
+- **In the low-lying fog** ([particle-fog.ts](../apps/client/src/level/particle-fog.ts)): where the scene has the
+  weather's height fog ([height-fog.ts](../apps/client/src/environment/height-fog.ts), handed over with `useHeightFog`),
+  every particle system set in fog takes it in place of Babylon's, which thickens with distance alone. They use the same
+  function as the ground's shaders, so smoke fades into the haze as the ground under it does. Both additions to
+  Babylon's particle shaders go through [particle-shaders.ts](../apps/client/src/level/particle-shaders.ts).
 
 Screen-space ambient occlusion was tried in planning and left out: the shadows already take the frame budget it would
 need, and the darkened spoil and wet hollows give much of the same grounding.

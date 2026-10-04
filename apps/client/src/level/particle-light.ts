@@ -1,6 +1,7 @@
 import { Color3, type Color4 } from "@babylonjs/core/Maths/math.color"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
+import { takeHeightFog } from "./particle-fog.ts"
 
 /** The fog's colour at midday under a grey sky, the light the particles' colours were chosen in (see daylight.ts). */
 const MIDDAY_AIR = new Color3(0.557, 0.576, 0.561)
@@ -36,12 +37,14 @@ export function litByAir(system: ParticleSystem): boolean {
  * Sets particles in the scene's fog, which Babylon leaves them out of unless asked: out of it, the column of earth and
  * the smoke of a shell bursting in fog stood out black against the fog that hid the ground under them. Only those drawn
  * over what's behind them, flame included: a flash or a spark adds its light to the scene, and in fog it should still
- * shine through rather than add the fog's grey.
+ * shine through rather than add the fog's grey. Where the scene has the low-lying fog, they take that in place of
+ * Babylon's (see particle-fog.ts).
  */
 export function setInFog(systems: readonly ParticleSystem[]): void {
   for (const system of systems) {
     if (system.blendMode === ParticleSystem.BLENDMODE_STANDARD) {
       system.applyFog = true
+      takeHeightFog(system)
     }
   }
 }

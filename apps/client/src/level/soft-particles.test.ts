@@ -7,7 +7,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { patchParticleShaders, softenParticles } from "./soft-particles.ts"
+import { softenParticles } from "./soft-particles.ts"
 
 const engines: NullEngine[] = []
 
@@ -44,10 +44,11 @@ function definesOf(system: ParticleSystem): string[] {
   return defines
 }
 
-describe("patchParticleShaders", () => {
-  it("adds the soft edges to Babylon's particle shaders, in both languages, once however often it's asked", () => {
-    patchParticleShaders()
-    patchParticleShaders()
+describe("softenParticles", () => {
+  it("adds the soft edges to Babylon's particle shaders, in both languages, once however many it softens", () => {
+    const { scene, camera, depthMap } = world()
+    softenParticles([new ParticleSystem("mist", 10, scene)], { depthMap, camera })
+    softenParticles([new ParticleSystem("smoke", 10, scene)], { depthMap, camera })
 
     for (const store of [ShaderStore.ShadersStore, ShaderStore.ShadersStoreWGSL]) {
       for (const name of ["particlesVertexShader", "particlesPixelShader"]) {
@@ -56,9 +57,7 @@ describe("patchParticleShaders", () => {
       }
     }
   })
-})
 
-describe("softenParticles", () => {
   it("compiles the systems it softens with the soft edges and what they need, and no others", () => {
     const { scene, camera, depthMap } = world()
     const mist = new ParticleSystem("mist", 10, scene)

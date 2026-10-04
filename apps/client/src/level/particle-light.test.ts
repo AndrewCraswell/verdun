@@ -4,6 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
 import { afterEach, describe, expect, it } from "vitest"
+import { useHeightFog } from "./particle-fog.ts"
 import { airLight, lightParticles, litByAir, setInFog } from "./particle-light.ts"
 
 const engines: NullEngine[] = []
@@ -64,6 +65,15 @@ describe("setInFog", () => {
 
     setInFog([dust, fireball, flash])
     expect([dust, fireball, flash].map((system) => system.applyFog)).toEqual([true, true, false])
+
+    // Where the scene has the low-lying fog, those set in fog take it.
+    useHeightFog(world, () => ({ density: 0.01, falloff: 0.02, base: 0, color: new Color3(0.5, 0.5, 0.5) }))
+    const takes = (system: ParticleSystem) => {
+      const defines: string[] = []
+      system.fillDefines(defines, system.blendMode)
+      return defines.includes("#define HEIGHT_FOG")
+    }
+    expect([dust, fireball, flash].map(takes)).toEqual([true, true, false])
   })
 })
 
