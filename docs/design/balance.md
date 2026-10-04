@@ -133,14 +133,14 @@ An attack **holds** the enemy front line when, at the end, at least 8 attackers 
 outnumber what's left of its garrison 3 to 1, the commander AI's own test for a lost line. Losses count the attackers
 killed, wounded and captured as a share of the men they started with.
 
-| Scenario (Fleury)                                        | Band                                                | Built                                     |
-| -------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------- |
-| No artillery, then the whistle                           | Holds on no seed                                    | Yes                                       |
-| One bombardment, then a creeping barrage                 | Holds on at most 40% of seeds                       | Yes                                       |
-| Three bombardments, then a creeping barrage              | Holds on 60–90% of seeds, at 35–60% attacker losses | Yes                                       |
-| The same scenarios with sides swapped (German attacking) | Within 20 points of the French result               | Yes                                       |
-| Own-shell casualties in a barrage attack                 | 5–15% of the attackers' losses                      | Needs casualty causes from the simulation |
-| Counter-attack without preparation                       | Fails on most seeds                                 | To add                                    |
+| Scenario (Fleury)                                                                                     | Band                                                | Built                                     |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------- |
+| The whistle without bombardment (creeping and standing barrages; called "no artillery" in the script) | Holds on no seed                                    | Yes                                       |
+| One bombardment, then a creeping barrage                                                              | Holds on at most 40% of seeds                       | Yes                                       |
+| Three bombardments, then a creeping barrage                                                           | Holds on 60–90% of seeds, at 35–60% attacker losses | Yes                                       |
+| The same scenarios with sides swapped (German attacking)                                              | Within 20 points of the French result               | Yes                                       |
+| Own-shell casualties in a barrage attack                                                              | 5–15% of the attackers' losses                      | Needs casualty causes from the simulation |
+| Counter-attack without preparation                                                                    | Fails on most seeds                                 | To add                                    |
 
 A change that moves a scenario out of its band needs a reason in its commit. To run it in CI it needs a nightly job, not
 the verify loop: two minutes of battles is too long for every push.
@@ -177,8 +177,13 @@ than before pathfinding (about 50% then), is open; the harness needs casualty ca
 measured them at about a fifth of an attack's losses. The German guns fire only about 120 rounds each in a six-minute
 assault (some 18 s of trigger time) and hit with 1–2% of rounds; riflemen hit with 7–10%. Moving the guns into the map's
 emplacements made it worse (1–2% of losses, attacks then always won), because the gunners couldn't see out from behind
-their posts or from sap floors, so that change was dropped. Why the guns fire so little is the next balance question,
-and the likely reason attacks cost the wrong things.
+their posts or from sap floors, so that change was dropped. Why the guns fire so little: in every scenario so far the
+German gunners spend about 75% of the battle **sheltering in their dugouts** under the standing barrage, as designed;
+after it lifts, smoke and craters hide most attackers from them. The harness's "no artillery" scenario was mislabelled:
+it skips the bombardments but still sends the attack in behind the creeping and standing barrages, and at the barrage's
+pace the attackers barely reach the German line inside its six minutes. A true infantry-only scenario (squads simply
+advancing) is written, but waits on a navigation performance bug it exposed: with every squad of a side on an advance
+order, a simulation step costs about 370 ms instead of 1.7 ms.
 
 ### Season harness (stage 1–3)
 
