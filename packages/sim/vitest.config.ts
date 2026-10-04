@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Artillery and sight-line tests run dozens of trials, each building a Rapier heightfield: seconds under coverage.
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
