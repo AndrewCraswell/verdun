@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createRecordsForecast, type WeatherRecords } from "./records.ts"
+import { createRecordsForecast, loadWeatherRegion, WEATHER_REGIONS, type WeatherRecords } from "./records.ts"
 import { createForecast, WeatherPattern } from "./weather.ts"
 
 const HOUR = 3_600_000
@@ -98,5 +98,47 @@ describe("history's weather at Fleury", () => {
     }
     expect(total).toBeGreaterThan(600)
     expect(total).toBeLessThan(1300)
+  })
+})
+
+describe("history's weather elsewhere on the front", () => {
+  const day = (region: (typeof WEATHER_REGIONS)[number], utc: number) => {
+    const history = createForecast({ kind: "records", seed: 1916, region })
+    return Array.from({ length: 8 }, (_, step) => history.at(utc + step * 3 * HOUR))
+  }
+
+  it("loads each region once asked, and refuses one that isn't loaded", async () => {
+    expect(() => createForecast({ kind: "records", seed: 1, region: "somme" })).toThrow(/loadWeatherRegion/)
+    for (const region of WEATHER_REGIONS) {
+      await loadWeatherRegion(region)
+    }
+    expect(
+      createForecast({ kind: "records", seed: 1, region: "somme" }).at(Date.UTC(1916, 6, 1)).temperature
+    ).toBeGreaterThan(0)
+  })
+
+  it("matches the documented days of the war's other battles", async () => {
+    for (const region of WEATHER_REGIONS) {
+      await loadWeatherRegion(region)
+    }
+    // The first day of the Somme, 1 July 1916: fine and hot, 26 °C, no rain (Gliddon). The nearest stations that kept
+    // records through the war are over 100 km off, at Gisors and Paris, and make it a warm day of about 21 °C.
+    const somme = day("somme", Date.UTC(1916, 6, 1))
+    expect(Math.max(...somme.map((weather) => weather.temperature))).toBeGreaterThan(20)
+    expect(somme.every((weather) => weather.precipitation === 0)).toBe(true)
+    // Arras, 9 April 1917: snow and sleet squalls as the attack went in at 05:30.
+    const arras = createForecast({ kind: "records", seed: 1916, region: "artois" }).at(Date.UTC(1917, 3, 9, 5))
+    expect(arras.snowFraction * arras.precipitation).toBeGreaterThan(0.5)
+    // Vimy, 9 May 1915: bright and dry.
+    expect(day("artois", Date.UTC(1915, 4, 9)).every((weather) => weather.precipitation === 0)).toBe(true)
+    // The Chemin des Dames, 16 April 1917: dawn misty and overcast.
+    const nivelle = createForecast({ kind: "records", seed: 1916, region: "aisne" }).at(Date.UTC(1917, 3, 16, 5))
+    expect(nivelle.visibility).toBeLessThanOrEqual(800)
+    // The Aisne, 12 September 1914: torrents of rain.
+    const aisne = createForecast({ kind: "records", seed: 1916, region: "aisne" }).at(Date.UTC(1914, 8, 12, 12))
+    expect(aisne.precipitation).toBeGreaterThan(2)
+    // Champagne, 25 September 1915: heavy rain from the night until noon.
+    const champagne = createForecast({ kind: "records", seed: 1916, region: "champagne" }).at(Date.UTC(1915, 8, 25, 6))
+    expect(champagne.precipitation).toBeGreaterThan(0.3)
   })
 })

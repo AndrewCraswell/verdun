@@ -11,7 +11,7 @@ import {
 } from "./weather.ts"
 
 /**
- * The weather of the war at Fleury, 3-hourly from 1 August 1914 to 30 November 1918: the 20th Century Reanalysis
+ * The weather of the war in one region, 3-hourly from 1 August 1914 to 30 November 1918: the 20th Century Reanalysis
  * corrected by Météo-France's station records, built by scripts/build-historical-weather.mjs. Values are fixed-point
  * integers: temperature in tenths of a °C, cloud and humidity in percent, precipitation in hundredths of a millimetre
  * an hour, snow as the percentage falling as snow, wind in tenths of a metre per second toward +x (east) and +z
@@ -28,6 +28,43 @@ export interface WeatherRecords {
   readonly windZ: readonly number[]
   readonly humidity: readonly number[]
   readonly fogs: readonly (readonly number[])[]
+  /** Where the records are for, which sets the hours of dawn for radiation fog. */
+  readonly location?: { readonly latitude: number; readonly longitude: number }
+}
+
+/**
+ * The regions of the Western Front with history's weather. Fleury's serves all of Verdun, the Argonne and Les Éparges,
+ * and is built in; the others load when a battle needs them (`loadWeatherRegion`).
+ * - champagne: Souain and Perthes, the offensives of 1915.
+ * - aisne: the Chemin des Dames at Craonne, with Malmaison, the 1914 crossings and the Marne of 1918.
+ * - somme: Albert and Thiepval, 1916.
+ * - artois: Vimy and Arras, 1915 and 1917.
+ */
+export const WEATHER_REGIONS = ["fleury", "champagne", "aisne", "somme", "artois"] as const
+export type WeatherRegion = (typeof WEATHER_REGIONS)[number]
+
+const loaded = new Map<WeatherRegion, WeatherRecords>([["fleury", fleury]])
+const loaders: Readonly<Record<Exclude<WeatherRegion, "fleury">, () => Promise<{ default: WeatherRecords }>>> = {
+  champagne: () => import("../data/champagne-weather-1914-1918.json", { with: { type: "json" } }),
+  aisne: () => import("../data/aisne-weather-1914-1918.json", { with: { type: "json" } }),
+  somme: () => import("../data/somme-weather-1914-1918.json", { with: { type: "json" } }),
+  artois: () => import("../data/artois-weather-1914-1918.json", { with: { type: "json" } })
+}
+
+/** Loads a region's weather, once, before a battle there creates its forecast. Fleury's is always loaded. */
+export async function loadWeatherRegion(region: WeatherRegion): Promise<void> {
+  if (!loaded.has(region) && region !== "fleury") {
+    loaded.set(region, (await loaders[region]()).default)
+  }
+}
+
+/** A region's weather, which must have been loaded. */
+function recordsOf(region: WeatherRegion): WeatherRecords {
+  const records = loaded.get(region)
+  if (!records) {
+    throw new Error(`History's weather for ${region} isn't loaded: await loadWeatherRegion("${region}") first`)
+  }
+  return records
 }
 
 const HOUR = 3_600_000
@@ -69,9 +106,10 @@ function patternOf(precipitation: number, cloudCover: number, visibility: number
  * one. Outside the records the cycle takes over, from the same seed.
  */
 export function createRecordsForecast(
-  spec: { readonly kind: "records"; readonly seed: number },
-  records: WeatherRecords = fleury
+  spec: { readonly kind: "records"; readonly seed: number; readonly region?: WeatherRegion },
+  records: WeatherRecords = recordsOf(spec.region ?? "fleury")
 ): Forecast {
+  const { latitude, longitude } = records.location ?? { latitude: 49.1935, longitude: 5.433 }
   const step = records.stepHours * HOUR
   const last = records.temperature.length - 1
   const outside = createCycleAir(spec.seed)
@@ -97,7 +135,7 @@ export function createRecordsForecast(
     const haze = Math.exp(lerp(Math.log(HAZE.dry), Math.log(HAZE.damp), Math.min(1, Math.max(0, (humidity - 50) / 45))))
     const damp = Math.min(1, Math.max(0, (humidity - FOG.humidity) / (100 - FOG.humidity)))
     const still = Math.max(0, 1 - calm / FOG.wind)
-    const fog = damp * still * morningFogAt(utc, 49.1935, 5.433)
+    const fog = damp * still * morningFogAt(utc, latitude, longitude)
     let visibility = Math.min(
       Math.exp(lerp(Math.log(haze), Math.log(FOG.visibility), fog)),
       precipitationVisibility(precipitation, snowFraction)

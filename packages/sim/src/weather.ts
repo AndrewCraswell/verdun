@@ -1,4 +1,4 @@
-import { createRecordsForecast } from "./records.ts"
+import { createRecordsForecast, type WeatherRegion } from "./records.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { FLEURY, interpolate } from "./sky.ts"
 
@@ -47,8 +47,11 @@ export interface Weather {
  */
 export type ForecastSpec =
   | { readonly kind: "cycle"; readonly seed: number }
-  /** History's weather at Fleury, August 1914 to November 1918; the cycle from the same seed outside it. */
-  | { readonly kind: "records"; readonly seed: number }
+  /**
+   * History's weather, August 1914 to November 1918, in a region of the front (Fleury's unless given; others must be
+   * loaded first, `loadWeatherRegion`); the cycle from the same seed outside it.
+   */
+  | { readonly kind: "records"; readonly seed: number; readonly region?: WeatherRegion }
   | { readonly kind: "steady"; readonly weather: Weather }
 
 export interface Forecast {

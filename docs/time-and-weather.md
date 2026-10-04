@@ -462,7 +462,28 @@ To add a recorded fog or snowfall, add it to `FOGS` or `SNOWS` in the build scri
 note, and rebuild (`pnpm weather:build`, which reuses the downloads cached in `.asset-cache/weather/`). The documented
 days the data is checked against are listed in the
 [research note](research/notes/weather/historical_weather_1916.md#documented-days-checked) and tested in
-`records.test.ts`. To build another sector's weather, change `FLEURY` and the station lists there.
+`records.test.ts`.
+
+**Regions.** Each region of the front has its own table (`packages/sim/data/<region>-weather-1914-1918.json`), and a
+records forecast names its region (`{ kind: "records", seed, region }`):
+
+| Region      | Place                     | Serves                                                          | Stations                                                  |
+| ----------- | ------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| `fleury`    | Fleury, 49.19° N 5.43° E  | All of Verdun, the Argonne, Les Éparges                         | Chosen by hand: Metz, Nancy; Sainte-Menehould, Bar-le-Duc |
+| `champagne` | Souain, 49.18° N 4.55° E  | The Champagne offensives of 1915                                | Châlons (28 km); Sainte-Menehould, Givry                  |
+| `aisne`     | Craonne, 49.44° N 3.79° E | The Chemin des Dames, Malmaison, the Aisne 1914, the Marne 1918 | Châlons, Paris; Montmort, Étreux, Montmirail              |
+| `somme`     | Albert, 50.03° N 2.70° E  | The Somme, 1916                                                 | Gisors, Paris (by hand, inland); Étreux, Gisors, Pontoise |
+| `artois`    | Vimy, 50.37° N 2.78° E    | Artois 1915, Arras and Vimy 1917                                | Dunkirk, Gisors; Étreux                                   |
+
+Fleury's table is built in; the others load when a battle needs them (`await loadWeatherRegion("somme")` before creating
+the forecast, or restoring a save that uses it), so the client downloads only its battle's weather. Outside Verdun few
+stations kept records through the war (none in the Somme, the Oise or the Pas-de-Calais), so the other regions take the
+nearest that did, up to 150 km off: their days' highs, lows and wet spells follow the region's, their totals less
+closely, and none has the snow days Verdun's stations kept, so snow there comes from the reanalysis alone. The
+reanalysis for them is one download of the grid from 49° to 51° N and 2° to 5° E.
+
+To add a region, add it to `REGIONS` in the build script (its place, its grid box, the departments to draw stations
+from) and to `WEATHER_REGIONS` in `records.ts`, then run `pnpm weather:build --region <name>`.
 
 ## Dev tools and tests
 
