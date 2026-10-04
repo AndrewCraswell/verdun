@@ -218,24 +218,27 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
 
 /**
  * Loads the soldier kit from the level kit's files, or resolves null when it isn't there: the soldiers then stay
- * capsules.
+ * capsules. Given `files`, it leaves closing them to the caller; otherwise it opens and closes its own.
  */
-export async function loadSoldierKit(
-  scene: Scene,
-  files: KitFiles | null = openKitFiles()
-): Promise<SoldierKit | null> {
+export async function loadSoldierKit(scene: Scene, given?: KitFiles | null): Promise<SoldierKit | null> {
+  const files = given === undefined ? openKitFiles() : given
   if (!files) {
     return null
+  }
+  const done = () => {
+    if (given === undefined) {
+      files.close?.()
+    }
   }
   try {
     await import("@babylonjs/loaders/glTF/2.0/glTFLoader")
     const glb = await files.read("soldier.glb")
-    files.close?.()
+    done()
     const container = await LoadAssetContainerAsync(new Uint8Array(glb), scene, { pluginExtension: ".glb" })
     container.addAllToScene()
     return prepareSoldierKit(scene, container)
   } catch (error) {
-    files.close?.()
+    done()
     console.warn(
       "Soldier kit not available, so soldiers stay capsules. Build it with scripts/build-level-kit.py.",
       error

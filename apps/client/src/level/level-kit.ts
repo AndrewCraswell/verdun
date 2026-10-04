@@ -163,11 +163,18 @@ export function prepareKitPieces(
 
 /**
  * Loads the level kit, or resolves null when it isn't available: production builds until the encrypted asset pack
- * exists, and checkouts that haven't run the kit build. The game then stays greybox.
+ * exists, and checkouts that haven't run the kit build. The game then stays greybox. Given `files`, it reads from
+ * them and leaves closing them to the caller, who may read more (the soldiers); otherwise it opens and closes its own.
  */
-export async function loadLevelKit(scene: Scene, files: KitFiles | null = openKitFiles()): Promise<LevelKit | null> {
+export async function loadLevelKit(scene: Scene, given?: KitFiles | null): Promise<LevelKit | null> {
+  const files = given === undefined ? openKitFiles() : given
   if (!files) {
     return null
+  }
+  const done = () => {
+    if (given === undefined) {
+      files.close?.()
+    }
   }
   try {
     await import("@babylonjs/loaders/glTF/2.0/glTFLoader")
@@ -190,11 +197,11 @@ export async function loadLevelKit(scene: Scene, files: KitFiles | null = openKi
       loadAudio(files),
       loadBattleSoundFiles(files)
     ])
-    files.close?.()
+    done()
     container.addAllToScene()
     return { ...prepareKitPieces(scene, container), ground: { grass, mud, chalk, churned }, fx, audio, sfx }
   } catch (error) {
-    files.close?.()
+    done()
     console.warn(
       "Level kit not available, so the battlefield stays greybox. Build it with scripts/build-level-kit.py.",
       error

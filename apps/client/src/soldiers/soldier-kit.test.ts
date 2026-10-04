@@ -180,7 +180,8 @@ describe("loadSoldierKit", () => {
     const files = { read: () => Promise.reject(new Error("no soldier")), close }
 
     await expect(loadSoldierKit(scene(), files)).resolves.toBeNull()
-    expect(close).toHaveBeenCalledOnce()
+    // The caller gave the files, so closing them is left to it.
+    expect(close).not.toHaveBeenCalled()
     await expect(loadSoldierKit(scene(), null)).resolves.toBeNull()
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("capsules"), expect.anything())
   })

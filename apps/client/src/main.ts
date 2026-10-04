@@ -25,6 +25,7 @@ import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
 import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
+import { openKitFiles } from "./level/kit-files.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
@@ -61,9 +62,12 @@ async function start(): Promise<void> {
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE)
   const stats = createDebugStats(document.body, engine, view.scene, sim)
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
-  const level = await dressLevel(view, map, { wind: () => sim.wind })
+  // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
+  const kitFiles = openKitFiles()
+  const level = await dressLevel(view, map, { wind: () => sim.wind, files: kitFiles })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
-  const soldierKit = level ? await loadSoldierKit(view.scene) : null
+  const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
+  kitFiles?.close?.()
   const soldiers = soldierKit ? createSoldierCrowd(view.scene, sim, soldierKit) : null
   if (soldiers) {
     view.useSoldierRenderer(soldiers)

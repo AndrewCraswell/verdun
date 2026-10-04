@@ -107,7 +107,8 @@ describe("loadLevelKit", () => {
     const files = { read: () => Promise.reject(new Error("no kit")), close }
 
     await expect(loadLevelKit(scene(), files)).resolves.toBeNull()
-    expect(close).toHaveBeenCalledOnce()
+    // The caller gave the files, so closing them is left to it.
+    expect(close).not.toHaveBeenCalled()
     await expect(loadLevelKit(scene(), null)).resolves.toBeNull()
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("greybox"), expect.anything())
   })

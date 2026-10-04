@@ -12,6 +12,7 @@ import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
 import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage } from "./battle-damage.ts"
+import type { KitFiles } from "./kit-files.ts"
 import { type LevelKit, loadLevelKit } from "./level-kit.ts"
 import type { Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
@@ -155,6 +156,8 @@ export interface LevelDressing extends BattlefieldDressing {
 interface LevelOptions {
   /** The wind near the ground, metres per second, which carries the smoke. Defaults to a light westerly. */
   readonly wind?: () => { readonly x: number; readonly z: number }
+  /** Where to read the kit from, when the caller reads more from it; by default the level opens and closes its own. */
+  readonly files?: KitFiles | null
 }
 
 const WESTERLY = { x: 2, z: 0 } as const
@@ -175,9 +178,9 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY }: LevelOptions = {}
+  { wind = () => WESTERLY, files }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
-  const kit = await loadLevelKit(view.scene)
+  const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
     return null
   }
