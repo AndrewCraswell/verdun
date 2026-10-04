@@ -95,6 +95,29 @@ describe("navigation", () => {
     expect(performance.now() - started).toBeLessThan(500)
   })
 
+  it("wades into a belt with no gap rather than standing at its edge for good", () => {
+    const sim = createSimulation({
+      map: {
+        ...field(),
+        wire: [
+          {
+            points: [
+              [0, 100],
+              [200, 100]
+            ]
+          }
+        ]
+      },
+      seed: 1
+    })
+    // Standing in the middle of the last 2 m route cell short of the wire.
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 101, z: 97 })
+    const waypoint = nextWaypoint(sim, soldier, { x: 101, z: 130 }, ahead)
+
+    // On into the wire, not back to where he already stands.
+    expect(waypoint.z).toBeGreaterThan(98)
+  })
+
   it("goes round a ruin", () => {
     const ruin: Scenery = { kind: "ruin", x: 60, z: 130, heading: 0, variant: 0, scale: 1.5 }
     const sim = createSimulation({ map: field([ruin]), seed: 1 })

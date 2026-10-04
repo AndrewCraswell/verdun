@@ -302,6 +302,26 @@ function cellAt(state: NavState, x: number, z: number): number {
   return row * state.columns + column
 }
 
+/**
+ * With no clear way on, a soldier this close, in metres, to the line from the middle of his cell to the route's next
+ * cell takes that step anyway. Further off, he walks to the middle first, which lines him up with a gap the route runs
+ * through rather than clipping the wire beside it.
+ */
+const ON_THE_WAY = 0.3
+
+/** How far a point lies from the segment between two others. */
+function distanceToSegment(
+  x: number,
+  z: number,
+  from: { readonly x: number; readonly z: number },
+  to: { readonly x: number; readonly z: number }
+): number {
+  const dx = to.x - from.x
+  const dz = to.z - from.z
+  const along = Math.min(1, Math.max(0, ((x - from.x) * dx + (z - from.z) * dz) / (dx * dx + dz * dz || 1)))
+  return Math.sqrt((from.x + dx * along - x) ** 2 + (from.z + dz * along - z) ** 2)
+}
+
 /** A straight walk snags on wire this intact or worse, as a fraction of walking pace. */
 const WIRE_SNAG = 0.5
 
@@ -357,7 +377,9 @@ export function nextWaypoint(
     x: ((of % state.columns) + 0.5) * NAV_CELL,
     z: (Math.floor(of / state.columns) + 0.5) * NAV_CELL
   })
-  let best = centre(cell)
+  const start = centre(cell)
+  let best = start
+  let firstStep: { x: number; z: number } | null = null
   for (let step = 0; step < LOOKAHEAD; step++) {
     const column = cell % state.columns
     const row = Math.floor(cell / state.columns)
@@ -378,10 +400,22 @@ export function nextWaypoint(
     }
     cell = next
     const point = centre(cell)
+    firstStep ??= point
     if (!clearLine(sim, state, x, z, point.x, point.z)) {
       break
     }
     best = point
+  }
+  if (
+    best === start &&
+    firstStep &&
+    !clearLine(sim, state, start.x, start.z, firstStep.x, firstStep.z) &&
+    distanceToSegment(x, z, start, firstStep) < ON_THE_WAY
+  ) {
+    // The route's next step is through what a straight walk shies from (uncut wire, a flooded crater) even from the
+    // middle of his cell, and he stands in line for it: he goes on into it rather than standing at its edge for good.
+    // Where the step is only blocked from where he happens to stand, he lines himself up in the middle first.
+    return firstStep
   }
   return best
 }
