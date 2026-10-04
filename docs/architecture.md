@@ -155,7 +155,7 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - Angled top-down camera with zoom.
 - **Terrain**: chunked heightfield meshes (32–64 m) rebuilt from the simulation grid; craters re-mesh only their chunk.
   Custom NodeMaterial splat shader over 6–8 KTX2 layers (Babylon's `TerrainMaterial` blends only 3).
-- **Trench walls**: Megascans revetment pieces instanced along trench polylines.
+- **Trench walls**: Synty trench kit pieces instanced along trench polylines (Megascans revetments in the remaster).
 - `MeshUVSpaceRenderer` decal maps for persistent scorch marks.
 - Fog of war from a visibility texture computed from line of sight.
 - Gas as low-lying fog driven by the density grid, plus particles.

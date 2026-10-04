@@ -48,7 +48,8 @@ How it's built is in the [architecture](architecture.md); what gets built when i
 
 - **3D rendering, top-down gameplay**: angled top-down camera (about 55–60° tilt) with zoom, like Company of Heroes. A
   close over-the-shoulder view may come later but isn't planned around.
-- **Muted documentary realism**: see [art direction](assets/art-direction.md).
+- **Stylized low-poly for version 1**: Synty POLYGON packs with a muted WW1 palette. The art is remastered toward muted
+  documentary realism after version 1. See [art direction](assets/art-direction.md).
 - **Sound** is half the experience: artillery, whistles, rifles, machine guns.
 
 ## Platform and constraints

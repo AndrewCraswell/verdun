@@ -6,7 +6,45 @@ license tier ([why](licensing.md#which-sources-are-usable)). Record every purcha
 Never buy from TurboSquid or the Reallusion / Character Creator store: their licenses block web delivery. See
 [Do not buy](#do-not-buy).
 
-## Buy now: core kit (about $270)
+Version 1 uses the Synty packs we already own ([art direction](art-direction.md#version-1-synty-polygon)), so no models
+need buying now. The realistic kit below waits for the art remaster after version 1. Audio is still needed for
+version 1.
+
+## Owned Synty packs
+
+Bought on the Unity Asset Store (January 2021), so Unity's EULA governs them, not Synty's
+([licensing](licensing.md#which-sources-are-usable)). Download them in Unity's Package Manager (My Assets → Download),
+then unpack with `pnpm assets:unpack` into `vendor/unity/`. See the [pipeline](pipeline.md).
+
+| Pack                                                                                                                          | Use in version 1                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [POLYGON War Map WWI](https://assetstore.unity.com/packages/3d/environments/historic/polygon-war-map-wwi-art-by-synty-169085) | Trenches, craters, wire, WW1 soldiers, helmets, weapons, artillery, tanks |
+| [POLYGON War Pack](https://assetstore.unity.com/packages/3d/environments/historic/polygon-war-pack-106992)                    | Required by War Map WWI. Sandbags, bunkers, ruins, crates                 |
+| POLYGON Farm                                                                                                                  | Farmhouses, barns, fences and fields behind the lines                     |
+| POLYGON Nature                                                                                                                | Woods, stumps, rocks                                                      |
+| POLYGON Prototype                                                                                                             | Greybox kit for blocking out maps                                         |
+| POLYGON Particle FX                                                                                                           | Smoke, fire and explosion sprite textures for Babylon particles           |
+| POLYGON Military                                                                                                              | A few props only (crates, sandbag walls, tents, camo nets)                |
+
+Also owned and not useful for version 1: POLYGON Town, Battle Royale, Gang Warfare and Starter (modern settings).
+
+Other owned Unity Asset Store packs, downloaded and unpacked:
+
+- **polyperfect Low Poly War Pack** (WW2, low poly): about 60 soldier animations on its own humanoid rig, including
+  8-way walk and run (in place and root motion), idles, hit reactions and deaths (standing, crouched, prone). Retarget
+  them onto the Synty rig in Blender. Its models are WW2 and only useful as extra props.
+- **Gamemaster Audio Pro Sound Collection** (8,000 files, 48 kHz WAV): placeholder audio, not WW1-specific. Useful:
+  generic rifle and bolt/cock handling, a heavy machine gun, cannon shots, bullet flybys and impacts, near and distant
+  explosions, footsteps on mud, dirt, gravel and wood, crows and rain loops, and male voice sets with battle shouts,
+  pain, effort, coughing and deaths. No artillery shells, whistles or gas alarms; much of it is fantasy, sci-fi and UI.
+  Replace with the audio list below before launch.
+- Sidearm Ultimate Sound FX Bundle (5.9 GB, deprecated): not downloaded.
+
+Optional: Synty
+[ANIMATION Base Locomotion](https://assetstore.unity.com/packages/3d/animations/animation-base-locomotion-280764)
+($69.99), if Mixamo clips on the Synty rig fall short.
+
+## Remaster: realistic kit (about $270)
 
 - [ ] [AmeliaTeale WW1 low poly British/French pack](https://www.fab.com/listings/07831ff9-9019-4c58-8026-65c7e74530d0)
       ($14.99). French crowd soldiers, heads, gear, gas masks. 3.6–3.9k vertices, UE4 skeleton.
@@ -34,7 +72,7 @@ Never buy from TurboSquid or the Reallusion / Character Creator store: their lic
       stamps for terrain.
 - [ ] Five Megascans mud surfaces ([Fab search](https://www.fab.com/search?q=megascans%20mud)) ($0.99 each).
 
-## Buy now: upgrades (about $430)
+## Remaster: upgrades (about $430)
 
 - [ ] [FieriaGold Soldiers WW1](https://www.fab.com/listings/2b135e0e-d17a-4cb4-9834-de0c74b190c6) ($39.99). More
       realistically textured German soldiers (3–9k vertices, 2–4K textures).
@@ -66,7 +104,7 @@ Never buy from TurboSquid or the Reallusion / Character Creator store: their lic
 
 | Item                                                                                                  | When                                                                    | Cost (estimate)  |
 | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------- |
-| French/German base soldiers with variants, to the [commission spec](art-direction.md#commission-spec) | After the asset comparison test (M8) shows it is needed                 | $3k–7k           |
+| French/German base soldiers with variants, to the [commission spec](art-direction.md#commission-spec) | After the asset comparison test (remaster) shows it is needed           | $3k–7k           |
 | [Uthana](https://uthana.com/pricing) video-to-motion, about 10 minutes                                | When capturing bolt cycling, going over the top, wire cutting, MG crews | About $30        |
 | Gaea Indie                                                                                            | If we need art-directed landforms                                       | $99              |
 | [Cascadeur](https://cascadeur.com/plans) Indie                                                        | If captured animation needs cleanup                                     | About $96 / year |
@@ -83,8 +121,6 @@ Reasons for the store bans are in [licensing](licensing.md).
 - LiquidPixel's 20-soldier British pack (seller says "Not game-ready").
 - MoonyState's high-poly uniforms.
 - Ultima Store's AI-generated trench props.
-- Synty POLYGON War Map WWI: no French soldier, no animations, needs the $99.99 War Pack, and its flat-shaded look
-  clashes with photoscanned trenches.
 - Bandai Namco mocap data (non-commercial license).
 - The CC BY-NC Fort Douaumont scans (reference only).
 - Sketchfab uploads that are ripped game assets.

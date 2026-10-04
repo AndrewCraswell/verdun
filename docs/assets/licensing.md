@@ -20,6 +20,11 @@ before commercial launch. Details and quoted clauses: [research notes](../resear
 | Reallusion (Character Creator, ActorCore)     | **No**, without written approval | Proprietary formats only; bars "embedded content within applications or online services"               |
 | CC BY-NC, Editorial, legacy UE-only Megascans | No                               | Non-commercial or Unreal-only                                                                          |
 
+Our Synty packs (the version 1 art) were bought on the Unity Asset Store, so the **Unity Asset Store** row governs them.
+Synty's own license excludes Unity Asset Store purchases. Unity confirms its assets may be used in other engines as long
+as players can't extract the raw files, which the encrypted pack handles. Don't expose them through an editor that can
+export meshes.
+
 Fab notes:
 
 - Buy the **Personal** tier. Professional is only required above $100k digital-content revenue in 12 months (funds
@@ -47,5 +52,6 @@ pack (no need) and CC-BY content outside it too (CC BY 4.0 forbids technological
 - How Fab's "object code" wording applies to glTF delivered to a browser.
 - Whether our packing and encryption counts as "reasonable measures".
 - The Sketchfab "promote weapons" clause, for any legacy Sketchfab purchase.
-- Synty's "Game Creation Software" clause, if we ever ship modding or map tools.
+- Unity Asset Store terms for our Synty packs if we ever ship modding or map tools (Synty's own "Game Creation Software"
+  clause covers Synty Store purchases only).
 - Any TurboSquid or Reallusion asset (avoid unless the vendor approves in writing).

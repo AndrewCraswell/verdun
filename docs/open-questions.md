@@ -23,9 +23,13 @@ Decisions still to make. Move each to the relevant doc once decided.
 
 ## Assets
 
-- **Commission or not.** Decided by the asset comparison test (M8) in the [roadmap](roadmap.md#milestones).
-- **Animation capture.** Which WW1 motions to capture with Uthana, and who acts them.
-- **AmeliaTeale German helmets.** Confirm one is a 1916 Stahlhelm; otherwise use the Davicolt M16.
+- **Synty German helmet.** Check whether War Map WWI's German helmet reads as a 1916 Stahlhelm at gameplay zoom, or
+  needs reshaping in Blender.
+- **Version 1 animations.** Mixamo clips retargeted to the Synty rig, or buy Synty's ANIMATION packs. Prone, crawling,
+  climbing out of trenches and bolt-action reloads are the hard ones.
+- **Remaster (after version 1):** commission or not (decided by the asset comparison test in the
+  [roadmap](roadmap.md#after-version-1-art-remaster)); which WW1 motions to capture with Uthana; whether an AmeliaTeale
+  German helmet is a 1916 Stahlhelm, otherwise use the Davicolt M16.
 
 ## Legal (before commercial launch)
 

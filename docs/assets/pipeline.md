@@ -10,8 +10,9 @@ terrain rendering is in the [architecture](../architecture.md#rendering). Tools 
 ## Flow
 
 ```
-Fab / CGTrader / Mixamo / CC0
+Unity Asset Store (Synty, version 1) / Fab / CGTrader / Mixamo / CC0
         |
+        |  Unity packs: Package Manager download, then scripts/extract-unitypackage.mjs
         v
 vendor/            raw purchases (git-ignored, backed up separately)
         |
@@ -30,6 +31,33 @@ build pack         custom binary container, encrypted per build
 Babylon.js client  decrypt in a worker, load glTF from ArrayBuffer
 ```
 
+## Unpacking Unity Asset Store packs
+
+The Asset Store only delivers through the Unity Editor. Unity 6 LTS with an empty shell project (outside the repo) is
+enough: Window → Package Management → My Assets → **Download** (not Import). Downloads land in
+`%APPDATA%\Unity\Asset Store-5.x\<publisher>\`. Then:
+
+```
+pnpm assets:unpack
+```
+
+It unpacks every downloaded package into `vendor/unity/<package name>/`, keeping FBX/OBJ models, textures and audio and
+skipping Unity materials, prefabs, scenes and scripts. Synty packs colour most meshes from one small palette texture
+(for example `PolygonWarMap_01_A.png`, with `_B` and `_C` colour variants), so one material per pack replaces the Unity
+materials. Vehicles and a few props have their own textures.
+
+The script also writes `unity-materials.json` per package: which material each mesh's prefab uses, and each material's
+texture and colour. FBX files reference the artist's original texture paths, so the converter rebuilds materials from
+this file instead:
+
+```
+blender -b --factory-startup -P scripts/convert-unity-models.py -- "vendor/unity/<package>" ".asset-cache/unity/<package>"
+```
+
+It writes one GLB per FBX (collision meshes skipped, animation clips kept), mirroring the package layout. An optional
+third argument filters by file name. Blender can't read old ASCII or FBX 6.1 files (Farm's `Characters.fbx`, the War
+Pack's 30 flag models); they are reported and skipped. Re-export them from the Unity shell project if needed.
+
 ## Exporting Unreal-only packs
 
 Epic's glTF exporter handles static meshes, skeletal meshes and animation sequences, and bakes materials to
@@ -44,8 +72,9 @@ metal-roughness PBR. Limits and gotchas:
 
 ## Skeleton and animation
 
-- **One canonical skeleton**: the Epic/UE4 mannequin. AmeliaTeale, FieriaGold, TalkingDrums and DarkTide packs already
-  use it.
+- **Version 1 skeleton**: the Synty humanoid rig shared by every Synty character. Retarget Mixamo clips onto it.
+- **Remaster skeleton**: the Epic/UE4 mannequin. AmeliaTeale, FieriaGold, TalkingDrums and DarkTide packs already use
+  it.
 - Retarget Mixamo, Kevin Iglesias and captured clips onto it (UE5 IK Retargeter or Blender). Export **in-place** clips
   (zero root translation) as named tracks.
 - Strip IK, twist and finger bones to keep the VAT texture narrow.

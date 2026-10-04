@@ -44,24 +44,34 @@ Scope:
       line of sight with 400 soldiers.
 - [ ] **M5 Artillery**: barrages, crater stamping, chunk re-meshing and collider rebuilds.
 - [ ] **M6 Gas**: density grid, wind, settling, masks.
-- [ ] **M7 Crowd**: 400 soldiers with VAT instancing and LODs from the [core kit](assets/shopping-list.md), through the
-      full [asset pipeline](assets/pipeline.md) including the encrypted pack.
-- [ ] **M8 Asset comparison test**: decimate Albin's Poilu to 15k and 5k triangles on a 2K atlas, place it beside the
-      AmeliaTeale Poilu at gameplay zoom. If the difference is invisible, re-texture the crowd packs and stop. If it is
-      obvious, commission a base soldier to the [commission spec](assets/art-direction.md#commission-spec).
-- [ ] **M9 Playtest build**: deployed to Railway as a static site with a shareable link.
+- [ ] **M7 Crowd**: 400 soldiers with VAT instancing and LODs from the
+      [Synty soldiers](assets/art-direction.md#version-1-synty-polygon), through the full
+      [asset pipeline](assets/pipeline.md) including the encrypted pack.
+- [ ] **M8 Playtest build**: deployed to Railway as a static site with a shareable link.
 
 The prototype answers the riskiest question first: is it fun? If not, we change the design before building networking.
 Until then everything stays greybox: placeholder terrain, capsule soldiers, plain trench slots.
 
 ### Art and level design phase (after the playtest)
 
-Only once the playtest shows the core loop is fun:
+Only once the playtest shows the core loop is fun. Version 1 uses the
+[Synty packs](assets/art-direction.md#version-1-synty-polygon) throughout:
 
-- Terrain materials to the quality bar in [art direction](assets/art-direction.md), from purchased and Megascans assets.
-- Trench meshes along the trench polylines: revetments, duckboards, sandbags, wire, dugout entrances.
+- Terrain in flat Synty-style palette colours for mud, chalk, grass and churned ground.
+- Synty trench kit pieces along the trench polylines: trench walls, firesteps, dugouts, bunkers, sandbags, wire.
 - Level authoring: the in-game editor and Tiled import (see [tooling](tooling.md#editor-plan)), and real elevation data.
 - Lighting, smoke, weather and the global colour grade.
+
+## After version 1: art remaster
+
+Version 1 is the full game on Synty art. Once it is finished, the art is redone toward the
+[remaster target](assets/art-direction.md#remaster-target-muted-documentary-realism):
+
+- **Asset comparison test**: decimate Albin's Poilu to 15k and 5k triangles on a 2K atlas, place it beside the
+  AmeliaTeale Poilu at gameplay zoom. If the difference is invisible, re-texture the crowd packs and stop. If it is
+  obvious, commission a base soldier to the [commission spec](assets/art-direction.md#commission-spec).
+- Buy the realistic kit in the [shopping list](assets/shopping-list.md#remaster-realistic-kit) and Megascans trenches.
+- Replace terrain, trench, prop and soldier art; the simulation and map format don't change.
 
 ## Stage 2 and later
 
