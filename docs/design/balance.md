@@ -80,8 +80,9 @@ There is no direct pity mechanic. Comebacks come from these rules and from the a
 
 ## Tuning levers
 
-The numbers that tune the game, where they live, and their values today. "Built" values come from the simulation; the
-rest are starting values in these docs.
+The numbers that tune the game, where they live, and their values today. Each system's own levers (morale and stamina,
+logistics, operations, artillery and air, armour, squad types) are listed at the end of its doc. "Built" values come
+from the simulation; the rest are starting values in these docs.
 
 | Lever                                  | Value today                                          | Tunes                                       |
 | -------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |

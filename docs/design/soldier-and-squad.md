@@ -84,20 +84,9 @@ platoon of squads, not as one shared squad.
 
 ### Squad types (planned, stage 2)
 
-The player picks a type when the squad deploys. Each sector limits how many of each type a side can field at once, so
-the line doesn't fill with machine guns.
-
-| Type             | Men and kit                                                                      | Job                                                    |
-| ---------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Rifle section    | 8 riflemen, extra grenades, one rifle grenadier                                  | The backbone: hold bays, go over the top               |
-| Machine-gun team | One machine gun, 4 crew who take it over in turn, 3 riflemen carrying ammunition | Hold a sector of fire, sweep the attack                |
-| Bombers          | 8 men with bags of grenades, few rifles                                          | Clear trenches bay by bay, the job of a trench assault |
-| Pioneers         | 6 engineers, 2 riflemen; wire cutters, stakes and wire, shovels, charges         | Cut and lay wire, consolidate, dig, demolish, mine     |
-| Mortar crew      | One trench mortar, 4 crew, 3 carriers                                            | Short-range indirect fire the player aims              |
-| Stretcher party  | 4 stretcher bearers, 4 riflemen                                                  | Evacuate the wounded, return manpower                  |
-
-Rifle sections are unlimited. The others are capped per side per sector, for example one machine-gun team per 6 squads,
-so special squads are prized and shared.
+The player picks a type when the squad deploys: rifle section, bombers, machine-gun team, pioneers, mortar crew,
+stretcher party and more, each with roles inside it, a loadout to choose and a cap per sector so the line doesn't fill
+with machine guns. The kit changes with the year. All of it is in [roles and loadouts](roles-and-loadouts.md).
 
 ### Orders
 

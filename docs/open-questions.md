@@ -28,6 +28,12 @@ Decisions still to make. Move each to the relevant doc once decided.
   British held the line from Ypres to the Somme, and the Americans fought in 1918. Leave their sectors out, show them
   only in the communiqué, or add them later as part of the Allied side? See
   [the years](design/war-map-and-season.md#the-years).
+- **Playable aircraft.** Aircraft and balloons are AI and an air-superiority value per sector
+  ([the air war](design/artillery-and-air.md#the-air-war)). Flying them would be a second game with its own controls,
+  camera and scale. Leave it out, or add a pilot role after launch?
+- **Digging at runtime.** Saps, assembly trenches and new lines behind an advance mean carving trenches into the height
+  grid during a battle and rebuilding sight and navigation locally
+  ([engineering](design/armour-and-engineering.md#engineering)). Needs an engineering spike before stage 3.
 - **Business model.** One-off purchase, free with cosmetics, or subscription. Whatever it is, nothing sold may change a
   soldier's fighting strength ([progression](design/progression-and-community.md#rewards-that-last-beyond-a-season)).
 - **Squad size.** 6, 8 or 10 soldiers ([vision](vision.md#core-loop-the-squad) says 6–10; the prototype uses 8). Affects

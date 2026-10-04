@@ -89,6 +89,9 @@ Each side's sector garrison draws from a **manpower pool** the war map refills d
 
 ## Artillery
 
+Guns and shells by year, batteries, observation, counter-battery and the air war are in
+[artillery and air](artillery-and-air.md); this section covers how artillery works inside a sector's day.
+
 Built in M5: field and heavy guns with historical dispersion and flight times, HE, shrapnel and gas shells, craters that
 reshape the terrain, bombardments, calls for fire, creeping and standing barrages, the defenders' automatic SOS barrage
 and the protective barrage beyond a captured objective. Smoke and dust from bursts hide the infantry following a
@@ -128,49 +131,14 @@ the game's main brake on snowballing.
 
 ## Operations
 
-An operation is a planned attack with a time, an objective and a fire plan. It is the game's set piece and its
-appointment: the thing players log in for.
+An operation is a planned attack with an objective, a zero hour and a fire plan: the game's set piece and the
+appointment players log in for. The sector commander plans it within limits (zero hour 30 minutes to 12 hours ahead,
+three a day, paid for in shells); players sign up for a wave and deploy into the jump-off trenches in the last half
+hour; the defender learns of it from the bombardment, air photographs and prisoners, and can shell the assembly. Then
+zero hour, the rush on the lift, the later waves and the race between consolidation and the counter-attack.
 
-### Planning
-
-The sector commander (a player or the [commander AI](#the-sector-commander)) sets:
-
-- **Objective**: a stretch of enemy trench, or a named [objective](../level-design.md#the-fleury-sector) such as the
-  Fleury crossroads, and the depth to take.
-- **Zero hour**: at least 30 real minutes and at most 12 hours ahead, so players can gather and defenders get a chance
-  to notice.
-- **Fire plan**: wire-cutting and preparatory bombardment (how long, how heavy), the standing barrage on the objective,
-  the creeping barrage's pace, smoke, gas. Built today as the B and G keys; planned as a planning screen.
-- **Waves**: which squads go first, which follow, which stay as reserve. Players **sign up** for a wave and deploy into
-  the jump-off trench.
-
-Operations per side per sector per day are limited, by default to three, and above all by the shell budget.
-
-### What the defender sees
-
-The defender isn't told the zero hour. They hear and see what a 1916 soldier would:
-
-- A **wire-cutting or preparatory bombardment** is impossible to hide: it says an attack is coming, roughly where, and
-  starts the defender's own planning.
-- **Prisoners taken in raids** reveal more: that an operation is planned, then its objective, then its hour (see
-  [intelligence](#raids-and-intelligence)).
-- Attackers massing in jump-off trenches can be seen from observation posts and balloons.
-
-This keeps surprise possible (a short hurricane bombardment, a night attack, an attack in fog) at the cost of a weaker
-preparation. That trade is the operation's central decision.
-
-### Zero hour
-
-Built: the whistle sends every squad of the side over behind the creeping barrage; the barrage opens 70 m beyond the
-most forward bays and the infantry follow 70 m behind; attackers rush the objective the moment the barrage lifts past
-it; the protective barrage then holds beyond it. Reserves follow as a second wave.
-
-### After the assault
-
-The operation ends when the objective is taken, or when the attackers are back in their own lines. Then the
-[consolidation](#consolidation) clock runs, and the defender's counter-attack, prepared or immediate, comes in. A
-well-run counter-attack within the half hour is the defender's best answer, and the attacker's pioneers racing to
-consolidate is theirs.
+Everything about them, from how the commander AI picks an objective to the 1918 infiltration attack, is in
+[operations](operations.md).
 
 ## Quiet war
 
