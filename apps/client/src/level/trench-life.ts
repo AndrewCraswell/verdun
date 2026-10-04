@@ -78,6 +78,97 @@ export function createStovepipe(scene: Scene): Mesh {
   return pipe
 }
 
+/** A washing line: two stakes this far apart and this tall, the line near their tops, the washing hanging from it. */
+const LAUNDRY = { span: 2.4, post: 1.15, line: 1.05 } as const
+/** What's hung out: shirts, a towel, a pair of socks, and how wide and long each hangs, in metres, along the line. */
+const WASHING: readonly (readonly [colour: string, at: number, width: number, drop: number])[] = [
+  ["#c4bba4", -0.75, 0.5, 0.55],
+  ["#7b7f78", -0.15, 0.32, 0.4],
+  ["#9b8a6d", 0.35, 0.42, 0.62],
+  ["#c4bba4", 0.85, 0.18, 0.28]
+]
+
+/**
+ * Washing hung out to dry behind a dugout (see trench-dressing.ts): a line between two stakes with shirts, a towel and
+ * socks pegged on it, made here since the kit has none. Its line runs along its x axis. Disabled, like the kit's
+ * pieces: the dressing places it.
+ */
+export function createLaundryLine(scene: Scene): Mesh {
+  const positions: number[] = []
+  const colors: number[] = []
+  const indices: number[] = []
+  // A quad from four corners and its colour; the material lights both sides.
+  const quad = (corners: readonly (readonly [number, number, number])[], colour: Color3) => {
+    const start = positions.length / 3
+    for (const corner of corners) {
+      positions.push(...corner)
+      colors.push(colour.r, colour.g, colour.b, 1)
+    }
+    indices.push(start, start + 1, start + 2, start, start + 2, start + 3)
+  }
+  const half = LAUNDRY.span / 2
+  const wood = Color3.FromHexString("#4a3a2a")
+  for (const x of [-half, half]) {
+    // Each stake as two crossed slats, enough from above.
+    quad(
+      [
+        [x - 0.04, 0, 0],
+        [x + 0.04, 0, 0],
+        [x + 0.04, LAUNDRY.post, 0],
+        [x - 0.04, LAUNDRY.post, 0]
+      ],
+      wood
+    )
+    quad(
+      [
+        [x, 0, -0.04],
+        [x, 0, 0.04],
+        [x, LAUNDRY.post, 0.04],
+        [x, LAUNDRY.post, -0.04]
+      ],
+      wood
+    )
+  }
+  // The line, a thin strip.
+  quad(
+    [
+      [-half, LAUNDRY.line, -0.01],
+      [half, LAUNDRY.line, -0.01],
+      [half, LAUNDRY.line + 0.02, 0.01],
+      [-half, LAUNDRY.line + 0.02, 0.01]
+    ],
+    Color3.FromHexString("#2e2a24")
+  )
+  for (const [colour, at, width, drop] of WASHING) {
+    // Hanging from the line, stirred out of plumb a little.
+    quad(
+      [
+        [at - width / 2, LAUNDRY.line, 0],
+        [at + width / 2, LAUNDRY.line, 0],
+        [at + width / 2, LAUNDRY.line - drop, 0.05],
+        [at - width / 2, LAUNDRY.line - drop, 0.05]
+      ],
+      Color3.FromHexString(colour)
+    )
+  }
+  const laundry = new Mesh(TRENCH_PIECES.laundry, scene)
+  const data = new VertexData()
+  data.positions = positions
+  data.colors = colors
+  data.indices = indices
+  const normals: number[] = []
+  VertexData.ComputeNormals(positions, indices, normals)
+  data.normals = normals
+  data.applyToMesh(laundry)
+  const material = new StandardMaterial("laundry", scene)
+  material.specularColor = Color3.Black()
+  material.backFaceCulling = false
+  material.twoSidedLighting = true
+  laundry.material = material
+  laundry.setEnabled(false)
+  return laundry
+}
+
 /** The mouths of the stovepipes the dressing placed, where their smoke comes out. */
 export function stovepipeTops(placements: readonly Placement[]): Vector3[] {
   return placements

@@ -29,6 +29,7 @@ import { layOutTrenchKit } from "./trench-dressing.ts"
 import {
   brazierTops,
   createGasCurtain,
+  createLaundryLine,
   createStovepipe,
   createTrenchLife,
   stovepipeTops,
@@ -157,6 +158,8 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Prop_Barricade_03: 200,
   Env_Crater_Water_02: 140,
   Gas_Curtain: 90,
+  Stovepipe: 110,
+  Laundry_Line: 90,
   Gen_Prop_Barrel_Metal_01: 120,
   Prop_RoadSign_01: 160,
   Gen_Env_Grass_01: 70,
@@ -315,7 +318,11 @@ export async function dressLevel(
   // Pieces the kit lacks, made in code.
   const curtain = createGasCurtain(view.scene)
   const stovepipe = createStovepipe(view.scene)
-  const pieces = new Map(kit.pieces).set(curtain.name, curtain).set(stovepipe.name, stovepipe)
+  const laundry = createLaundryLine(view.scene)
+  const pieces = new Map(kit.pieces)
+    .set(curtain.name, curtain)
+    .set(stovepipe.name, stovepipe)
+    .set(laundry.name, laundry)
   const dressed = dressBattlefield(map, { ...kit, pieces })
   const woods = surroundings ? plantBackdrop(map, surroundings, pieces) : []
   const life = createTrenchLife(
@@ -343,7 +350,10 @@ export async function dressLevel(
     postProcess: createPostProcess(view.scene, view.camera, {
       inDepth: (mesh) => mesh.name.startsWith("terrain-") || mesh.name === "backdrop"
     }),
-    materials: [...kit.materials, ...[curtain.material, stovepipe.material].filter((material) => material !== null)],
+    materials: [
+      ...kit.materials,
+      ...[curtain.material, stovepipe.material, laundry.material].filter((material) => material !== null)
+    ],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,
     fx: kit.fx,

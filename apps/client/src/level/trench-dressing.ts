@@ -64,6 +64,8 @@ export const TRENCH_PIECES = {
   gasCurtain: "Gas_Curtain",
   /** The pipe of a dugout's stove, poking up through the earth over it (made in code: see trench-life.ts). */
   stovepipe: "Stovepipe",
+  /** Washing hung out to dry on a line behind a dugout (made in code: see trench-life.ts). */
+  laundry: "Laundry_Line",
   /** An oil drum pierced for a brazier, burning by a dugout. */
   brazier: "Gen_Prop_Barrel_Metal_01",
   /** A signboard where a communication trench meets a fire trench. */
@@ -80,6 +82,13 @@ const DUGOUT_DOOR = { across: 0.98, along: 1.1, height: 0.8 } as const
  * About `share` of the dugouts have a stove going.
  */
 const STOVEPIPE = { out: 3.4, base: 1.8, share: 0.6 } as const
+/** Washing hangs on a line along the trench `out` metres behind about `share` of the dugouts, on the ground. */
+const LAUNDRY = { out: 4.6, base: 1.85, share: 0.3 } as const
+/**
+ * Duckboards where water stands on the floor have settled into the mud: sunk up to `depth` metres and tipped up to
+ * `tilt` radians along the trench (less across it), each its own way.
+ */
+const SINKING = { depth: 0.08, tilt: 0.07 } as const
 
 /**
  * Sandbags laid along the parapet's crest, on the kit's lip of spoil: one course, its top below the eye of a man on the
@@ -409,6 +418,16 @@ function dugoutLife(section: Placement): Placement[] {
       scale: [0.85, 0.75, 0.85]
     })
   }
+  if (hashOf(section.x, section.z, 29) < LAUNDRY.share) {
+    // A line along the trench behind the doorway's side, a few paces along from the door.
+    life.push({
+      piece: TRENCH_PIECES.laundry,
+      x: section.x + doorX * LAUNDRY.out - alongX * 1.2,
+      y: floor + LAUNDRY.base,
+      z: section.z + doorZ * LAUNDRY.out - alongZ * 1.2,
+      yaw: section.yaw + (hashOf(section.x, section.z, 30) - 0.5) * 0.3
+    })
+  }
   if (hashOf(section.x, section.z, 27) < STOVEPIPE.share) {
     // Over the room dug in behind the doorway, a little along from it.
     life.push({
@@ -436,9 +455,32 @@ function signAt(map: BattlefieldMap, x: number, z: number, inX: number, inZ: num
 }
 
 /**
- * Rainwater lying on the floor under the duckboards: wherever the floor dips below the trench either side of it, and
- * in about a third of the rest, Verdun being Verdun.
+ * Whether rainwater lies on the floor at a point along a trench: wherever the floor dips below the trench either side
+ * of it, and in about a third of the rest, Verdun being Verdun.
  */
+function standsInWater(
+  segment: Segment,
+  x: number,
+  z: number,
+  floor: number,
+  floorAt: (x: number, z: number) => number
+): boolean {
+  const either = Math.min(
+    floorAt(x - segment.dx * 6, z - segment.dz * 6),
+    floorAt(x + segment.dx * 6, z + segment.dz * 6)
+  )
+  return floor <= either - 0.05 || hashOf(x, z, 20) <= 0.33
+}
+
+/** Up for a board lying on a plane rising `along` per metre along a direction and `across` per metre to its left. */
+function upForPlane(dx: number, dz: number, along: number, across: number): [number, number, number] {
+  const gx = along * dx - across * dz
+  const gz = along * dz + across * dx
+  const length = Math.hypot(gx, 1, gz)
+  return [-gx / length, 1 / length, -gz / length]
+}
+
+/** Rainwater lying on the floor under the duckboards, wherever it stands (see standsInWater). */
 function standingWater(
   segment: Segment,
   run: { from: number; to: number },
@@ -451,11 +493,7 @@ function standingWater(
   const offset = bay ? (FIRE_STEP.inner - WALL) / 2 : 0
   return tile(run, KIT.duckboard).flatMap(({ centre, length }) => {
     const { x, z, floor, slope } = along(segment, centre, length, floorAt)
-    const either = Math.min(
-      floorAt(x - segment.dx * 6, z - segment.dz * 6),
-      floorAt(x + segment.dx * 6, z + segment.dz * 6)
-    )
-    if (floor > either - 0.05 && hashOf(x, z, 20) > 0.33) {
+    if (!standsInWater(segment, x, z, floor, floorAt)) {
       return []
     }
     return [
@@ -485,13 +523,18 @@ function duckboards(
   const offset = bay ? (FIRE_STEP.inner - WALL) / 2 : 0
   return tile(run, KIT.duckboard).map(({ centre, length }) => {
     const { x, z, floor, slope } = along(segment, centre, length, floorAt)
+    // Boards in standing water have settled into the mud under it, each its own way.
+    const wet = standsInWater(segment, x, z, floor, floorAt)
+    const sunk = wet ? SINKING.depth * (0.4 + 0.6 * hashOf(x, z, 40)) : 0
+    const pitch = wet ? (hashOf(x, z, 41) - 0.5) * 2 * SINKING.tilt : 0
+    const roll = wet ? (hashOf(x, z, 42) - 0.5) * 1.2 * SINKING.tilt : 0
     return {
       piece: TRENCH_PIECES.duckboard,
       x: x + towardX * offset,
-      y: floor + 0.1,
+      y: floor + 0.1 - sunk,
       z: z + towardZ * offset,
       yaw: yawAlong(segment.dx, segment.dz),
-      up: upForSlope(segment.dx, segment.dz, slope),
+      up: upForPlane(segment.dx, segment.dz, slope + Math.tan(pitch), Math.tan(roll)),
       scale: [width / KIT.duckboardWidth, 1, (length / KIT.duckboard) * 0.97]
     }
   })

@@ -11,6 +11,7 @@ import {
   brazierTops,
   createCrows,
   createGasCurtain,
+  createLaundryLine,
   createStovepipe,
   createTrenchLife,
   stovepipeTops
@@ -70,6 +71,19 @@ describe("createStovepipe", () => {
     expect(pipe.isEnabled()).toBe(false)
     expect(minimum.y).toBeCloseTo(0)
     expect(maximum.y).toBeCloseTo(0.8)
+  })
+})
+
+describe("createLaundryLine", () => {
+  it("makes a line of washing between two stakes, coloured, along its x axis, disabled like the kit's pieces", () => {
+    const line = createLaundryLine(scene())
+    const { minimum, maximum } = line.getBoundingInfo().boundingBox
+
+    expect(line.name).toBe(TRENCH_PIECES.laundry)
+    expect(line.isEnabled()).toBe(false)
+    expect(maximum.x - minimum.x).toBeCloseTo(2.4 + 0.08)
+    expect(maximum.y).toBeCloseTo(1.15)
+    expect(line.getVerticesData("color")?.length).toBe(line.getTotalVertices() * 4)
   })
 })
 

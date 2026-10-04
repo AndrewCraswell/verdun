@@ -230,6 +230,32 @@ describe("layOutTrenchKit", () => {
     expect(water.every((plane) => boards.some((board) => Math.abs(board.y - plane.y - 0.03) < 0.05))).toBe(true)
   })
 
+  it("settles the duckboards standing in water into the mud, each its own way, and lays the rest flat", () => {
+    const water = of(TRENCH_PIECES.water)
+    const boards = of(TRENCH_PIECES.duckboard)
+    // A board over standing water shares its spot along the trench with the water plane under it.
+    const wet = boards.filter((board) => water.some((plane) => Math.hypot(plane.x - board.x, plane.z - board.z) < 0.6))
+    const dry = boards.filter((board) => !wet.includes(board))
+    // The field is flat at 10, so the floor is at 8.1 and a dry board lies 0.1 m over it.
+    const floor = 10 - 1.9
+
+    expect(wet.length).toBeGreaterThan(0)
+    expect(wet.every((board) => board.y < floor + 0.1 && board.y >= floor + 0.1 - 0.08)).toBe(true)
+    expect(new Set(wet.map((board) => board.up?.[1].toFixed(4))).size).toBeGreaterThan(1)
+    expect(dry.every((board) => Math.abs(board.y - (floor + 0.1)) < 1e-4 && board.up?.[1] === 1)).toBe(true)
+  })
+
+  it("hangs washing out to dry on the ground behind some dugouts", () => {
+    const dugouts = of(TRENCH_PIECES.dugout)
+    const lines = of(TRENCH_PIECES.laundry)
+
+    expect(lines.length).toBeLessThanOrEqual(dugouts.length)
+    // Behind the reserve line at z = 20, on the ground: 1.85 m over its floor.
+    expect(lines.every((line) => Math.abs(Math.abs(line.z - 20) - 4.6) < 1.3 && Math.abs(line.y - 9.95) < 1e-4)).toBe(
+      true
+    )
+  })
+
   it("puts up a signboard where the communication trench joins the front line", () => {
     const signs = of(TRENCH_PIECES.sign)
 
