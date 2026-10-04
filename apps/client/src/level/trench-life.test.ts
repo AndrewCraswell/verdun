@@ -7,7 +7,14 @@ import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { TRENCH_PIECES } from "./trench-dressing.ts"
-import { brazierTops, createCrows, createGasCurtain, createTrenchLife } from "./trench-life.ts"
+import {
+  brazierTops,
+  createCrows,
+  createGasCurtain,
+  createStovepipe,
+  createTrenchLife,
+  stovepipeTops
+} from "./trench-life.ts"
 
 const engines: NullEngine[] = []
 
@@ -54,6 +61,29 @@ describe("createGasCurtain", () => {
   })
 })
 
+describe("createStovepipe", () => {
+  it("makes a short iron pipe standing on its foot, disabled like the kit's pieces", () => {
+    const pipe = createStovepipe(scene())
+    const { minimum, maximum } = pipe.getBoundingInfo().boundingBox
+
+    expect(pipe.name).toBe(TRENCH_PIECES.stovepipe)
+    expect(pipe.isEnabled()).toBe(false)
+    expect(minimum.y).toBeCloseTo(0)
+    expect(maximum.y).toBeCloseTo(0.8)
+  })
+})
+
+describe("stovepipeTops", () => {
+  it("finds the mouth of every stovepipe placed", () => {
+    const tops = stovepipeTops([
+      { piece: TRENCH_PIECES.stovepipe, x: 4, y: 2, z: 6, yaw: 0 },
+      { piece: TRENCH_PIECES.brazier, x: 5, y: 2, z: 6, yaw: 0 }
+    ])
+
+    expect(tops.map((top) => top.asArray())).toEqual([[4, 2.8, 6]])
+  })
+})
+
 describe("brazierTops", () => {
   it("finds the open top of every brazier placed, at its height and size", () => {
     const world = scene()
@@ -78,12 +108,39 @@ describe("createTrenchLife", () => {
     const world = scene()
     const sprite = new Texture(null, world)
 
-    const life = createTrenchLife(world, field, [new Vector3(20, 3, 30)], { fire: sprite, ember: sprite })
+    const life = createTrenchLife(
+      world,
+      field,
+      { braziers: [new Vector3(20, 3, 30)] },
+      { fire: sprite, ember: sprite, puff: sprite }
+    )
     life.update(0.1)
 
     expect(life.braziers).toHaveLength(1)
     expect(life.braziers[0]?.position.y).toBeCloseTo(3.28)
     expect(life.embers.emitRate).toBeGreaterThan(0)
+    // No stoves, no smoke.
+    expect(life.smoke.isStarted()).toBe(false)
+    life.dispose()
+  })
+
+  it("sends smoke up from the stovepipes, drifting on the wind", () => {
+    const world = scene()
+    const sprite = new Texture(null, world)
+    const wind = { x: 5, z: -2 }
+
+    const life = createTrenchLife(
+      world,
+      field,
+      { braziers: [], stoves: [new Vector3(20, 3, 30), new Vector3(40, 3, 30)], wind: () => wind },
+      { fire: sprite, ember: sprite, puff: sprite }
+    )
+    life.update(0.1)
+
+    expect(life.smoke.isStarted()).toBe(true)
+    expect(life.smoke.emitRate).toBeCloseTo(2.4)
+    expect(life.smoke.gravity.x).toBeCloseTo(1)
+    expect(life.smoke.gravity.z).toBeCloseTo(-0.4)
     life.dispose()
   })
 })

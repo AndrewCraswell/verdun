@@ -2,7 +2,8 @@ import { Constants } from "@babylonjs/core/Engines/constants"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
 import "@babylonjs/core/Meshes/instancedMesh"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
@@ -54,16 +55,57 @@ export function createGasCurtain(scene: Scene): Mesh {
   return curtain
 }
 
+/** A dugout stove's pipe: a length of iron a hand's width across, standing this high out of the ground. */
+const STOVEPIPE = { height: 0.8, diameter: 0.13 } as const
+
+/**
+ * The stovepipe over a dugout (see trench-dressing.ts): rusted iron poking out of the earth over the room, made here
+ * since the kit has none. Disabled, like the kit's pieces: the dressing places it.
+ */
+export function createStovepipe(scene: Scene): Mesh {
+  const pipe = CreateCylinder(
+    TRENCH_PIECES.stovepipe,
+    { height: STOVEPIPE.height, diameter: STOVEPIPE.diameter, tessellation: 6 },
+    scene
+  )
+  // Its foot on the ground rather than its middle.
+  pipe.bakeTransformIntoVertices(Matrix.Translation(0, STOVEPIPE.height / 2, 0))
+  const material = new StandardMaterial("stovepipe", scene)
+  material.diffuseColor = Color3.FromHexString("#2b2420")
+  material.specularColor = Color3.Black()
+  pipe.material = material
+  pipe.setEnabled(false)
+  return pipe
+}
+
+/** The mouths of the stovepipes the dressing placed, where their smoke comes out. */
+export function stovepipeTops(placements: readonly Placement[]): Vector3[] {
+  return placements
+    .filter((placement) => placement.piece === TRENCH_PIECES.stovepipe)
+    .map((placement) => new Vector3(placement.x, placement.y + STOVEPIPE.height, placement.z))
+}
+
 /** Effect sprites the trenches' life draws with. */
 export interface TrenchLifeSprites {
   readonly fire: Texture
   readonly ember: Texture
+  readonly puff: Texture
+}
+
+/** Where the trenches' life burns: braziers' open tops and stovepipes' mouths, and the wind its smoke drifts on. */
+export interface TrenchFires {
+  readonly braziers: readonly Vector3[]
+  readonly stoves?: readonly Vector3[]
+  /** The wind near the ground, metres per second. */
+  readonly wind?: () => { readonly x: number; readonly z: number }
 }
 
 export interface TrenchLife {
   /** Flames in the braziers. */
   readonly braziers: readonly Sprite[]
   readonly embers: ParticleSystem
+  /** Smoke from the dugouts' stoves, drifting on the wind. */
+  readonly smoke: ParticleSystem
   readonly crows: Crows
   /** Moves the crows and sends sparks up from the braziers. Call once per frame. */
   update(frameSeconds: number): void
@@ -83,12 +125,13 @@ export function brazierTops(placements: readonly Placement[], pieces: ReadonlyMa
 }
 
 /**
- * Fire in every brazier, its drum's open top at `tops`, with sparks rising from it, and crows on the wire.
+ * Fire in every brazier, with sparks rising from it; wisps of smoke from the dugouts' stovepipes, drifting on the wind;
+ * and crows on the wire.
  */
 export function createTrenchLife(
   scene: Scene,
   map: BattlefieldMap,
-  tops: readonly Vector3[],
+  { braziers: tops, stoves = [], wind = () => ({ x: 0, z: 0 }) }: TrenchFires,
   sprites: TrenchLifeSprites
 ): TrenchLife {
   const sheet = new SpriteManager("brazier-fires", "", Math.max(1, tops.length), 128, scene)
@@ -132,20 +175,70 @@ export function createTrenchLife(
     embers.start()
   }
 
+  const smoke = createStoveSmoke(scene, stoves, sprites.puff)
+
   const crows = createCrows(scene, map)
   return {
     braziers,
     embers,
+    smoke,
     crows,
     update(frameSeconds) {
       crows.update(frameSeconds)
+      // Light smoke rises a little, then goes with the wind.
+      const { x, z } = wind()
+      smoke.gravity.set(x * 0.2, 0.05, z * 0.2)
     },
     dispose() {
+      smoke.dispose()
       embers.dispose()
       sheet.dispose()
       crows.dispose()
     }
   }
+}
+
+/** A stove's smoke: thin wisps from the pipe's mouth, a few metres up before they spread and drift away. */
+function createStoveSmoke(scene: Scene, stoves: readonly Vector3[], puff: Texture): ParticleSystem {
+  const smoke = new ParticleSystem("stove-smoke", 30 * Math.max(1, stoves.length), scene)
+  smoke.particleTexture = puff
+  smoke.emitter = Vector3.Zero()
+  smoke.startPositionFunction = (_world, position) => {
+    const mouth = stoves[Math.floor(Math.random() * stoves.length)]
+    if (mouth) {
+      position.set(mouth.x + (Math.random() - 0.5) * 0.08, mouth.y, mouth.z + (Math.random() - 0.5) * 0.08)
+    }
+  }
+  // Pale blue-grey from wood, thickest at the mouth, thinning to nothing.
+  smoke.addColorGradient(0, new Color4(0.42, 0.42, 0.44, 0))
+  smoke.addColorGradient(0.08, new Color4(0.42, 0.42, 0.44, 0.32))
+  smoke.addColorGradient(0.6, new Color4(0.5, 0.5, 0.52, 0.12))
+  smoke.addColorGradient(1, new Color4(0.55, 0.55, 0.57, 0))
+  // Size gradients are the size itself, in metres; each particle varies by its scale.
+  smoke.addSizeGradient(0, 0.25)
+  smoke.addSizeGradient(1, 2.6)
+  smoke.minScaleX = 0.8
+  smoke.maxScaleX = 1.2
+  smoke.minScaleY = 0.8
+  smoke.maxScaleY = 1.2
+  smoke.minLifeTime = 6
+  smoke.maxLifeTime = 10
+  smoke.emitRate = 1.2 * stoves.length
+  smoke.direction1 = new Vector3(-0.05, 1, -0.05)
+  smoke.direction2 = new Vector3(0.05, 1, 0.05)
+  smoke.minEmitPower = 0.35
+  smoke.maxEmitPower = 0.6
+  smoke.minInitialRotation = 0
+  smoke.maxInitialRotation = Math.PI * 2
+  smoke.minAngularSpeed = -0.2
+  smoke.maxAngularSpeed = 0.2
+  smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
+  smoke.preWarmCycles = 150
+  smoke.preWarmStepOffset = 5
+  if (stoves.length > 0) {
+    smoke.start()
+  }
+  return smoke
 }
 
 /** Crows flight: how high and fast they circle, and how long before they settle again, in metres and seconds. */

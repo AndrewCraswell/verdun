@@ -62,6 +62,8 @@ export const TRENCH_PIECES = {
   water: "Env_Crater_Water_02",
   /** A blanket hung across a dugout's doorway, damped against gas (made in code: see trench-life.ts). */
   gasCurtain: "Gas_Curtain",
+  /** The pipe of a dugout's stove, poking up through the earth over it (made in code: see trench-life.ts). */
+  stovepipe: "Stovepipe",
   /** An oil drum pierced for a brazier, burning by a dugout. */
   brazier: "Gen_Prop_Barrel_Metal_01",
   /** A signboard where a communication trench meets a fire trench. */
@@ -72,6 +74,12 @@ export const TRENCH_PIECES = {
 const WATER_SIZE = 7.64
 /** Dugout doorways open in the dugout section's -x wall, `along` metres up its z axis from its middle. */
 const DUGOUT_DOOR = { across: 0.98, along: 1.1, height: 0.8 } as const
+/**
+ * A dugout's stovepipe stands on the ground over the dug-out room behind the doorway, `out` metres from the trench's
+ * centre line, its foot `base` metres over the trench floor: the ground's level, the spoil having thinned out there.
+ * About `share` of the dugouts have a stove going.
+ */
+const STOVEPIPE = { out: 3.4, base: 1.8, share: 0.6 } as const
 
 /**
  * Sandbags laid along the parapet's crest, on the kit's lip of spoil: one course, its top below the eye of a man on the
@@ -368,8 +376,8 @@ function straights(
 }
 
 /**
- * What goes with a dugout: a gas curtain hung across its doorway and, at about half of them, a brazier burning beside
- * it. Other sections get nothing.
+ * What goes with a dugout: a gas curtain hung across its doorway, at about half of them a brazier burning beside it,
+ * and at most a stovepipe over the room behind. Other sections get nothing.
  */
 function dugoutLife(section: Placement): Placement[] {
   if (section.piece !== TRENCH_PIECES.dugout) {
@@ -399,6 +407,16 @@ function dugoutLife(section: Placement): Placement[] {
       z: section.z + doorZ * 0.62 - alongZ * 0.6,
       yaw: hashOf(section.x, section.z, 22) * Math.PI * 2,
       scale: [0.85, 0.75, 0.85]
+    })
+  }
+  if (hashOf(section.x, section.z, 27) < STOVEPIPE.share) {
+    // Over the room dug in behind the doorway, a little along from it.
+    life.push({
+      piece: TRENCH_PIECES.stovepipe,
+      x: section.x + doorX * STOVEPIPE.out + alongX * DUGOUT_DOOR.along,
+      y: floor + STOVEPIPE.base,
+      z: section.z + doorZ * STOVEPIPE.out + alongZ * DUGOUT_DOOR.along,
+      yaw: hashOf(section.x, section.z, 28) * Math.PI * 2
     })
   }
   return life

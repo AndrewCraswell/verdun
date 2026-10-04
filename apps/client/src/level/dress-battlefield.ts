@@ -26,7 +26,14 @@ import { createScorchMap, type ScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
-import { brazierTops, createGasCurtain, createTrenchLife, type TrenchLife } from "./trench-life.ts"
+import {
+  brazierTops,
+  createGasCurtain,
+  createStovepipe,
+  createTrenchLife,
+  stovepipeTops,
+  type TrenchLife
+} from "./trench-life.ts"
 import { createWireArt, type WireArt } from "./wire-art.ts"
 
 export interface BattlefieldDressing {
@@ -307,10 +314,16 @@ export async function dressLevel(
   const atmosphere = createAtmosphere(view.scene, map, view.camera, kit.fx)
   // Pieces the kit lacks, made in code.
   const curtain = createGasCurtain(view.scene)
-  const pieces = new Map(kit.pieces).set(curtain.name, curtain)
+  const stovepipe = createStovepipe(view.scene)
+  const pieces = new Map(kit.pieces).set(curtain.name, curtain).set(stovepipe.name, stovepipe)
   const dressed = dressBattlefield(map, { ...kit, pieces })
   const woods = surroundings ? plantBackdrop(map, surroundings, pieces) : []
-  const life = createTrenchLife(view.scene, map, brazierTops(dressed.placements, pieces), kit.fx)
+  const life = createTrenchLife(
+    view.scene,
+    map,
+    { braziers: brazierTops(dressed.placements, pieces), stoves: stovepipeTops(dressed.placements), wind },
+    kit.fx
+  )
   const bursts = createShellBursts(view.scene, map, kit.fx, wind)
   const dressing = {
     ...dressed,
@@ -330,7 +343,7 @@ export async function dressLevel(
     postProcess: createPostProcess(view.scene, view.camera, {
       inDepth: (mesh) => mesh.name.startsWith("terrain-") || mesh.name === "backdrop"
     }),
-    materials: [...kit.materials, ...(curtain.material ? [curtain.material] : [])],
+    materials: [...kit.materials, ...[curtain.material, stovepipe.material].filter((material) => material !== null)],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,
     fx: kit.fx,
@@ -347,6 +360,7 @@ export async function dressLevel(
     atmosphere?.mist,
     dressing.aftermath.smoke,
     dressing.aftermath.clods,
+    life.smoke,
     ...bursts.systems
   ]
   const particleLight = lightParticles(unlit.filter((system) => system !== undefined).filter(litByAir))

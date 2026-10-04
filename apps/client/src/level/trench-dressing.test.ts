@@ -207,6 +207,19 @@ describe("layOutTrenchKit", () => {
     expect(braziers.every((brazier) => brazier.z > 18 && brazier.z < 22)).toBe(true)
   })
 
+  it("stands a stovepipe on the ground over some dugouts' rooms, behind their doorways", () => {
+    const dugouts = of(TRENCH_PIECES.dugout)
+    const pipes = of(TRENCH_PIECES.stovepipe)
+
+    expect(dugouts.length).toBeGreaterThan(0)
+    expect(pipes.length).toBeLessThanOrEqual(dugouts.length)
+    for (const pipe of pipes) {
+      // 3.4 m out from the reserve line's centre line at z = 20, on the ground: 1.8 m over its floor at 10 - 1.9.
+      expect(Math.abs(pipe.z - 20)).toBeCloseTo(3.4)
+      expect(pipe.y).toBeCloseTo(10 - 1.9 + 1.8)
+    }
+  })
+
   it("leaves rainwater standing on the floor under the duckboards here and there", () => {
     const water = of(TRENCH_PIECES.water)
     const boards = of(TRENCH_PIECES.duckboard)
