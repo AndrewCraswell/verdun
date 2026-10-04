@@ -6,7 +6,8 @@ A massively multiplayer WW1 trench warfare game in the browser. Hundreds of play
 battles across sectors of the Verdun front. Each player commands a squad and fights as its soldiers. Front lines move
 slowly over a season of several weeks until one side breaks.
 
-How it's built is in the [architecture](architecture.md); what gets built when is in the [roadmap](roadmap.md).
+How each mechanic works, and how it stays fun and balanced, is in the [game design](design/overview.md). How it's built
+is in the [architecture](architecture.md); what gets built when is in the [roadmap](roadmap.md).
 
 ## Core loop: the squad
 

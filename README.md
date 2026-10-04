@@ -43,22 +43,31 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 
 ### Controls (prototype)
 
-| Input                    | Action                                                        |
-| ------------------------ | ------------------------------------------------------------- |
-| W A S D                  | Move the soldier you control, relative to the camera          |
-| Mouse                    | Aim                                                           |
-| Left-click               | Fire                                                          |
-| Mouse wheel, middle-drag | Zoom, rotate the camera                                       |
-| Tab, 1–8                 | Switch to the next soldier, or to a squad slot                |
-| F, H                     | Squad order: follow me, hold                                  |
-| Right-click              | Squad order: advance to that point                            |
-| G                        | Whistle: every French squad attacks behind a creeping barrage |
-| B                        | Bombard the German front line for two minutes                 |
-| V                        | Call artillery onto the point under the pointer               |
-| O                        | Turn fog of war on or off (off for now)                       |
-| Z                        | Lie down and crawl, or get back up                            |
-| K                        | Dev builds only: kill the soldier you control                 |
-| \`                       | Dev builds only: open Babylon's Inspector                     |
+| Input                           | Action                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| W A S D                         | Move the soldier you control, relative to the camera                           |
+| Mouse                           | Aim                                                                            |
+| Left-click                      | Fire                                                                           |
+| Arrow keys, screen edges        | Pan the camera                                                                 |
+| Shift + middle-drag             | Grab and drag the ground                                                       |
+| Middle-drag, Shift + Left/Right | Turn and tilt the camera                                                       |
+| Mouse wheel                     | Zoom, toward the pointer                                                       |
+| Space                           | Back to the soldier you control (moving them or switching soldier does it too) |
+| Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                 |
+| F, H                            | Squad order: follow me, hold                                                   |
+| Right-click                     | Squad order: advance to that point                                             |
+| G                               | Whistle: every French squad attacks behind a creeping barrage                  |
+| B                               | Bombard the German front line for two minutes                                  |
+| V                               | Call artillery onto the point under the pointer                                |
+| O                               | Turn fog of war on or off (off for now)                                        |
+| Z                               | Lie down and crawl, or get back up                                             |
+| Q                               | Throw a grenade at the pointer                                                 |
+| F3                              | Debug statistics                                                               |
+| K                               | Dev builds only: kill the soldier you control                                  |
+| [ ]                             | Dev builds only: move the clock an hour back or forward                        |
+| N                               | Dev builds only: hold each weather in turn, then cycle again                   |
+| J                               | Dev builds only: mark where soldiers have fallen                               |
+| \`                              | Dev builds only: open Babylon's Inspector                                      |
 
 ## Credits
 
@@ -69,12 +78,13 @@ Terrain of the Fleury sector: © IGN, LiDAR HD, under
 
 ### Design
 
-| Doc                                      | Contents                                          |
-| ---------------------------------------- | ------------------------------------------------- |
-| [Vision](docs/vision.md)                 | Game design: squads, sectors, mechanics, platform |
-| [Roadmap](docs/roadmap.md)               | Stages and prototype milestones                   |
-| [Level design](docs/level-design.md)     | The Fleury sector, trench kit and level kit       |
-| [Open questions](docs/open-questions.md) | Decisions still to make                           |
+| Doc                                      | Contents                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| [Vision](docs/vision.md)                 | Game design: squads, sectors, mechanics, platform                                     |
+| [Game design](docs/design/overview.md)   | Every mechanic in detail: squad, sector battle, war map, season, balance, progression |
+| [Roadmap](docs/roadmap.md)               | Stages and prototype milestones                                                       |
+| [Level design](docs/level-design.md)     | The Fleury sector, trench kit and level kit                                           |
+| [Open questions](docs/open-questions.md) | Decisions still to make                                                               |
 
 ### Engineering
 
