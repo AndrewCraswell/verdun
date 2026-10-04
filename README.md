@@ -65,6 +65,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | F3                              | Debug statistics                                                               |
 | K                               | Dev builds only: kill the soldier you control                                  |
 | [ ]                             | Dev builds only: move the clock an hour back or forward                        |
+| Shift + [ ]                     | Dev builds only: move to the week before or after (the daily turn)             |
 | N                               | Dev builds only: hold each weather in turn, then cycle again                   |
 | J                               | Dev builds only: mark where soldiers have fallen                               |
 | \`                              | Dev builds only: open Babylon's Inspector                                      |
@@ -88,10 +89,11 @@ Terrain of the Fleury sector: © IGN, LiDAR HD, under
 
 ### Engineering
 
-| Doc                                  | Contents                                                                                     |
-| ------------------------------------ | -------------------------------------------------------------------------------------------- |
-| [Architecture](docs/architecture.md) | Stack, packages, simulation, physics, rendering, networking, known risks, options not chosen |
-| [Tooling](docs/tooling.md)           | Software to install, web services, MCP servers, editor plan                                  |
+| Doc                                          | Contents                                                                                     |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Architecture](docs/architecture.md)         | Stack, packages, simulation, physics, rendering, networking, known risks, options not chosen |
+| [Time and weather](docs/time-and-weather.md) | The clocks and their values, what players see, sun and moon, weather, sight, rendering       |
+| [Tooling](docs/tooling.md)                   | Software to install, web services, MCP servers, editor plan                                  |
 
 ### Assets
 

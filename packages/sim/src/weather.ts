@@ -221,8 +221,11 @@ const BLEND_HOURS = 1.5
 /** Steps of the gusts and the showers' ebb and flow, in minutes. */
 const GUST_MINUTES = 10
 const SHOWER_MINUTES = 25
-/** The cycle's first spell begins here. Weather before it is the first spell's. */
-const CYCLE_ORIGIN = Date.UTC(1916, 0, 1)
+/**
+ * The cycle's first spell begins here, before the war: the forecast covers every week from August 1914 to the armistice.
+ * Weather before it is the first spell's.
+ */
+const CYCLE_ORIGIN = Date.UTC(1914, 0, 1)
 
 interface Spell {
   readonly start: number
@@ -357,8 +360,27 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 /**
+ * Weather part way, `t` from 0 to 1, from one weather to another: for easing between dates when the sky's date jumps.
+ * Visibility blends on a log scale, as fog thins; the pattern switches half way.
+ */
+export function blendWeather(from: Weather, to: Weather, t: number): Weather {
+  return {
+    pattern: t < 0.5 ? from.pattern : to.pattern,
+    cloudCover: lerp(from.cloudCover, to.cloudCover, t),
+    precipitation: lerp(from.precipitation, to.precipitation, t),
+    snowFraction: lerp(from.snowFraction, to.snowFraction, t),
+    temperature: lerp(from.temperature, to.temperature, t),
+    visibility: Math.exp(lerp(Math.log(from.visibility), Math.log(to.visibility), t)),
+    wind: { x: lerp(from.wind.x, to.wind.x, t), z: lerp(from.wind.z, to.wind.z, t) },
+    wetness: lerp(from.wetness, to.wetness, t),
+    snowCover: lerp(from.snowCover, to.snowCover, t)
+  }
+}
+
+/**
  * A forecast that cycles through the weather patterns, each spell drawn from the season and from what came before.
- * The same seed always gives the same weather on the same day, from New Year 1916 on, whenever the battle starts.
+ * The same seed always gives the same weather on the same day, from New Year 1914 to the end of the war and beyond,
+ * whenever the battle starts.
  */
 function createCycleForecast(spec: { readonly kind: "cycle"; readonly seed: number }): Forecast {
   const rng = createRng(spec.seed)

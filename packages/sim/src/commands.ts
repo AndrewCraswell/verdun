@@ -2,7 +2,7 @@ import { addComponent, type EntityId, entityExists, hasComponent, removeComponen
 import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
-import { holdWeather, updateEnvironment } from "./environment.ts"
+import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
@@ -96,11 +96,22 @@ export interface WindCommand {
   readonly z: number
 }
 
-/** Sets the date and time, or how many real minutes a day takes, or both: for servers, game modes and testing. */
+/**
+ * Moves the battle's clock. `week` is the campaign's daily turn; `at` and `shift` are for servers, game modes, tests and
+ * dev tools. Applied in that order, then `minutesPerDay`.
+ */
 export interface ClockCommand {
   readonly type: "clock"
-  /** Milliseconds since 1970, UTC. */
-  readonly utc?: number
+  /**
+   * Starts another week of the war, given as 00:00 UTC on its first day in milliseconds since 1970. The hour of day
+   * carries on; the days of battle start again from the week's first date, and the weather eases into it.
+   */
+  readonly week?: number
+  /** Jumps straight to a moment, in milliseconds since 1970 UTC: the week becomes the one starting that day. */
+  readonly at?: number
+  /** Moves the hour on (or back, if negative) by this many milliseconds of game time. */
+  readonly shift?: number
+  /** Real minutes a whole day and night takes. */
   readonly minutesPerDay?: number
 }
 
@@ -271,8 +282,14 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "clock": {
       const { clock } = sim.environment
-      if (command.utc !== undefined && Number.isFinite(command.utc)) {
-        clock.utc = command.utc
+      if (command.week !== undefined && Number.isFinite(command.week)) {
+        startWeek(sim, command.week)
+      }
+      if (command.at !== undefined && Number.isFinite(command.at)) {
+        Object.assign(clock, clockAt(command.at))
+      }
+      if (command.shift !== undefined && Number.isFinite(command.shift)) {
+        clock.elapsed += command.shift
       }
       if (command.minutesPerDay !== undefined && command.minutesPerDay > 0 && Number.isFinite(command.minutesPerDay)) {
         clock.minutesPerDay = command.minutesPerDay

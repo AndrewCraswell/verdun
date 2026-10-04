@@ -34,16 +34,11 @@ Decisions still to make. Move each to the relevant doc once decided.
 
 ## Technical
 
-- **Time scale and the calendar.** A day takes 120 real minutes by default
-  ([time of day and weather](architecture.md#time-of-day-and-weather)), so the hours cycle through dawn and night
-  several times a real day. If each daily turn stands for a week of 1916, the turn should also move the date on a week
-  (a `clock` command), or the calendar would run twelve days a real day and leave 1916 within a month. The season design
-  proposes exactly that ([clocks](design/overview.md#clocks)). Decide, and whether nights should be shortened rather
-  than the whole day sped up.
-- **Historical weather.** The weather cycles through seasonal patterns from a seed. The 1916 weather can be rebuilt
-  3-hourly from the 20th Century Reanalysis corrected by Météo-France station records, both licensed for commercial use
-  ([research notes](research/notes/weather/historical_weather_1916.md)). Cut over by adding a `records` forecast kind
-  fed by a generated table; nothing else in the simulation changes. Decide when it's worth the pipeline.
+- **Historical weather.** The weather cycles through seasonal patterns from a seed. The weather of 1914–1918 can be
+  rebuilt 3-hourly from the 20th Century Reanalysis corrected by Météo-France station records, both licensed for
+  commercial use ([research notes](research/notes/weather/historical_weather_1916.md)). Cut over by adding a `records`
+  forecast kind fed by a generated table; nothing else in the simulation changes
+  ([time and weather](time-and-weather.md#historical-weather)). Decide when it's worth the pipeline.
 - **UI library for menus, HUD and war map.** No Fluent UI. Leaning **shadcn/ui** (Radix + Tailwind): we own the
   component source, so it can be restyled to the period art direction instead of looking like a web app. Mantine is the
   faster, batteries-included alternative. The in-game HUD itself should stay custom and minimal. Decide when the first

@@ -146,31 +146,23 @@ tools but is still pre-1.0 (1.0.0-rc.1 as of October 2026), and its task runner 
 
 ### Time of day and weather
 
-The simulation owns the clock and the weather (`environment.ts`), because they decide who can see whom and where gas
-drifts, and every client and the server must agree on them.
+The simulation owns the clock and the weather (`environment.ts`, `sky.ts`, `weather.ts`), because they decide who can
+see whom and where gas drifts, and every client and the server must agree on them. The full reference, with the values
+and the reasons for them, is [time and weather](time-and-weather.md).
 
-- **World clock**: a UTC date and time, run on each tick at a **time scale** set as real minutes per game day
-  (`minutesPerDay`, default 120: twelve times real time). Servers and game modes change it with the `clock` command; the
-  clock stays continuous when the scale changes. A battle starts by default at 07:00 French time on 23 June 1916, the
-  morning of the attack on Fleury.
-- **Sun and moon**: positions and moon phase come from [astronomy-engine](https://github.com/cosinekitty/astronomy)
-  (MIT, arcminute accuracy) for the battlefield's latitude and longitude, so day length, twilight and moonlit nights
-  follow the real calendar. Light on the ground, in lux, comes from tabulated daylight and twilight, the moon's
-  magnitude, starlight, and Kasten and Czeplak's cloud law.
-- **Sight range**: light and the weather's visibility give how far a man can be made out: tens of metres on a moonless
-  night, about 150 m by a full moon, a little over half the visibility in fog, rain or snow. Combat never engages beyond
-  it. Flares, fires and muzzle flashes don't light the night yet.
-- **Forecast**: where weather comes from, saved as plain data (`ForecastSpec`) and swapped with the `forecast` command.
-  The **cycle** forecast is a seeded Markov chain over seven patterns (clear, fair, overcast, fog, drizzle, rain,
-  thunderstorm) weighted by season, each spell lasting hours to days and blending into the next over 90 minutes, with
-  seasonal temperatures, a day-night temperature swing, morning radiation fog, showers, gusts and snow when cold. It is
-  a pure function of time and seed from New Year 1916, so it costs nothing to save or send: clients can compute it.
-  Ground wetness and lying snow integrate the last four days of it. A **steady** forecast holds one weather (tests, dev
-  tools, the `wind` command). Historical 1916 records are meant to become a third kind; see
-  [research notes](research/notes/weather/historical_weather_1916.md).
-- **Wind**: the weather sets `sim.wind` once a second, so gas and smoke drift with it. The `wind` command holds the
-  current weather steady with a new wind.
-- Weather and sky are read once a real second, and never draw from the simulation's random number generator, so they
+- **Two clocks**: the week of the war, which moves on once a real day at the campaign's turn (a `clock` command with
+  `week`), and the hour, a full day and night every 117 real minutes (`minutesPerDay`), chosen so night falls about a
+  third of a cycle later each real day. The clock stores the week and the game time elapsed in it; the sky shows the
+  week's dates in turn, one per day of battle.
+- **Sun and moon**: [astronomy-engine](https://github.com/cosinekitty/astronomy) (MIT) for the battlefield's latitude
+  and longitude, so day length, twilight and the moon follow the real calendar; light on the ground in lux from daylight
+  tables, the moon's magnitude, starlight and cloud.
+- **Sight range** from the light and the weather's visibility; combat never engages beyond it.
+- **Forecast**: where weather comes from, saved as plain data (`ForecastSpec`) and swapped with the `forecast` command:
+  a seeded **cycle** of seven patterns by season from 1914 to 1918, a **steady** weather for tests and dev tools, and
+  later the historical **records**. Every forecast is a pure function of time, so clients can compute it.
+- **Wind**: the weather sets `sim.wind` once a second, so gas and smoke drift with it.
+- Weather and sky are read once a real second and never draw from the simulation's random number generator, so they
   don't disturb the combat's random sequence.
 
 ### Scale target (full game)
@@ -192,12 +184,9 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - Gas as low-lying fog driven by the density grid, plus particles.
 - Crowds via VAT instancing; the player's squad fully skinned. Details in the
   [asset pipeline](assets/pipeline.md#crowd-rendering).
-- **Daylight** (`apps/client/src/environment/`): the key light follows the sun, or the moon at night; the hemispheric
-  sky light, fog colour and density, and shadow darkness follow the light level and cloud. Babylon's physically based
-  `Atmosphere` add-on (`@babylonjs/addons`, experimental) colours sunlight through the air, reddening it toward the
-  horizon; its sky and aerial perspective aren't drawn, since the camera never looks up. Night is drawn dim and blue on
-  a log scale of lux, not physically dark. Rain and snow are particle systems that fall around the camera, blown by the
-  wind; ground and props darken and shine when wet; thunderstorms flash.
+- **Daylight** (`apps/client/src/environment/`): the key light follows the sun, or the moon at night, coloured by
+  Babylon's physically based `Atmosphere` add-on; night drawn dim and blue; fog thinned for the camera's height; rain
+  and snow around the camera; wet ground; lightning. See [time and weather](time-and-weather.md#rendering).
 - Clustered lighting (Babylon 9) for flares and muzzle flashes.
 - WebGPU first with automatic WebGL2 fallback. WebGPU saves CPU, not GPU, so it won't rescue an over-budget crowd.
 

@@ -10,6 +10,12 @@ import { createEnvironment, type Environment, environmentSystem, type Environmen
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
+import {
+  createReinforcements,
+  type ReinforcementEvent,
+  reinforcementSystem,
+  type ReinforcementState
+} from "./reinforcements.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
@@ -57,6 +63,8 @@ export interface Simulation {
   readonly commanders: Record<Side, CommanderState>
   /** The map's objectives and who holds them. */
   readonly objectives: ObjectiveState[]
+  /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
+  readonly reinforcements: ReinforcementState
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
@@ -71,6 +79,7 @@ export type SimEvent =
   | CounterAttackEvent
   | WireCutEvent
   | ObjectiveTakenEvent
+  | ReinforcementEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -81,6 +90,11 @@ export interface SimulationOptions {
   readonly wind?: { readonly x: number; readonly z: number }
   /** When the battle starts, how fast days pass and where the weather comes from. Defaults to fair weather held. */
   readonly environment?: EnvironmentOptions
+  /**
+   * Men each side holds back to replace squads that are wiped out. A side without any never replaces a squad, which is
+   * the default.
+   */
+  readonly reinforcements?: Partial<Record<Side, number>>
 }
 
 export function createSimulation({
@@ -88,7 +102,8 @@ export function createSimulation({
   seed,
   capacity = DEFAULT_CAPACITY,
   wind = { x: 2, z: 0.5 },
-  environment: environmentOptions
+  environment: environmentOptions,
+  reinforcements
 }: SimulationOptions): Simulation {
   const environment = createEnvironment({ ...environmentOptions, wind })
   return {
@@ -108,6 +123,7 @@ export function createSimulation({
     environment,
     commanders: createCommanders(),
     objectives: createObjectives(map),
+    reinforcements: createReinforcements(reinforcements),
     events: [],
     tick: 0
   }
@@ -208,6 +224,7 @@ export function stepSimulation(sim: Simulation): void {
   environmentSystem(sim, STEP_SECONDS)
   commanderSystem(sim)
   squadSystem(sim)
+  reinforcementSystem(sim)
   stanceSystem(sim)
   captureSystem(sim)
   combatSystem(sim)

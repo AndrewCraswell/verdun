@@ -1,20 +1,20 @@
-import { enqueueCommand, type ForecastSpec, type Simulation, typicalWeather, WeatherPattern } from "@verdun/sim"
+import {
+  clockMoment,
+  enqueueCommand,
+  type ForecastSpec,
+  type Simulation,
+  typicalWeather,
+  WEEK,
+  WeatherPattern
+} from "@verdun/sim"
 import { debugDock } from "../debug/dock.ts"
+import { battleHour, weekLabel } from "../environment/calendar.ts"
 import { registerBindings } from "../ui/bindings.ts"
 
 const HOUR = 3_600_000
 /** What N steps through: back to the cycle after each pattern held in turn, then snow. */
 const HELD = [...Object.values(WeatherPattern), "snow", "cycle"] as const
 const PATTERN_NAMES = Object.fromEntries(Object.entries(WeatherPattern).map(([name, value]) => [value, name]))
-
-/**
- * French civil time in 1916: GMT, but an hour ahead from 14 June to 1 October, the first summer time. The Germans kept
- * Berlin time, an hour or two ahead of the French all year.
- */
-function frenchTime(utc: number): Date {
-  const summer = utc >= Date.UTC(1916, 5, 14, 23) && utc < Date.UTC(1916, 9, 1, 23)
-  return new Date(utc + (summer ? HOUR : 0))
-}
 
 function heldForecast(
   choice: (typeof HELD)[number],
@@ -32,8 +32,9 @@ function heldForecast(
 }
 
 /**
- * Dev keys for the clock and weather: [ and ] move the clock an hour back or forward, N holds each weather pattern in
- * turn and then returns to the cycle. A panel in the debug dock (F3) shows the date, time and weather.
+ * Dev keys for the clock and weather: [ and ] move the hour back or forward, Shift with them the week (as the campaign's
+ * daily turn will), and N holds each weather pattern in turn and then returns to the cycle. A panel in the debug dock
+ * (F3) shows the week, the hour, the date the sky shows, and the weather.
  */
 export function installEnvironmentKeys(sim: Simulation, cycleSeed: number): void {
   let held = HELD.length - 1
@@ -47,6 +48,7 @@ export function installEnvironmentKeys(sim: Simulation, cycleSeed: number): void
     devOnly: true,
     bindings: [
       { keys: "[ ]", action: "Hour back or forward" },
+      { keys: "Shift + [ ]", action: "Week back or forward" },
       { keys: "N", action: "Next weather" }
     ]
   })
@@ -54,7 +56,11 @@ export function installEnvironmentKeys(sim: Simulation, cycleSeed: number): void
   window.addEventListener("keydown", (event) => {
     const { clock } = sim.environment
     if (event.code === "BracketRight" || event.code === "BracketLeft") {
-      enqueueCommand(sim, { type: "clock", utc: clock.utc + (event.code === "BracketRight" ? HOUR : -HOUR) })
+      const step = event.code === "BracketRight" ? 1 : -1
+      enqueueCommand(
+        sim,
+        event.shiftKey ? { type: "clock", week: clock.week + step * WEEK } : { type: "clock", shift: step * HOUR }
+      )
     } else if (event.code === "KeyN" && !event.repeat) {
       held = (held + 1) % HELD.length
       enqueueCommand(sim, { type: "forecast", forecast: heldForecast(HELD[held]!, sim.wind, cycleSeed) })
@@ -66,12 +72,10 @@ export function installEnvironmentKeys(sim: Simulation, cycleSeed: number): void
       return
     }
     const { clock, weather, sky, sightRange } = sim.environment
-    const time = frenchTime(clock.utc)
-    const date = time.toISOString().slice(0, 10)
-    const hhmm = time.toISOString().slice(11, 16)
+    const skyDate = new Date(clockMoment(clock)).toISOString().slice(0, 10)
     const source = sim.environment.forecast.spec.kind === "cycle" ? "cycle" : "held"
     readout.textContent =
-      `${date} ${hhmm} French time  (${clock.minutesPerDay} min/day)\n` +
+      `${weekLabel(clock.week)}, ${battleHour(clock)}  (sky ${skyDate}, ${clock.minutesPerDay} min/day)\n` +
       `${PATTERN_NAMES[weather.pattern]} (${source})  ${weather.temperature.toFixed(0)}°C  ` +
       `cloud ${(weather.cloudCover * 100).toFixed(0)}%  rain ${weather.precipitation.toFixed(1)} mm/h  ` +
       `wet ${(weather.wetness * 100).toFixed(0)}%\n` +

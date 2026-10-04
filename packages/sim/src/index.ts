@@ -62,6 +62,7 @@ export {
   TICK_RATE,
   WALKING_SPEED
 } from "./simulation.ts"
+export { allotReinforcements, arrivalOf, type ReinforcementEvent, type ReinforcementState } from "./reinforcements.ts"
 export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
 export {
   restoreSimulation,
@@ -89,12 +90,16 @@ export { SMOKE_EXTINCTION, seesThroughSmoke, smokeBetween } from "./smoke.ts"
 export { type ObjectiveState, type ObjectiveTakenEvent, sectorControl } from "./objectives.ts"
 export { WIRE_CELL, wireAt, type WireCutEvent, type WireField, wirePace } from "./wire.ts"
 export {
+  clockAt,
+  clockMoment,
+  DAY,
   DEFAULT_MINUTES_PER_DAY,
-  DEFAULT_START,
+  DEFAULT_WEEK,
   type Environment,
   type EnvironmentOptions,
   type EnvironmentState,
   timeScale,
+  WEEK,
   type WorldClock
 } from "./environment.ts"
 export { FLEURY, type GeoLocation, type Sky, type SkyPosition } from "./sky.ts"

@@ -40,7 +40,7 @@ function scene() {
 }
 
 function at(sim: Simulation, utc: number): Simulation {
-  enqueueCommand(sim, { type: "clock", utc })
+  enqueueCommand(sim, { type: "clock", at: utc })
   stepSimulation(sim)
   return sim
 }

@@ -1,6 +1,7 @@
 import type { Simulation } from "./simulation.ts"
 import { FLEURY, type GeoLocation, illuminanceUnder, type Sky, sightRange, skyAt } from "./sky.ts"
 import {
+  blendWeather,
   createForecast,
   type Forecast,
   type ForecastSpec,
@@ -9,23 +10,49 @@ import {
   WeatherPattern
 } from "./weather.ts"
 
+/** A day and a week of game time, in milliseconds. */
+export const DAY = 86_400_000
+export const WEEK = 7 * DAY
+
 /**
- * Real minutes a whole day and night takes, unless a server or a game mode says otherwise. A day of two hours lets a
- * battle of an evening see dusk, night and dawn, and puts the night at a different hour of the real day each day, so no
- * one plays only in the dark.
+ * Real minutes a whole day and night of battle takes, unless a server or a game mode says otherwise. Under two hours, so
+ * an evening's play sees dawn, day, dusk and night, with 30 (June) to 70 (December) minutes of darkness: long enough
+ * for a raid, a wiring party or a relief.
+ *
+ * Not a divisor of the real day: 1440 / 117 leaves 36 minutes over, so night comes about a third of a cycle later each
+ * real day, and someone who always plays at 8 pm sees day, dusk and night over three evenings. At 120 (a divisor) night
+ * would fall at the same real hours every day; at 110 it would creep only 10 minutes a day; at 115 it would flip
+ * between two phases. See docs/time-and-weather.md.
  */
-export const DEFAULT_MINUTES_PER_DAY = 120
-/** 23 June 1916, 07:00 by French summer time (06:00 UTC): the morning of the German attack on Fleury. */
-export const DEFAULT_START = Date.UTC(1916, 5, 23, 6, 0)
+export const DEFAULT_MINUTES_PER_DAY = 117
+/** The week of 23 June 1916, the German attack on Fleury, and 07:00 French summer time (06:00 UTC) on its first day. */
+export const DEFAULT_WEEK = Date.UTC(1916, 5, 23)
+export const DEFAULT_ELAPSED = 6 * 3_600_000
 /** Ticks between weather and sky updates: once a second. They change slowly, and the sun's place costs a little. */
 export const ENVIRONMENT_INTERVAL = 20
+/** Game time the weather takes to change when the sky's date jumps: a wrap of the week or a new week. */
+const WEATHER_BLEND = 3_600_000
 
-/** The battle's date and time of day. */
+/**
+ * The battle's clock: which week of the war it is, and the hour of day. Two clocks, as players see them: the week moves
+ * on only at the campaign's daily turn ("Week of 21 February 1916"), while days and nights pass every couple of hours.
+ */
 export interface WorldClock {
-  /** Milliseconds since 1970, UTC. Negative in 1916. */
-  utc: number
-  /** Real minutes a whole day takes: 1440 runs in real time, 120 twelve times faster. */
+  /** The week of the war being fought: 00:00 UTC on its first day, in milliseconds since 1970 (negative before 1970). */
+  week: number
+  /**
+   * Game time since the week began, in milliseconds. Its remainder in a day is the hour; its whole days step through
+   * the week's dates for the sun, moon and weather, starting again after the seventh.
+   */
+  elapsed: number
+  /** Real minutes a whole day and night takes: 1440 runs in real time. */
   minutesPerDay: number
+}
+
+/** A weather change in progress: the weather it started from, and when, in the clock's elapsed time. */
+interface WeatherBlend {
+  readonly from: Weather
+  readonly start: number
 }
 
 /** The world around the fighting: time, weather and light. Plain data apart from the forecast, which saves as its spec. */
@@ -36,6 +63,8 @@ export interface Environment {
   forecast: Forecast
   /** The weather now, as of the last update. */
   weather: Weather
+  /** Set while the weather eases from one date's into another's after the sky's date jumped. */
+  blend: WeatherBlend | null
   /** The sun and moon now. */
   sky: Sky
   /** Light on open ground now, in lux, through the cloud. */
@@ -46,17 +75,36 @@ export interface Environment {
 
 export interface EnvironmentOptions {
   readonly location?: GeoLocation
-  /** When the battle starts, in milliseconds since 1970, UTC. */
-  readonly start?: number
+  /** The week of the war: 00:00 UTC on its first day. */
+  readonly week?: number
+  /** Game time into the week, in milliseconds: the hour of the first day, or later. */
+  readonly elapsed?: number
   readonly minutesPerDay?: number
   /** Defaults to fair weather held steady, with `wind`. */
   readonly forecast?: ForecastSpec
   readonly wind?: { readonly x: number; readonly z: number }
 }
 
+/** The moment the sky and weather show: the week's date for this day of battle, at this hour. */
+export function clockMoment(clock: Readonly<WorldClock>): number {
+  return clock.week + (((clock.elapsed % WEEK) + WEEK) % WEEK)
+}
+
+/** A clock's week and elapsed time for a moment: the week starting that day, at that hour. For tests and dev tools. */
+export function clockAt(utc: number): { readonly week: number; readonly elapsed: number } {
+  const week = Math.floor(utc / DAY) * DAY
+  return { week, elapsed: utc - week }
+}
+
+/** Game seconds that pass in one real second. */
+export function timeScale(clock: Readonly<WorldClock>): number {
+  return (24 * 60) / clock.minutesPerDay
+}
+
 export function createEnvironment({
   location = FLEURY,
-  start = DEFAULT_START,
+  week = DEFAULT_WEEK,
+  elapsed = DEFAULT_ELAPSED,
   minutesPerDay = DEFAULT_MINUTES_PER_DAY,
   forecast = { kind: "steady", weather: typicalWeather(WeatherPattern.Fair, { x: 2, z: 0.5 }) },
   wind
@@ -64,12 +112,15 @@ export function createEnvironment({
   const spec: ForecastSpec =
     forecast.kind === "steady" && wind ? { kind: "steady", weather: { ...forecast.weather, wind } } : forecast
   const created = createForecast(spec)
+  const clock = { week, elapsed, minutesPerDay }
+  const moment = clockMoment(clock)
   const environment: Environment = {
     location,
-    clock: { utc: start, minutesPerDay },
+    clock,
     forecast: created,
-    weather: created.at(start),
-    sky: skyAt(start, location),
+    weather: created.at(moment),
+    blend: null,
+    sky: skyAt(moment, location),
     illuminance: 0,
     sightRange: 0
   }
@@ -77,11 +128,19 @@ export function createEnvironment({
   return environment
 }
 
-/** Reads the weather and sky at the clock's time into the environment. */
+/** Reads the weather and sky at the clock's moment into the environment. */
 function observe(environment: Environment): void {
-  const { utc } = environment.clock
-  environment.weather = environment.forecast.at(utc)
-  environment.sky = skyAt(utc, environment.location)
+  const { clock, blend } = environment
+  const moment = clockMoment(clock)
+  const target = environment.forecast.at(moment)
+  const progress = blend ? (clock.elapsed - blend.start) / WEATHER_BLEND : 1
+  if (blend && progress >= 0 && progress < 1) {
+    environment.weather = blendWeather(blend.from, target, progress * progress * (3 - 2 * progress))
+  } else {
+    environment.weather = target
+    environment.blend = null
+  }
+  environment.sky = skyAt(moment, environment.location)
   environment.illuminance = illuminanceUnder(environment.sky, environment.weather.cloudCover)
   environment.sightRange = sightRange(environment.illuminance, environment.weather.visibility)
 }
@@ -93,24 +152,42 @@ export function updateEnvironment(sim: Simulation): void {
   sim.wind.z = sim.environment.weather.wind.z
 }
 
-/** Game seconds that pass in one real second. */
-export function timeScale(clock: WorldClock): number {
-  return (24 * 60) / clock.minutesPerDay
+/** Eases the weather from what it is now into the next date's, instead of jumping. */
+function startBlend(environment: Environment): void {
+  environment.blend = { from: copyWeather(environment.weather), start: environment.clock.elapsed }
 }
 
 /** Runs the clock on by one step of `seconds`, and once a second reads the weather and the sky. */
 export function environmentSystem(sim: Simulation, seconds: number): void {
   const { clock } = sim.environment
-  clock.utc += seconds * 1000 * timeScale(clock)
+  const lap = Math.floor(clock.elapsed / WEEK)
+  clock.elapsed += seconds * 1000 * timeScale(clock)
+  // Past the seventh day the sky's date starts the week again: let the weather ease back into the first day's.
+  if (Math.floor(clock.elapsed / WEEK) !== lap) {
+    startBlend(sim.environment)
+  }
   if (sim.tick % ENVIRONMENT_INTERVAL === 0) {
     updateEnvironment(sim)
   }
+}
+
+/**
+ * The campaign's daily turn: the war moves on to another week. The hour of day carries on; the days of battle start
+ * again from the new week's first date, and the weather eases into it.
+ */
+export function startWeek(sim: Simulation, week: number): void {
+  const { clock } = sim.environment
+  clock.week = week
+  clock.elapsed = ((clock.elapsed % DAY) + DAY) % DAY
+  startBlend(sim.environment)
+  updateEnvironment(sim)
 }
 
 /** Holds the weather as it is now, with a new wind. */
 export function holdWeather(sim: Simulation, wind: { readonly x: number; readonly z: number }): void {
   const weather = { ...sim.environment.weather, wind: { x: wind.x, z: wind.z } }
   sim.environment.forecast = createForecast({ kind: "steady", weather })
+  sim.environment.blend = null
   updateEnvironment(sim)
 }
 
@@ -120,6 +197,7 @@ export interface EnvironmentState {
   readonly clock: Readonly<WorldClock>
   readonly forecast: ForecastSpec
   readonly weather: Weather
+  readonly blend: WeatherBlend | null
   readonly sky: Sky
   readonly illuminance: number
   readonly sightRange: number
@@ -137,12 +215,17 @@ function copyForecast(spec: ForecastSpec): ForecastSpec {
   return spec.kind === "steady" ? { kind: "steady", weather: copyWeather(spec.weather) } : { ...spec }
 }
 
+function copyBlend(blend: WeatherBlend | null): WeatherBlend | null {
+  return blend ? { from: copyWeather(blend.from), start: blend.start } : null
+}
+
 export function saveEnvironment(environment: Environment): EnvironmentState {
   return {
     location: { ...environment.location },
     clock: { ...environment.clock },
     forecast: copyForecast(environment.forecast.spec),
     weather: copyWeather(environment.weather),
+    blend: copyBlend(environment.blend),
     sky: copySky(environment.sky),
     illuminance: environment.illuminance,
     sightRange: environment.sightRange
@@ -153,7 +236,8 @@ export function saveEnvironment(environment: Environment): EnvironmentState {
 export function environmentOptions(state: EnvironmentState): EnvironmentOptions {
   return {
     location: { ...state.location },
-    start: state.clock.utc,
+    week: state.clock.week,
+    elapsed: state.clock.elapsed,
     minutesPerDay: state.clock.minutesPerDay,
     forecast: copyForecast(state.forecast)
   }
@@ -161,6 +245,7 @@ export function environmentOptions(state: EnvironmentState): EnvironmentOptions 
 
 export function resumeEnvironment(environment: Environment, state: EnvironmentState): void {
   environment.weather = copyWeather(state.weather)
+  environment.blend = copyBlend(state.blend)
   environment.sky = copySky(state.sky)
   environment.illuminance = state.illuminance
   environment.sightRange = state.sightRange

@@ -5,12 +5,13 @@ import { Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
+import type { ReinforcementState } from "./reinforcements.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 13
+export const SIM_STATE_VERSION = 15
 
 export interface SoldierState {
   readonly id: number
@@ -70,6 +71,8 @@ export interface SimulationSnapshot {
   readonly objectives: readonly { readonly holder: Side | -1; readonly contested: boolean }[]
   /** The date and time, how fast days pass, where the weather comes from, and the weather and light last read. */
   readonly environment: EnvironmentState
+  /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
+  readonly reinforcements: ReinforcementState
 }
 
 function toSide(value: number): Side {
@@ -142,7 +145,12 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     },
     wireCuts: wireCuts(sim.wire),
     objectives: sim.objectives.map(({ holder, contested }) => ({ holder, contested })),
-    environment: saveEnvironment(sim.environment)
+    environment: saveEnvironment(sim.environment),
+    reinforcements: {
+      pool: { ...sim.reinforcements.pool },
+      full: { ...sim.reinforcements.full },
+      arrivals: sim.reinforcements.arrivals.map((arrival) => ({ ...arrival }))
+    }
   }
 }
 
@@ -233,6 +241,9 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.wire.density[cell] = density
   }
   sim.wire.cuts = snapshot.wireCuts.length
+  Object.assign(sim.reinforcements.pool, snapshot.reinforcements.pool)
+  Object.assign(sim.reinforcements.full, snapshot.reinforcements.full)
+  sim.reinforcements.arrivals.push(...snapshot.reinforcements.arrivals.map((arrival) => ({ ...arrival })))
   snapshot.objectives.forEach((saved, index) => {
     const objective = sim.objectives[index]
     if (objective) {

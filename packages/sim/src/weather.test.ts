@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createForecast, typicalWeather, type Weather, WeatherPattern } from "./weather.ts"
+import { blendWeather, createForecast, typicalWeather, type Weather, WeatherPattern } from "./weather.ts"
 
 const HOUR = 3_600_000
 
@@ -90,6 +90,34 @@ describe("a cycling forecast", () => {
     const driest = hours.reduce((best, weather) => (weather.wetness < best.wetness ? weather : best))
     expect(wettest.wetness).toBeGreaterThan(0.8)
     expect(driest.wetness).toBeLessThan(0.2)
+  })
+})
+
+describe("the whole war", () => {
+  it("has its own weather in every year from the invasion of Belgium to the armistice", () => {
+    const forecast = createForecast({ kind: "cycle", seed: 1916 })
+    for (const start of [Date.UTC(1914, 7, 4), Date.UTC(1918, 10, 1)]) {
+      const days = Array.from({ length: 10 }, (_, day) => forecast.at(start + day * 24 * HOUR))
+      expect(new Set(days.map((weather) => weather.pattern)).size).toBeGreaterThan(1)
+    }
+  })
+
+  it("blends one weather into another, fog thinning on a log scale", () => {
+    const fog = typicalWeather(WeatherPattern.Fog, { x: 0, z: 0 })
+    const rain = typicalWeather(WeatherPattern.Rain, { x: 4, z: 0 })
+    for (const [t, end] of [
+      [0, fog],
+      [1, rain]
+    ] as const) {
+      const blended = blendWeather(fog, rain, t)
+      expect(blended.pattern).toBe(end.pattern)
+      expect(blended.cloudCover).toBe(end.cloudCover)
+      expect(blended.visibility).toBeCloseTo(end.visibility)
+    }
+    const half = blendWeather(fog, rain, 0.5)
+    expect(half.pattern).toBe(WeatherPattern.Rain)
+    expect(half.wind.x).toBe(2)
+    expect(half.visibility).toBeCloseTo(Math.sqrt(fog.visibility * rain.visibility))
   })
 })
 
