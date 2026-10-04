@@ -20,6 +20,8 @@ interface Part {
   readonly tilt?: boolean
   /** Scales with the item. */
   readonly scaled?: boolean
+  /** Its own size relative to the piece's, on top of the item's scale where it has one. */
+  readonly size?: number
 }
 
 const RUINS = [
@@ -32,14 +34,74 @@ const RUINS = [
 const SANDBAGS = ["Env_Sandbag_Wall_Curved_01"]
 /** Brick and plaster brought down against a ruin's walls. */
 const HEAPS = ["Env_Rubble_Pile_Corner", "Env_Rubble_Pile_Small", "Env_Rubble_Pile_Big"]
+/** Roof timbers and floorboards brought down with the rest, and the roof tiles off them. */
+const BEAMS = ["Prop_Rubble_House_Plank_01", "Prop_Rubble_House_Plank_02"]
+const TILES = ["Prop_Rubble_House_Tile_01", "Prop_Rubble_House_Tile_02"]
+
+/** Heaps of rubble outside the ruin's walls, front and back. */
+const OUTSIDE_HEAPS: readonly Part[] = [
+  { pieces: HEAPS, right: 2.5, forward: 3.2, turn: 0.4, tilt: true, lift: -0.1 },
+  { pieces: HEAPS, right: -3, forward: -2.6, turn: 2.6, tilt: true, lift: -0.1 }
+]
+
+/**
+ * Fleury's houses as the summer of 1916 left them, most of the village razed: what's left of a house on its plot, by
+ * how much of it still stands.
+ */
+const RUIN_KINDS = {
+  /** Razed: mounds of brick and stone, a chimney stack left standing over its hearth, a stump of garden wall. */
+  razed: [
+    { pieces: ["Env_Rubble_Pile_Big"], tilt: true, lift: -0.25, size: 1.1 },
+    {
+      pieces: ["Env_Rubble_Pile_Big", "Env_Rubble_Pile_Corner"],
+      right: -3,
+      forward: -2.5,
+      turn: 2.2,
+      tilt: true,
+      lift: -0.15
+    },
+    { pieces: ["Prop_Chimney_01"], right: 3, forward: -3.5, size: 0.6, lift: -0.3 },
+    { pieces: ["Prop_Fireplace_01"], right: 3, forward: -2.7, turn: Math.PI, lift: -0.1 },
+    {
+      pieces: ["Env_StoneWall_Rubble_01", "Env_StoneWall_Rubble_03"],
+      right: -4.5,
+      forward: 1,
+      turn: Math.PI / 2,
+      lift: -0.1
+    },
+    { pieces: BEAMS, right: -1, forward: 1.5, turn: 0.7, tilt: true, lift: 0.3 },
+    { pieces: TILES, right: 1.5, forward: 2.5, turn: 1.9, tilt: true },
+    { pieces: TILES, right: -2.5, forward: -0.5, turn: 0.4, tilt: true }
+  ],
+  /** Gutted: the walls still standing round a floor of rubble. */
+  shell: (piece: string): Part[] => [{ pieces: [piece], lift: -0.3 }, ...OUTSIDE_HEAPS],
+  /** Torn open: one side brought down, the rooms open to the street, heaped with what fell into them. */
+  torn: (piece: string): Part[] => [
+    { pieces: [piece], lift: -0.3 },
+    { pieces: ["Env_Rubble_Pile_Big"], right: 0.5, forward: 0.5, turn: 0.3, tilt: true, size: 0.8, lift: 0.1 },
+    { pieces: BEAMS, right: 1, forward: -1, turn: 1.1, tilt: true, lift: 0.6 },
+    { pieces: BEAMS, right: -1.5, forward: 1, turn: -0.6, tilt: true, lift: 0.4 },
+    ...OUTSIDE_HEAPS
+  ]
+} as const
 
 /** The art for each kind of scenery: one or more parts, picked between by the item's variant. */
 const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part[])[]>> = {
-  ruin: RUINS.map((piece) => [
-    { pieces: [piece], lift: -0.3 },
-    { pieces: HEAPS, right: 2.5, forward: 3.2, turn: 0.4, tilt: true, lift: -0.1 },
-    { pieces: HEAPS, right: -3, forward: -2.6, turn: 2.6, tilt: true, lift: -0.1 }
-  ]),
+  // Most razed, some gutted, a few torn open, one in eight a front wall standing alone.
+  ruin: [
+    RUIN_KINDS.razed,
+    RUIN_KINDS.shell("Bld_TownHouse_Rubble_01"),
+    RUIN_KINDS.torn("Bld_City_Destroyed_02"),
+    RUIN_KINDS.razed,
+    RUIN_KINDS.shell("Bld_TownHouse_Rubble_02"),
+    RUIN_KINDS.torn("Bld_City_Destroyed_03"),
+    RUIN_KINDS.razed,
+    [
+      { pieces: ["Bld_City_Destroyed_01"], lift: -0.3 },
+      { pieces: HEAPS, right: 0, forward: -2.5, turn: 1.4, tilt: true, lift: -0.1 },
+      { pieces: BEAMS, right: 1, forward: -3.5, turn: 0.4, tilt: true, lift: 0.2 }
+    ]
+  ],
   // The great barn of the farm on Fleury's main street, its chimney stack still standing.
   landmark: [
     [
@@ -191,7 +253,7 @@ function sceneryPlacements(map: BattlefieldMap, item: Scenery): Placement[] {
   return parts.map((part, index) => {
     const x = item.x + forwardZ * (part.right ?? 0) + forwardX * (part.forward ?? 0)
     const z = item.z - forwardX * (part.right ?? 0) + forwardZ * (part.forward ?? 0)
-    const size = part.scaled ? item.scale : 1
+    const size = (part.scaled ? item.scale : 1) * (part.size ?? 1)
     // A bridge spans a trench: it sits at the level of the ground either side, not the trench floor beneath it.
     const ground = item.kind === "bridge" ? heightAt(map, x, z) + 1.9 : heightAt(map, x, z)
     return {

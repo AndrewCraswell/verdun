@@ -69,7 +69,8 @@ function trenchMap() {
   const map = {
     ...createFlatMap({ name: "field", cellSize: 0.5, columns: 160, rows: 160 }, 5),
     trenches: [trench],
-    scenery: [{ kind: "ruin" as const, x: 40, z: 60, heading: 0, variant: 0, scale: 1 }]
+    // Variant 7: the lone front wall, a piece modelled off its middle.
+    scenery: [{ kind: "ruin" as const, x: 40, z: 60, heading: 0, variant: 7, scale: 1 }]
   }
   carveTrenches(map, map.trenches)
   return map

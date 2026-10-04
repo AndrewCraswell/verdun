@@ -131,7 +131,12 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Gen_Env_Grass_02: 70,
   Gen_Env_Grass_03: 70,
   Gen_Env_Grass_Tall_01: 110,
-  Gen_Env_Grass_Tall_02: 110
+  Gen_Env_Grass_Tall_02: 110,
+  Prop_Rubble_House_Plank_01: 150,
+  Prop_Rubble_House_Plank_02: 150,
+  Prop_Rubble_House_Tile_01: 110,
+  Prop_Rubble_House_Tile_02: 110,
+  Prop_Fireplace_01: 160
 }
 
 /** Dead trees for the backdrop's woods and its scattered survivors along the front. */

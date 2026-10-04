@@ -82,6 +82,23 @@ describe("layOutScenery", () => {
     expect(placements.length).toBeGreaterThan(fences.length)
   })
 
+  it("leaves most houses razed to a chimney stack over mounds of rubble, and the rest gutted, torn open or a lone front", () => {
+    const kinds = Array.from({ length: 8 }, (_, variant) =>
+      layOutScenery({ ...flat, scenery: [item("ruin", { variant })] }).map((placement) => placement.piece)
+    )
+    const razed = kinds.filter((pieces) => pieces.includes("Prop_Chimney_01"))
+
+    expect(razed).toHaveLength(3)
+    expect(razed.every((pieces) => pieces.some((piece) => piece.startsWith("Env_Rubble_Pile")))).toBe(true)
+    expect(kinds.filter((pieces) => pieces.some((piece) => piece.startsWith("Bld_TownHouse")))).toHaveLength(2)
+    expect(kinds.filter((pieces) => pieces.some((piece) => piece.startsWith("Bld_City_Destroyed")))).toHaveLength(3)
+    // The chimney stands at 0.6 of the piece's height.
+    const chimney = layOutScenery({ ...flat, scenery: [item("ruin", { variant: 0 })] }).find(
+      (placement) => placement.piece === "Prop_Chimney_01"
+    )
+    expect(chimney?.scale).toEqual([0.6, 0.6, 0.6])
+  })
+
   it("lists the pieces modelled off their middle", () => {
     expect(CENTRED_PIECES.has("Bld_City_Destroyed_01")).toBe(true)
     expect(CENTRED_PIECES.has("Env_Trench_Deep_Straight_01")).toBe(false)
