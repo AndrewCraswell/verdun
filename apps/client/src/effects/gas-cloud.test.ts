@@ -41,9 +41,27 @@ describe("createSmokeCloud", () => {
 
     releaseGas(sim.smoke, 50, 50, 25_000)
     expect(smoke.update()?.some((strength) => strength > 0)).toBe(true)
-    expect(smoke.instances.matrices().length).toBe(1)
+    expect(smoke.count).toBe(1)
     expect(smokeStrength(1)).toBe(0)
     expect(smokeStrength(1e6)).toBe(1)
+  })
+
+  it("draws soft puffs that face the camera, dimmed at night, from a pool that never changes size", () => {
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const smoke = createSmokeCloud(scene(), sim)
+    const pool = smoke.sprites.sprites.length
+    releaseGas(sim.smoke, 50, 50, 25_000)
+    sim.environment.illuminance = 50_000
+    smoke.update()
+    const [puff] = smoke.sprites.sprites
+    const byDay = puff?.color.r ?? 0
+    expect(puff?.width).toBeGreaterThan(0)
+    expect(smoke.sprites.texture?.hasAlpha).toBe(true)
+
+    sim.environment.illuminance = 0.001
+    smoke.update()
+    expect(puff?.color.r).toBeLessThan(byDay / 2)
+    expect(smoke.sprites.sprites).toHaveLength(pool)
   })
 })
 
@@ -54,20 +72,22 @@ describe("createGasCloud", () => {
     const ground = new StandardMaterial("ground", view)
     const cloud = createGasCloud(view, sim, ground)
     cloud.update()
-    expect(cloud.puffInstances.matrices().length).toBe(0)
+    expect(cloud.puffs.count).toBe(0)
 
     releaseGas(sim.gas, 50, 50, 600_000)
     cloud.update()
-    expect(cloud.puffInstances.matrices().length).toBe(1)
-    const [puff] = cloud.puffInstances.matrices()
-    expect(Math.abs((puff?.getTranslation().x ?? 0) - 50)).toBeLessThan(2)
+    expect(cloud.puffs.count).toBe(1)
+    const [puff] = cloud.puffs.sprites.sprites
+    expect(Math.abs((puff?.position.x ?? 0) - 50)).toBeLessThan(2)
 
     sim.gas.concentration.fill(0)
     sim.gas.active = false
     cloud.update()
-    expect(cloud.puffInstances.matrices().length).toBe(0)
+    expect(cloud.puffs.count).toBe(0)
+    // Shrunk to nothing, not removed.
+    expect(puff?.width).toBe(0)
     cloud.update()
-    expect(cloud.puffInstances.matrices().length).toBe(0)
+    expect(cloud.puffs.count).toBe(0)
   })
 
   it("tints the ground under gas in both shader languages", () => {
