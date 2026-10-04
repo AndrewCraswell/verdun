@@ -92,10 +92,12 @@ async function start(): Promise<void> {
   const stats = createDebugStats(document.body, engine, view.scene, sim)
   const trace = stats.tracer.span
   sim.systemTimer = trace
-  // Replays recorded frames on WebGPU, saving the CPU from encoding every draw call each frame. ?nosnapshot to compare.
-  const snapshots = new URLSearchParams(location.search).has("nosnapshot")
-    ? null
-    : createSnapshotDirector(engine, view.scene)
+  // Replaying recorded frames on WebGPU (snapshot rendering) saves CPU, but the battle's frames are bound by the GPU
+  // on the machines measured so far, so it gains nothing there, and a replay can't yet show particles that change from
+  // frame to frame (shell bursts, smoke): off unless asked for with ?snapshot.
+  const snapshots = new URLSearchParams(location.search).has("snapshot")
+    ? createSnapshotDirector(engine, view.scene)
+    : null
   stats.watchSnapshots(snapshots)
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
