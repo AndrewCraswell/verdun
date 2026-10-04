@@ -157,11 +157,13 @@ attacking, seeds 1916 and 7:
 | `9fba1e0`, most casualties wounded | 46 v 63, 7 v 81                                      | 48, 15           |
 
 Pathfinding is the fall: the attackers reach the enemy trench too slowly or too spread out to win the race to the
-parapet. The wounds change looks worse on these two seeds, but it shouldn't change who's still fighting (a wounded man
-is out of the fight like a dead one); it changes the random sequence, which reshuffles an attack already on a knife
-edge. More seeds would settle it. Until that commit, the harness also undercounted losses by leaving out the wounded
-carried off, since fixed. Restoring the band is a balance task for whoever owns movement and combat: either the attack
-is now too weak, or the band was set for a simulation that no longer exists and should move.
+parapet. The wounds change is not a cause. On ten seeds the attack held once before it (`f81681f`) and never after
+(`9fba1e0`), with the same 47% losses; the two-seed sample above happened to include the one seed that held. Wounds
+change the random sequence, not who's still fighting: a wounded man is out of the fight like a dead one. Until that
+commit the harness also undercounted losses by leaving out the wounded carried off, since fixed.
+
+Restoring the band is a balance task for whoever owns movement and combat: either the attack is now too weak, or the
+band was set for a simulation that no longer exists and should move.
 
 ### Season harness (stage 1–3)
 
