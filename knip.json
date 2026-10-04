@@ -4,6 +4,7 @@
   "workspaces": {
     ".": {},
     "apps/client": {
+      "entry": ["src/hud/hud.ts", "src/debug/stats.ts", "src/ui/menu.ts"],
       "ignoreDependencies": ["@verdun/oxlint-config"]
     },
     "packages/map": {
