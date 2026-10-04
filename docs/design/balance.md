@@ -162,8 +162,14 @@ parapet. The wounds change is not a cause. On ten seeds the attack held once bef
 change the random sequence, not who's still fighting: a wounded man is out of the fight like a dead one. Until that
 commit the harness also undercounted losses by leaving out the wounded carried off, since fixed.
 
-Restoring the band is a balance task for whoever owns movement and combat: either the attack is now too weak, or the
-band was set for a simulation that no longer exists and should move.
+**Fixed in `e57893f`**: soldiers had stood forever at the edge of uncut wire or a flooded crater. With it, three
+bombardments hold on 3 of 5 seeds for the French (67% losses) and 4 of 5 for the Germans (60%): success is back in band,
+losses run over it. One bombardment now costs attackers 63–88%.
+
+Tried and reverted: bots walking after the lift until 50 m out, then sprinting, to arrive with breath. The French did a
+little better (4 of 5, 64%) and the Germans worse (2 of 5, 72%): walking longer loses the race to the parapet, so winded
+men aren't what drives the losses. Whether the losses band should move, or something else is making attacks bloodier
+than before pathfinding (about 50% then), is open; the harness needs casualty causes from the simulation to say which.
 
 ### Season harness (stage 1–3)
 
