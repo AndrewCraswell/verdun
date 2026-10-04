@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import aud
@@ -100,15 +101,10 @@ CUES = {
     ),
     # Rounds striking the ground close by.
     "bullet-impact": dict(
-        sources=[
-            (GDC, "PM_BBI_Bullet_Impact_Dirt_3.wav"),
-            (GDC, "Bullet rock Impact 4.wav"),
-            (GDC, "Bullet Impact 16 - Light Version.wav"),
-        ],
+        sources=[(GDC, "PM_BBI_Bullet_Impact_Dirt_3.wav")],
         gap=0.5,
         length=1.2,
-        take=3,
-        per_source=1,
+        take=1,
     ),
     # Field guns' shells outran their own sound: the crack of arrival and the burst come together, with no warning.
     "field-near": dict(
@@ -134,25 +130,11 @@ CUES = {
     ),
     "heavy-near": dict(sources=[(WARFARE, "Haubits 155mm - IMPACT - 50m - AB - MKH8020.wav")], gap=4, length=7, take=8),
     "heavy-far": dict(sources=[(WARFARE, "Haubits 155mm - IMPACT - 200m - AB - MKH8020.wav")], gap=4, length=8, take=8),
-    # A heavy howitzer shell was slow enough to be heard coming: the rush of its fall, ending as it lands. The only
-    # recordings of it are designed ones (Bluezone's War Zone), so only the run-up is used, never their explosion.
-    "incoming-heavy": dict(
-        sources=[
-            (GDC, "Bluezone-BC0214-explosion-whooshe-003.wav"),
-            (GDC, "Bluezone-BC0214-explosion-whooshe-020.wav"),
-        ],
-        gap=10,
-        length=None,
-        take=2,
-        per_source=1,
-        floor=-40,
-        lead=2.0,
-    ),
     # Earth and stones raining down after a burst close by.
     "debris": dict(
         sources=[
             (GDC, "soil and dirt debris heavy 13.wav"),
-            (GDC, "Bluezone_BC0271_debris_falling_rock_dust_002.wav"),
+            (GDC, "Eradicated Tree - Stones Large Impacts Debris - 1 Meter. Debris,Stones,Soil,Impact,Rock,Impact,Fall,Various_04.wav"),
             (GDC, "dirt_collapse_05.wav"),
         ],
         gap=3,
@@ -215,7 +197,6 @@ CUES = {
     # A man hit: one take from each recording.
     "death": dict(
         sources=[
-            (GDC, "voice_male_b_death_low_09.wav"),
             (GDC, "Grunt_Pain_Male_BB_10_SCREAM LIBRARY_BRFX-004.wav"),
             (GDC, "Scream_Frightened_Male_BB_07_SCREAM LIBRARY_BRFX-004.wav"),
             (GDC, "Male_Shout-of-Pain_132.wav"),
@@ -225,12 +206,8 @@ CUES = {
         ],
         gap=1,
         length=4,
-        take=7,
+        take=6,
         per_source=1,
-    ),
-    # A Very light going up: a firework launch, the nearest recording to the flare pistol's pop and the fizz of the climb.
-    "flare": dict(
-        sources=[(GDC, "FRWKComr_InsJ_Fireworks_Launch_Close_01-03.wav")], gap=0.8, length=3, take=3, floor=-12
     ),
     # Fire crackling in the braziers and where shells set things alight, and crows taking off from the wire.
     "fire": dict(
@@ -244,12 +221,11 @@ CUES = {
     "charge": dict(
         sources=[
             (GDC, "Battle Cry, Charge, Screams, Army Attacking, Running 1.wav"),
-            (GDC, "GAF SFX03 - War Unit - Solo Man 5, Charge Attack, Long, Ya - ORTF.wav"),
             (GDC, "Male 2 - Grunt - Battle Cry - Long - Ehrlund M1.wav"),
         ],
         gap=2,
         length=6,
-        take=3,
+        take=2,
         per_source=1,
     ),
     # A man hit and still standing.
@@ -294,9 +270,13 @@ CUES = {
         take=5,
         per_source=1,
     ),
-    # Breathing through the mask while the controlled soldier wears it.
+    # Breathing through the mask while the controlled soldier wears it: a man's slow mouth breathing (UberDuo), damped
+    # as if through the rubber and the cloth pad, until breathing through a period mask is recorded.
     "mask-breath": dict(
-        sources=[(GDC, "voice_male_breathing_mask_loop_run_02.wav")], gap=60, length=None, take=1, loop=True
+        sources=[(GDC, "HMNBrth_Human, Adult, Male, Breathe, Mouth, Slow,_UberDuo_INHL.wav")],
+        take=1,
+        bed=(0, None, 0),
+        lowpass=1400,
     ),
 }
 
@@ -428,7 +408,20 @@ def loudest_clips(samples, seconds, count):
     return [finish(samples[start : start + window], fade_in=0.08, fade_out=0.5) for start in sorted(chosen)]
 
 
+def lowpass(clip, frequency):
+    """The clip with its highs above `frequency` taken off, as through a rubber mask."""
+    filtered = aud.Sound.buffer(clip.reshape(-1, 1), RATE).lowpass(frequency, 0.9)
+    return np.asarray(filtered.data(), dtype=np.float32).reshape(-1)[: len(clip)]
+
+
 def cue_clips(vendor, cue):
+    clips = raw_cue_clips(vendor, cue)
+    if "lowpass" in cue:
+        clips = match_loudness([lowpass(clip, cue["lowpass"]) for clip in clips])
+    return clips
+
+
+def raw_cue_clips(vendor, cue):
     if "loudest" in cue:
         samples = load(find(vendor, *cue["sources"][0]))
         return match_loudness(loudest_clips(samples, cue["loudest"], cue["take"]))
@@ -485,6 +478,18 @@ def write(path, clip):
     )
 
 
+def replace(source, target, tries=30):
+    """Moves a built file into place, retrying while something (the dev server sending it) holds the old one open.
+    A file still locked after a few seconds keeps its old version, with a warning: stale, but whole."""
+    for _ in range(tries):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            time.sleep(0.2)
+    print(f"[sound-effects] {target.name} is locked; kept the previous version", flush=True)
+
+
 def build(vendor, output):
     # Built aside and swapped in at the end, so a game loading meanwhile never reads a file half written.
     final = output / "sfx"
@@ -508,7 +513,7 @@ def build(vendor, output):
     final.mkdir(parents=True, exist_ok=True)
     built = sorted(sfx.iterdir(), key=lambda path: path.name == "sounds.json")
     for path in built:
-        os.replace(path, final / path.name)
+        replace(path, final / path.name)
     names = {path.name for path in built}
     for stale in final.iterdir():
         if stale.name not in names:
