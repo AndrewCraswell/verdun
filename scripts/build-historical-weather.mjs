@@ -64,10 +64,24 @@ const LAPSE = 0.0065
 const NEAR_GROUND = 0.75
 
 /**
- * Fogs history records, which neither source has: [first hour, last hour (UTC), visibility in metres]. The French
- * attack that retook Fort Douaumont went in under thick fog that lifted about 14:00.
+ * Fogs history records, which neither source has: [first hour, last hour (UTC), visibility in metres]. Each is sourced
+ * in docs/research/notes/weather/historical_weather_1916.md.
+ * - 24 October 1916: the French attack that retook Fort Douaumont went in under thick fog ("could not see more than
+ *   fifty yards") that a strengthening wind cleared toward 14:00.
+ * - 26 September 1918: the Meuse-Argonne offensive, 25 km west, opened at 05:30 in heavy fog that "obliterated all known
+ *   landmarks" through the morning; valley fog of that kind lies over the whole Meuse. When it lifted isn't recorded.
  */
-const FOGS = [[Date.UTC(1916, 9, 24, 0), Date.UTC(1916, 9, 24, 13), 100]]
+const FOGS = [
+  [Date.UTC(1916, 9, 24, 0), Date.UTC(1916, 9, 24, 13), 100],
+  [Date.UTC(1918, 8, 26, 0), Date.UTC(1918, 8, 26, 9), 80]
+]
+
+/**
+ * Snowfalls history records that the reanalysis and stations miss: [first hour, last hour (UTC), millimetres of water
+ * an hour]. On 21 February 1916 the Germans advanced on Verdun over snow-covered ground, after a week of blizzards and
+ * snow showers that had put off the offensive.
+ */
+const SNOWS = [[Date.UTC(1916, 1, 20, 16), Date.UTC(1916, 1, 21, 4), 0.5]]
 
 async function cached(name, fetchIt) {
   const file = new URL(name, CACHE)
@@ -306,6 +320,16 @@ async function build() {
     const fromModel = Number.isFinite(frozen) && frozen >= 0 ? frozen / 100 : byTemperature
     const day = Math.floor(time / DAY) * DAY
     return sawSnow(snow, day) && temperature[index] < 2 ? Math.max(fromModel, byTemperature, 0.5) : fromModel
+  })
+
+  // History's own snowfalls, where the sources missed them.
+  times.forEach((time, index) => {
+    for (const [from, to, rate] of SNOWS) {
+      if (time >= from && time <= to) {
+        precipitation[index] = Math.max(precipitation[index], rate)
+        snowFraction[index] = 1
+      }
+    }
   })
 
   const round = (value, scale) => (Number.isFinite(value) ? Math.round(value * scale) : 0)

@@ -451,12 +451,16 @@ weather at Fleury from 1 August 1914 to 30 November 1918, `packages/sim/data/fle
 **At play** the forecast interpolates temperature, cloud, humidity and wind between the 3-hourly records and holds the
 rain, adding the cycle's seeded gusts and showers. Neither source records fog, so radiation fog forms in damp (93% or
 more), still (under 2.5 m/s) air in the small hours and at dawn, and fogs history records are written in: the fog the
-French attacked Fort Douaumont under on 24 October 1916, lifting about 14:00. Haze thickens with humidity. Outside the
-records the cycle takes over from the same seed. The clock steps the sky through each week's dates, so a turn plays out
-that week's real weather.
+French attacked Fort Douaumont under on 24 October 1916, lifting about 14:00, and the fog the Meuse-Argonne offensive
+opened in on 26 September 1918. So is a snowfall the sources miss: the snow lying on 21 February 1916, the day the
+Battle of Verdun opened. Haze thickens with humidity. Outside the records the cycle takes over from the same seed. The
+clock steps the sky through each week's dates, so a turn plays out that week's real weather.
 
-To add a recorded fog or other event, add it to `FOGS` in the build script and rebuild. To build another sector's
-weather, change `FLEURY` and the station lists there.
+To add a recorded fog or snowfall, add it to `FOGS` or `SNOWS` in the build script, with its source in the research
+note, and rebuild (`pnpm weather:build`, which reuses the downloads cached in `.asset-cache/weather/`). The documented
+days the data is checked against are listed in the
+[research note](research/notes/weather/historical_weather_1916.md#documented-days-checked) and tested in
+`records.test.ts`. To build another sector's weather, change `FLEURY` and the station lists there.
 
 ## Dev tools and tests
 

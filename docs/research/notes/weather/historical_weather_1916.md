@@ -66,6 +66,30 @@ no current public download route confirmed.
 | 23 Jun    | No account verified                                                                                                                                                                                                                                 | Metz 11.0/27.4 °C, showers     | Tmax 24.0 °C (too cool)           |
 | 24 Oct    | Thick fog lifting about 14:00 ([RICM](https://www.anciens-du-ricm.org/2020/2-actu/7-salonlecture/doc/2020.10.24-douaumont.pdf), [MOOC](https://lms.fun-mooc.fr/asset-v1:lorraine+30002+session03+type@asset+block/S2B_les_chronologies_de_la_bataille.fr.pdf)) | Ste-Menehould 8 mm             | 87% cloud, RH 92%, 5 mm           |
 
+## Documented days checked
+
+A search of battle histories, official histories and contemporary reports (October 2026) for dated weather near
+Verdun, compared with what the built data gives at Fleury. Where the data missed a well-sourced event, the build writes
+it in (`FOGS`, `SNOWS` in `scripts/build-historical-weather.mjs`). `records.test.ts` keeps each check.
+
+| Date | Documented | Sources | Data | Done |
+| --- | --- | --- | --- | --- |
+| 11–20 Feb 1916 | A week of snow, rain, gales and poor visibility put off the offensive | [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Verdun), [wereldoorlog1418](https://wereldoorlog1418.nl/battleverdun/battleverdun22/index.htm), [Mental Floss](https://mentalfloss.com/article/75452/wwi-centennial-verdun-attack-delayed) | Wet, overcast, rain and sleet, 2–8 °C | Matches |
+| 21 Feb 1916 | Germans advanced over snow-covered ground | [Mental Floss](https://mentalfloss.com/article/75801/wwi-centennial-devils-anvil-verdun), with the week before | −2.5 °C, no snow lying | Snowfall written in, 20 Feb 16:00 to 21 Feb 04:00 UTC |
+| 27 and 29 Feb, 6 Mar 1916 | A thaw, then heavy snow; snow at the Mort-Homme | Wikipedia; wereldoorlog1418 has a snowstorm on the 27th instead | Mild and dry | Left out: the sources disagree, single sources |
+| 2–7 Jun 1916 | Heat at Fort Vaux, a little rain on the 5th | [Mental Floss](https://www.mentalfloss.com/article/81323/wwi-centennial-germans-capture-fort-vaux) | Showers on the 4th and 5th, 14–15 °C at 14:00 | Rain matches; heat not, single source |
+| 24 Oct 1916 | Thick fog until about 14:00 | French officer's account, Wikipedia (Fort Douaumont) | Written in (before this check) | Matches |
+| 15 Dec 1916 | Intense cold, freezing rain in the afternoon, snow at night | [UPI, 18 Dec 1916](https://www.upi.com/Archives/1916/12/18/French-victory-at-Verdun/4094758173113/) | 1–3 °C, rain and sleet all day | Close; no change |
+| 3 Feb 1917 | The coldest days of the great frost | [Météo-Paris 1917](https://www.meteo-paris.com/chronique/annee/1917) | −14 °C at dawn | Matches |
+| 20 Aug 1917 | No moon, brilliant stars before the Mort-Homme attack | [Oregon newspaper, 21 Aug 1917](https://oregonnews.uoregon.edu/lccn/sn83025138/1917-08-21/ed-1/seq-4/ocr/) | 30% cloud | Matches |
+| 12 Sep 1918 | Driving wind and rain at Saint-Mihiel, roads very muddy | [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Saint-Mihiel), quoting the AEF weather report | 1 mm/h, ground sodden | Matches |
+| 26 Sep 1918 | Heavy fog at the Meuse-Argonne opening, 05:30, through the morning | [Army Heritage Center](https://www.armyheritage.org/?p=9891) and others | 4 km visibility | Fog written in, 00:00 to 09:00 UTC |
+
+Unconfirmed claims found only in search snippets (−20 °C on 15 December 1916, a clearing after snow on 21 February)
+were not used. The same search found well-sourced days on other fronts (the Somme's daily record in Gliddon's *When
+the Barrage Lifts*, fog at Amiens on 8 August 1918 and St-Quentin on 21 March 1918, snow at Arras on 9 April 1917) for
+when those sectors get their own weather.
+
 ## Suggested pipeline
 
 1. 3-hourly 20CRv3 ensemble mean from PSL OPeNDAP, interpolated to Fleury: `air.2m`, `rhum.2m`, `tcdc.eatm`,

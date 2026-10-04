@@ -71,6 +71,26 @@ describe("history's weather at Fleury", () => {
     expect(history.at(Date.UTC(1916, 9, 24, 16)).visibility).toBeGreaterThan(1000)
   })
 
+  it("lays snow on the ground the Germans crossed on 21 February 1916", () => {
+    expect(history.at(Date.UTC(1916, 1, 21, 7)).snowCover).toBeGreaterThan(2)
+  })
+
+  it("brings the fog the Meuse-Argonne offensive opened in, 26 September 1918", () => {
+    expect(history.at(Date.UTC(1918, 8, 26, 4, 30)).visibility).toBeLessThanOrEqual(80)
+    expect(history.at(Date.UTC(1918, 8, 26, 14)).visibility).toBeGreaterThan(1000)
+  })
+
+  it("matches the war's other documented days at Verdun", () => {
+    // The great frost of February 1917, the coldest of the war.
+    expect(history.at(Date.UTC(1917, 1, 3, 6)).temperature).toBeLessThan(-8)
+    // The clear, starlit night before the attack on the Mort-Homme, 20 August 1917.
+    expect(history.at(Date.UTC(1917, 7, 20, 2)).cloudCover).toBeLessThan(0.5)
+    // Saint-Mihiel, 12 September 1918: rain after days of it, the roads deep in mud.
+    const stMihiel = history.at(Date.UTC(1918, 8, 12, 4))
+    expect(stMihiel.precipitation).toBeGreaterThan(0.3)
+    expect(stMihiel.wetness).toBeGreaterThan(0.8)
+  })
+
   it("rains about as much a year as Verdun does", () => {
     let total = 0
     for (let step = 0; step < 365 * 8; step++) {
