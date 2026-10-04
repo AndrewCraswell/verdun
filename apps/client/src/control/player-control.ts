@@ -9,6 +9,7 @@ import {
   type Squad,
   Stance
 } from "@verdun/sim"
+import { cameraRigOf } from "./camera-rig.ts"
 
 /** Ground-plane vector, `x` east and `z` north. */
 export interface GroundVector {
@@ -123,6 +124,7 @@ export function createPlayerControl(
   let lastSoldier: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
   let lastAim: GroundVector | null = null
+  let followedSoldier: EntityId = -1
   camera.panningSensibility = 0
 
   function takeCommand(soldier: EntityId): void {
@@ -226,6 +228,16 @@ export function createPlayerControl(
         lastAim = aim
       }
 
+      const rig = cameraRigOf(camera)
+      if (rig) {
+        // Moving the soldier brings the camera back to them, as does switching to another.
+        if (steer.x !== 0 || steer.z !== 0 || soldier !== followedSoldier) {
+          rig.recenter()
+        }
+        followedSoldier = soldier
+        rig.follow(x, z)
+        return
+      }
       const blend = 1 - Math.exp(-FOLLOW_RATE * frameSeconds)
       const target = camera.target
       target.x += (x - target.x) * blend

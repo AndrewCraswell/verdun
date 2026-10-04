@@ -20,6 +20,7 @@ import {
   soldierIds,
   Stance
 } from "@verdun/sim"
+import { createCameraRig } from "./control/camera-rig.ts"
 import { type CloudPuffs, createGasCloud, createSmokeCloud, type GasCloud } from "./effects/gas-cloud.ts"
 import { palette, surfaceColors } from "./palette.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
@@ -152,14 +153,6 @@ export function createBattlefieldScene(
   scene.fogColor = palette.fog
 
   const camera = createCamera(scene, sim)
-  if (attachControl) {
-    camera.attachControl(true)
-    // Rotate with the middle button: the left fires and the right gives orders.
-    const pointers = camera.inputs.attached["pointers"]
-    if (pointers && "buttons" in pointers) {
-      pointers.buttons = [1]
-    }
-  }
 
   const sky = new HemisphericLight("sky", new Vector3(0, 1, 0), scene)
   sky.diffuse = palette.skyLight
@@ -176,6 +169,11 @@ export function createBattlefieldScene(
     surfaceColors,
     renderStep: terrainStep
   })
+  if (attachControl) {
+    // The player's camera: panning, turning, zooming and following, with the left button free to fire and the right
+    // to give orders.
+    createCameraRig(camera, scene, sim.map, terrain.meshes)
+  }
 
   const gas = createGasCloud(scene, sim, groundMaterial)
   const smoke = createSmokeCloud(scene, sim)

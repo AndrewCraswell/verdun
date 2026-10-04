@@ -255,3 +255,21 @@ on Fleury with 526 soldiers.
 A "Day/night and weather" session is editing `commands.ts`, `combat.ts`, `simulation.ts`, `snapshot.ts` and `index.ts`
 (adding `sim.environment`, sky and weather). To avoid two agents in the same files, I shelved my next sim change,
 artillery ammunition budgets (saved as a patch in my scratchpad), until they commit. It's ready to reapply.
+
+## Camera (asked for by the developer)
+
+`apps/client/src/control/camera-rig-model.ts` (pure, tested) and `camera-rig.ts` (input) replace Babylon's stock camera
+inputs:
+
+- **Pan**: arrow keys, the pointer at a screen edge, or Shift + middle-drag to grab the ground. Pan speed scales with
+  zoom, so it feels the same close in and far out, and eases in and out rather than starting and stopping dead.
+- **Turn and tilt**: middle-drag, or Shift + Left and Right arrows.
+- **Zoom**: the wheel, 8 to 450 m. When panning freely it zooms toward the point under the pointer, as a map does. The
+  view tips toward overhead as it pulls back and drops toward the ground close in, within ±0.3 rad of tilt the player
+  sets.
+- **Follow**: the camera follows the soldier under control until the player pans away. Space, moving the soldier with
+  WASD, or switching soldier brings it back.
+- Everything is damped exponentially, so it moves the same at 30 or 144 fps (a test checks this). The camera never goes
+  below the ground behind it (it tips toward overhead to clear a ridge), and the view stays on the map. The ground under
+  the focus is averaged over a few metres, so the view glides over craters instead of bobbing.
+- Anything else that sets the camera's radius, such as `main.ts` framing the start, is taken as the player's zoom.
