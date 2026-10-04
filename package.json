@@ -28,7 +28,8 @@
     "map:elevation": "node scripts/fetch-elevation.mjs",
     "weather:build": "node scripts/build-historical-weather.mjs",
     "sound:voices": "node scripts/generate-voices.mjs scripts/voice-lines.json",
-    "balance": "node scripts/balance.mjs"
+    "balance": "node scripts/balance.mjs",
+    "perf": "node scripts/perf.mjs --headed"
   },
   "devDependencies": {
     "knip": "^6.38.0",

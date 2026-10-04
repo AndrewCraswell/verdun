@@ -32,6 +32,10 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 - `pnpm dev`: run the client at http://localhost:5173
 - `pnpm verify`: format check, lint, types, knip, tests with coverage, build. Must pass before finishing.
 - `pnpm format`: apply oxfmt
+- `pnpm perf`: build HEAD, play it in an off-screen Chrome at 1920×1080 and report fps, the tracer's CPU hot spots and
+  each GPU pass's milliseconds, per scenario (`--only "day;night"`, `--shots dir`, `--eval expr`). The app's own pane
+  and background windows run at 30 fps, so measure here. One run at a time on the machine; check `--shots`, since a
+  setting changed at runtime can leave a blank frame that measures fast.
 - `pnpm lockfile:normalize`: this machine's VPN forces npm through a Microsoft package feed, which writes feed tarball
   URLs and SHA-1 hashes into `pnpm-lock.yaml`. CI installs from public npm and rejects them. The pre-commit hook runs
   this automatically whenever the lockfile is staged; never commit a lockfile containing `tarball:` feed URLs.
