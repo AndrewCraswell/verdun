@@ -40,6 +40,10 @@ function segmentLengths(points: readonly GroundPoint[]): number[] {
 }
 
 describe("generateFleurySector", () => {
+  it("is fought in Fleury's history's weather", () => {
+    expect(map.weatherRegion).toBe("fleury")
+  })
+
   it("covers 600 m by 400 m", () => {
     expect(mapWidth(map)).toBe(600)
     expect(mapDepth(map)).toBe(400)

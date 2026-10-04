@@ -946,12 +946,16 @@ export function generateFleurySector({
   const trenches = layout ? [...layout.trenches] : [...frenchTrenches.trenches, ...germanTrenches.trenches]
   const segments = segmentsOf(trenches)
 
-  const map = createFlatMap({
-    name: "Fleury sector",
-    cellSize,
-    columns: Math.round(WIDTH / cellSize),
-    rows: Math.round(DEPTH / cellSize)
-  })
+  const map = {
+    ...createFlatMap({
+      name: "Fleury sector",
+      cellSize,
+      columns: Math.round(WIDTH / cellSize),
+      rows: Math.round(DEPTH / cellSize)
+    }),
+    // Verdun's right bank: history's weather as recorded round Fleury.
+    weatherRegion: "fleury"
+  }
   for (let row = 0; row <= map.rows; row++) {
     for (let column = 0; column <= map.columns; column++) {
       const x = column * cellSize

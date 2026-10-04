@@ -10,6 +10,8 @@ import {
   createLineOfSight,
   shotEvents,
   createSimulation,
+  loadWeatherRegion,
+  WEATHER_REGIONS,
   STEP_SECONDS,
   TICK_RATE,
   stepSimulation
@@ -62,9 +64,16 @@ async function start(): Promise<void> {
   // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
   const elevation = decodeElevation(await (await fetch(elevationUrl)).arrayBuffer())
   const map = generateFleurySector({ seed: 1916, elevation })
-  // History's weather at Fleury, 1914-1918 (scripts/build-historical-weather.mjs); the seed drives gusts and showers.
+  // History's weather, 1914-1918, in the map's region of the front (scripts/build-historical-weather.mjs), loaded before
+  // the battle needs it; the seed drives gusts and showers.
   const weatherSeed = 1916
-  const sim = createSimulation({ map, seed: 1916, environment: { forecast: { kind: "records", seed: weatherSeed } } })
+  const region = WEATHER_REGIONS.find((name) => name === map.weatherRegion) ?? "fleury"
+  await loadWeatherRegion(region)
+  const sim = createSimulation({
+    map,
+    seed: 1916,
+    environment: { forecast: { kind: "records", seed: weatherSeed, region } }
+  })
   const { playerSquad } = setupSkirmish(sim)
   // The war's calendar, until the war map runs it: kept between visits, so the war goes on a week each real day from the
   // battle's week; each daily cutoff moves the battle on a week and stands it to. Dev: ?war=1916-02-21, ?standto=0.

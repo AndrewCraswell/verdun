@@ -144,6 +144,14 @@ describe("map documents", () => {
     expect(() => fromMapDocument({ ...valid, objectives: [{ name: 3, x: 0, z: 0, radius: 5 }] })).toThrow("objectives")
   })
 
+  it("round-trip the weather region, and load older files without one", () => {
+    const map = { ...createFlatMap({ name: "somme", cellSize: 1, columns: 1, rows: 1 }), weatherRegion: "somme" }
+    expect(fromMapDocument(structuredClone(toMapDocument(map)))).toEqual(map)
+    const older = { ...toMapDocument(createFlatMap({ name: "old", cellSize: 1, columns: 1, rows: 1 })), version: 4 }
+    expect(fromMapDocument(older).weatherRegion).toBeUndefined()
+    expect(() => fromMapDocument({ ...older, version: 5, weatherRegion: 3 })).toThrow(/weather region/)
+  })
+
   it("rejects documents that are not objects", () => {
     expect(() => fromMapDocument(null)).toThrow("must be an object")
     expect(() => fromMapDocument("map")).toThrow("must be an object")

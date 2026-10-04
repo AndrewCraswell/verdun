@@ -2,7 +2,7 @@ import type { Objective, Scenery, WireBelt } from "./scenery.ts"
 import type { Trench } from "./trenches.ts"
 
 /** Bump when the shape of a saved map changes, and add a migration for older files in serialization.ts. */
-export const MAP_FORMAT_VERSION = 4
+export const MAP_FORMAT_VERSION = 5
 
 /** Ground surface types. Stored per height sample, so terrain materials blend smoothly between them. */
 export const Surface = {
@@ -42,6 +42,11 @@ export interface BattlefieldMap {
   readonly wire: readonly WireBelt[]
   /** Ground to take and hold. Added in version 4. */
   readonly objectives: readonly Objective[]
+  /**
+   * Whose history's weather the battle is fought in: a region the simulation knows (`WEATHER_REGIONS`), such as
+   * "fleury" or "somme". Absent, the simulation's default. Added in version 5.
+   */
+  readonly weatherRegion?: string
 }
 
 interface MapDimensions {

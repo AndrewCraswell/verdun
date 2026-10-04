@@ -20,6 +20,8 @@ export interface MapDocument {
   readonly wire?: readonly WireBelt[]
   /** Added in version 4. */
   readonly objectives?: readonly Objective[]
+  /** Added in version 5. */
+  readonly weatherRegion?: string
 }
 
 export function toMapDocument(map: BattlefieldMap): MapDocument {
@@ -34,7 +36,8 @@ export function toMapDocument(map: BattlefieldMap): MapDocument {
     trenches: map.trenches,
     scenery: map.scenery,
     wire: map.wire,
-    objectives: map.objectives
+    objectives: map.objectives,
+    ...(map.weatherRegion === undefined ? {} : { weatherRegion: map.weatherRegion })
   }
 }
 
@@ -77,7 +80,20 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
   if (!isRecord(document)) {
     throw new TypeError("Map document must be an object")
   }
-  const { version, name, cellSize, columns, rows, heights, surfaces, trenches, scenery, wire, objectives } = document
+  const {
+    version,
+    name,
+    cellSize,
+    columns,
+    rows,
+    heights,
+    surfaces,
+    trenches,
+    scenery,
+    wire,
+    objectives,
+    weatherRegion
+  } = document
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > MAP_FORMAT_VERSION) {
     throw new TypeError(`Unsupported map format version ${String(version)}; expected 1 to ${MAP_FORMAT_VERSION}`)
   }
@@ -129,6 +145,9 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     wireBelts = wire
     objectiveList = objectives
   }
+  if (weatherRegion !== undefined && typeof weatherRegion !== "string") {
+    throw new TypeError("Map weather region must be a string")
+  }
 
   return {
     version: MAP_FORMAT_VERSION,
@@ -141,6 +160,7 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     trenches: trenchLines,
     scenery: sceneryItems,
     wire: wireBelts,
-    objectives: objectiveList
+    objectives: objectiveList,
+    ...(typeof weatherRegion === "string" ? { weatherRegion } : {})
   }
 }

@@ -475,12 +475,16 @@ records forecast names its region (`{ kind: "records", seed, region }`):
 | `somme`     | Albert, 50.03° N 2.70° E  | The Somme, 1916                                                 | Gisors, Paris (by hand, inland); Étreux, Gisors, Pontoise |
 | `artois`    | Vimy, 50.37° N 2.78° E    | Artois 1915, Arras and Vimy 1917                                | Dunkirk, Gisors; Étreux                                   |
 
-Fleury's table is built in; the others load when a battle needs them (`await loadWeatherRegion("somme")` before creating
-the forecast, or restoring a save that uses it), so the client downloads only its battle's weather. Outside Verdun few
-stations kept records through the war (none in the Somme, the Oise or the Pas-de-Calais), so the other regions take the
-nearest that did, up to 150 km off: their days' highs, lows and wet spells follow the region's, their totals less
-closely, and none has the snow days Verdun's stations kept, so snow there comes from the reanalysis alone. The
-reanalysis for them is one download of the grid from 49° to 51° N and 2° to 5° E.
+A map names its region (`weatherRegion`, added in map format version 5; the Fleury sector says `"fleury"`), and the
+client loads it before creating the battle (`main.ts`), falling back to Fleury's for a map that names none or one the
+simulation doesn't know. Fleury's table is built in; the others load when a battle needs them
+(`await loadWeatherRegion("somme")` before creating the forecast, or restoring a save that uses it), each its own chunk
+of about 70 kB gzipped, so the client downloads only its battle's weather. They're imported without an import attribute,
+as Vite needs in development, and again with `type: "json"` where Node insists on it. Outside Verdun few stations kept
+records through the war (none in the Somme, the Oise or the Pas-de-Calais), so the other regions take the nearest that
+did, up to 150 km off: their days' highs, lows and wet spells follow the region's, their totals less closely, and none
+has the snow days Verdun's stations kept, so snow there comes from the reanalysis alone. The reanalysis for them is one
+download of the grid from 49° to 51° N and 2° to 5° E.
 
 To add a region, add it to `REGIONS` in the build script (its place, its grid box, the departments to draw stations
 from) and to `WEATHER_REGIONS` in `records.ts`, then run `pnpm weather:build --region <name>`.

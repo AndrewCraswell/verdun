@@ -21,10 +21,10 @@ const PATTERN_NAMES = Object.fromEntries(Object.entries(WeatherPattern).map(([na
 function heldForecast(
   choice: (typeof HELD)[number],
   wind: { readonly x: number; readonly z: number },
-  weatherSeed: number
+  history: ForecastSpec
 ): ForecastSpec {
   if (choice === "history") {
-    return { kind: "records", seed: weatherSeed }
+    return history
   }
   if (choice === "snow") {
     const rain = typicalWeather(WeatherPattern.Rain, wind)
@@ -40,6 +40,9 @@ function heldForecast(
  */
 export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war?: WarClock): void {
   let held = HELD.length - 1
+  // History's weather to come back to: the battle's own region, as it began.
+  const { spec } = sim.environment.forecast
+  const history: ForecastSpec = spec.kind === "records" ? spec : { kind: "records", seed: weatherSeed }
   const readout = document.createElement("div")
   readout.style.cssText =
     "font:12px/1.4 ui-monospace,monospace;color:#e8e2d0;background:rgba(20,18,14,.6);padding:4px 8px;white-space:pre"
@@ -65,7 +68,7 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
       )
     } else if (event.code === "KeyN" && !event.repeat) {
       held = (held + 1) % HELD.length
-      enqueueCommand(sim, { type: "forecast", forecast: heldForecast(HELD[held]!, sim.wind, weatherSeed) })
+      enqueueCommand(sim, { type: "forecast", forecast: heldForecast(HELD[held]!, sim.wind, history) })
     }
   })
 

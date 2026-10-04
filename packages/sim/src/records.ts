@@ -44,17 +44,37 @@ export const WEATHER_REGIONS = ["fleury", "champagne", "aisne", "somme", "artois
 export type WeatherRegion = (typeof WEATHER_REGIONS)[number]
 
 const loaded = new Map<WeatherRegion, WeatherRecords>([["fleury", fleury]])
-const loaders: Readonly<Record<Exclude<WeatherRegion, "fleury">, () => Promise<{ default: WeatherRecords }>>> = {
-  champagne: () => import("../data/champagne-weather-1914-1918.json", { with: { type: "json" } }),
-  aisne: () => import("../data/aisne-weather-1914-1918.json", { with: { type: "json" } }),
-  somme: () => import("../data/somme-weather-1914-1918.json", { with: { type: "json" } }),
-  artois: () => import("../data/artois-weather-1914-1918.json", { with: { type: "json" } })
+/**
+ * Each region's table, as a module to import. Without an import attribute, as Vite needs in development: it serves the
+ * JSON compiled to JavaScript, which a browser refuses under `type: "json"`. Node needs the attribute, so where it
+ * refuses the plain import (`loadWeatherRegion`) the second loader asks again with it.
+ */
+type RegionModule = Promise<{ default: WeatherRecords }>
+const loaders: Readonly<Record<Exclude<WeatherRegion, "fleury">, readonly [() => RegionModule, () => RegionModule]>> = {
+  champagne: [
+    () => import("../data/champagne-weather-1914-1918.json"),
+    () => import("../data/champagne-weather-1914-1918.json", { with: { type: "json" } })
+  ],
+  aisne: [
+    () => import("../data/aisne-weather-1914-1918.json"),
+    () => import("../data/aisne-weather-1914-1918.json", { with: { type: "json" } })
+  ],
+  somme: [
+    () => import("../data/somme-weather-1914-1918.json"),
+    () => import("../data/somme-weather-1914-1918.json", { with: { type: "json" } })
+  ],
+  artois: [
+    () => import("../data/artois-weather-1914-1918.json"),
+    () => import("../data/artois-weather-1914-1918.json", { with: { type: "json" } })
+  ]
 }
 
 /** Loads a region's weather, once, before a battle there creates its forecast. Fleury's is always loaded. */
 export async function loadWeatherRegion(region: WeatherRegion): Promise<void> {
   if (!loaded.has(region) && region !== "fleury") {
-    loaded.set(region, (await loaders[region]()).default)
+    const [plain, attributed] = loaders[region]
+    const module = await plain().catch(attributed)
+    loaded.set(region, module.default)
   }
 }
 
