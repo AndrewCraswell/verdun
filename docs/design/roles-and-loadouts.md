@@ -5,84 +5,96 @@ The jobs inside a squad, the kinds of squad a player can lead, and the kit they 
 
 ## Principles
 
-- **Squads, not classes.** A player leads a squad of a type, not a single soldier class. Switching between its men is
-  how they use its roles: take the bomber for the trench, the gunner for the charge.
-- **Kit follows the calendar.** What a squad carries comes from the year being fought. A 1915 bomber has a jam-tin bomb
-  and a club; a 1918 storm troop group has light machine guns and stick grenades in sandbags.
-- **Choices, not unlocks.** Every loadout is available to a player of the right rank from the start of the season (see
-  [ranks](progression-and-community.md#ranks)); nothing is bought or ground for. A loadout trades one thing for another.
-- **Caps keep the line honest.** Each sector limits special squads per side, so riflemen hold the line and special
-  squads are prized.
+- **Few roles, many kits.** Five roles cover every man a player controls. Specialisms (rifle grenadier, sniper, forward
+  observer, anti-tank rifleman, flamethrower) are kit a role carries, not roles of their own.
+- **Four kinds of squad.** A player leads a rifle, assault, support weapon or engineer squad. Everything else is a
+  loadout of one of those, or a vehicle in the years it fought.
+- **The AI runs the services.** Stretcher bearers, carrying parties, linesmen, gun crews and the air war are worked by
+  bots for the whole side (see [AI services](#ai-services)). Players fight and dig; they never have to haul or carry
+  stretchers to keep the front going.
+- **Switching is how roles are used.** Take the bomber for the trench, the gunner for the charge, the engineer for the
+  night's digging.
+- **Kit follows the calendar**, and every loadout is open to a player of the right rank from the start of the season;
+  nothing is bought or ground for (see [ranks](progression-and-community.md#ranks)).
+- **Caps keep the line honest.** Each sector limits special squads per side, so riflemen hold the line.
 
-## Roles within a squad
+## Roles
 
-Each slot in a squad has a role. Bots fill them by the role's rules; the player takes any of them.
+| Role                               | Does                                                                                            | Kit variants                                                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Leader** (the NCO, slot 1)       | Orders, the whistle, flares, [rally](morale-and-stamina.md#rally); steadies the men near him    | Forward observer: a field telephone and calls for fire beyond the personal ration (from Adjudant or Feldwebel rank) |
+| **Rifleman**                       | Holds the fire step, shoots, goes over                                                          | Sniper: scoped rifle and periscope                                                                                  |
+| **Bomber** (_grenadier_)           | Clears bays and dugouts with grenades                                                           | Rifle grenadier: VB discharger, to 180 m (from 1916)                                                                |
+| **Gunner**                         | Works the squad's heavy weapon; the next man on it takes over if he falls                       | Machine gun, automatic rifle (Chauchat 1916–, MG 08/15 1917–), trench mortar (1915–), anti-tank rifle (German 1918) |
+| **Engineer** (_sapeur_, _Pionier_) | Digs, builds, repairs, lays and cuts wire, demolishes, mines: the [field works](field-works.md) | Flamethrower (French 1915–, German 1916–)                                                                           |
 
-| Role                             | Carries                                                         | Job                                                                                 |
-| -------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Leader (NCO, slot 1)             | Rifle or pistol, whistle, flare pistol, wire cutters            | Orders, [rally](morale-and-stamina.md#rally), morale aura, the whistle              |
-| Rifleman                         | Rifle and bayonet, rounds, 3 grenades                           | Holds the fire step, shoots, goes over                                              |
-| Bomber (_grenadier_)             | 12–20 grenades, pistol or rifle, a club or trench knife         | Clears trench bays and dugouts                                                      |
-| Rifle grenadier                  | Rifle with a discharger cup (VB for the French), rifle grenades | Indirect fire into bays and shell holes to 180 m                                    |
-| Automatic rifleman               | Chauchat (French, 1916–), MG 08/15 (German, 1917–)              | Fire while advancing; the attack's own machine gun                                  |
-| Loader                           | Magazines or belts for the automatic rifle or machine gun       | Keeps the gun fed, takes it over if the gunner falls                                |
-| Machine gunner                   | Hotchkiss or MG 08                                              | Holds a sector of fire; sweeps                                                      |
-| Ammunition carrier               | Boxes of belts, strips or bombs                                 | Feeds the gun or mortar; runs back to the dump                                      |
-| Sniper                           | Scoped rifle, periscope                                         | Kills careless heads at long range, from a hide                                     |
-| Pioneer                          | Shovel, wire cutters, stakes and wire, charges                  | [Engineering](armour-and-engineering.md#engineering) and mining                     |
-| Signaller                        | Field telephone, cable, lamp                                    | Links an observer to the batteries; repairs lines                                   |
-| Stretcher bearer (_brancardier_) | Stretcher, field dressings                                      | Carries badly wounded men back; returns [manpower](logistics.md#reinforcements)     |
-| Flamethrower operator            | Flamethrower                                                    | [Burns out](armour-and-engineering.md#flamethrowers) a bay; everyone's first target |
-| Anti-tank rifleman               | Tankgewehr (German, 1918)                                       | Knocks out light tanks                                                              |
-| Tank crew                        | The tank                                                        | Drives, fires, spots                                                                |
+Every man can scrape into the ground and repair a trench with his entrenching tool at a quarter of an engineer's rate,
+or half with a shovel in his loadout. Engineers build properly.
+
+Vehicles are crewed, not roled: a tank or armoured car squad's men are its crew (see [armour](armour.md)).
 
 ## Squad types
 
-The player picks a type when the squad deploys. Each is eight men unless noted. "Cap" is how many a side may field per
-ten squads in a sector.
+The player picks a type when the squad deploys. Each is eight men. "Cap" is how many a side may field per ten squads in
+a sector.
 
-| Type                              | Slots                                                                           | Cap                   | Years                                            |
-| --------------------------------- | ------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------ |
-| Rifle section                     | Leader, 6 riflemen, 1 bomber (from 1915) or rifle grenadier (from 1916)         | —                     | All                                              |
-| Bombing section                   | Leader, 5 bombers, 2 riflemen as bayonet men                                    | 2                     | 1915–                                            |
-| Fire team (_demi-section_, 1916–) | Leader, automatic rifleman, loader, 2 rifle grenadiers, 2 bombers, 1 rifleman   | 2                     | 1916– (French Chauchat), 1917– (German light MG) |
-| Machine-gun team                  | Leader, gunner, loader, 3 ammunition carriers, 2 riflemen                       | 1                     | All                                              |
-| Pioneer section                   | Leader, 6 pioneers, 1 rifleman                                                  | 1                     | All                                              |
-| Mortar crew                       | Leader, 3 crew, 4 carriers                                                      | 1                     | 1915–                                            |
-| Observer party                    | Leader as forward observer, 2 signallers, 2 riflemen (5 men)                    | 1 per sector          | All                                              |
-| Stretcher party                   | Leader, 4 stretcher bearers, 3 riflemen                                         | 1                     | All                                              |
-| Sniper pair                       | Sniper and observer (2 men)                                                     | 1                     | All                                              |
-| Flamethrower team                 | Leader, 2 operators, 2 assistants, 3 bombers                                    | 1                     | 1915– (French), 1916– (German)                   |
-| Storm troop group (_Stoßtrupp_)   | Leader, light machine gun and loader, 3 bombers, flamethrower operator, pioneer | 2                     | 1916– (German, rare until 1918)                  |
-| Anti-tank team                    | Leader, 2 Tankgewehr teams of 2, 3 riflemen                                     | 1                     | 1918 (German)                                    |
-| Tank section                      | 3 Renault FT, 2 crew each (6 men)                                               | See [armour](#armour) | 1918 (French)                                    |
-| Tank crew                         | One Schneider (6) or Saint-Chamond (8), A7V or captured Mark IV                 | See [armour](#armour) | 1917– (French), 1918 (German)                    |
-| Cavalry patrol                    | Leader, 7 troopers, mounted, carbines                                           | 2                     | 1914, late 1918                                  |
-| Armoured car                      | One car, 3–4 crew                                                               | 1                     | 1914, late 1918                                  |
+| Type                    | Men                                                                                                                          | Cap | Years               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --- | ------------------- |
+| **Rifle section**       | Leader, 6 riflemen, 1 bomber                                                                                                 | —   | All                 |
+| **Assault section**     | Leader, 4 bombers, 1 gunner with an automatic rifle (from 1916–17), 2 riflemen                                               | 2   | 1915–               |
+| **Support weapon team** | Leader, gunner, 6 riflemen who feed and carry for the weapon; one machine gun, trench mortar, or (1918) two anti-tank rifles | 2   | All (mortars 1915–) |
+| **Engineer section**    | Leader, 6 engineers, 1 rifleman                                                                                              | 2   | All                 |
 
-The observer party is the [forward observer](artillery-and-air.md#who-fires) role; the stretcher party carries the
-[wounded](soldier-and-squad.md#wounds-and-evacuation-planned-stage-12) back.
+The familiar specialist squads are loadouts of these four:
 
-### Armour
+| Specialist squad                | Is                                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| Bombing section                 | An assault section with every slot on grenades                                     |
+| Fire team (_demi-section_)      | An assault section built round its Chauchat and rifle grenadiers                   |
+| Storm troop group (_Stoßtrupp_) | An assault section in German 1918 kit, with a light machine gun and a flamethrower |
+| Flamethrower team               | An engineer section with two flamethrowers                                         |
+| Observer party                  | Any squad whose leader carries the forward observer's kit                          |
+| Sniper pair                     | Two riflemen with sniper kit, sent out from any squad on a "sniper" order          |
 
-Tanks are allotted by the war map, not chosen freely: a sector gets a number of tanks for an operation, and players of
-the right rank crew them; the rest are driven by bots. A tank lost is gone from the side's pool until replaced at a
-daily turn. See [tanks](armour-and-engineering.md#tanks).
+Mounted and armoured squads, for the years they fought:
+
+| Type               | Men                                                                                                             | Years                         |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| **Cavalry patrol** | Leader and 7 troopers, mounted, with carbines; fight dismounted                                                 | 1914, late 1918               |
+| **Armoured car**   | One car, 3–4 crew; roads and firm ground only                                                                   | 1914, late 1918               |
+| **Tank**           | A section of 3 Renault FT (2 crew each), or one Schneider, Saint-Chamond, A7V or captured Mark IV with its crew | 1917– (French), 1918 (German) |
+
+Tanks are allotted by the war map, not chosen freely: a sector gets a number for an operation, players of the right rank
+crew them, and bots drive the rest. A tank lost is gone from the side's pool until replaced at a daily turn.
+
+## AI services
+
+The jobs that keep a sector running but aren't fun to play are done by bots for the whole side. Players see them at work
+and benefit from them, and what they do makes the services better or worse, but they never have to do them:
+
+| Service              | What the bots do                                                                                        | What players influence                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Stretcher bearers    | Go out to badly wounded men, carry them to the aid post, return [manpower](logistics.md#reinforcements) | Holding ground so they can reach the wounded; a squad can still carry its own man back |
+| Carrying parties     | Bring ammunition, grenades and stores from main dumps to forward dumps                                  | Where the commander puts dumps; keeping communication trenches open                    |
+| Linesmen and runners | Repair cut telephone lines, carry messages when lines are down                                          | Shelling the enemy's lines; where posts are                                            |
+| Working parties      | Repair trenches and relay wire at night from the support and reserve lines                              | Engineers' planned works come first; players can join                                  |
+| Gun crews            | Serve the batteries                                                                                     | Calls for fire, fire plans, counter-battery                                            |
+| The air war          | Balloons, reconnaissance, spotting, ground attack                                                       | Anti-aircraft fire; the main effort vote                                               |
 
 ## Loadouts
 
 Within its type, a squad picks a loadout before deploying. Each man has a **weight budget**; every item has a weight,
 and weight feeds [stamina](morale-and-stamina.md#stamina-planned): a heavily loaded squad runs out of breath sooner.
 
-| Option                          | Trades                                                                                                       |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Extra grenades                  | Fewer rifle rounds; heavier                                                                                  |
-| Extra rifle rounds (bandoliers) | Fewer grenades                                                                                               |
-| Wire cutters for every man      | A grenade each                                                                                               |
-| Shovels                         | Weight; dig in faster after an attack (faster consolidation in the open)                                     |
-| Fighting order (light)          | Leave packs behind: more stamina, fewer rounds and grenades, no greatcoats in winter (morale drains in cold) |
-| Assault order                   | Sandbags of grenades, wire cutters, shovels: heavy, built for taking and holding a trench                    |
-| Gas: second mask or respirator  | Weight; safer in a long gas shoot (from 1917 against Blue and Yellow Cross)                                  |
+| Option                          | Trades                                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Extra grenades                  | Fewer rifle rounds; heavier                                                                                                       |
+| Extra rifle rounds (bandoliers) | Fewer grenades                                                                                                                    |
+| Wire cutters for every man      | A grenade each                                                                                                                    |
+| Shovels                         | Weight; every man digs at half an engineer's rate instead of a quarter (see [field works](field-works.md#who-works-and-how-fast)) |
+| Fighting order (light)          | Leave packs behind: more stamina, fewer rounds and grenades, no greatcoats in winter (morale drains in cold)                      |
+| Assault order                   | Sandbags of grenades, wire cutters, shovels: heavy, built for taking and holding a trench                                         |
+| Gas: second mask or respirator  | Weight; safer in a long gas shoot (from 1917 against Blue and Yellow Cross)                                                       |
 
 Presets per squad type cover the common choices; the player can adjust slot by slot.
 
@@ -103,7 +115,7 @@ better masks cut gas leakage; red trousers make a 1914 Frenchman easier to see a
 
 ## Balance levers
 
-Squad type caps, slot compositions, weight budgets and item weights, carried quantities (see
+Squad type caps, slot compositions, the AI services' strength, weight budgets and item weights, carried quantities (see
 [ammunition on the man](logistics.md#ammunition-on-the-man-planned)), and each year's kit. The
 [balance harness](balance.md#test-harness) runs each year's squads against each other so that no type and no year's kit
 dominates.

@@ -39,8 +39,8 @@ sheltering long before he is dead.
 Today a wounded soldier fights on until health runs out. The planned model gives casualties three outcomes:
 
 - **Lightly wounded**: fights on, slower, with worse aim. Most hits.
-- **Badly wounded**: down and helpless, bleeding out over a few minutes. A squadmate, or a stretcher party, can carry
-  him to an aid post in a support trench. An evacuated man returns **half a man** to the sector's
+- **Badly wounded**: down and helpless, bleeding out over a few minutes. The side's AI stretcher bearers, or a
+  squadmate, can carry him to an aid post in a support trench. An evacuated man returns **half a man** to the sector's
   [manpower pool](sector-battle.md#manpower) (half of the evacuated recover in time for the season), and his squad slot
   refills with a recruit at the next resupply. Abandoned, he dies.
 - **Killed**: out for good, and out of the pool.
@@ -63,14 +63,14 @@ weapon should give one side an edge it can't answer.
 
 Planned, by side:
 
-| Role            | French                                       | German                                                     | Stage |
-| --------------- | -------------------------------------------- | ---------------------------------------------------------- | ----- |
-| Rifle           | Lebel 1886: slower to reload (tube magazine) | Gewehr 98: faster reload (stripper clips)                  | 2     |
-| Light automatic | Chauchat (from mid-1916): unreliable, mobile | None in 1916; more machine guns instead                    | 2     |
-| Machine gun     | Hotchkiss M1914 (strips, air-cooled)         | MG 08 (belts, water-cooled, heavier)                       | 1–2   |
-| Grenade         | F1, plus VB rifle grenades (180 m)           | Stielhandgranate: throws farther                           | 2     |
-| Trench mortar   | 58 mm "crapouillot"                          | Minenwerfer                                                | 2     |
-| Assault special | Rifle grenadiers                             | Flamethrower (pioneers, used at Verdun from February 1916) | 2     |
+| Role            | French                                       | German                                                      | Stage |
+| --------------- | -------------------------------------------- | ----------------------------------------------------------- | ----- |
+| Rifle           | Lebel 1886: slower to reload (tube magazine) | Gewehr 98: faster reload (stripper clips)                   | 2     |
+| Light automatic | Chauchat (from mid-1916): unreliable, mobile | None in 1916; more machine guns instead                     | 2     |
+| Machine gun     | Hotchkiss M1914 (strips, air-cooled)         | MG 08 (belts, water-cooled, heavier)                        | 1–2   |
+| Grenade         | F1, plus VB rifle grenades (180 m)           | Stielhandgranate: throws farther                            | 2     |
+| Trench mortar   | 58 mm "crapouillot"                          | Minenwerfer                                                 | 2     |
+| Assault special | Rifle grenadiers                             | Flamethrower (engineers, used at Verdun from February 1916) | 2     |
 
 Each pair trades something: the Lebel is slower but the French get the Chauchat; the Germans get longer grenade throws
 and the flamethrower, the French get rifle grenades that outrange them. The [balance harness](balance.md#test-harness)
@@ -84,8 +84,8 @@ platoon of squads, not as one shared squad.
 
 ### Squad types (planned, stage 2)
 
-The player picks a type when the squad deploys: rifle section, bombers, machine-gun team, pioneers, mortar crew,
-stretcher party and more, each with roles inside it, a loadout to choose and a cap per sector so the line doesn't fill
+The player picks one of four types when the squad deploys: rifle section, assault section, support weapon team or
+engineer section, each built from five roles, with a loadout to choose and a cap per sector so the line doesn't fill
 with machine guns. The kit changes with the year. All of it is in [roles and loadouts](roles-and-loadouts.md).
 
 ### Orders
@@ -107,7 +107,7 @@ Planned:
 | Bomb along      | Clear a trench toward a point, bay by bay, bombers leading                                                                            |
 | Consolidate     | Turn a captured trench: reverse the fire step, block the trench, put out wire; speeds [consolidation](sector-battle.md#consolidation) |
 | Carry wounded   | Take the nearest badly wounded man to the aid post                                                                                    |
-| Cut or lay wire | Pioneers work a belt by hand: slow, silent, deadly if seen                                                                            |
+| Cut or lay wire | Engineers work a belt by hand: slow, silent, deadly if seen                                                                           |
 | Withdraw        | Fall back to a named trench, covering each other                                                                                      |
 
 Orders need a fast interface: a radial menu on a held key, plus pings on the map. The squad must obey the way a player

@@ -98,7 +98,7 @@ from the simulation; the rest are starting values in these docs.
 | Ground pace on churned ground          | 50% (built)                                          | Cost of crossing a bombarded field          |
 | Counter-attack delay                   | 3 minutes, then a 2-minute bombardment (built)       | Defender's answer                           |
 | Capture time                           | 30 s                                                 | How fast ground changes hands               |
-| Consolidation time                     | 30 minutes, halved by pioneers                       | Counter-attack window, night raids          |
+| Consolidation time                     | 30 minutes, halved by engineers                      | Counter-attack window, night raids          |
 | Redeploy delay                         | 30 s, rising to 90 s as the pool empties (built)     | Cost of dying                               |
 | Force per side per sector              | 500 in stage 2                                       | Server budget, battle density               |
 | Bot replacement floor                  | A quarter of the pool kept for players (built)       | How fast the line thins as reserves run out |

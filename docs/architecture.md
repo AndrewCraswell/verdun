@@ -233,6 +233,9 @@ first candidate for Rust/WebAssembly if profiling demands it.
   with 400 soldiers.
 - **Grid navigation is 2.5D.** Dugouts under trenches and fort interiors may need portal links between grid layers, or
   the Recast fallback below.
+- **Trenches dug during a battle.** [Field works](design/field-works.md#engineering-in-the-code) need trench polylines
+  carved into the height grid at runtime, with the sight heightfield, navigation and trench kit rebuilt locally. Trench
+  stages on existing trenches are cheap; new trenches need a spike on local rebuild cost.
 - **One room is one thread.** A sector's whole simulation shares one Node event loop, so the stage 2 load test sets the
   sector size.
 

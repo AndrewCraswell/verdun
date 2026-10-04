@@ -58,8 +58,8 @@ A **taken** segment becomes **held** when all three are true:
    off by the enemy never consolidates.
 3. Nobody has retaken it in the meantime; retaking resets the clock.
 
-A [pioneer squad's](soldier-and-squad.md#squad-types-planned-stage-2) _consolidate_ order halves the time on the
-segments it works: reversing the fire step, blocking the trench toward the enemy, putting out wire.
+An [engineer section's](roles-and-loadouts.md#squad-types) _consolidate_ order halves the time on the segments it works:
+reversing the fire step, blocking the trench toward the enemy, putting out wire.
 
 Why: consolidation makes the counter-attack (already built: the commander AI goes in about 5 minutes after losing its
 front line) into a decisive window, not an afterthought. It also makes the day's line hard to steal: a raid that grabs a
@@ -150,7 +150,7 @@ What a sector does between operations. Each activity should be worth doing alone
 | Sniping          | One soldier with a scoped rifle in a hide, hunting careless heads                | Kills, enemy suppression                           | 2     |
 | Patrols          | Crawl into no man's land at night, check the enemy wire, find their gaps         | Reveals wire and gaps on the map for the side      | 2     |
 | Raids            | A small party crosses at night, takes prisoners from an enemy bay and comes back | [Intelligence](#raids-and-intelligence), prisoners | 2     |
-| Wire work        | Pioneers repair cut wire or lay new belts, by night                              | Defence for tomorrow; consumes stores              | 2     |
+| Wire work        | Engineers repair cut wire or lay new belts, by night                             | Defence for tomorrow; consumes stores              | 2     |
 | Digging          | Push a sap toward the enemy, or dig a new jump-off trench                        | Shorter crossings for the next operation           | 3     |
 | Mining           | Tunnel under the enemy line over several days, charge it, fire it at zero hour   | A huge crater and a destroyed bay                  | 3     |
 | Countermining    | Listen for enemy miners, dig to meet them, blow their gallery                    | A wrecked enemy project                            | 3     |

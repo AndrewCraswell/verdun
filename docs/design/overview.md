@@ -10,13 +10,14 @@ mechanic, the number is the one in the code today.
 | Doc                                                       | Covers                                                                               |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [Soldier and squad](soldier-and-squad.md)                 | Direct control, soldier state, weapons, squad types, orders, death, deploy           |
-| [Roles and loadouts](roles-and-loadouts.md)               | Roles inside a squad, squad types, loadouts and kit by year                          |
+| [Roles and loadouts](roles-and-loadouts.md)               | Five roles, four squad types, AI services, loadouts and kit by year                  |
 | [Morale and stamina](morale-and-stamina.md)               | Suppression, morale, rally, shell shock, stamina for running, fatigue                |
 | [Sector battle](sector-battle.md)                         | The continuous battle: territory, consolidation, operations, quiet war               |
 | [Operations](operations.md)                               | Scheduled attacks: who decides, where men assemble, zero hour, the defender's answer |
 | [Logistics](logistics.md)                                 | Supply lines, dumps, ammunition, reinforcements, communications                      |
 | [Artillery and air](artillery-and-air.md)                 | Guns and shells by year, batteries, observation, balloons, aircraft                  |
-| [Armour and engineering](armour-and-engineering.md)       | Tanks, armoured cars, anti-tank, mining, mines, digging, flamethrowers               |
+| [Field works](field-works.md)                             | Digging and building: saps, trenches, repairs, nests, dugouts, bunkers, wire, mining |
+| [Armour](armour.md)                                       | Tanks, armoured cars and anti-tank                                                   |
 | [War map and season](war-map-and-season.md)               | Sectors on the front, the daily turn, resources, the season arc, victory             |
 | [Balance](balance.md)                                     | Population, factions, time zones, snowballing, tuning levers, test harness           |
 | [Progression and community](progression-and-community.md) | Onboarding, service record, ranks, veterans, regiments, conduct, rewards             |
@@ -129,6 +130,7 @@ What the simulation already does, and where everything else lands. Stages are th
 | Operations: planning, assembly, waves, counter-preparation                              | Stage 1 (single player), stage 2 |
 | Small-arms ammunition, dumps, carrying parties                                          | Stage 1–2                        |
 | Squad types, roles and loadouts; trench mortars, flamethrowers                          | Stage 2                          |
+| Field works: trench stages, repair, blocks, nests, shelters                             | Stage 2                          |
 | Raids, patrols, intelligence, signal rockets, telephone lines                           | Stage 2                          |
 | Batteries as places, observation, counter-battery                                       | Stage 2                          |
 | Balloons, air superiority, reconnaissance, ground attack                                | Stage 2–3                        |
@@ -136,7 +138,7 @@ What the simulation already does, and where everything else lands. Stages are th
 | Tanks, anti-tank weapons, armoured cars                                                 | Stage 3 (the 1917–18 seasons)    |
 | War map, daily turn, allocations, supply routes, seasons                                | Stage 3 (headless model earlier) |
 | Ranks, service record, veterans, regiments, communiqué                                  | Stage 3                          |
-| Mining, countermining, digging at runtime, booby traps                                  | Stage 3                          |
+| New trenches and saps at runtime, mining, bunkers, booby traps                          | Stage 3                          |
 
 ## Suggested next steps
 

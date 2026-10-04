@@ -72,7 +72,7 @@ The commander sets, on a planning map:
   item shows its cost in shells.
 - **Waves**: how many, how far apart, and what each does (see below).
 - **Mines**: any galleries ready under the objective, fired at zero hour minus 30 s.
-- **After**: where the carrying parties set up the forward dump, which pioneers consolidate, which reserves stay back
+- **After**: where the carrying parties set up the forward dump, which engineers consolidate, which reserves stay back
   for the enemy's counter-attack.
 
 Built today as fixed recipes (B, G); the planning screen comes with operations proper.
@@ -92,8 +92,8 @@ Before zero hour the attacking squads gather in **jump-off positions**. Where an
 | Support-line dugouts                       | For the later waves, safe until they move up                                                                   | The reserves                  |
 
 So the size of an attack is limited by what can be dug in front of it: **massing more men means digging more assembly
-trenches first**, a pioneers' job over the days before. A big offensive is visible on the enemy's air photographs well
-before it starts (see [artillery and air](artillery-and-air.md)).
+trenches first**, an engineers' job over the days before (see [field works](field-works.md#trenches)). A big offensive
+is visible on the enemy's air photographs well before it starts (see [artillery and air](artillery-and-air.md)).
 
 ### The assembly window
 
@@ -147,7 +147,7 @@ The sequence, most of it built for the barrage attack:
 
 The operation ends when the objective is taken or the attackers are back in their own lines. Then:
 
-- The [consolidation](sector-battle.md#consolidation) clock runs, faster where pioneers work and a forward dump is up.
+- The [consolidation](sector-battle.md#consolidation) clock runs, faster where engineers work and a forward dump is up.
 - The defender's counter-attack comes in: immediate (built: the commander AI shells the lost trench and sends its
   reserves in about five minutes later), or prepared within the half hour with fresh shells.
 - The communiqué reports it at the next daily turn, with citations for the squads that did best.

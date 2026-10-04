@@ -43,7 +43,8 @@ At the [daily turn](war-map-and-season.md#the-daily-turn) each sector receives:
 - **Shells by type** into each side's stock: `sim.artillery.ammunition`, drawn by every round fired (being built by the
   gameplay session; a mission stops with an `out-of-shells` event when its type runs out). The daily turn adds to it.
 - **Small-arms ammunition and grenades** into the sector's main dumps.
-- **Engineering stores**: wire, stakes, sandbags, timber, used by the overnight works and by pioneers.
+- **Engineering stores**: wire, stakes, sandbags, timber, used by the overnight works and by engineers'
+  [field works](field-works.md).
 
 Unspent shells and stores carry over, up to two days' allotment.
 
@@ -91,7 +92,7 @@ Today rifles and machine guns never run dry and each man has 3 grenades with no 
 | Rifle grenades         | 6–10 per rifle grenadier                                                        | Rifle grenadiers               |
 | Trench mortar bombs    | A few dozen per crew, carried by the crew's carriers                            | Mortar crews                   |
 | Flares                 | A pistol and 12 cartridges per squad                                            | The squad leader or sentry     |
-| Wire, sandbags         | Pioneers only                                                                   | Wiring and consolidation       |
+| Wire, sandbags         | Engineers only                                                                  | Wiring and consolidation       |
 
 Running low changes behaviour, not just a counter:
 
