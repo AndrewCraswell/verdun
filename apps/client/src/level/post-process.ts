@@ -1,5 +1,7 @@
 import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent"
+import "@babylonjs/core/Rendering/depthRendererSceneComponent"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline"
 import type { Scene } from "@babylonjs/core/scene"
@@ -21,6 +23,20 @@ const MINIATURE = {
   focalLengthPerMetre: 25
 } as const
 
+/**
+ * The depth of field reads depth from a map this fraction of the screen's size, a quarter of the pixels to draw: its
+ * blur needs depth only roughly.
+ */
+const DEPTH_MAP_SCALE = 0.5
+
+interface PostProcessOptions {
+  /**
+   * What the depth map draws, out of what the camera sees. Leave out what lies flat on the ground, such as grass and
+   * litter: the ground under it has the same depth, near enough.
+   */
+  readonly inDepth?: (mesh: AbstractMesh) => boolean
+}
+
 export interface PostProcess {
   readonly pipeline: DefaultRenderingPipeline
   /** Keeps the focus on what the camera is looking at. Call once per frame. */
@@ -33,10 +49,38 @@ export interface PostProcess {
  * sparks glow, and a little film grain over it all. The scene's colour grade (see atmosphere.ts) runs in the pipeline's
  * image processing pass. Resolves null where the engine can't run it.
  */
-export function createPostProcess(scene: Scene, camera: TargetCamera): PostProcess | null {
+export function createPostProcess(
+  scene: Scene,
+  camera: TargetCamera,
+  { inDepth }: PostProcessOptions = {}
+): PostProcess | null {
+  // The depth renderer the depth of field will use, made first so it's made smaller: the pipeline takes it as it finds it.
+  const engine = scene.getEngine()
+  const depthMap = scene.enableDepthRenderer(camera).getDepthMap()
+  const fit = () =>
+    depthMap.resize({
+      width: Math.max(1, Math.round(engine.getRenderWidth() * DEPTH_MAP_SCALE)),
+      height: Math.max(1, Math.round(engine.getRenderHeight() * DEPTH_MAP_SCALE))
+    })
+  fit()
+  const resized = engine.onResizeObservable.add(fit)
+  if (inDepth) {
+    const drawn: AbstractMesh[] = []
+    depthMap.getCustomRenderList = (_layer, visible, count) => {
+      drawn.length = 0
+      for (let index = 0; index < count; index++) {
+        const mesh = visible?.[index]
+        if (mesh && inDepth(mesh)) {
+          drawn.push(mesh)
+        }
+      }
+      return drawn
+    }
+  }
   const pipeline = new DefaultRenderingPipeline("miniature", true, scene, [camera])
   if (!pipeline.isSupported) {
     pipeline.dispose()
+    resized.remove()
     return null
   }
   pipeline.samples = 4
@@ -71,6 +115,7 @@ export function createPostProcess(scene: Scene, camera: TargetCamera): PostProce
       pipeline.depthOfField.fStop = fStop.near + (fStop.far - fStop.near) * zoom
     },
     dispose() {
+      resized.remove()
       pipeline.dispose()
     }
   }

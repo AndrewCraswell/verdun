@@ -48,6 +48,10 @@ describe("castsShadow", () => {
     expect(castsShadow(CreateBox("terrain-0-0", { size: 1 }, scene))).toBe(true)
     expect(castsShadow(CreateBox("Prop_Trench_Planks_01#2", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("Env_Trench_Deep_Straight_01#4", { size: 1 }, scene))).toBe(false)
+    // Batches of kit pieces, by their piece: a tree casts, grass and litter don't.
+    expect(castsShadow(CreateBox("Gen_Env_Tree_Dead_02@1,2", { size: 1 }, scene))).toBe(true)
+    expect(castsShadow(CreateBox("Gen_Env_Grass_01@1,2", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("Chr_Attach_French_Helmet_01@0,0", { size: 1 }, scene))).toBe(false)
   })
 })
 

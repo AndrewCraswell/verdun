@@ -1,8 +1,6 @@
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import type { Material } from "@babylonjs/core/Materials/material"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
-import "@babylonjs/core/Meshes/instancedMesh"
-import type { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
@@ -19,16 +17,19 @@ import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
 import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
+import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
 import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
 import { createScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
-import { createGasCurtain, createTrenchLife, type TrenchLife } from "./trench-life.ts"
+import { brazierTops, createGasCurtain, createTrenchLife, type TrenchLife } from "./trench-life.ts"
 
 export interface BattlefieldDressing {
-  /** One instance of a kit piece per placement. */
-  readonly instances: readonly InstancedMesh[]
+  /** The kit pieces placed on the battlefield, drawn in batches. */
+  readonly scenery: SceneryBatches
+  /** Where the layout put each piece. */
+  readonly placements: readonly Placement[]
   /** Pieces the layout asked for that the kit doesn't have. */
   readonly missing: ReadonlySet<string>
 }
@@ -51,8 +52,8 @@ export function placementMatrix(placement: Placement, pivot?: Vector3): Matrix {
 
 /**
  * Dresses the battlefield with the level kit: the trench kit along every trench, and the art for the map's scenery and
- * wire. Every placement becomes an instance of its kit piece with a frozen world matrix, so props are culled one by one
- * and drawn in one batch per piece.
+ * wire. Every placement is drawn as a thin instance of its kit piece, batched with the same piece nearby (see
+ * scenery-batches.ts).
  */
 export function dressBattlefield(map: BattlefieldMap, kit: LevelKit): BattlefieldDressing {
   const placements = [...layOutTrenchKit(map), ...layOutScenery(map)]
@@ -68,35 +69,20 @@ export function dressBattlefield(map: BattlefieldMap, kit: LevelKit): Battlefiel
     }
   }
 
-  const instances: InstancedMesh[] = []
-  const sources = new Set<Mesh>()
+  const placed: { piece: string; world: Matrix }[] = []
   for (const placement of placements) {
-    const source = kit.pieces.get(placement.piece)
-    if (!source) {
+    if (kit.pieces.has(placement.piece)) {
+      placed.push({ piece: placement.piece, world: placementMatrix(placement, pivots.get(placement.piece)) })
+    } else {
       missing.add(placement.piece)
-      continue
-    }
-    sources.add(source)
-    const instance = source.createInstance(`${placement.piece}#${instances.length}`)
-    instance.isPickable = false
-    instance.freezeWorldMatrix(placementMatrix(placement, pivots.get(placement.piece)))
-    instances.push(instance)
-  }
-  // Instances draw through their source mesh, which stays enabled but never draws itself.
-  for (const source of sources) {
-    source.setEnabled(true)
-    source.isVisible = false
-    const distance = DRAW_DISTANCE[source.name]
-    if (distance !== undefined) {
-      source.addLODLevel(distance, null)
     }
   }
-  return { instances, missing }
+  return { scenery: batchScenery(kit.pieces, placed, DRAW_DISTANCE), placements, missing }
 }
 
 /**
- * Small pieces stop drawing beyond these distances from the camera, in metres: from the zoomed-out view a duckboard or
- * a splinter is a pixel, and there are thousands of them.
+ * Small pieces stop drawing beyond these distances from the camera, in metres, measured to the nearest of their batch:
+ * from the zoomed-out view a duckboard or a splinter is a pixel, and there are thousands of them.
  */
 const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Prop_Trench_Planks_01: 120,
@@ -267,20 +253,23 @@ export async function dressLevel(
   const pieces = new Map(kit.pieces).set(curtain.name, curtain)
   const dressed = dressBattlefield(map, { ...kit, pieces })
   const woods = surroundings ? plantBackdrop(map, surroundings, pieces) : []
-  const life = createTrenchLife(view.scene, map, dressed.instances, kit.fx)
+  const life = createTrenchLife(view.scene, map, brazierTops(dressed.placements, pieces), kit.fx)
   const bursts = createShellBursts(view.scene, map, kit.fx, wind)
   const dressing = {
     ...dressed,
     ground,
     atmosphere,
-    damage: createBattleDamage(pieces, dressed.instances),
+    damage: createBattleDamage(dressed.scenery),
     bursts,
     aftermath: createShellAftermath(view.scene, map, view.camera, kit.fx, scorch, wind, (event) => {
       bursts.burst(event)
       life.crows.scare(event.at.x, event.at.z)
     }),
     life,
-    postProcess: createPostProcess(view.scene, view.camera),
+    // Small pieces lie flat on the ground: the depth of field takes their depth from the ground under them.
+    postProcess: createPostProcess(view.scene, view.camera, {
+      inDepth: (mesh) => DRAW_DISTANCE[mesh.name.split("@")[0] ?? ""] === undefined
+    }),
     materials: [...kit.materials, ...(curtain.material ? [curtain.material] : [])],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,
@@ -289,6 +278,10 @@ export async function dressLevel(
     woods
   }
   const ambience = dressing.ambience
+  // Detail, far copy or nothing for each batch, by the drawing camera's distance, before the scene culls them.
+  view.scene.onBeforeActiveMeshesEvaluationObservable.add(() => {
+    dressed.scenery.update((view.scene.activeCamera ?? view.camera).globalPosition)
+  })
   view.scene.onBeforeRenderObservable.add(() => {
     const target = view.camera.getTarget()
     const frameSeconds = view.scene.getEngine().getDeltaTime() / 1000

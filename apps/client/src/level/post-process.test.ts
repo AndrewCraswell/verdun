@@ -1,8 +1,9 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { createPostProcess } from "./post-process.ts"
 
 const engines: NullEngine[] = []
@@ -43,5 +44,24 @@ describe("createPostProcess", () => {
     expect(closeUp.pipeline.bloomEnabled && closeUp.pipeline.grainEnabled).toBe(true)
     closeUp.dispose()
     overview.dispose()
+  })
+
+  it("draws the depth the focus reads at half the screen's size, leaving out what it's told to", () => {
+    const { scene, camera } = setup(40)
+    const engine = scene.getEngine()
+    const post = createPostProcess(scene, camera, { inDepth: (mesh) => !mesh.name.startsWith("grass") })
+    const depth = scene.enableDepthRenderer(camera).getDepthMap()
+
+    expect(depth.getSize().width).toBe(Math.round(engine.getRenderWidth() / 2))
+    const grass = new Mesh("grass", scene)
+    const wall = new Mesh("wall", scene)
+    expect(depth.getCustomRenderList?.(0, [grass, wall], 2)).toEqual([wall])
+    expect(depth.getCustomRenderList?.(0, null, 0)).toEqual([])
+    // It keeps to half the screen as the window changes size.
+    vi.spyOn(engine, "getRenderWidth").mockReturnValue(400)
+    vi.spyOn(engine, "getRenderHeight").mockReturnValue(300)
+    engine.onResizeObservable.notifyObservers(engine)
+    expect(depth.getSize()).toEqual({ width: 200, height: 150 })
+    post?.dispose()
   })
 })

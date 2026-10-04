@@ -323,9 +323,16 @@ The dev server serves the raw kit at `/level-kit/`. **Production builds never sh
 inside the encrypted asset pack below ([licensing](assets/licensing.md)). Without the kit the game falls back to the
 greybox: flat-coloured terrain with plain carved trenches.
 
-In the game, every placement is an `InstancedMesh` of its kit piece with a frozen world matrix, so props are culled one
-by one and drawn in one batch per piece. Heavy pieces switch to their far copy beyond 110 m, and small clutter such as
-duckboards and splinters stops drawing beyond 120–220 m. Zoomed fully out the sector draws about 1.6 M triangles.
+In the game, placements are drawn in batches ([scenery-batches.ts](../apps/client/src/level/scenery-batches.ts)): every
+placement of a kit piece within a 128 m cell of the map is a thin instance of one mesh, or within the whole map for a
+piece placed fewer than about fifty times. Each batch has a Geometry of its own over the piece's vertex and index
+buffers, which aren't copied: Babylon keeps thin instances in the Geometry, so batches sharing one would draw each
+other's. The sector's 14,500 props make about 525 batches, so Babylon, which tests every mesh against the view every
+frame (again for each shadow cascade and for the depth of field's depth pass), tests a few hundred meshes instead of
+14,500. Heavy pieces switch to their far copy beyond 110 m and small clutter such as duckboards and splinters stops
+drawing beyond 50–220 m, both measured to the nearest point of the batch, so pieces near the camera always draw. Grass,
+litter, planks and the like cast no shadows and stay out of the depth of field's depth map, which is drawn at half the
+screen's size. Zoomed fully out the sector draws about 1.6 M triangles.
 
 ### Asset pack
 
@@ -407,8 +414,8 @@ still span the map from west to east. Client and simulation must load the same l
 - `?webgl` forces WebGL2 in dev builds, to test the GLSL shaders. It also helps automated checks when the browser pane
   is hidden: a hidden page gets no animation frames, but under WebGL `view.scene.render()` followed by the canvas's
   `toDataURL()` still captures a frame.
-- `window.verdun.level` holds the placed instances, any pieces the kit was missing, the atmosphere, the shell damage and
-  the ambience.
+- `window.verdun.level` holds the batched scenery (`scenery.batches`, `scenery.near(x, z, radius)`), the placements, any
+  pieces the kit was missing, the atmosphere, the shell damage and the ambience.
 - **Death map**: J toggles a faint red disc wherever a soldier has fallen. Discs pile into solid red on the killing
   grounds. The record survives reloads, so it builds up over a playtest; `window.verdun.deaths.clear()` starts afresh
   and `points()` exports it.

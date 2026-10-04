@@ -4,7 +4,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
-import type { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
 import { carveTrenches, createFlatMap, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -97,25 +97,28 @@ describe("placementMatrix", () => {
 })
 
 describe("dressBattlefield", () => {
-  it("instances a kit piece for every placement, and reports pieces the kit lacks", () => {
+  it("draws a thin instance of a kit piece for every placement, and reports pieces the kit lacks", () => {
     const { kit } = kitOf(Object.values(TRENCH_PIECES).flat())
     const dressing = dressBattlefield(trenchMap(), kit)
+    const drawn = dressing.scenery.batches.reduce((total, batch) => total + batch.mesh.thinInstanceCount, 0)
 
-    expect(dressing.instances.length).toBeGreaterThan(20)
-    expect(dressing.instances.every((instance) => instance.isWorldMatrixFrozen)).toBe(true)
+    expect(drawn).toBeGreaterThan(20)
+    expect(drawn).toBe(dressing.placements.filter((placement) => kit.pieces.has(placement.piece)).length)
     expect(dressing.missing.has("Bld_City_Destroyed_01")).toBe(false)
-    // Sources draw only through their instances.
+    // The kit's pieces stay templates: the batches draw their geometry.
     const straight = kit.pieces.get(TRENCH_PIECES.straights[0])
-    expect(straight?.isEnabled()).toBe(true)
-    expect(straight?.isVisible).toBe(false)
+    expect(straight?.isEnabled()).toBe(false)
+    const batch = dressing.scenery.batches.find((each) => each.piece === TRENCH_PIECES.straights[0])
+    expect(batch?.mesh.getVertexBuffer("position")?.getWrapperBuffer()).toBe(
+      straight?.getVertexBuffer("position")?.getWrapperBuffer()
+    )
   })
 
   it("stands pieces modelled off their middle on their middle", () => {
     const { kit } = kitOf([])
     const dressing = dressBattlefield(trenchMap(), kit)
-    const [ruin] = dressing.instances
-    ruin?.computeWorldMatrix(true)
-    const centre = ruin?.getBoundingInfo().boundingBox.centerWorld
+    const [ruin] = dressing.scenery.batches
+    const centre = ruin?.mesh.getBoundingInfo().boundingBox.centerWorld
 
     expect(centre?.x).toBeCloseTo(40)
     expect(centre?.z).toBeCloseTo(60)
@@ -149,9 +152,22 @@ describe("dressLevel", () => {
 
     const dressing = await dressLevel(battlefield, map)
 
-    expect(dressing?.instances.length).toBeGreaterThan(0)
+    expect(dressing?.scenery.batches.length).toBeGreaterThan(0)
     expect(battlefield.groundMaterial.pluginManager?.getPlugin("GroundSplat")).toBeTruthy()
     expect(shape).toHaveBeenCalledOnce()
+    // Every frame picks each batch's detail by the camera's distance, before the scene culls them.
+    const scenery = dressing?.scenery
+    if (!scenery) {
+      throw new Error("the level should be dressed")
+    }
+    const update = vi.spyOn(scenery, "update")
+    scene.render()
+    expect(update).toHaveBeenCalledWith(battlefield.camera.globalPosition)
+    // The depth of field takes grass's depth from the ground under it.
+    const depth = scene.enableDepthRenderer(battlefield.camera).getDepthMap()
+    const grass = new Mesh("Gen_Env_Grass_01@0,0", scene)
+    const end = new Mesh(`${TRENCH_PIECES.end}@0,0`, scene)
+    expect(depth.getCustomRenderList?.(0, [grass, end], 2)).toEqual([end])
     // The stand-in kit has no straight sections, so it warns which pieces are missing.
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("missing"),

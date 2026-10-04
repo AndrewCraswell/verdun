@@ -4,7 +4,6 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import "@babylonjs/core/Meshes/instancedMesh"
-import type { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
@@ -14,6 +13,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { Sprite } from "@babylonjs/core/Sprites/sprite"
 import { SpriteManager } from "@babylonjs/core/Sprites/spriteManager"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import type { Placement } from "./placement.ts"
 import { TRENCH_PIECES } from "./trench-dressing.ts"
 
 /** A blanket a metre wide and 1.6 m deep, hanging in its x = 0 plane, pleated where it was folded. */
@@ -70,24 +70,31 @@ export interface TrenchLife {
   dispose(): void
 }
 
+/** The middle of the open top of every brazier the dressing placed: the kit's drum, at each one's height and size. */
+export function brazierTops(placements: readonly Placement[], pieces: ReadonlyMap<string, Mesh>): Vector3[] {
+  const drum = pieces.get(TRENCH_PIECES.brazier)
+  if (!drum) {
+    return []
+  }
+  const rim = drum.getBoundingInfo().boundingBox.maximum.y
+  return placements
+    .filter((placement) => placement.piece === TRENCH_PIECES.brazier)
+    .map((placement) => new Vector3(placement.x, placement.y + rim * (placement.scale?.[1] ?? 1), placement.z))
+}
+
 /**
- * Fire in every brazier the dressing placed, with sparks rising from it, and crows on the wire.
+ * Fire in every brazier, its drum's open top at `tops`, with sparks rising from it, and crows on the wire.
  */
 export function createTrenchLife(
   scene: Scene,
   map: BattlefieldMap,
-  instances: readonly InstancedMesh[],
+  tops: readonly Vector3[],
   sprites: TrenchLifeSprites
 ): TrenchLife {
-  const drums = instances.filter((instance) => instance.name.startsWith(`${TRENCH_PIECES.brazier}#`))
-  const sheet = new SpriteManager("brazier-fires", "", Math.max(1, drums.length), 128, scene)
+  const sheet = new SpriteManager("brazier-fires", "", Math.max(1, tops.length), 128, scene)
   sheet.texture = sprites.fire
   sheet.blendMode = Constants.ALPHA_ADD
   sheet.isPickable = false
-  const tops = drums.map((drum) => {
-    const top = drum.getBoundingInfo().boundingBox.maximumWorld
-    return new Vector3(drum.absolutePosition.x, top.y, drum.absolutePosition.z)
-  })
   const braziers = tops.map((top, index) => {
     const sprite = new Sprite("brazier-fire", sheet)
     sprite.position.set(top.x, top.y + 0.28, top.z)

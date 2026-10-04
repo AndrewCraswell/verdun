@@ -1,11 +1,13 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
+import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { TRENCH_PIECES } from "./trench-dressing.ts"
-import { createCrows, createGasCurtain, createTrenchLife } from "./trench-life.ts"
+import { brazierTops, createCrows, createGasCurtain, createTrenchLife } from "./trench-life.ts"
 
 const engines: NullEngine[] = []
 
@@ -52,17 +54,31 @@ describe("createGasCurtain", () => {
   })
 })
 
+describe("brazierTops", () => {
+  it("finds the open top of every brazier placed, at its height and size", () => {
+    const world = scene()
+    const drum = CreateBox(TRENCH_PIECES.brazier, { size: 1 }, world)
+    const pieces = new Map<string, Mesh>([[drum.name, drum]])
+    const placements = [
+      { piece: TRENCH_PIECES.brazier, x: 20, y: 2, z: 30, yaw: 0, scale: [1, 0.5, 1] as const },
+      { piece: "crate", x: 5, y: 2, z: 5, yaw: 0 }
+    ]
+
+    const [top, ...others] = brazierTops(placements, pieces)
+
+    expect(others).toHaveLength(0)
+    expect(top?.x).toBe(20)
+    expect(top?.y).toBeCloseTo(2.25)
+    expect(brazierTops(placements, new Map())).toHaveLength(0)
+  })
+})
+
 describe("createTrenchLife", () => {
   it("lights a fire in every brazier, with sparks rising from them", () => {
     const world = scene()
-    const drum = CreateBox(TRENCH_PIECES.brazier, { size: 1 }, world)
-    const instance = drum.createInstance(`${TRENCH_PIECES.brazier}#0`)
-    instance.position.set(20, 2.5, 30)
-    instance.computeWorldMatrix(true)
-    const other = CreateBox("crate", { size: 1 }, world).createInstance("crate#1")
     const sprite = new Texture(null, world)
 
-    const life = createTrenchLife(world, field, [instance, other], { fire: sprite, ember: sprite })
+    const life = createTrenchLife(world, field, [new Vector3(20, 3, 30)], { fire: sprite, ember: sprite })
     life.update(0.1)
 
     expect(life.braziers).toHaveLength(1)

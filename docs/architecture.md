@@ -177,8 +177,8 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - **Terrain**: chunked heightfield meshes (32–64 m) rebuilt from the simulation grid; craters re-mesh only their chunk.
   Custom NodeMaterial splat shader over 6–8 KTX2 layers (Babylon's `TerrainMaterial` blends only 3).
 - **Trench walls**: Synty trench kit pieces instanced along trench polylines (Megascans revetments in the remaster).
-  Every prop is an `InstancedMesh` with a frozen world matrix and distance LODs; around trenches the ground is drawn
-  under the kit rather than at the simulation's heights. See [level design](level-design.md).
+  Props are thin instances batched by piece and 128 m cell, with distance LODs per batch; around trenches the ground is
+  drawn under the kit rather than at the simulation's heights. See [level design](level-design.md).
 - `MeshUVSpaceRenderer` decal maps for persistent scorch marks.
 - Fog of war from a visibility texture computed from line of sight.
 - Gas as low-lying fog driven by the density grid, plus particles.
