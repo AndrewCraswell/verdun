@@ -193,7 +193,12 @@ first candidate for Rust/WebAssembly if profiling demands it.
   of them low into the ground round his feet, from a hash of the shot rather than the simulation's dice, so a machine
   gun's fire shows its beaten zone. Streaks and flashes are camera-facing thin instances at least a couple of pixels
   wide; smoke and dirt are lit by the air like the level's other particles and kicked up only near the camera. A point
-  light flashes at the nearest muzzle after dark (`level/night-light.ts`).
+  light flashes at the nearest muzzle after dark (`level/night-light.ts`). A miss is followed along its whole flight: it
+  stops where it first meets the ground, and hits the wire of any belt it crosses within a metre of the ground, throwing
+  sparks; striking within 2.5 m of a trench's edge it bursts the parapet's sandbags in pale dust. Machine guns heat a
+  round at a time and cool at four rounds a second: past 60 rounds of steady fire a German MG 08's water jacket boils
+  and steams, and a French Hotchkiss, air-cooled, smokes faintly from its barrel (`heat`). Each strike is told to
+  listeners with what it hit (`onStrike`: ground, wire or parapet), for its sound.
 - Clustered lighting (Babylon 9) for flares and muzzle flashes.
 - WebGPU first with automatic WebGL2 fallback. WebGPU saves CPU, not GPU, so it won't rescue an over-budget crowd.
 

@@ -12,7 +12,7 @@ import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { type ShotEvent, type Simulation, Weapon } from "@verdun/sim"
+import { isInTrench, type ShotEvent, Side, type Simulation, Weapon, wireAt } from "@verdun/sim"
 import { airLight, lightParticles, setInFog } from "../level/particle-light.ts"
 import type { GraphicsQuality } from "../settings/graphics.ts"
 import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
@@ -42,6 +42,19 @@ const TRACER_COLOR = new Color3(1, 0.62, 0.28)
 const FLASH_COLOR = new Color3(1, 0.8, 0.45)
 /** A machine gun's smoke: one puff in this many rounds. */
 const SMOKE_EVERY = 3
+/** A round striking within this far of a trench's edge, outside it, hits its parapet: sandbags and thrown-up earth. */
+const PARAPET = 2.5
+/** Barbed wire stands about this high: a round crossing a belt lower than this, in metres, hits it. */
+const WIRE_HEIGHT = 1
+/** A miss is followed this many metres at a time, for wire and ground in its way. */
+const FOLLOW_STEP = 2
+/**
+ * Machine guns heat as they fire, a round at a time, and cool at `cools` rounds a second. The German MG 08's water
+ * jacket boils after about `boils` rounds of steady fire and steams `puffs` times a second until it cools; the French
+ * Hotchkiss, cooled by air through its finned barrel, smokes faintly instead. Shortened from the hundreds of rounds it
+ * took in truth, so a long burst in a battle shows it.
+ */
+const HEAT = { boils: 60, cools: 4, most: 150, puffs: 3 } as const
 
 interface Round {
   readonly from: Vector3
@@ -50,8 +63,8 @@ interface Round {
   /** Metres to where it stops: its man, the ground, or out of sight. */
   readonly range: number
   readonly tracer: boolean
-  /** Whether it strikes the ground where it stops, kicking up dirt. */
-  readonly strikes: boolean
+  /** What it strikes where it stops, kicking up dirt, dust or sparks; null if it stops at its man or flies on. */
+  readonly strikes: StrikeOn | null
   flown: number
 }
 
@@ -62,9 +75,13 @@ interface Flash {
   age: number
 }
 
-/** A round striking the ground, as the dirt is kicked up: where, and when on the effect's clock, in seconds. */
+/** What a round strikes: earth, a belt of wire, or the sandbags of a parapet. */
+export type StrikeOn = "ground" | "wire" | "parapet"
+
+/** A round striking the ground, as the dirt is kicked up: where, what it hit, and when on the effect's clock, in seconds. */
 export interface Strike {
   readonly at: Vector3
+  readonly on: StrikeOn
   readonly time: number
 }
 
@@ -79,6 +96,12 @@ export interface Tracers {
   /** Muzzle smoke, and the dirt misses kick up. */
   readonly smoke: ParticleSystem
   readonly dirt: ParticleSystem
+  /** Sparks off wire, dust off sandbags, and steam off a water-cooled machine gun firing hard. */
+  readonly sparks: ParticleSystem
+  readonly dust: ParticleSystem
+  readonly steam: ParticleSystem
+  /** How hot each machine gun is, in rounds of steady fire, by its gunner. */
+  readonly heat: ReadonlyMap<number, number>
   /** Rounds in flight. */
   readonly rounds: number
   /**
@@ -254,8 +277,54 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
   dirt.color1 = new Color4(0.42, 0.35, 0.27, 0.75)
   dirt.color2 = new Color4(0.33, 0.28, 0.22, 0.6)
   dirt.colorDead = new Color4(0.3, 0.26, 0.2, 0)
-  const relight = lightParticles([smoke, dirt])
-  setInFog([smoke, dirt])
+  // Sparks: hot steel off wire, too quick and bright for the fog or the dark to dim.
+  const sparks = puffs(scene, "wire-sparks", 400, puffMap)
+  sparks.blendMode = ParticleSystem.BLENDMODE_ADD
+  sparks.minSize = 0.04
+  sparks.maxSize = 0.09
+  sparks.minLifeTime = 0.08
+  sparks.maxLifeTime = 0.3
+  sparks.minEmitPower = 2
+  sparks.maxEmitPower = 6
+  sparks.direction1 = new Vector3(-1, 0.4, -1)
+  sparks.direction2 = new Vector3(1, 1.2, 1)
+  sparks.gravity = new Vector3(0, -9.8, 0)
+  sparks.color1 = new Color4(2.2, 1.7, 0.9, 1)
+  sparks.color2 = new Color4(2, 1.1, 0.4, 1)
+  sparks.colorDead = new Color4(0.8, 0.2, 0, 0)
+  // Dust: sandbags burst and the parapet's dry earth flies, paler and puffier than the field's mud.
+  const dust = puffs(scene, "parapet-dust", 800, puffMap)
+  dust.minSize = 0.3
+  dust.maxSize = 0.6
+  dust.addSizeGradient(0, 0.6)
+  dust.addSizeGradient(1, 2.6)
+  dust.minLifeTime = 0.8
+  dust.maxLifeTime = 1.6
+  dust.minEmitPower = 0.6
+  dust.maxEmitPower = 1.6
+  dust.direction1 = new Vector3(-0.5, 0.8, -0.5)
+  dust.direction2 = new Vector3(0.5, 1.2, 0.5)
+  dust.gravity = new Vector3(0, -1.5, 0)
+  dust.color1 = new Color4(0.72, 0.67, 0.56, 0.6)
+  dust.color2 = new Color4(0.64, 0.6, 0.5, 0.45)
+  dust.colorDead = new Color4(0.62, 0.58, 0.5, 0)
+  // Steam: the water jacket boiling over through its vent, white and rising, drifting off on the wind.
+  const steam = puffs(scene, "gun-steam", 400, puffMap)
+  steam.minSize = 0.35
+  steam.maxSize = 0.6
+  steam.addSizeGradient(0, 0.5)
+  steam.addSizeGradient(1, 3)
+  steam.minLifeTime = 1.4
+  steam.maxLifeTime = 2.6
+  steam.minEmitPower = 0.4
+  steam.maxEmitPower = 0.9
+  steam.direction1 = new Vector3(-0.2, 1, -0.2)
+  steam.direction2 = new Vector3(0.2, 1, 0.2)
+  steam.color1 = new Color4(0.94, 0.95, 0.97, 0.4)
+  steam.color2 = new Color4(0.88, 0.9, 0.93, 0.3)
+  steam.colorDead = new Color4(0.85, 0.87, 0.9, 0)
+  const relight = lightParticles([smoke, dirt, dust, steam])
+  setInFog([smoke, dirt, dust, steam])
   const airLit = new Color3(1, 1, 1)
 
   // Where the next puffs start, one entry a particle, taken in turn as Babylon emits them.
@@ -270,6 +339,19 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
     lastAt.dirt = dirtAt.shift() ?? lastAt.dirt
     position.copyFrom(lastAt.dirt)
   }
+  /** Starts a system's particles at the points queued for it, one a particle, in turn. */
+  const queued = (system: ParticleSystem): Vector3[] => {
+    const queue: Vector3[] = []
+    let last = Vector3.Zero()
+    system.startPositionFunction = (_world, position) => {
+      last = queue.shift() ?? last
+      position.copyFrom(last)
+    }
+    return queue
+  }
+  const sparksAt = queued(sparks)
+  const dustAt = queued(dust)
+  const steamAt = queued(steam)
   const emit = (system: ParticleSystem, queue: Vector3[], at: Vector3, count: number) => {
     for (let particle = 0; particle < count; particle++) {
       queue.push(at)
@@ -282,6 +364,8 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
   let rounds: Round[] = []
   let flashing: Flash[] = []
   const fired = new Map<number, number>()
+  const heat = new Map<number, number>()
+  let steamOwed = 0
   let shotCount = 0
   const { sim, camera } = sources
 
@@ -290,8 +374,22 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
     return Math.abs(point.x - target.x) < NEAR && Math.abs(point.z - target.z) < NEAR
   }
 
+  /** What a round striking the ground there hits: a parapet if a trench's edge is near, else plain earth. */
+  const strikeOn = (at: Vector3): StrikeOn => {
+    if (isInTrench(sim.map, at.x, at.z)) {
+      return "ground"
+    }
+    const besideTrench = [
+      [PARAPET, 0],
+      [-PARAPET, 0],
+      [0, PARAPET],
+      [0, -PARAPET]
+    ].some(([dx, dz]) => isInTrench(sim.map, at.x + (dx ?? 0), at.z + (dz ?? 0)))
+    return besideTrench ? "parapet" : "ground"
+  }
+
   /** Where a miss stops: on past its man, scattered, until it meets the ground or flies out of sight. */
-  const missEnd = (from: Vector3, to: Vector3, shot: number): { end: Vector3; strikes: boolean } => {
+  const missEnd = (from: Vector3, to: Vector3, shot: number): { end: Vector3; strikes: StrikeOn | null } => {
     const aim = to.subtract(from)
     const distance = aim.length()
     const forward = aim.scale(1 / Math.max(distance, 1e-6))
@@ -302,13 +400,19 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       .add(new Vector3(0, (scatter(shot, 2) - MISS.high) * Math.max(MISS.low, spread) * 2.5, 0))
     const along = to.add(offset).subtract(from).normalize()
     const reach = distance * (1 + MISS.beyond) + 20
-    for (let flown = Math.max(1, distance - 3); flown <= reach; flown += 1) {
+    // Followed all the way, a couple of metres at a time: it stops where it first meets the ground, a rise in between
+    // or the ground round its man, and hits the wire of any belt it crosses within a metre of the ground.
+    for (let flown = 1; flown <= reach; flown += FOLLOW_STEP) {
       const point = from.add(along.scale(flown))
-      if (point.y <= heightAt(sim.map, point.x, point.z) + 0.05) {
-        return { end: point, strikes: true }
+      const ground = heightAt(sim.map, point.x, point.z)
+      if (point.y <= ground + 0.05) {
+        return { end: point, strikes: strikeOn(point) }
+      }
+      if (point.y - ground < WIRE_HEIGHT && wireAt(sim.wire, point.x, point.z) > 0) {
+        return { end: point, strikes: "wire" }
       }
     }
-    return { end: from.add(along.scale(reach)), strikes: false }
+    return { end: from.add(along.scale(reach)), strikes: null }
   }
 
   const right = new Vector3()
@@ -361,6 +465,10 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
     flashes,
     smoke,
     dirt,
+    sparks,
+    dust,
+    steam,
+    heat,
     get rounds() {
       return rounds.length
     },
@@ -378,7 +486,10 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
         }
         const forward = aim.scale(1 / distance)
         const muzzle = eye.add(forward.scale(FLASH.forward)).add(new Vector3(0, -FLASH.drop, 0))
-        const { end, strikes } = event.hit ? { end: to, strikes: false } : missEnd(muzzle, to, shotCount)
+        if (machineGun) {
+          heat.set(event.shooter, Math.min(HEAT.most, (heat.get(event.shooter) ?? 0) + 1))
+        }
+        const { end, strikes } = event.hit ? { end: to, strikes: null } : missEnd(muzzle, to, shotCount)
         const flight = end.subtract(muzzle)
         const count = (fired.get(event.shooter) ?? 0) + 1
         fired.set(event.shooter, count)
@@ -427,6 +538,34 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       }
       relight.update(airLight(scene, airLit))
       smoke.gravity.set(sim.wind.x * 0.12, 0.15, sim.wind.z * 0.12)
+      steam.gravity.set(sim.wind.x * 0.15, 0.4, sim.wind.z * 0.15)
+
+      // Machine guns cool between bursts; a German gun boiling steams, a French one smokes faintly from its barrel.
+      steamOwed += frameSeconds * HEAT.puffs * (low ? 0.5 : 1)
+      const puffsNow = Math.floor(steamOwed)
+      steamOwed -= puffsNow
+      for (const [gunner, warmth] of heat) {
+        const cooled = warmth - HEAT.cools * frameSeconds
+        if (cooled <= 0) {
+          heat.delete(gunner)
+          continue
+        }
+        heat.set(gunner, cooled)
+        if (cooled < HEAT.boils || puffsNow === 0) {
+          continue
+        }
+        const x = sim.soldiers.position.x[gunner] ?? 0
+        const z = sim.soldiers.position.z[gunner] ?? 0
+        const at = new Vector3(x, heightAt(sim.map, x, z) + 1, z)
+        if (!near(at)) {
+          continue
+        }
+        if (sim.soldiers.side.value[gunner] === Side.German) {
+          emit(steam, steamAt, at, puffsNow)
+        } else if (!low) {
+          emit(smoke, smokeAt, at, puffsNow)
+        }
+      }
 
       // Fly the rounds: the head moves at the bullet's speed, the tail follows a streak behind, stopping at the end.
       let streaks = 0
@@ -436,12 +575,20 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       rounds = rounds.filter((round) => {
         const before = round.flown
         round.flown += BULLET_SPEED * frameSeconds
-        if (before < round.range && round.flown >= round.range && round.strikes) {
+        if (before < round.range && round.flown >= round.range && round.strikes !== null) {
           const at = round.from.add(round.along.scale(round.range))
+          const on = round.strikes
           if (near(at)) {
-            emit(dirt, dirtAt, at, low ? 2 : 5)
+            if (on === "wire") {
+              emit(sparks, sparksAt, at, low ? 3 : 6)
+              emit(dirt, dirtAt, at, 1)
+            } else if (on === "parapet") {
+              emit(dust, dustAt, at, low ? 2 : 4)
+            } else {
+              emit(dirt, dirtAt, at, low ? 2 : 5)
+            }
           }
-          onStrike.notifyObservers({ at, time: clock })
+          onStrike.notifyObservers({ at, on, time: clock })
         }
         const length = round.tracer ? TRACER.length : STREAK.length
         const head = Math.min(round.flown, round.range)
@@ -505,6 +652,9 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       onStrike.clear()
       smoke.dispose()
       dirt.dispose()
+      sparks.dispose()
+      dust.dispose()
+      steam.dispose()
       for (const map of [streakMap, flashMap, puffMap]) {
         map.dispose()
       }
