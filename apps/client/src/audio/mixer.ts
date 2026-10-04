@@ -11,6 +11,8 @@
  * starts on the player's first click or key press, as browsers require.
  */
 
+import { createTuning, type Tuning } from "./tuning.ts"
+
 /** How the listener's surroundings colour what they hear, each from 0 (not there) to 1. */
 export interface Space {
   /** Down in a trench: tight, earthy reflections off walls a metre away, the sky above. */
@@ -39,6 +41,16 @@ export interface Voice {
   readonly detune: number
   readonly bus: "battle" | "ears" | "ambience"
   readonly loop?: boolean
+  /** What's playing, for the mixer panel's readout. */
+  readonly name?: string
+}
+
+/** A sound that started lately, for the mixer panel. */
+export interface Played {
+  readonly name: string
+  readonly volume: number
+  /** Seconds, on the mixer's clock. */
+  readonly at: number
 }
 
 /** A looping bed whose level can be set while it plays. */
@@ -62,6 +74,10 @@ export interface Mixer {
   shock(depth: number): void
   /** Voices sounding now. */
   readonly sounding: number
+  /** The mix's levels: buses, sounds and beds. */
+  readonly tuning: Tuning
+  /** The latest sounds to start, newest last. */
+  readonly recent: readonly Played[]
 }
 
 /** More voices than this at once is mud: the quietest gives way. */
@@ -75,6 +91,9 @@ const AMBIENCE_DUCK = 0.6
 const SPACE_FADE = 0.4
 /** Seconds a bed takes to reach a new level. */
 const BED_FADE = 1
+/** Sounds the mixer remembers having started, for the panel. */
+const RECENT = 24
+const BUSES = ["master", "battle", "ambience", "ears"] as const
 
 interface Reverb {
   readonly seconds: number
@@ -156,14 +175,30 @@ export function getMixer(): Mixer {
 }
 
 function createMixer(context: AudioContext): Mixer {
-  const master = context.createGain()
-  master.connect(context.destination)
+  const tuning = createTuning(import.meta.env.DEV)
+  // Each bus feeds a trim the mix sets, so ducking and tuning never fight over one gain.
+  const trims: Readonly<Record<(typeof BUSES)[number], GainNode>> = {
+    master: context.createGain(),
+    battle: context.createGain(),
+    ambience: context.createGain(),
+    ears: context.createGain()
+  }
+  const retrim = () => {
+    for (const bus of BUSES) {
+      trims[bus].gain.value = tuning.level(`bus:${bus}`)
+    }
+  }
+  retrim()
+  tuning.onChange(retrim)
+  trims.master.connect(context.destination)
+  const master = trims.master
   const battle = context.createGain()
-  battle.connect(master)
+  battle.connect(trims.battle).connect(master)
   const ambience = context.createGain()
-  ambience.connect(master)
+  ambience.connect(trims.ambience).connect(master)
   const ears = context.createGain()
-  ears.connect(master)
+  ears.connect(trims.ears).connect(master)
+  const recent: Played[] = []
   const send = context.createGain()
   const reverb = (name: keyof Space, seed: number): GainNode => {
     const level = context.createGain()
@@ -203,6 +238,8 @@ function createMixer(context: AudioContext): Mixer {
     get sounding() {
       return active.length
     },
+    tuning,
+    recent,
     play(voice) {
       if (voice.bus === "battle" && active.length >= MAX_VOICES) {
         let quietest = 0
@@ -248,6 +285,10 @@ function createMixer(context: AudioContext): Mixer {
         source.disconnect()
       }
       source.start(context.currentTime + Math.max(0, voice.delay))
+      if (voice.name) {
+        recent.push({ name: voice.name, volume: voice.volume, at: context.currentTime + Math.max(0, voice.delay) })
+        recent.splice(0, Math.max(0, recent.length - RECENT))
+      }
       return source
     },
     bed(buffer) {

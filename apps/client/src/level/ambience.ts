@@ -70,6 +70,7 @@ export interface Ambience {
 }
 
 interface Bed {
+  readonly name: string
   readonly gain: GainNode
   readonly level: number
   readonly weight: (x: number, z: number) => number
@@ -110,10 +111,10 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
     return gain
   }
   const beds: Bed[] = [
-    { gain: loop(noMansLand), level: BED_LEVELS["no-mans-land"], weight: zones.noMansLand },
-    { gain: loop(wood), level: BED_LEVELS.wood, weight: zones.wood },
-    { gain: loop(rear), level: BED_LEVELS.rear, weight: (x, z) => 1 - zones.noMansLand(x, z) },
-    { gain: loop(ruins), level: BED_LEVELS.ruins, weight: zones.ruins }
+    { name: "no-mans-land", gain: loop(noMansLand), level: BED_LEVELS["no-mans-land"], weight: zones.noMansLand },
+    { name: "wood", gain: loop(wood), level: BED_LEVELS.wood, weight: zones.wood },
+    { name: "rear", gain: loop(rear), level: BED_LEVELS.rear, weight: (x, z) => 1 - zones.noMansLand(x, z) },
+    { name: "ruins", gain: loop(ruins), level: BED_LEVELS.ruins, weight: zones.ruins }
   ]
   const guns = [gun1, gun2].filter((gun): gun is AudioBuffer => gun !== undefined)
   let untilGun = GUNS.minGap
@@ -122,7 +123,7 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
     update(x, z, frameSeconds) {
       const fade = Math.min(1, frameSeconds * FADE_RATE)
       for (const bed of beds) {
-        const target = bed.level * bed.weight(x, z)
+        const target = bed.level * bed.weight(x, z) * mixer.tuning.level(`ambience:${bed.name}`)
         bed.gain.gain.value += (target - bed.gain.gain.value) * fade
       }
       untilGun -= frameSeconds
@@ -134,7 +135,8 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
         const pan = context.createStereoPanner()
         pan.pan.value = Math.random() * 1.6 - 0.8
         const gain = context.createGain()
-        gain.gain.value = GUNS.minVolume + Math.random() * (GUNS.maxVolume - GUNS.minVolume)
+        const loudness = GUNS.minVolume + Math.random() * (GUNS.maxVolume - GUNS.minVolume)
+        gain.gain.value = loudness * mixer.tuning.level("ambience:guns-far")
         source.connect(pan).connect(gain).connect(mixer.ambience)
         source.onended = () => source.disconnect()
         source.start()

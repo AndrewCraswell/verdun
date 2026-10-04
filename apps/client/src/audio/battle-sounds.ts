@@ -163,6 +163,10 @@ async function startBattleSounds(
   options: BattleSoundPlayerOptions
 ): Promise<BattleSounds> {
   const mixer = getMixer()
+  if (import.meta.env.DEV) {
+    // The sound mixer panel (M), for setting the mix by ear.
+    void import("../dev/sound-mixer.ts").then(({ installSoundMixer }) => installSoundMixer(mixer))
+  }
   const decoded = await decodeAll(mixer.context, files)
   const model = createBattleSoundModel(sim, options)
   const atmosphere = createAtmosphereModel(sim, { ownThunder: !options.lightning })
@@ -181,8 +185,9 @@ async function startBattleSounds(
     if (buffer) {
       const bus = busFor(call.cue)
       mixer.play({
+        name: call.cue,
         buffer,
-        volume: call.volume,
+        volume: call.volume * mixer.tuning.level(call.cue),
         pan: call.pan,
         delay: call.delay,
         cutoff: call.cutoff,
@@ -208,10 +213,11 @@ async function startBattleSounds(
       const calls = [...model.step(listener), ...atmosphere.step(listener), ...(level?.step(listener) ?? [])]
       if (sim.tick % BED_INTERVAL === 0) {
         const levels = atmosphere.levels(listener)
-        beds.rain?.setLevel(levels.rain * BED_VOLUMES.rain)
-        beds.wind?.setLevel(levels.wind * BED_VOLUMES.wind)
-        beds["front-roar"]?.setLevel(levels.roar * BED_VOLUMES["front-roar"])
-        beds.fire?.setLevel(options.level ? fireLevel(options.level, listener) * BED_VOLUMES.fire : 0)
+        const tuned = (cue: keyof typeof BED_VOLUMES) => BED_VOLUMES[cue] * mixer.tuning.level(cue)
+        beds.rain?.setLevel(levels.rain * tuned("rain"))
+        beds.wind?.setLevel(levels.wind * tuned("wind"))
+        beds["front-roar"]?.setLevel(levels.roar * tuned("front-roar"))
+        beds.fire?.setLevel(options.level ? fireLevel(options.level, listener) * tuned("fire") : 0)
       }
       const shock = model.takeShock()
       if (shock > 0) {
@@ -227,7 +233,7 @@ async function startBattleSounds(
       if (masked && !breathing && buffer) {
         breathing = mixer.play({
           buffer,
-          volume: BREATHING_VOLUME,
+          volume: BREATHING_VOLUME * mixer.tuning.level("mask-breath"),
           pan: 0,
           delay: 0,
           cutoff: 20000,
