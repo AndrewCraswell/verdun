@@ -23,6 +23,7 @@ mechanic, the number is the one in the code today.
 | [How systems interact](interactions.md)                   | Weather, light, ground, shellfire, gas, supply and the soldier's state acting on each other, with limits |
 | [Progression and community](progression-and-community.md) | Onboarding, service record, ranks, veterans, regiments, conduct, rewards                                 |
 | [Version 1 scope](version-1.md)                           | What the first release contains (1916 at Verdun) and what comes after                                    |
+| [Interface](interface.md)                                 | The designer's brief: HUD, world markers, screen effects, menus, options and screens, by stage           |
 
 ## Pillars
 
