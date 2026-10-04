@@ -20,7 +20,11 @@
     "verify": "run-s check:format check:lint check:types check:unused test:coverage build",
     "lockfile:normalize": "node scripts/normalize-lockfile.mjs",
     "assets:unpack": "node scripts/extract-unitypackage.mjs",
-    "prepare": "lefthook install"
+    "assets:pack": "node scripts/build-asset-pack.mjs",
+    "map:export-tiled": "node scripts/export-tiled.mjs",
+    "prepare": "lefthook install",
+    "map:analyze": "node scripts/analyze-sector.mjs",
+    "map:elevation": "node scripts/fetch-elevation.mjs"
   },
   "devDependencies": {
     "knip": "^6.38.0",

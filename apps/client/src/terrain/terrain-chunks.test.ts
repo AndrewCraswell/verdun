@@ -67,6 +67,25 @@ describe("createTerrainChunks", () => {
     expect(Math.max(...Array.from(rebuilt).filter((_, i) => i % 3 === 1))).toBe(5)
   })
 
+  it("reshapes the ground around trenches for the trench kit on request", () => {
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [10, 20],
+        [50, 20]
+      ],
+      facing: "north"
+    }
+    const { terrain } = setup(64, 64, 2, [trench])
+    const lowest = () =>
+      Math.min(...Array.from(terrain.meshes[0]?.getVerticesData("position") ?? []).filter((_, i) => i % 3 === 1))
+    const before = lowest()
+
+    terrain.shapeForTrenchKit()
+
+    expect(lowest()).toBeLessThan(before)
+  })
+
   it("rejects render steps that don't divide a chunk", () => {
     expect(() => setup(64, 64, 3)).toThrow(RangeError)
   })

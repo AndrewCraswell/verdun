@@ -1,7 +1,8 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
-import { type ChangedArea, generatePrototypeSector, mergeAreas } from "@verdun/map"
+import { type ChangedArea, decodeElevation, generateFleurySector, mergeAreas } from "@verdun/map"
+import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
 import {
   createFixedStepper,
   createLineOfSight,
@@ -17,12 +18,15 @@ import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createExplosions } from "./effects/explosions.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
+import { blastRadius } from "./level/battle-damage.ts"
+import { dressLevel } from "./level/dress-battlefield.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, setupSkirmish } from "./skirmish.ts"
 import "./style.css"
 
-/** WebGPU first, WebGL2 where the browser lacks it. */
+/** WebGPU first, WebGL2 where the browser lacks it. Dev builds take `?webgl` to force WebGL2, for testing it. */
 async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
-  if (await WebGPUEngine.IsSupportedAsync) {
+  const forceWebGL = import.meta.env.DEV && new URLSearchParams(location.search).has("webgl")
+  if (!forceWebGL && (await WebGPUEngine.IsSupportedAsync)) {
     const engine = new WebGPUEngine(canvas, { antialias: true })
     await engine.initAsync()
     return engine
@@ -37,19 +41,14 @@ async function start(): Promise<void> {
   }
 
   const engine = await createEngine(canvas)
-  // Prototype sector: 600 m x 400 m at the simulation's 0.5 m resolution.
-  const map = generatePrototypeSector({
-    name: "Prototype sector",
-    widthMeters: 600,
-    depthMeters: 400,
-    cellSize: 0.5,
-    seed: 1916,
-    amplitude: 14
-  })
+  // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
+  const elevation = decodeElevation(await (await fetch(elevationUrl)).arrayBuffer())
+  const map = generateFleurySector({ seed: 1916, elevation })
   const sim = createSimulation({ map, seed: 1916 })
   const { playerSquad } = setupSkirmish(sim)
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
+  const level = await dressLevel(view, map)
   const stepper = createFixedStepper(STEP_SECONDS)
 
   // The player commands the squad in the middle of the French front line.
@@ -79,12 +78,16 @@ async function start(): Promise<void> {
   const fog = createFogOfWar(view.scene, sim, lineOfSight, {
     squad: playerSquad,
     groundMaterial: view.groundMaterial,
+    // Props darken with the ground they stand on.
+    materials: level?.materials,
     enabled: false
   })
   view.camera.radius = 60
   if (import.meta.env.DEV) {
     // Dev-only handle for inspecting the running game from the browser console and automated checks.
-    Object.assign(window, { verdun: { engine, sim, view, control, fog, lineOfSight } })
+    const { installDeathMap } = await import("./dev/death-map.ts")
+    const deaths = installDeathMap(view.scene, sim)
+    Object.assign(window, { verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths } })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
     installInspectorToggle(view.scene)
   }
@@ -102,6 +105,7 @@ async function start(): Promise<void> {
           explosions.add([event])
           if (event.crater) {
             cratered = mergeAreas(cratered, event.crater)
+            level?.damage.blast(event.at.x, event.at.z, blastRadius(event.crater))
           }
         }
       }

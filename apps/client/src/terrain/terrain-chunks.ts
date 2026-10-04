@@ -3,6 +3,12 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, TRENCH_PROFILE } from "@verdun/map"
 import { buildChunkGeometry, type ChunkBounds, type SurfaceColors } from "./chunk-geometry.ts"
+import { createRenderHeights } from "./render-heights.ts"
+
+/** Vertex attribute holding each vertex's ground texture weights, read by the ground splat material plugin. */
+export const SPLAT_ATTRIBUTE = "splat"
+/** Vertex attribute holding each vertex's wetness, read by the ground splat material plugin. */
+export const WETNESS_ATTRIBUTE = "groundWetness"
 
 /** Terrain is split into square chunks this many metres on a side, so local changes rebuild only nearby chunks. */
 export const CHUNK_SIZE_METERS = 64
@@ -27,13 +33,18 @@ export interface TerrainChunks {
    * crater, a dug trench). Returns how many chunks were rebuilt.
    */
   rebuildRegion(minX: number, minZ: number, maxX: number, maxZ: number): number
+  /**
+   * Shapes the ground around trenches to sit under the trench kit, once its pieces line the trenches, and rebuilds
+   * every chunk, trench chunks too at the coarser render step. See render-heights.ts.
+   */
+  shapeForTrenchKit(): void
   dispose(): void
 }
 
 interface Chunk {
   readonly mesh: Mesh
   readonly bounds: ChunkBounds
-  readonly step: number
+  step: number
 }
 
 /** World-space boxes around each trench segment, wide enough to include its parapet. */
@@ -88,8 +99,18 @@ export function createTerrainChunks(
     }
   }
 
+  let renderHeights = createRenderHeights(map, false)
   function build(chunk: Chunk): void {
-    buildChunkGeometry(map, chunk.bounds, chunk.step, surfaceColors).applyToMesh(chunk.mesh, true)
+    const { vertexData, splat, wetness } = buildChunkGeometry(
+      map,
+      chunk.bounds,
+      chunk.step,
+      surfaceColors,
+      renderHeights
+    )
+    vertexData.applyToMesh(chunk.mesh, true)
+    chunk.mesh.setVerticesData(SPLAT_ATTRIBUTE, splat, true, 4)
+    chunk.mesh.setVerticesData(WETNESS_ATTRIBUTE, wetness, true, 1)
   }
   chunks.forEach(build)
 
@@ -102,6 +123,8 @@ export function createTerrainChunks(
       const maxColumn = Math.ceil(maxX / map.cellSize) + margin
       const minRow = Math.floor(minZ / map.cellSize) - margin
       const maxRow = Math.ceil(maxZ / map.cellSize) + margin
+      // Render heights near trenches take their neighbours' minimum, so they reach one sample past the change.
+      renderHeights.update(minColumn - 1, minRow - 1, maxColumn + 1, maxRow + 1)
       let rebuilt = 0
       for (const chunk of chunks) {
         const { firstColumn, lastColumn, firstRow, lastRow } = chunk.bounds
@@ -111,6 +134,14 @@ export function createTerrainChunks(
         }
       }
       return rebuilt
+    },
+    shapeForTrenchKit() {
+      renderHeights = createRenderHeights(map, true)
+      // The kit stands in for the trench's own shape, so trench chunks no longer need every sample.
+      for (const chunk of chunks) {
+        chunk.step = renderStep
+        build(chunk)
+      }
     },
     dispose() {
       for (const chunk of chunks) {

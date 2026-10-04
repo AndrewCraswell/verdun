@@ -29,9 +29,10 @@ describe("carveTrenches", () => {
     // Parapet of spoil beyond it, tapering to nothing.
     expect(heightAt(map, 20, 21.5)).toBeGreaterThan(10)
     expect(heightAt(map, 20, 23)).toBeCloseTo(10)
-    // No fire step behind: the floor, then a low parados.
-    expect(heightAt(map, 20, 19)).toBeGreaterThan(10)
-    expect(heightAt(map, 20, 19)).toBeLessThan(10 + TRENCH_PROFILE.parapetHeight)
+    // No fire step behind: the floor runs back to the rear wall, then a low parados.
+    expect(heightAt(map, 20, 19)).toBeCloseTo(10 - TRENCH_PROFILE.floorDepth)
+    expect(heightAt(map, 20, 18.5)).toBeGreaterThan(10)
+    expect(heightAt(map, 20, 18.5)).toBeLessThan(10 + TRENCH_PROFILE.paradosHeight)
   })
 
   it("marks the trench as mud and leaves the ground beyond untouched", () => {
@@ -50,7 +51,7 @@ describe("carveTrenches", () => {
     expect(carveTrenches(createFlatMap({ name: "x", cellSize: 1, columns: 4, rows: 4 }), [])).toBeNull()
   })
 
-  it("digs communication trenches as plain slots with no step or parapet", () => {
+  it("digs communication trenches wall to wall with no fire step, and heaps spoil either side", () => {
     const map = createFlatMap({ name: "test", cellSize: 0.5, columns: 40, rows: 40 }, 5)
     carveTrenches(map, [
       {
@@ -64,8 +65,10 @@ describe("carveTrenches", () => {
     ])
 
     expect(heightAt(map, 10, 10)).toBeCloseTo(5 - TRENCH_PROFILE.communicationDepth)
-    expect(heightAt(map, 11, 10)).toBe(5)
-    expect(heightAt(map, 9, 10)).toBe(5)
+    expect(heightAt(map, 11, 10)).toBeCloseTo(5 - TRENCH_PROFILE.communicationDepth)
+    expect(heightAt(map, 8.5, 10)).toBeGreaterThan(5)
+    expect(heightAt(map, 11.5, 10)).toBeGreaterThan(5)
+    expect(heightAt(map, 13.5, 10)).toBe(5)
   })
 
   it("faces south-facing trenches the other way", () => {

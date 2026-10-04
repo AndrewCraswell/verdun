@@ -15,8 +15,8 @@ export const palette = {
  * Flat ground colours per surface, in the muted version 1 palette: Synty-style flat colour, no photographic textures.
  */
 export const surfaceColors: Readonly<Record<Surface, Color3>> = {
-  [Surface.Grass]: Color3.FromHexString("#5f6343"),
+  [Surface.Grass]: Color3.FromHexString("#55593d"),
   [Surface.Mud]: Color3.FromHexString("#574636"),
-  [Surface.Chalk]: Color3.FromHexString("#a29c8b"),
+  [Surface.Chalk]: Color3.FromHexString("#8e897b"),
   [Surface.Churned]: Color3.FromHexString("#43372b")
 }

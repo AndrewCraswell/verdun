@@ -16,11 +16,13 @@
   },
   "dependencies": {
     "@babylonjs/core": "catalog:",
+    "@babylonjs/loaders": "catalog:",
     "@verdun/map": "workspace:*",
     "@verdun/sim": "workspace:*"
   },
   "devDependencies": {
     "@babylonjs/inspector": "catalog:",
+    "@types/node": "catalog:",
     "@verdun/oxlint-config": "workspace:*",
     "@verdun/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "catalog:",

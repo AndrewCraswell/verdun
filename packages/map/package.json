@@ -6,7 +6,8 @@
   "type": "module",
   "description": "Versioned battlefield map format, height sampling and procedural terrain generation.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./data/*": "./data/*"
   },
   "scripts": {
     "check:types": "tsc --noEmit",

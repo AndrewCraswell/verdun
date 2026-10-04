@@ -1,7 +1,8 @@
+import type { Objective, Scenery, WireBelt } from "./scenery.ts"
 import type { Trench } from "./trenches.ts"
 
 /** Bump when the shape of a saved map changes, and add a migration for older files in serialization.ts. */
-export const MAP_FORMAT_VERSION = 3
+export const MAP_FORMAT_VERSION = 4
 
 /** Ground surface types. Stored per height sample, so terrain materials blend smoothly between them. */
 export const Surface = {
@@ -35,6 +36,12 @@ export interface BattlefieldMap {
   readonly surfaces: Uint8Array
   /** Trench lines, already carved into `heights`. Added in version 3. */
   readonly trenches: readonly Trench[]
+  /** Ruins, trees, guns and other things standing on the ground. Added in version 4. */
+  readonly scenery: readonly Scenery[]
+  /** Barbed-wire belts. Added in version 4. */
+  readonly wire: readonly WireBelt[]
+  /** Ground to take and hold. Added in version 4. */
+  readonly objectives: readonly Objective[]
 }
 
 interface MapDimensions {
@@ -68,7 +75,10 @@ export function createFlatMap(
     rows,
     heights: new Float32Array(samples).fill(height),
     surfaces: new Uint8Array(samples).fill(surface),
-    trenches: []
+    trenches: [],
+    scenery: [],
+    wire: [],
+    objectives: []
   }
 }
 

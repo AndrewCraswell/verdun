@@ -33,7 +33,12 @@ describe("sampleSteps", () => {
 describe("buildChunkGeometry", () => {
   it("lays out a vertex grid at world positions with two triangles per quad", () => {
     const map = createFlatMap({ name: "test", cellSize: 0.5, columns: 8, rows: 8 }, 2)
-    const data = buildChunkGeometry(map, { firstColumn: 4, lastColumn: 8, firstRow: 0, lastRow: 4 }, 2, surfaceColors)
+    const data = buildChunkGeometry(
+      map,
+      { firstColumn: 4, lastColumn: 8, firstRow: 0, lastRow: 4 },
+      2,
+      surfaceColors
+    ).vertexData
     const positions = triples(data, "positions")
 
     expect(positions).toHaveLength(9)
@@ -52,13 +57,18 @@ describe("buildChunkGeometry", () => {
       seed: 9,
       amplitude: 10
     })
-    const left = buildChunkGeometry(map, { firstColumn: 0, lastColumn: 64, firstRow: 0, lastRow: 64 }, 2, surfaceColors)
+    const left = buildChunkGeometry(
+      map,
+      { firstColumn: 0, lastColumn: 64, firstRow: 0, lastRow: 64 },
+      2,
+      surfaceColors
+    ).vertexData
     const right = buildChunkGeometry(
       map,
       { firstColumn: 64, lastColumn: 128, firstRow: 0, lastRow: 64 },
       2,
       surfaceColors
-    )
+    ).vertexData
     const rowLength = 33
 
     for (let row = 0; row < 33; row++) {
@@ -78,7 +88,12 @@ describe("buildChunkGeometry", () => {
         map.heights[sampleIndex(map, column, row)] = column
       }
     }
-    const data = buildChunkGeometry(map, { firstColumn: 0, lastColumn: 4, firstRow: 0, lastRow: 4 }, 1, surfaceColors)
+    const data = buildChunkGeometry(
+      map,
+      { firstColumn: 0, lastColumn: 4, firstRow: 0, lastRow: 4 },
+      1,
+      surfaceColors
+    ).vertexData
     const [x, y, z] = triples(data, "normals")[12]
 
     expect(x).toBeCloseTo(-Math.SQRT1_2)
@@ -94,7 +109,7 @@ describe("buildChunkGeometry", () => {
       map.surfaces[sampleIndex(map, column, 1)] = Surface.Churned
     }
     const colors = quads(
-      buildChunkGeometry(map, { firstColumn: 0, lastColumn: 40, firstRow: 0, lastRow: 1 }, 1, surfaceColors)
+      buildChunkGeometry(map, { firstColumn: 0, lastColumn: 40, firstRow: 0, lastRow: 1 }, 1, surfaceColors).vertexData
     )
 
     expect(isShadeOf(colors[2], Surface.Chalk)).toBe(true)
@@ -106,11 +121,50 @@ describe("buildChunkGeometry", () => {
     expect(colors[2]?.[3]).toBe(1)
   })
 
+  it("weights the ground textures by the same blend, with the brightness variation last", () => {
+    const map = createFlatMap({ name: "strip", cellSize: 0.5, columns: 40, rows: 1 }, 0, Surface.Grass)
+    for (let column = 20; column <= 40; column++) {
+      map.surfaces[sampleIndex(map, column, 0)] = Surface.Chalk
+      map.surfaces[sampleIndex(map, column, 1)] = Surface.Chalk
+    }
+    const { vertexData, splat } = buildChunkGeometry(
+      map,
+      { firstColumn: 0, lastColumn: 40, firstRow: 0, lastRow: 1 },
+      1,
+      surfaceColors
+    )
+    const weights = (vertex: number) => Array.from(splat.subarray(vertex * 4, vertex * 4 + 4))
+
+    expect(splat).toHaveLength(((vertexData.positions?.length ?? 0) / 3) * 4)
+    expect(weights(2).slice(0, 3)).toEqual([1, 0, 0])
+    expect(weights(30).slice(0, 3)).toEqual([0, 0, 1])
+    const [grass = 0, , chalk = 0, shade = 0] = weights(20)
+    expect(grass).toBeGreaterThan(0)
+    expect(chalk).toBeGreaterThan(0)
+    expect(grass + chalk).toBeCloseTo(1)
+    expect(shade).toBeGreaterThan(0.85)
+    expect(shade).toBeLessThan(1.15)
+  })
+
+  it("draws the heights and shading it is given instead of the map's", () => {
+    const map = createFlatMap({ name: "test", cellSize: 0.5, columns: 4, rows: 4 }, 2)
+    const bounds = { firstColumn: 0, lastColumn: 4, firstRow: 0, lastRow: 4 }
+    const heights = new Float32Array(map.heights.length).fill(-1)
+    const plain = buildChunkGeometry(map, bounds, 1, surfaceColors)
+    const shaded = buildChunkGeometry(map, bounds, 1, surfaceColors, {
+      heights,
+      shade: new Float32Array(map.heights.length).fill(0.5)
+    })
+
+    expect(triples(shaded.vertexData, "positions").every(([, y]) => y === -1)).toBe(true)
+    expect(shaded.splat[3]).toBeCloseTo((plain.splat[3] ?? 0) * 0.5)
+  })
+
   it("treats unknown surface values as mud rather than failing", () => {
     const map = createFlatMap({ name: "corrupt", cellSize: 0.5, columns: 1, rows: 1 })
     map.surfaces.fill(99)
     const [first] = quads(
-      buildChunkGeometry(map, { firstColumn: 0, lastColumn: 1, firstRow: 0, lastRow: 1 }, 1, surfaceColors)
+      buildChunkGeometry(map, { firstColumn: 0, lastColumn: 1, firstRow: 0, lastRow: 1 }, 1, surfaceColors).vertexData
     )
 
     expect(isShadeOf(first, Surface.Mud)).toBe(true)
@@ -120,6 +174,7 @@ describe("buildChunkGeometry", () => {
     const map = createFlatMap({ name: "wide", cellSize: 0.5, columns: 400, rows: 400 }, 0, Surface.Grass)
     const reds = quads(
       buildChunkGeometry(map, { firstColumn: 0, lastColumn: 400, firstRow: 0, lastRow: 400 }, 8, surfaceColors)
+        .vertexData
     ).map(([r]) => r ?? 0)
 
     expect(Math.max(...reds) - Math.min(...reds)).toBeGreaterThan(surfaceColors[Surface.Grass].r * 0.05)

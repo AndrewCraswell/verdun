@@ -48,7 +48,7 @@ apps/
   warmap/              (stage 3) front state, seasons, accounts
 packages/
   sim/                 game rules: ECS, commands, fixed step, snapshots; later physics, line of sight, flow fields, gas, combat, AI
-  map/                 versioned map format, height sampling, procedural terrain; later trenches, Tiled import
+  map/                 versioned map format, height sampling, trench tracing, the Fleury sector; later Tiled import
   net/                 (stage 2) binary snapshot protocol, relevance filtering, Schema mirror of the controlled soldier
   typescript-config/   shared tsconfig bases: `pure` (no DOM, no Node) for sim and map, `vite` for the client
   oxlint-config/       shared lint rules
@@ -156,6 +156,8 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - **Terrain**: chunked heightfield meshes (32–64 m) rebuilt from the simulation grid; craters re-mesh only their chunk.
   Custom NodeMaterial splat shader over 6–8 KTX2 layers (Babylon's `TerrainMaterial` blends only 3).
 - **Trench walls**: Synty trench kit pieces instanced along trench polylines (Megascans revetments in the remaster).
+  Every prop is an `InstancedMesh` with a frozen world matrix and distance LODs; around trenches the ground is drawn
+  under the kit rather than at the simulation's heights. See [level design](level-design.md).
 - `MeshUVSpaceRenderer` decal maps for persistent scorch marks.
 - Fog of war from a visibility texture computed from line of sight.
 - Gas as low-lying fog driven by the density grid, plus particles.

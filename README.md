@@ -26,13 +26,20 @@ pnpm verify
 `pnpm dev` serves the game at http://localhost:5173. `pnpm verify` runs the format check, lint, type check, knip, tests
 with coverage, and the production build.
 
-| Path                         | Contents                                                  |
-| ---------------------------- | --------------------------------------------------------- |
-| `apps/client`                | Babylon.js game client (Vite)                             |
-| `packages/sim`               | Pure, deterministic simulation (bitECS)                   |
-| `packages/map`               | Versioned map format, height sampling, procedural terrain |
-| `packages/typescript-config` | Shared tsconfig bases                                     |
-| `packages/oxlint-config`     | Shared lint rules                                         |
+The battlefield's Synty art comes from the level kit, built from the purchased packs in `vendor/` (see
+[level design](docs/level-design.md#level-kit)). Without it the game runs as greybox.
+
+```bash
+blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level
+```
+
+| Path                         | Contents                                                 |
+| ---------------------------- | -------------------------------------------------------- |
+| `apps/client`                | Babylon.js game client (Vite)                            |
+| `packages/sim`               | Pure, deterministic simulation (bitECS)                  |
+| `packages/map`               | Versioned map format, height sampling, the Fleury sector |
+| `packages/typescript-config` | Shared tsconfig bases                                    |
+| `packages/oxlint-config`     | Shared lint rules                                        |
 
 ### Controls (prototype)
 
@@ -53,6 +60,11 @@ with coverage, and the production build.
 | K                        | Dev builds only: kill the soldier you control                 |
 | \`                       | Dev builds only: open Babylon's Inspector                     |
 
+## Credits
+
+Terrain of the Fleury sector: © IGN, LiDAR HD, under
+[Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
+
 ## Documentation
 
 ### Design
@@ -61,6 +73,7 @@ with coverage, and the production build.
 | ---------------------------------------- | ------------------------------------------------- |
 | [Vision](docs/vision.md)                 | Game design: squads, sectors, mechanics, platform |
 | [Roadmap](docs/roadmap.md)               | Stages and prototype milestones                   |
+| [Level design](docs/level-design.md)     | The Fleury sector, trench kit and level kit       |
 | [Open questions](docs/open-questions.md) | Decisions still to make                           |
 
 ### Engineering

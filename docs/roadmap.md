@@ -66,10 +66,12 @@ Until then everything stays greybox: placeholder terrain, capsule soldiers, plai
 ### Art and level design phase (after the playtest)
 
 Only once the playtest shows the core loop is fun. Version 1 uses the
-[Synty packs](assets/art-direction.md#version-1-synty-polygon) throughout:
+[Synty packs](assets/art-direction.md#version-1-synty-polygon) throughout.
 
-- Terrain in flat Synty-style palette colours for mud, chalk, grass and churned ground.
-- Synty trench kit pieces along the trench polylines: trench walls, firesteps, dugouts, bunkers, sandbags, wire.
+Started early: the prototype battlefield is now the authored [Fleury sector](level-design.md), with Synty ground
+textures, the trench kit along every trench, wire, craters, ruins, woods and emplacements, in dev builds only until the
+encrypted asset pack (M7) exists. Still to come:
+
 - Level authoring: the in-game editor and Tiled import (see [tooling](tooling.md#editor-plan)), and real elevation data.
 - Lighting, smoke, weather and the global colour grade.
 

@@ -91,6 +91,59 @@ describe("map documents", () => {
     expect(() => fromMapDocument({ ...valid, trenches: ["line"] })).toThrow("trench")
   })
 
+  it("round-trip scenery and wire, and load older files without any", () => {
+    const map = {
+      ...createFlatMap({ name: "m", cellSize: 1, columns: 2, rows: 2 }),
+      scenery: [{ kind: "ruin" as const, x: 1, z: 1.5, heading: 0.5, variant: 2, scale: 1 }],
+      objectives: [{ name: "Fleury", x: 1, z: 1, radius: 30 }],
+      wire: [
+        {
+          points: [
+            [0, 1],
+            [2, 1.5]
+          ] as const
+        }
+      ]
+    }
+    const restored = fromMapDocument(structuredClone(toMapDocument(map)))
+    const legacy = fromMapDocument({
+      ...toMapDocument(map),
+      version: 3,
+      scenery: undefined,
+      wire: undefined,
+      objectives: undefined
+    })
+
+    expect(restored.scenery).toEqual(map.scenery)
+    expect(restored.wire).toEqual(map.wire)
+    expect(restored.objectives).toEqual(map.objectives)
+    expect(legacy.scenery).toEqual([])
+    expect(legacy.wire).toEqual([])
+    expect(legacy.objectives).toEqual([])
+    expect(legacy.version).toBe(MAP_FORMAT_VERSION)
+  })
+
+  it("rejects malformed scenery and wire", () => {
+    const valid = toMapDocument(createFlatMap({ name: "m", cellSize: 1, columns: 1, rows: 1 }))
+    const item = { kind: "tree", x: 0, z: 0, heading: 0, variant: 0, scale: 1 }
+
+    expect(() => fromMapDocument({ ...valid, scenery: undefined })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, scenery: [{ ...item, kind: "castle" }] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, scenery: [{ ...item, scale: 0 }] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, scenery: [{ ...item, variant: 1.5 }] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, scenery: [{ ...item, x: Number.NaN }] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, scenery: ["tree"] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...valid, wire: undefined })).toThrow("wire")
+    expect(() => fromMapDocument({ ...valid, wire: [{ points: [[0, 0]] }] })).toThrow("wire")
+    expect(() => fromMapDocument({ ...valid, wire: [{ points: [[0, 0], [1]] }] })).toThrow("wire")
+    expect(() => fromMapDocument({ ...valid, wire: [null] })).toThrow("wire")
+    expect(() => fromMapDocument({ ...valid, objectives: undefined })).toThrow("objectives")
+    expect(() => fromMapDocument({ ...valid, objectives: [{ name: "Fleury", x: 0, z: 0, radius: 0 }] })).toThrow(
+      "objectives"
+    )
+    expect(() => fromMapDocument({ ...valid, objectives: [{ name: 3, x: 0, z: 0, radius: 5 }] })).toThrow("objectives")
+  })
+
   it("rejects documents that are not objects", () => {
     expect(() => fromMapDocument(null)).toThrow("must be an object")
     expect(() => fromMapDocument("map")).toThrow("must be an object")

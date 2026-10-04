@@ -14,21 +14,29 @@ export interface Trench {
   readonly facing: "north" | "south" | null
 }
 
-/** Trench cross-section, in metres. Distances are from the trench centre line. */
+/**
+ * Trench cross-section, in metres, matched to the Synty deep trench kit the client lines trenches with: revetted walls
+ * 2.2 m apart, a floor 1.9 m down, and lips of spoil either side. Distances are from the trench centre line.
+ */
 export const TRENCH_PROFILE = {
-  floorHalfWidth: 0.6,
-  floorDepth: 2,
-  /** A soldier standing on the fire step sees, and shoots, over the parapet: eye height 1.65 m clears it by 0.25 m. */
+  /** The fire step starts this far in front of the centre line; the floor is the rest of the width behind it. */
+  floorHalfWidth: 0.35,
+  /** The revetted walls stand this far either side of the centre line. */
+  wallHalfWidth: 1.1,
+  /** The spoil heaped either side is highest this far from the centre line. */
+  lipCrest: 1.9,
+  floorDepth: 1.9,
+  /** A soldier standing on the fire step sees, and shoots, over the parapet: eye height 1.65 m clears it by 0.4 m. */
   fireStepOuter: 1.1,
-  fireStepDepth: 1,
-  parapetOuter: 2.6,
+  fireStepDepth: 0.85,
+  parapetOuter: 3,
   parapetHeight: 0.4,
-  paradosOuter: 1.8,
-  paradosHeight: 0.25,
-  communicationDepth: 1.8
+  paradosOuter: 3,
+  paradosHeight: 0.4,
+  communicationDepth: 1.9
 } as const
 
-const REACH = TRENCH_PROFILE.parapetOuter
+const REACH = Math.max(TRENCH_PROFILE.parapetOuter, TRENCH_PROFILE.paradosOuter)
 
 interface Nearest {
   distance: number
@@ -46,24 +54,35 @@ function closestOnSegment(p: GroundPoint, a: GroundPoint, b: GroundPoint): Groun
   return [a[0] + abx * t, a[1] + abz * t]
 }
 
+/** Spoil heaped along a trench lip: rising from the top of the wall to its crest, then falling to nothing at `outer`. */
+function lip(distance: number, height: number, outer: number): number {
+  const { wallHalfWidth, lipCrest } = TRENCH_PROFILE
+  if (distance < lipCrest) {
+    return (height * (distance - wallHalfWidth)) / (lipCrest - wallHalfWidth)
+  }
+  return height * Math.max(0, 1 - (distance - lipCrest) / (outer - lipCrest))
+}
+
 /** Height change a trench makes at a given distance from its centre line. Negative digs, positive piles spoil. */
 function profileOffset({ distance, inFront, trench }: Nearest): number {
   const profile = TRENCH_PROFILE
   if (trench.kind === "communication") {
-    return distance <= profile.floorHalfWidth ? -profile.communicationDepth : 0
-  }
-  if (distance <= profile.floorHalfWidth) {
-    return -profile.floorDepth
+    return distance <= profile.wallHalfWidth
+      ? -profile.communicationDepth
+      : lip(distance, profile.paradosHeight, profile.paradosOuter)
   }
   if (inFront) {
+    if (distance <= profile.floorHalfWidth) {
+      return -profile.floorDepth
+    }
     if (distance <= profile.fireStepOuter) {
       return -profile.fireStepDepth
     }
-    const taper = 1 - (distance - profile.fireStepOuter) / (profile.parapetOuter - profile.fireStepOuter)
-    return profile.parapetHeight * Math.max(0, taper)
+    return lip(distance, profile.parapetHeight, profile.parapetOuter)
   }
-  const taper = 1 - (distance - profile.floorHalfWidth) / (profile.paradosOuter - profile.floorHalfWidth)
-  return profile.paradosHeight * Math.max(0, taper)
+  return distance <= profile.wallHalfWidth
+    ? -profile.floorDepth
+    : lip(distance, profile.paradosHeight, profile.paradosOuter)
 }
 
 /**
@@ -108,7 +127,8 @@ export function carveTrenches(
 
   for (const [index, sample] of nearest) {
     map.heights[index] += profileOffset(sample)
-    if (sample.distance <= TRENCH_PROFILE.fireStepOuter) {
+    // The floor and the spoil heaped either side are bare mud.
+    if (sample.distance <= TRENCH_PROFILE.parapetOuter) {
       map.surfaces[index] = Surface.Mud
     }
   }

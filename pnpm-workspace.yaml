@@ -7,7 +7,9 @@ verifyDepsBeforeRun: error
 catalog:
   "@babylonjs/core": 9.28.0
   "@babylonjs/inspector": 9.28.0
+  "@babylonjs/loaders": 9.28.0
   "@dimforge/rapier3d-compat": 0.21.0
+  "@types/node": 24.19.0
   "@vitest/coverage-v8": 5.0.2
   bitecs: 0.4.0
   typescript: 7.0.2

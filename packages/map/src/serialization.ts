@@ -1,4 +1,5 @@
 import { type BattlefieldMap, isSurface, MAP_FORMAT_VERSION, sampleCount, Surface, SURFACE_COUNT } from "./format.ts"
+import { isObjective, isScenery, isWireBelt, type Objective, type Scenery, type WireBelt } from "./scenery.ts"
 import type { GroundPoint, Trench } from "./trenches.ts"
 
 /** JSON-safe form of a map, as written to a map file. */
@@ -13,6 +14,12 @@ export interface MapDocument {
   readonly surfaces?: readonly number[]
   /** Added in version 3. */
   readonly trenches?: readonly Trench[]
+  /** Added in version 4. */
+  readonly scenery?: readonly Scenery[]
+  /** Added in version 4. */
+  readonly wire?: readonly WireBelt[]
+  /** Added in version 4. */
+  readonly objectives?: readonly Objective[]
 }
 
 export function toMapDocument(map: BattlefieldMap): MapDocument {
@@ -24,7 +31,10 @@ export function toMapDocument(map: BattlefieldMap): MapDocument {
     rows: map.rows,
     heights: Array.from(map.heights),
     surfaces: Array.from(map.surfaces),
-    trenches: map.trenches
+    trenches: map.trenches,
+    scenery: map.scenery,
+    wire: map.wire,
+    objectives: map.objectives
   }
 }
 
@@ -60,14 +70,15 @@ function isSurfaceArray(value: unknown): value is number[] {
 
 /**
  * Validates a parsed map file and migrates older versions. Throws with the reason when the document is not a readable
- * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches.
+ * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches, and versions 1 to 3
+ * no scenery or wire.
  */
 export function fromMapDocument(document: unknown): BattlefieldMap {
   if (!isRecord(document)) {
     throw new TypeError("Map document must be an object")
   }
-  const { version, name, cellSize, columns, rows, heights, surfaces, trenches } = document
-  if (version !== 1 && version !== 2 && version !== MAP_FORMAT_VERSION) {
+  const { version, name, cellSize, columns, rows, heights, surfaces, trenches, scenery, wire, objectives } = document
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > MAP_FORMAT_VERSION) {
     throw new TypeError(`Unsupported map format version ${String(version)}; expected 1 to ${MAP_FORMAT_VERSION}`)
   }
   if (typeof name !== "string") {
@@ -94,11 +105,29 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
   }
 
   let trenchLines: readonly Trench[] = []
-  if (version === MAP_FORMAT_VERSION) {
+  if (version >= 3) {
     if (!Array.isArray(trenches) || !trenches.every(isTrench)) {
       throw new TypeError("Map trenches must be a list of fire or communication trench lines")
     }
     trenchLines = trenches
+  }
+
+  let sceneryItems: readonly Scenery[] = []
+  let wireBelts: readonly WireBelt[] = []
+  let objectiveList: readonly Objective[] = []
+  if (version >= 4) {
+    if (!Array.isArray(scenery) || !scenery.every(isScenery)) {
+      throw new TypeError("Map scenery must be a list of placed ruins, trees, guns and other known kinds")
+    }
+    if (!Array.isArray(wire) || !wire.every(isWireBelt)) {
+      throw new TypeError("Map wire must be a list of belts, each a line of at least two points")
+    }
+    if (!Array.isArray(objectives) || !objectives.every(isObjective)) {
+      throw new TypeError("Map objectives must be a list of named points, each with a positive radius")
+    }
+    sceneryItems = scenery
+    wireBelts = wire
+    objectiveList = objectives
   }
 
   return {
@@ -109,6 +138,9 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     rows,
     heights: Float32Array.from(heights),
     surfaces: surfaceLayer,
-    trenches: trenchLines
+    trenches: trenchLines,
+    scenery: sceneryItems,
+    wire: wireBelts,
+    objectives: objectiveList
   }
 }

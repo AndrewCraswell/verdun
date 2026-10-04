@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@verdun/client", "dev"],
       "port": 5173
+    },
+    {
+      "name": "client-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@verdun/client", "preview", "--port", "4173", "--strictPort"],
+      "port": 4173
     }
   ]
 }
