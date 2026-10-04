@@ -85,8 +85,16 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
   const mixer = getMixer()
   const { context } = mixer
   const zones = ambienceZones(map)
-  // decodeAudioData detaches what it's given: decode copies.
-  const decode = (name: (typeof AMBIENCE_FILES)[number]) => context.decodeAudioData(audio[name].slice(0))
+  // decodeAudioData detaches what it's given: decode copies. A file that won't decode (cut short while the kit build
+  // was writing it, say) is left out with a warning: missing ambience must never stop the game.
+  const decode = async (name: (typeof AMBIENCE_FILES)[number]): Promise<AudioBuffer | undefined> => {
+    try {
+      return await context.decodeAudioData(audio[name].slice(0))
+    } catch {
+      console.warn(`Ambience ${name} couldn't be decoded and is left out; rebuild it with scripts/build-level-kit.py.`)
+      return undefined
+    }
+  }
   const [noMansLand, wood, rear, ruins, gun1, gun2] = await Promise.all(AMBIENCE_FILES.map(decode))
   const loop = (buffer: AudioBuffer | undefined): GainNode => {
     const gain = context.createGain()

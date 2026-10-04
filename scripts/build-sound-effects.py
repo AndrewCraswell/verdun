@@ -13,6 +13,7 @@ one at random and set the level itself.
 """
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -225,6 +226,31 @@ CUES = {
         take=7,
         per_source=1,
     ),
+    # Men going over the top, and a counter-attack heard across the line: battle cries without words, as no French or
+    # German voices are recorded yet.
+    "charge": dict(
+        sources=[
+            (GDC, "Battle Cry, Charge, Screams, Army Attacking, Running 1.wav"),
+            (GDC, "GAF SFX03 - War Unit - Solo Man 5, Charge Attack, Long, Ya - ORTF.wav"),
+            (GDC, "Male 2 - Grunt - Battle Cry - Long - Ehrlund M1.wav"),
+        ],
+        gap=2,
+        length=6,
+        take=3,
+        per_source=1,
+    ),
+    # A man hit and still standing.
+    "pain": dict(
+        sources=[
+            (GDC, "Grunts 16.wav"),
+            (GDC, "Male_Grunt-Shout_317.wav"),
+            (GDC, "Male 1 - Breathing - Gasping - Ehrlund M1.wav"),
+        ],
+        gap=0.6,
+        length=2,
+        take=6,
+        floor=-12,
+    ),
     # The gas alarm: an empty brass shell case struck like a gong.
     "gas-gong": dict(
         sources=[
@@ -429,10 +455,11 @@ def write(path, clip):
 
 
 def build(vendor, output):
-    sfx = output / "sfx"
-    sfx.mkdir(parents=True, exist_ok=True)
-    for stale in sfx.glob("*.ogg"):
-        stale.unlink()
+    # Built aside and swapped in at the end, so a game loading meanwhile never reads a file half written.
+    final = output / "sfx"
+    sfx = output / "sfx.building"
+    shutil.rmtree(sfx, ignore_errors=True)
+    sfx.mkdir(parents=True)
     manifest = {}
     for name, cue in CUES.items():
         clips = cue_clips(vendor, cue)
@@ -445,6 +472,8 @@ def build(vendor, output):
     manifest["ear-ring"] = {"variations": 1, "loop": False}
     print("[sound-effects] ear-ring: made", flush=True)
     (sfx / "sounds.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    shutil.rmtree(final, ignore_errors=True)
+    sfx.rename(final)
 
 
 if __name__ == "__main__":

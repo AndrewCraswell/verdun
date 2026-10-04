@@ -76,6 +76,41 @@ export interface BattleSounds {
   dispose(): void
 }
 
+/**
+ * Decodes every variation, leaving out any the browser can't decode (a file cut short while the sound build was
+ * writing it, say) with a warning: a missing sound must never stop the game.
+ */
+async function decodeAll(context: BaseAudioContext, files: BattleSoundFiles): Promise<Map<SoundCue, AudioBuffer[]>> {
+  const decoded = new Map<SoundCue, AudioBuffer[]>()
+  const failed: string[] = []
+  await Promise.all(
+    [...files].map(async ([cue, variations]) => {
+      const buffers = await Promise.all(
+        variations.map(async (data, index) => {
+          try {
+            // decodeAudioData detaches the buffer it's given, so decode copies and keep the kit's files intact.
+            return await context.decodeAudioData(data.slice(0))
+          } catch {
+            failed.push(`${cue}-${index}`)
+            return null
+          }
+        })
+      )
+      decoded.set(
+        cue,
+        buffers.filter((buffer): buffer is AudioBuffer => buffer !== null)
+      )
+    })
+  )
+  if (failed.length > 0) {
+    console.warn(
+      "Some sound effects couldn't be decoded and are left out; rebuild them with scripts/build-sound-effects.py:",
+      failed
+    )
+  }
+  return decoded
+}
+
 /** The camera as a listener: the point it looks at, its height above it, and its right across the ground. */
 function listenerOf(camera: TargetCamera): Listener {
   const target = camera.getTarget()
@@ -95,20 +130,31 @@ function listenerOf(camera: TargetCamera): Listener {
  * the fallen and the gas alarm, from scripts/build-sound-effects.py, each filtered for distance and anything in the
  * way, and coloured by the trench, dugout or ruins the listener is in.
  */
+/** Battle sounds that play nothing, for when they can't start. */
+const SILENT: BattleSounds = { step: () => undefined, update: () => undefined, dispose: () => undefined }
+
 export async function createBattleSounds(
   files: BattleSoundFiles,
   sim: Simulation,
   camera: TargetCamera,
   options: BattleSoundOptions
 ): Promise<BattleSounds> {
+  try {
+    return await startBattleSounds(files, sim, camera, options)
+  } catch (error) {
+    console.warn("Battle sounds failed to start; the battle goes on in silence.", error)
+    return SILENT
+  }
+}
+
+async function startBattleSounds(
+  files: BattleSoundFiles,
+  sim: Simulation,
+  camera: TargetCamera,
+  options: BattleSoundOptions
+): Promise<BattleSounds> {
   const mixer = getMixer()
-  const decoded = new Map<SoundCue, AudioBuffer[]>()
-  await Promise.all(
-    [...files].map(async ([cue, variations]) => {
-      // decodeAudioData detaches the buffer it's given, so decode copies and keep the kit's files intact.
-      decoded.set(cue, await Promise.all(variations.map((data) => mixer.context.decodeAudioData(data.slice(0)))))
-    })
-  )
+  const decoded = await decodeAll(mixer.context, files)
   const model = createBattleSoundModel(sim, options)
   const atmosphere = createAtmosphereModel(sim)
   const bed = (cue: keyof typeof BED_VOLUMES): Bed | null => {
