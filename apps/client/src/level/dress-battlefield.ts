@@ -192,11 +192,18 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
 const BACKDROP_TREES = ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"]
 
 /**
+ * Backdrop trees this near the sector, in metres beyond its edge, throw shadows: the camera can look on them from the
+ * sector's edge. Further off they're beyond where shadows reach (see atmosphere.ts), and don't.
+ */
+const SHADOWED_WOODS = 200
+
+/**
  * Trees on the ground beyond the sector (see backdropTrees). There are thousands and all of them far off, so each kind
- * is one mesh of its decimated far copy drawn as thin instances: one draw, no per-tree culling.
+ * is one mesh of its decimated far copy drawn as thin instances: one draw, no per-tree culling. The few hundred near
+ * the sector are a mesh of their own for each kind, which throws shadows; the rest, `backdrop-far-`, don't.
  */
 function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: ReadonlyMap<string, Mesh>): Mesh[] {
-  const byPiece = new Map<string, number[]>()
+  const byName = new Map<string, { piece: string; matrices: number[] }>()
   for (const { x, y, z } of backdropTrees(map, surroundings)) {
     const piece = BACKDROP_TREES[Math.floor(hashOf(x, z, 40) * BACKDROP_TREES.length)] ?? ""
     const size = 0.8 + hashOf(x, z, 41) * 0.8
@@ -208,19 +215,21 @@ function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: 
       yaw: hashOf(x, z, 42) * Math.PI * 2,
       scale: [size, size, size]
     })
-    const matrices = byPiece.get(piece) ?? []
-    matrices.push(...matrix.asArray())
-    byPiece.set(piece, matrices)
+    const beyond = Math.hypot(Math.max(0, -x, x - mapWidth(map)), Math.max(0, -z, z - mapDepth(map)))
+    const name = beyond <= SHADOWED_WOODS ? `backdrop-${piece}` : `backdrop-far-${piece}`
+    const wood = byName.get(name) ?? { piece, matrices: [] }
+    wood.matrices.push(...matrix.asArray())
+    byName.set(name, wood)
   }
   const woods: Mesh[] = []
-  for (const [piece, matrices] of byPiece) {
+  for (const [name, { piece, matrices }] of byName) {
     const source = pieces.get(piece)
     // The far copy where the kit has one: at a kilometre the full tree is wasted triangles.
     const far = source?.getLODLevels()[0]?.mesh ?? source
     if (!source || !far) {
       continue
     }
-    const wood = new Mesh(`backdrop-${piece}`, source.getScene())
+    const wood = new Mesh(name, source.getScene())
     VertexData.ExtractFromMesh(far, true, true).applyToMesh(wood)
     wood.material = source.material
     wood.isPickable = false

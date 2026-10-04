@@ -4,12 +4,12 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { castsShadow, createAtmosphere, nightness } from "./atmosphere.ts"
+import { castersInCascade, castsShadow, createAtmosphere, nightness } from "./atmosphere.ts"
 
 const engines: NullEngine[] = []
 
@@ -53,6 +53,39 @@ describe("castsShadow", () => {
     expect(castsShadow(CreateBox("Gen_Env_Tree_Dead_02@1,2", { size: 1 }, scene))).toBe(true)
     expect(castsShadow(CreateBox("Gen_Env_Grass_01@1,2", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("Chr_Attach_French_Helmet_01@0,0", { size: 1 }, scene))).toBe(false)
+    // The ground beyond the sector and its far woods don't; the woods next to the sector do.
+    expect(castsShadow(CreateBox("backdrop", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("backdrop-far-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("backdrop-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(true)
+  })
+})
+
+describe("castersInCascade", () => {
+  it("keeps for a cascade the casters in the sun's view of it, and whatever stands between it and the sun", () => {
+    const { scene } = field()
+    // The sun overhead, looking down on twenty metres square from fifty up, a hundred deep.
+    const transform = Matrix.LookAtLH(new Vector3(0, 50, 0), Vector3.Zero(), new Vector3(0, 0, 1)).multiply(
+      Matrix.OrthoOffCenterLH(-10, 10, -10, 10, 0, 100)
+    )
+    const cull = castersInCascade({ getCascadeTransformMatrix: (cascade) => (cascade === 0 ? transform : null) })
+    const box = (name: string, x: number, y: number, z: number) => {
+      const mesh = CreateBox(name, { size: 1 }, scene)
+      mesh.position.set(x, y, z)
+      mesh.computeWorldMatrix(true)
+      return mesh
+    }
+    const inside = box("inside", 2, 0, 3)
+    const beside = box("beside", 30, 0, 0)
+    const sunward = box("between the slice and the sun", 0, 80, 0)
+    const beyond = box("beyond the far end", 0, -80, 0)
+    const crowd = box("crowd", 100, 0, 100)
+    crowd.alwaysSelectAsActiveMesh = true
+    const casters = [inside, beside, sunward, beyond, crowd]
+
+    expect(cull(0, casters, casters.length)).toEqual([inside, sunward, crowd])
+    // A cascade the generator doesn't have, or nothing to cast.
+    expect(cull(1, casters, casters.length)).toEqual([])
+    expect(cull(0, null, 0)).toEqual([])
   })
 })
 

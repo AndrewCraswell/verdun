@@ -7,11 +7,14 @@ import { CascadedShadowGenerator } from "@babylonjs/core/Lights/Shadows/cascaded
 import { ColorCurves } from "@babylonjs/core/Materials/colorCurves"
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { type Color3, Color4 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Frustum } from "@babylonjs/core/Maths/math.frustum"
+import type { Plane } from "@babylonjs/core/Maths/math.plane"
+import { type Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
+import type { Immutable, Nullable } from "@babylonjs/core/types"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 
 /** Effect sprites from the level kit. */
@@ -41,10 +44,11 @@ const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, cameraHe
 /**
  * Pieces not worth drawing again for every cascade: too small or flat for a shadow that reads (grass, the litter of
  * battle, planks and tiles), or, like the trench kit, already shadowed by the carved ground beneath them, whose trench
- * walls cast the same shadow.
+ * walls cast the same shadow. And the ground beyond the sector with its far woods (see dress-battlefield.ts), further
+ * off than shadows reach: spread over three kilometres, they were seven tenths of every cascade's triangles.
  */
 const NO_SHADOW =
-  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace/
+  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|^backdrop$|^backdrop-far-/
 
 /** Wind out of the west, carrying smoke and mist east, until the weather's wind takes over (see `environment/`). */
 const WIND = new Vector3(0.12, 0, 0.03)
@@ -92,6 +96,47 @@ export function nightness(light: Color3): number {
 export function castsShadow(mesh: AbstractMesh): boolean {
   // Batches of kit pieces are named after their piece: "Prop_Ladder_01@2,3". Disabled meshes are templates.
   return mesh.isEnabled() && !NO_SHADOW.test(mesh.name)
+}
+
+/** What culling to a cascade needs of the shadow generator: each cascade's view and projection from the sun. */
+interface Cascades {
+  getCascadeTransformMatrix(cascade: number): Nullable<Matrix>
+}
+
+/**
+ * Babylon draws every shadow caster into every cascade. A cascade is the sun's view of one slice of the camera's, so a
+ * caster outside that view can't shade anything in the slice: this keeps, for each cascade, only the casters its view
+ * takes in, by its sides and its far end. Not by its near end, toward the sun: whatever stands between the sun and the
+ * slice shades it, and depth clamping draws it. Meshes Babylon must never cull, like the soldiers' crowds, are kept.
+ */
+export function castersInCascade(
+  shadows: Cascades
+): (cascade: number, casters: Nullable<Immutable<AbstractMesh[]>>, count: number) => AbstractMesh[] {
+  const planes: Plane[][] = []
+  const kept: AbstractMesh[][] = []
+  return (cascade, casters, count) => {
+    const inView = (kept[cascade] ??= [])
+    inView.length = 0
+    const transform = shadows.getCascadeTransformMatrix(cascade)
+    if (!casters || !transform) {
+      return inView
+    }
+    const view = (planes[cascade] ??= Frustum.GetPlanes(transform))
+    Frustum.GetPlanesToRef(transform, view)
+    // The near end, toward the sun, the first of Babylon's six: nothing is ever outside it.
+    const near = view[0]
+    if (near) {
+      near.normal.setAll(0)
+      near.d = Number.MAX_VALUE
+    }
+    for (let index = 0; index < count; index++) {
+      const mesh = casters[index]
+      if (mesh && (mesh.alwaysSelectAsActiveMesh || mesh.isInFrustum(view))) {
+        inView.push(mesh)
+      }
+    }
+    return inView
+  }
 }
 
 function createShadows(
@@ -142,6 +187,7 @@ function createShadows(
   })
   if (shadowMap) {
     shadowMap.renderList = casters
+    shadowMap.getCustomRenderList = castersInCascade(shadows)
     const none: AbstractMesh[] = []
     scene.onBeforeRenderObservable.add(() => {
       shadowMap.renderList = camera.globalPosition.y > SHADOW.cameraHeight ? none : casters
