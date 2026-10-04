@@ -91,16 +91,20 @@ const DEATHS_CROUCHING = ["death_crouch_back", "death_crouch_right"] as const
 /** Below this ground speed, in metres per second, a soldier is standing still. A crawl is 0.35. */
 export const MOVING_SPEED = 0.15
 /**
- * Above this a soldier is running whatever he was told: a walk is at most 1.4 and a run twice that. A run through mud
+ * Above this a soldier is running whatever he was told: a walk is at most 1.4 and a run 3.5. A run through mud
  * or wire can be no faster than a walk, so `SoldierState.running` counts too.
  */
 export const RUNNING_SPEED = 2.1
 /**
- * The ground speeds the clips were made for, the simulation's paces: playback scales from these within `RATE_LIMITS`.
- * A crouched walk keeps the walk's stride, so at the crouch's 0.84 it plays at 0.6.
+ * The ground speeds the clips were made for: playback scales from these within `RATE_LIMITS`. A crouched walk keeps the
+ * walk's stride, so at the crouch's 0.84 it plays at 0.6, or would but for the floor.
  */
 const CLIP_SPEED = { walk: 1.4, run: 2.8, crouch: 1.4 } as const
-const RATE_LIMITS = { min: 0.6, max: 1.5 } as const
+/**
+ * Never slower than this, nor faster: across a crater field a man makes perhaps two-thirds of a clip's pace, and legs
+ * slowed to match look like slow motion. A stride a little long for the ground reads as hard going instead.
+ */
+const RATE_LIMITS = { min: 0.75, max: 1.5 } as const
 /** A scramble up a wall plays the run this slowly: laboured steps, about two seconds to the fire step. */
 const CLIMB_RATE = 0.8
 

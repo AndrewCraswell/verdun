@@ -17,6 +17,14 @@ const AIM_START = 0.7
 /** The ring on the man in the sights keeps about this angular size on screen, in radians, however far off he is. */
 const TARGET_RING_ANGLE = 0.03
 const TARGET_RING_DIAMETER = 1.8
+/** The aim line keeps at least this angular width on screen, in radians: a few pixels, at any zoom. */
+const AIM_WIDTH_ANGLE = 0.0022
+const AIM_WIDTH = 0.06
+/**
+ * The markers are drawn after the battlefield, over it: a man in a trench has its walls and parapet all round him, and
+ * his ring and aim line drawn among them were mostly hidden.
+ */
+const MARKER_GROUP = 1
 
 export interface SquadMarkers {
   /** Ring and aim line on the controlled soldier. */
@@ -51,7 +59,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
   ring.material = bright
   ring.parent = leader
   ring.isPickable = false
-  const aim = CreateBox("squad-leader-aim", { width: 0.06, height: 0.06, depth: 1 }, scene)
+  const aim = CreateBox("squad-leader-aim", { width: AIM_WIDTH, height: AIM_WIDTH, depth: 1 }, scene)
   aim.material = bright
   aim.parent = leader
   aim.isPickable = false
@@ -72,6 +80,9 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
   members.isPickable = false
   members.alwaysSelectAsActiveMesh = true
   const memberRings = instanceBuffer(members, squad.members.length)
+  for (const marker of [ring, aim, target, members]) {
+    marker.renderingGroupId = MARKER_GROUP
+  }
 
   return {
     leader,
@@ -110,6 +121,10 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         target.scaling.setAll(0)
       }
       aim.scaling.z = reach
+      const eye = scene.activeCamera?.globalPosition
+      const thick = eye ? Math.max(1, (Vector3.Distance(eye, leader.position) * AIM_WIDTH_ANGLE) / AIM_WIDTH) : 1
+      aim.scaling.x = thick
+      aim.scaling.y = thick
       aim.position.set(0, 0.05, AIM_START + reach / 2)
 
       let count = 0

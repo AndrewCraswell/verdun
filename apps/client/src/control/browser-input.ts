@@ -7,8 +7,24 @@ import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.t
 export const MOVEMENT_KEYS: ReadonlySet<string> = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
 /** Keys held to run rather than walk. */
 export const RUN_KEYS: ReadonlySet<string> = new Set(["ShiftLeft", "ShiftRight"])
-/** Keys that act on the ground under the pointer: a grenade, a call for fire, a gas shoot. */
-export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV", "KeyX"])
+/** Keys that act on the ground under the pointer: a grenade, the squad sent there, a call for fire, a gas shoot. */
+export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyE", "KeyV", "KeyX"])
+
+/** What each pointer key does to the ground point under the pointer. */
+function pointerAction(code: string, x: number, z: number): PlayerAction | null {
+  switch (code) {
+    case "KeyQ":
+      return { kind: "grenade", x, z }
+    case "KeyE":
+      return { kind: "order-advance", x, z }
+    case "KeyV":
+      return { kind: "call-fire", x, z }
+    case "KeyX":
+      return { kind: "call-gas", x, z }
+    default:
+      return null
+  }
+}
 
 /** One-off keys, by `KeyboardEvent.code`. Digits 1-8 pick a squad slot. */
 export function actionForKey(code: string): PlayerAction | null {
@@ -46,7 +62,7 @@ export function actionForKey(code: string): PlayerAction | null {
 /**
  * Keyboard and mouse input from the browser. Uses `KeyboardEvent.code`, so keys stay in the same place on AZERTY and
  * other layouts. Held keys are released when the window loses focus, so a soldier never walks off on their own.
- * Left-click fires; right-clicking the ground orders the squad there.
+ * Left-click fires; the right button aims (see camera-rig.ts), and E sends the squad to the ground under the pointer.
  */
 export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInput {
   const held = new Set<string>()
@@ -60,27 +76,11 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInp
       held.add(event.code)
       return
     }
-    if (event.code === "KeyQ" && !event.repeat) {
-      // Throw a grenade at whatever is under the pointer.
-      const point = pointerGround()
-      if (point) {
-        actions.push({ kind: "grenade", x: point.x, z: point.z })
-      }
-      return
-    }
-    if (event.code === "KeyX" && !event.repeat) {
-      // Call a gas shoot onto whatever is under the pointer.
-      const point = pointerGround()
-      if (point) {
-        actions.push({ kind: "call-gas", x: point.x, z: point.z })
-      }
-      return
-    }
-    if (event.code === "KeyV" && !event.repeat) {
-      // Call for fire on whatever is under the pointer.
-      const point = pointerGround()
-      if (point) {
-        actions.push({ kind: "call-fire", x: point.x, z: point.z })
+    if (POINTER_KEYS.has(event.code)) {
+      const point = event.repeat ? null : pointerGround()
+      const action = point ? pointerAction(event.code, point.x, point.z) : null
+      if (action) {
+        actions.push(action)
       }
       return
     }
@@ -101,13 +101,6 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInp
   canvas?.addEventListener("pointerdown", (event) => {
     if (event.button === 0) {
       actions.push({ kind: "fire" })
-    }
-  })
-  canvas?.addEventListener("contextmenu", (event) => {
-    event.preventDefault()
-    const point = pointerGround()
-    if (point) {
-      actions.push({ kind: "order-advance", x: point.x, z: point.z })
     }
   })
 

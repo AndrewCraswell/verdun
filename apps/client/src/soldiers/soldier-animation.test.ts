@@ -57,24 +57,24 @@ describe("choosePose", () => {
     const walk = pose({ speed: 1.4, heading: Math.PI / 2 })
     expect(walk.clip).toBe("walk_right")
     expect(walk.rate).toBeCloseTo(1)
-    // A spent man walks at three quarters of the pace; slower still, the steps stop slowing.
-    expect(pose({ speed: 1.05 }).rate).toBeCloseTo(0.75)
-    expect(pose({ speed: 0.7 }).rate).toBeCloseTo(0.6)
+    // A spent man walks at three quarters of the pace; slower still, the steps stop slowing, short of slow motion.
+    expect(pose({ speed: 1.12 }).rate).toBeCloseTo(0.8)
+    expect(pose({ speed: 0.7 }).rate).toBeCloseTo(0.75)
     expect(pose({ speed: 2.8, heading: Math.PI }).clip).toBe("run_back")
     expect(pose({ speed: 2.8 }).rate).toBeCloseTo(1)
     // Running through mud is no faster than a walk, but it's still a run.
-    expect(pose({ speed: 1.2, running: true })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.6 })
+    expect(pose({ speed: 1.2, running: true })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.75 })
     // Moving outweighs firing on the move.
     expect(pose({ speed: 1.4, action: "fire" }).clip).toBe("walk_forward")
   })
 
-  it("crouches: squatting over the rifle when still, aiming or not, and walking bent at 0.6 pace", () => {
+  it("crouches: squatting over the rifle when still, aiming or not, and walking bent at the slowest playback", () => {
     expect(pose({ stance: Stance.Crouching }).clip).toBe("idle_4")
     expect(pose({ stance: Stance.Crouching, aiming: true, action: "fire" }).clip).toBe("idle_4")
     expect(pose({ stance: Stance.Crouching, speed: 0.84, heading: Math.PI / 2 })).toEqual({
       clip: "crouch_walk_right",
       mode: "loop",
-      rate: 0.6
+      rate: 0.75
     })
   })
 

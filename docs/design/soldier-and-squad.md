@@ -136,12 +136,12 @@ with machine guns. The kit changes with the year. All of it is in [roles and loa
 
 Orders go to the squad as a whole; the AI decides who does what. Built:
 
-| Order     | Key             | Behaviour                                                                            |
-| --------- | --------------- | ------------------------------------------------------------------------------------ |
-| Follow me | F               | Squad keeps with the soldier you control                                             |
-| Hold      | H               | Stay and fight where they stand; lie down in the open, man the fire step in a trench |
-| Advance   | Right-click     | Go to a point, detouring through wire gaps; run if ordered                           |
-| Reserve   | (AI only today) | Wait below in the dugouts, sentries up, until sent in                                |
+| Order     | Key              | Behaviour                                                                            |
+| --------- | ---------------- | ------------------------------------------------------------------------------------ |
+| Follow me | F                | Squad keeps with the soldier you control                                             |
+| Hold      | H                | Stay and fight where they stand; lie down in the open, man the fire step in a trench |
+| Advance   | E at the pointer | Go to a point, detouring through wire gaps; run if ordered                           |
+| Reserve   | (AI only today)  | Wait below in the dugouts, sentries up, until sent in                                |
 
 Planned:
 

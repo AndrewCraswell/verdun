@@ -24,7 +24,8 @@ export const CONTROLS: readonly BindingGroup[] = [
     bindings: [
       { keys: "W A S D", action: "Move, relative to the camera" },
       { keys: "Shift", action: "Run, while you have the breath" },
-      { keys: "Mouse", action: "Aim" },
+      { keys: "Mouse", action: "Face the pointer" },
+      { keys: "Right mouse, held", action: "Aim: the view leans toward the pointer" },
       { keys: "Left-click", action: "Fire" },
       { keys: "Q", action: "Throw a grenade at the pointer" },
       { keys: "C", action: "Crouch: below the parapet on a fire step, or get back up" },
@@ -38,7 +39,7 @@ export const CONTROLS: readonly BindingGroup[] = [
       { keys: "1 to 8", action: "Switch to a squad slot" },
       { keys: "F", action: "Squad order: follow me" },
       { keys: "H", action: "Squad order: hold" },
-      { keys: "Right-click", action: "Squad order: advance to that point" }
+      { keys: "E", action: "Squad order: advance to the point under the pointer" }
     ]
   },
   {
@@ -53,7 +54,7 @@ export const CONTROLS: readonly BindingGroup[] = [
   {
     title: "Camera",
     bindings: [
-      { keys: "Arrow keys, screen edges", action: "Pan" },
+      { keys: "Arrow keys, screen edges", action: "Pan; the pointer rests at an edge a moment first" },
       { keys: "Shift + middle-drag", action: "Grab and drag the ground" },
       { keys: "Middle-drag, Shift + Left and Right", action: "Turn and tilt" },
       { keys: "Mouse wheel", action: "Zoom, toward the pointer" },

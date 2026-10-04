@@ -37,9 +37,10 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
   never stops: bots fill every empty place, and the front moves a little each real day. See the [vision](../vision.md)
   and the [pillars](overview.md#pillars).
 - **The camera is top-down**, tilted about 55–60° like Company of Heroes, zooming from 8 m to 450 m. It is not a
-  first-person or shoulder camera. The **operating-system cursor is the aim point** on the ground: the soldier faces
-  wherever the pointer is, left-click fires, right-click orders the squad. So the middle of the screen belongs to the
-  battlefield, and anything on the HUD that the pointer has to cross gets in the way of aiming.
+  first-person or shoulder camera. The **pointer is the aim point** on the ground, drawn as a reticle over the
+  battlefield: the soldier faces wherever it is, left-click fires, and holding the right button aims, leaning the view
+  toward the pointer. E orders the squad to the ground under it. So the middle of the screen belongs to the battlefield,
+  and anything on the HUD that the pointer has to cross gets in the way of aiming.
 - **The player is two people at once**: a soldier (move, aim, fire, throw, lie down) and the squad's leader (orders,
   artillery, who to be next). Later some players are also commanders. The HUD has to serve the man and the squad without
   crowding either.
@@ -71,8 +72,8 @@ the elements below; in short:
 - **Dev tools** (F3 debug dock top left, the sound mixer, Babylon's Inspector) that never ship to players and need no
   design.
 
-The biggest gap: **nothing the player orders is acknowledged on screen.** F, H, right-click, B, V, X and G all act
-silently; the squad's current order isn't shown anywhere; neither is a soldier's morale, or which slot is which man.
+The biggest gap: **nothing the player orders is acknowledged on screen.** F, H, E, B, V, X and G all act silently; the
+squad's current order isn't shown anywhere; neither is a soldier's morale, or which slot is which man.
 
 ## Principles
 
@@ -346,7 +347,7 @@ Behaviour:
 **Stage** 1. **Kind** Overlay. **Zone** at the cursor.
 
 The fast interface the [orders](soldier-and-squad.md#orders) call for: a radial menu on a held key, plus the current
-one-key shortcuts (F, H, right-click).
+one-key shortcuts (F, H, E).
 
 - **Hold** the orders key (proposed E): the radial opens around the cursor; the battle keeps running. Move the pointer
   toward a wedge, release to give it. Release in the middle to cancel. Esc cancels.
@@ -558,7 +559,7 @@ with key caps, one at a time, in order, each cleared when the player does it.
 1. "W A S D to move. The pointer aims; left-click fires."
 2. "Z to lie down. Men in the open live longer lying down."
 3. "Tab or 1–8 to take another man. Take the one with the best view."
-4. "F: the squad follows you. H: hold here. Right-click: advance there."
+4. "F: the squad follows you. H: hold here. E: advance to the pointer."
 5. "Q, held, to throw a grenade into the bay."
 6. "The whistle blows at zero hour. Walk behind the barrage; run when it lifts."
 
@@ -740,7 +741,7 @@ the key and mouse bindings. The current list:
 | Group             | Keys and actions                                                                                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; left-click fire; Q grenade at the pointer; C crouch; Z lie down                                               |
-| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; right-click advance to a point                                                                                          |
+| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer                                                                                |
 | Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                      |
 | Camera            | Arrows or screen edges pan; Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Space back to your man |
 | Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                          |

@@ -181,7 +181,8 @@ async function launchChrome() {
     endpoint: `ws://127.0.0.1:${port}${path}`,
     stop() {
       stopTree(child)
-      setTimeout(() => rmSync(profile, { recursive: true, force: true }), 1500)
+      // Chrome may hold the profile a moment longer; a profile left in the temp folder does no harm.
+      setTimeout(() => rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }), 1500)
     }
   }
 }

@@ -24,13 +24,20 @@ const GROUND_CLEARANCE = 2.5
 /** What the camera looks at sits this far above the ground: a man's chest, not his boots. */
 const FOCUS_HEIGHT = 1.2
 /**
- * While following, the view leads the soldier toward where they face by this share of the zoom distance, up to a
- * limit in metres: he sits in the lower part of the screen and most of it shows what lies ahead of him, as in a
- * top-down shooter.
+ * While following, the view leads a soldier on the move the way he's going, by this share of the zoom distance up to a
+ * limit in metres, so he sees what he's walking into. Standing, he's in the middle. It follows where he goes, never
+ * where he faces: the pointer turns him, and a view that swung with his facing would slide the ground under a still
+ * pointer and turn him again.
  */
-const LOOK_AHEAD = { share: 0.28, max: 70 } as const
-/** How quickly the lead swings round after the aim, per second: slower than the aim, so flicking it doesn't jolt. */
-const LEAD_RATE = 2.5
+const WALK_LEAD = { share: 0.12, max: 20 } as const
+/**
+ * Aiming, the view leans toward the pointer: at the screen's edge by this share of the zoom distance, up to a limit in
+ * metres. The lean comes from where the pointer sits on the screen, which the view moving doesn't change, so it settles
+ * rather than chasing itself.
+ */
+const AIM_LEAN = { share: 0.45, max: 100 } as const
+/** How quickly the lead swings round, per second: aiming answers faster than walking. */
+const LEAD_RATE = { walk: 2.5, aim: 4 } as const
 
 export interface RigView {
   readonly focusX: number
@@ -54,10 +61,15 @@ export interface CameraRigModel {
   /** Whether the camera is following the soldier under control. Panning lets go; recentring takes hold again. */
   readonly following: boolean
   /**
-   * Where the followed soldier is now, and the way they face on the ground (a unit vector, or none). Call every frame;
-   * ignored while panning freely.
+   * Where the followed soldier is now, and the way they're walking on the ground (a unit vector, or none). Call every
+   * frame; ignored while panning freely.
    */
-  follow(x: number, z: number, facing?: { readonly x: number; readonly z: number }): void
+  follow(x: number, z: number, moving?: { readonly x: number; readonly z: number }): void
+  /**
+   * Aims, leaning the view toward the pointer, from where it sits on the screen: -1 to 1 from the middle to the right
+   * edge and to the top edge. Null stops aiming. Aiming goes back to following the soldier.
+   */
+  setAim(pointer: { readonly right: number; readonly up: number } | null): void
   /** Goes back to following the soldier. */
   recenter(): void
   /** Holds a pan, from -1 to 1 right and forward relative to the view, until changed. Zero stops. */
@@ -117,7 +129,8 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
   let following = true
   let target = { x: start.focusX, z: start.focusZ }
   let followed = { x: start.focusX, z: start.focusZ }
-  let facing = { x: 0, z: 0 }
+  let moving = { x: 0, z: 0 }
+  let aim: { right: number; up: number } | null = null
   let lead = { x: 0, z: 0 }
   let distance = start.distance
   let yaw = start.yaw
@@ -144,9 +157,15 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     get following() {
       return following
     },
-    follow(x, z, toward) {
+    follow(x, z, going) {
       followed = { x, z }
-      facing = toward ? { x: toward.x, z: toward.z } : { x: 0, z: 0 }
+      moving = going ? { x: going.x, z: going.z } : { x: 0, z: 0 }
+    },
+    setAim(pointer) {
+      aim = pointer ? { right: clamp(pointer.right, -1, 1), up: clamp(pointer.up, -1, 1) } : null
+      if (aim) {
+        following = true
+      }
     },
     recenter() {
       following = true
@@ -201,12 +220,19 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
         z: velocity.z + (wanted.z - velocity.z) * accelerate
       }
       if (following) {
-        const reach = Math.min(LOOK_AHEAD.max, LOOK_AHEAD.share * view.distance)
-        const swing = ease(LEAD_RATE, seconds)
-        lead = {
-          x: lead.x + (facing.x * reach - lead.x) * swing,
-          z: lead.z + (facing.z * reach - lead.z) * swing
+        let wantedLead: { x: number; z: number }
+        if (aim) {
+          const reach = Math.min(AIM_LEAN.max, AIM_LEAN.share * view.distance)
+          wantedLead = {
+            x: (right.x * aim.right + forward.x * aim.up) * reach,
+            z: (right.z * aim.right + forward.z * aim.up) * reach
+          }
+        } else {
+          const reach = Math.min(WALK_LEAD.max, WALK_LEAD.share * view.distance)
+          wantedLead = { x: moving.x * reach, z: moving.z * reach }
         }
+        const swing = ease(aim ? LEAD_RATE.aim : LEAD_RATE.walk, seconds)
+        lead = { x: approach(lead.x, wantedLead.x, swing), z: approach(lead.z, wantedLead.z, swing) }
         target = { x: followed.x + lead.x, z: followed.z + lead.z }
         velocity = { x: 0, z: 0 }
       } else {

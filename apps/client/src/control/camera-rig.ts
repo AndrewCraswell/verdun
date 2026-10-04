@@ -7,17 +7,19 @@ import { groundUnderPointer } from "./ground-pick.ts"
 export interface CameraRig {
   readonly model: CameraRigModel
   /**
-   * Where the soldier under control is now, and the way they face; the camera tracks them, looking ahead, while
+   * Where the soldier under control is now, and the way they're walking; the camera tracks them, a little ahead, while
    * following. Call every frame.
    */
-  follow(x: number, z: number, facing?: { readonly x: number; readonly z: number }): void
+  follow(x: number, z: number, moving?: { readonly x: number; readonly z: number }): void
   /** Goes back to following the soldier under control. */
   recenter(): void
   dispose(): void
 }
 
-/** The pointer within this many pixels of the screen's edge pans the view that way. */
+/** The pointer within this many pixels of the screen's edge pans the view that way... */
 const EDGE_PIXELS = 14
+/** ...once it has rested there this many seconds: a flick across the screen to aim at a man near its edge doesn't. */
+const EDGE_DWELL = 0.35
 /** Middle-drag turns this many radians per pixel across, and tilts this many per pixel down. */
 const DRAG_TURN = 0.006
 const DRAG_TILT = 0.004
@@ -48,7 +50,8 @@ function typing(event: KeyboardEvent): boolean {
  * The battlefield camera, as tactics games do it: follows the soldier under control until the player pans away, and
  * goes back to them on Space.
  *
- * - Pan: arrow keys, the pointer at a screen edge, or Shift + middle-drag to grab the ground.
+ * - Aim: hold the right mouse button, and the view leans toward the pointer.
+ * - Pan: arrow keys, the pointer resting at a screen edge (not while aiming), or Shift + middle-drag to grab the ground.
  * - Turn and tilt: middle-drag, or Shift + Left and Right.
  * - Zoom: the wheel, toward the point under the pointer when panning freely. The view tips toward overhead as it pulls
  *   back and drops toward the ground close in.
@@ -75,56 +78,85 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
   const arrows = new Set<string>()
   let pointer: { x: number; y: number } | null = null
   let dragging: { x: number; y: number; grab: boolean } | null = null
+  let aiming = false
+  let shift = false
+  /** When the pointer reached a screen edge, by the frame clock, or null when it isn't at one. */
+  let atEdgeSince: number | null = null
+  let clock = 0
   let written = camera.radius
 
   const pointerGround = () => groundUnderPointer(scene, map) ?? undefined
 
-  /** Arrow keys and screen edges together decide the held pan and turn. */
-  function updateHeld(shift: boolean): void {
+  /** How far into each screen edge the pointer is, from 0 to 1, right and up; zero away from the edges. */
+  function edgePush(): { right: number; forward: number } {
+    if (!pointer || !canvas || dragging || aiming || !document.hasFocus()) {
+      return { right: 0, forward: 0 }
+    }
+    const { clientWidth: width, clientHeight: height } = canvas
+    const edge = (distance: number) => Math.max(0, 1 - distance / EDGE_PIXELS)
+    return {
+      right: edge(width - pointer.x) - edge(pointer.x),
+      forward: edge(pointer.y) - edge(height - pointer.y)
+    }
+  }
+
+  /** Arrow keys and screen edges together decide the held pan and turn. Called every frame. */
+  function updateHeld(): void {
     let right = 0
-    let forward = 0
     let turn = 0
     if (shift) {
       turn = (arrows.has("ArrowLeft") ? 1 : 0) - (arrows.has("ArrowRight") ? 1 : 0)
     } else {
       right = (arrows.has("ArrowRight") ? 1 : 0) - (arrows.has("ArrowLeft") ? 1 : 0)
     }
-    forward = (arrows.has("ArrowUp") ? 1 : 0) - (arrows.has("ArrowDown") ? 1 : 0)
-    if (pointer && canvas && !dragging && document.hasFocus()) {
-      const { clientWidth: width, clientHeight: height } = canvas
-      const edge = (distance: number) => Math.max(0, 1 - distance / EDGE_PIXELS)
-      right += edge(width - pointer.x) - edge(pointer.x)
-      forward += edge(pointer.y) - edge(height - pointer.y)
+    let forward = (arrows.has("ArrowUp") ? 1 : 0) - (arrows.has("ArrowDown") ? 1 : 0)
+    const push = edgePush()
+    if (push.right === 0 && push.forward === 0) {
+      atEdgeSince = null
+    } else {
+      atEdgeSince ??= clock
+      if (clock - atEdgeSince >= EDGE_DWELL) {
+        right += push.right
+        forward += push.forward
+      }
     }
     model.setPan(right, forward)
     model.setTurn(turn)
+  }
+
+  /** Where the pointer sits on the screen, -1 to 1 from the middle to the right and top edges, for aiming. */
+  function aimPointer(): { right: number; up: number } | null {
+    if (!aiming || !pointer || !canvas) {
+      return null
+    }
+    const { clientWidth: width, clientHeight: height } = canvas
+    return { right: (pointer.x - width / 2) / (width / 2), up: (height / 2 - pointer.y) / (height / 2) }
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (typing(event)) {
       return
     }
+    shift = event.shiftKey
     if (ARROWS.has(event.code)) {
       // Arrows would otherwise scroll the page.
       event.preventDefault()
       arrows.add(event.code)
-      updateHeld(event.shiftKey)
     } else if (event.code === "Space" && !event.repeat) {
       event.preventDefault()
       model.recenter()
     }
   }
   const onKeyUp = (event: KeyboardEvent) => {
-    if (ARROWS.has(event.code) || event.code === "ShiftLeft" || event.code === "ShiftRight") {
-      arrows.delete(event.code)
-      updateHeld(event.shiftKey)
-    }
+    shift = event.shiftKey
+    arrows.delete(event.code)
   }
   const onBlur = () => {
     arrows.clear()
     pointer = null
     dragging = null
-    updateHeld(false)
+    aiming = false
+    shift = false
   }
   const onPointerDown = (event: PointerEvent) => {
     if (event.button === 1) {
@@ -132,7 +164,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
       event.preventDefault()
       dragging = { x: event.clientX, y: event.clientY, grab: event.shiftKey }
       canvas?.setPointerCapture(event.pointerId)
-      updateHeld(event.shiftKey)
+    } else if (event.button === 2) {
+      aiming = true
     }
   }
   const onPointerMove = (event: PointerEvent) => {
@@ -150,17 +183,22 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
         model.rotate(-dx * DRAG_TURN, -dy * DRAG_TILT)
       }
     }
-    updateHeld(event.shiftKey)
+    shift = event.shiftKey
   }
   const onPointerUp = (event: PointerEvent) => {
     if (event.button === 1) {
       dragging = null
       canvas?.releasePointerCapture(event.pointerId)
+    } else if (event.button === 2) {
+      aiming = false
     }
   }
   const onPointerLeave = () => {
     pointer = null
-    updateHeld(false)
+  }
+  // The right button aims: no menu.
+  const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault()
   }
   const onWheel = (event: WheelEvent) => {
     event.preventDefault()
@@ -183,6 +221,7 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
   canvas?.addEventListener("pointerleave", onPointerLeave)
   canvas?.addEventListener("wheel", onWheel, { passive: false })
   canvas?.addEventListener("mousedown", onMouseDown)
+  canvas?.addEventListener("contextmenu", onContextMenu)
 
   const frame = scene.onBeforeRenderObservable.add(() => {
     // Something else set the zoom (a scenario framing the start, say): take it as the player's zoom.
@@ -190,6 +229,9 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
       model.setDistance(camera.radius)
     }
     const seconds = Math.min(0.1, scene.getEngine().getDeltaTime() / 1000)
+    clock += seconds
+    updateHeld()
+    model.setAim(aimPointer())
     const view = model.step(seconds, (x, z) => heightAt(map, x, z))
     camera.target.set(view.focusX, view.focusY, view.focusZ)
     camera.alpha = view.yaw
@@ -200,8 +242,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
 
   const rig: CameraRig = {
     model,
-    follow(x, z, facing) {
-      model.follow(x, z, facing)
+    follow(x, z, moving) {
+      model.follow(x, z, moving)
     },
     recenter() {
       model.recenter()
@@ -217,6 +259,7 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
       canvas?.removeEventListener("pointerleave", onPointerLeave)
       canvas?.removeEventListener("wheel", onWheel)
       canvas?.removeEventListener("mousedown", onMouseDown)
+      canvas?.removeEventListener("contextmenu", onContextMenu)
       rigs.delete(camera)
     }
   }
