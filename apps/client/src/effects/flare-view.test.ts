@@ -4,6 +4,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { createSimulation, FLARE, type Flare, flarePosition, Side, type Simulation } from "@verdun/sim"
@@ -59,9 +60,9 @@ describe("the flare view", () => {
   it("draws a flare climbing from the trench, its star bright enough to bloom", () => {
     const { view, launch, state, scene } = setup()
     const flare = launch(100, 120)
-    expect(
-      scene.particleSystems.filter((system) => system.name.startsWith("flare-smoke")).every((s) => s.applyFog)
-    ).toBe(true)
+    const smoke = scene.particleSystems.filter((system) => system.name.startsWith("flare-smoke"))
+    expect(smoke).toHaveLength(12)
+    expect(smoke.every((system) => system instanceof ParticleSystem && system.applyFog)).toBe(true)
     state.tick = 1 * TICKS
     view.update(0.016)
     expect(view.drawn).toHaveLength(1)
