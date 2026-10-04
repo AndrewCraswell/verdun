@@ -1,4 +1,5 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { generateRollingTerrain, heightAt } from "@verdun/map"
 import { createSimulation, enqueueCommand, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
@@ -18,7 +19,14 @@ const engines: NullEngine[] = []
 function render(sim: ReturnType<typeof createSimulation>): BattlefieldView {
   const engine = new NullEngine()
   engines.push(engine)
-  return createBattlefieldScene(engine, sim)
+  // Empty textures: the tests run in Node with no image loading.
+  const groundLayers = {
+    grass: new Texture(null, null),
+    mud: new Texture(null, null),
+    chalk: new Texture(null, null),
+    churned: new Texture(null, null)
+  }
+  return createBattlefieldScene(engine, sim, { groundLayers })
 }
 
 afterEach(() => {
