@@ -11,6 +11,11 @@ continuous battles along the Verdun front, while the front line moves over a sea
 
 Requires Node 24 and pnpm 11.
 
+> **The assets aren't in git.** The raw purchases (`vendor/`) and the pipeline's output with the pack's key
+> (`.asset-cache/`) live only in this checkout and its backup, and some can't be downloaded again. Never delete the
+> checkout to clone it fresh without them; `pnpm assets:backup` copies them to the backup drive. See
+> [asset backup](docs/assets/backup.md).
+
 ```bash
 pnpm install
 ```
@@ -113,6 +118,7 @@ Laboratory Physical Sciences Laboratory. Corrected with Météo-France daily sta
 | [Art direction](docs/assets/art-direction.md) | Visual target and commission spec                           |
 | [Shopping list](docs/assets/shopping-list.md) | What to buy, with links and prices                          |
 | [Licensing](docs/assets/licensing.md)         | Which stores are usable for a web game and how we comply    |
+| [Asset backup](docs/assets/backup.md)         | What lives outside git, how to back it up and restore it    |
 | [Pipeline](docs/assets/pipeline.md)           | Export, optimization, compression, crowd rendering, budgets |
 | [Register](docs/assets/register.md)           | Every shipped third-party asset and its license             |
 

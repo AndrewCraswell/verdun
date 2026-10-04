@@ -21,6 +21,7 @@
     "lockfile:normalize": "node scripts/normalize-lockfile.mjs",
     "assets:unpack": "node scripts/extract-unitypackage.mjs",
     "assets:pack": "node scripts/build-asset-pack.mjs",
+    "assets:backup": "node scripts/backup-assets.mjs",
     "map:export-tiled": "node scripts/export-tiled.mjs",
     "prepare": "lefthook install",
     "map:analyze": "node scripts/analyze-sector.mjs",
