@@ -16,6 +16,7 @@ import { createEnvironment, type Environment, environmentSystem, type Environmen
 import { type Flare, type FlareEvent, flareSystem } from "./flares.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
+import { navigationSystem } from "./navigation.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
 import {
   createReinforcements,
@@ -280,6 +281,7 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: environment", (sim) => environmentSystem(sim, STEP_SECONDS)],
   ["sim: commanders", commanderSystem],
   ["sim: squads", squadSystem],
+  ["sim: navigation", navigationSystem],
   ["sim: reinforcements", reinforcementSystem],
   ["sim: stances", stanceSystem],
   ["sim: flares", flareSystem],

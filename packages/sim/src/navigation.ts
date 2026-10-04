@@ -18,8 +18,18 @@ const GROUND_CHANGE = 0.1
 const CLEAR_COST = 3
 /** How far along the field a soldier looks for the furthest point he can walk to straight, in cells. */
 const LOOKAHEAD = 12
-/** At most this many flow fields are kept; the least recently used goes first. */
-const MAX_FIELDS = 12
+/**
+ * At most this many flow fields are kept; the least recently used goes first. Every squad on its own point (an advance,
+ * a leader followed) has a field of its own, and a full map's whole field is a few hundred kilobytes.
+ */
+const MAX_FIELDS = 64
+
+/**
+ * Cells a step's route searches may settle, all told. A mass order (thirty squads sent at once, each to its own point)
+ * would otherwise search the whole map thirty times in one step, a hitch of half a second; within the budget the work
+ * spreads over a second or two, and squads set off as their routes come in, the way an order passes down a line.
+ */
+const SEARCH_BUDGET = 40_000
 
 /** Where soldiers are heading: across a line (an objective, a place behind a barrage), or to a point. */
 export type NavGoal =
@@ -37,13 +47,38 @@ interface NavState {
   readonly obstacles: Float32Array
   /** 1 where a cell has any wire in it, so straight walks only check the wire closely where there is some. */
   readonly wired: Uint8Array
+  /**
+   * The time to walk into each cell from its neighbour in each of the eight `NEIGHBOURS` directions, one grid of cells
+   * after another; Infinity where that can't be walked, or the neighbour is off the map. Worked out with the costs, so a
+   * route's search only adds them up.
+   */
+  readonly steps: Float64Array
   builtAt: number
   /** The wire's cut count when the costs were last built. */
   builtForCuts: number
   /** How sodden the ground was, and how deep the snow, when the costs were last built. */
   builtForMud: number
   builtForSnow: number
-  readonly fields: Map<string, Float32Array>
+  readonly fields: Map<string, FlowField>
+  /**
+   * Fields the budget ran out on, each with the cell a soldier was waiting on, carried on that far each step by
+   * `navigationSystem`. No further: a field for a barrage's line is soon dropped for the next, and searching it to the
+   * map's edge would take the budget from routes still wanted.
+   */
+  readonly unfinished: Map<FlowField, number>
+  /** Cells left to settle this step, and the step it's for. */
+  budget: number
+  budgetTick: number
+}
+
+/**
+ * Time to walk from each cell to a goal, worked out from the goal outward (Dijkstra) only as far as soldiers have asked:
+ * the search stops once the cell asked about is settled, and picks up from there when a soldier further out asks.
+ */
+interface FlowField {
+  readonly distance: Float32Array
+  /** The search's frontier, or null once it has covered every cell it can reach. */
+  heap: Heap | null
 }
 
 const states = new WeakMap<Simulation, NavState>()
@@ -122,11 +157,46 @@ function rebuild(sim: Simulation, state: NavState): void {
           : 0
     }
   }
+  laySteps(state)
   state.builtAt = sim.tick
   state.builtForCuts = sim.wire.cuts
   state.builtForMud = sodden(sim)
   state.builtForSnow = snowDepth(sim)
   state.fields.clear()
+  state.unfinished.clear()
+}
+
+/** Each of the `NEIGHBOURS` directions paired with its opposite: a step one way and back share their ground. */
+const OPPOSITES = [
+  [0, 1],
+  [2, 3],
+  [4, 7],
+  [5, 6]
+] as const
+
+/** Works out every step's walking time from the cells' costs and heights: see `NavState.steps`. */
+function laySteps(state: NavState): void {
+  const { columns, rows, cost, height, steps } = state
+  const cells = columns * rows
+  steps.fill(Infinity)
+  for (const [direction, opposite] of OPPOSITES) {
+    const [dc, dr, length] = NEIGHBOURS[direction]
+    const run = length * NAV_CELL
+    for (let row = Math.max(0, -dr); row < Math.min(rows, rows - dr); row++) {
+      for (let column = Math.max(0, -dc); column < Math.min(columns, columns - dc); column++) {
+        const at = row * columns + column
+        const from = at + dr * columns + dc
+        const through = (read(cost, at) + read(cost, from)) / 2
+        if (!Number.isFinite(through)) {
+          continue
+        }
+        const rise = read(height, at) - read(height, from)
+        // Into `at` from its neighbour, and back out the other way, down the same slope.
+        steps[direction * cells + at] = run * through * slopeCost(rise / run)
+        steps[opposite * cells + from] = run * through * slopeCost(-rise / run)
+      }
+    }
+  }
 }
 
 function navState(sim: Simulation): NavState {
@@ -141,11 +211,15 @@ function navState(sim: Simulation): NavState {
       height: new Float32Array(columns * rows),
       obstacles: layObstacles(sim.map, columns, rows),
       wired: new Uint8Array(columns * rows),
+      steps: new Float64Array(columns * rows * NEIGHBOURS.length),
       builtAt: 0,
       builtForCuts: 0,
       builtForMud: 0,
       builtForSnow: 0,
-      fields: new Map()
+      fields: new Map(),
+      unfinished: new Map(),
+      budget: SEARCH_BUDGET,
+      budgetTick: sim.tick
     }
     states.set(sim, state)
     rebuild(sim, state)
@@ -158,75 +232,81 @@ function navState(sim: Simulation): NavState {
     // Twenty steps a second; a literal, since importing TICK_RATE here would be circular at load time.
     rebuild(sim, state)
   }
+  if (state.budgetTick !== sim.tick) {
+    state.budgetTick = sim.tick
+    state.budget = SEARCH_BUDGET
+  }
   return state
 }
 
 /** A binary min-heap of cells by distance, for Dijkstra, on typed arrays that grow as needed. */
-function createHeap(initial: number) {
-  let cells = new Int32Array(Math.max(16, initial))
-  let keys = new Float64Array(cells.length)
-  let size = 0
-  const cellAt = (index: number) => cells[index] ?? 0
-  const keyAt = (index: number) => keys[index] ?? Infinity
-  return {
-    get size() {
-      return size
-    },
-    /** The smallest key, of the cell `pop` returns next. */
-    get topKey() {
-      return keyAt(0)
-    },
-    push(cell: number, key: number) {
-      if (size === cells.length) {
-        const grownCells = new Int32Array(cells.length * 2)
-        grownCells.set(cells)
-        cells = grownCells
-        const grownKeys = new Float64Array(keys.length * 2)
-        grownKeys.set(keys)
-        keys = grownKeys
-      }
-      let index = size++
-      while (index > 0) {
-        const parent = (index - 1) >> 1
-        if (keyAt(parent) <= key) {
-          break
-        }
-        cells[index] = cellAt(parent)
-        keys[index] = keyAt(parent)
-        index = parent
-      }
-      cells[index] = cell
-      keys[index] = key
-    },
-    pop(): number {
-      const top = cellAt(0)
-      size--
-      const lastCell = cellAt(size)
-      const lastKey = keyAt(size)
-      let index = 0
-      for (;;) {
-        const left = index * 2 + 1
-        const right = left + 1
-        let smallest = index
-        let smallestKey = lastKey
-        if (left < size && keyAt(left) < smallestKey) {
-          smallest = left
-          smallestKey = keyAt(left)
-        }
-        if (right < size && keyAt(right) < smallestKey) {
-          smallest = right
-        }
-        if (smallest === index) {
-          break
-        }
-        cells[index] = cellAt(smallest)
-        keys[index] = keyAt(smallest)
-        index = smallest
-      }
-      cells[index] = lastCell
-      keys[index] = lastKey
-      return top
+class Heap {
+  cells: Int32Array
+  keys: Float64Array
+  size = 0
+
+  constructor(initial: number) {
+    this.cells = new Int32Array(Math.max(16, initial))
+    this.keys = new Float64Array(this.cells.length)
+  }
+
+  /** The smallest key, of the cell `pop` returns next. */
+  get topKey(): number {
+    return this.size > 0 ? (this.keys[0] ?? Infinity) : Infinity
+  }
+
+  push(cell: number, key: number): void {
+    if (this.size === this.cells.length) {
+      const cells = new Int32Array(this.cells.length * 2)
+      cells.set(this.cells)
+      this.cells = cells
+      const keys = new Float64Array(this.keys.length * 2)
+      keys.set(this.keys)
+      this.keys = keys
     }
+    const { cells, keys } = this
+    let index = this.size++
+    while (index > 0) {
+      const parent = (index - 1) >> 1
+      const parentKey = keys[parent] ?? Infinity
+      if (parentKey <= key) {
+        break
+      }
+      cells[index] = cells[parent] ?? 0
+      keys[index] = parentKey
+      index = parent
+    }
+    cells[index] = cell
+    keys[index] = key
+  }
+
+  pop(): number {
+    const { cells, keys } = this
+    const top = cells[0] ?? 0
+    const size = --this.size
+    const lastCell = cells[size] ?? 0
+    const lastKey = keys[size] ?? Infinity
+    let index = 0
+    for (;;) {
+      const left = index * 2 + 1
+      if (left >= size) {
+        break
+      }
+      const right = left + 1
+      const leftKey = keys[left] ?? Infinity
+      const rightKey = right < size ? (keys[right] ?? Infinity) : Infinity
+      const child = rightKey < leftKey ? right : left
+      const childKey = rightKey < leftKey ? rightKey : leftKey
+      if (!(childKey < lastKey)) {
+        break
+      }
+      cells[index] = cells[child] ?? 0
+      keys[index] = childKey
+      index = child
+    }
+    cells[index] = lastCell
+    keys[index] = lastKey
+    return top
   }
 }
 
@@ -241,80 +321,131 @@ const NEIGHBOURS = [
   [-1, -1, Math.SQRT2]
 ] as const
 
-/** Time to walk from each cell to the goal, walking through cheaper ground where it can: a flow field. */
-function flowField(state: NavState, goal: NavGoal): Float32Array {
-  const { columns, rows, cost, height } = state
+/** Starts a flow field for a goal: every walkable cell in it is reached already. */
+function startField(state: NavState, goal: NavGoal): FlowField {
+  const { columns, rows, cost } = state
   const distance = new Float32Array(columns * rows).fill(Infinity)
-  const heap = createHeap(columns * rows)
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const x = (column + 0.5) * NAV_CELL
-      const z = (row + 0.5) * NAV_CELL
-      const reached =
-        goal.kind === "line"
-          ? (z - goal.z) * goal.direction >= 0
-          : (x - goal.x) ** 2 + (z - goal.z) ** 2 <= goal.radius ** 2
+  const heap = new Heap(1024)
+  const reached = (column: number, row: number) => {
+    const x = (column + 0.5) * NAV_CELL
+    const z = (row + 0.5) * NAV_CELL
+    return goal.kind === "line"
+      ? (z - goal.z) * goal.direction >= 0
+      : (x - goal.x) ** 2 + (z - goal.z) ** 2 <= goal.radius ** 2
+  }
+  // Only the rows and columns the goal could cover: a point's are few.
+  const rowsFrom = goal.kind === "point" ? Math.max(0, Math.floor((goal.z - goal.radius) / NAV_CELL)) : 0
+  const rowsTo = goal.kind === "point" ? Math.min(rows - 1, Math.floor((goal.z + goal.radius) / NAV_CELL)) : rows - 1
+  const columnsFrom = goal.kind === "point" ? Math.max(0, Math.floor((goal.x - goal.radius) / NAV_CELL)) : 0
+  const columnsTo =
+    goal.kind === "point" ? Math.min(columns - 1, Math.floor((goal.x + goal.radius) / NAV_CELL)) : columns - 1
+  for (let row = rowsFrom; row <= rowsTo; row++) {
+    for (let column = columnsFrom; column <= columnsTo; column++) {
       const cell = row * columns + column
-      if (reached && Number.isFinite(read(cost, cell))) {
-        distance[cell] = 0
+      if (!reached(column, row) || !Number.isFinite(read(cost, cell))) {
+        continue
+      }
+      distance[cell] = 0
+      // Only cells on the goal's edge lead anywhere new: a line's goal can be half the map, and searching on from
+      // every cell of it would spend the budget on ground already reached.
+      const edge = NEIGHBOURS.some(([dc, dr]) => {
+        const c = column + dc
+        const r = row + dr
+        return c >= 0 && r >= 0 && c < columns && r < rows && !reached(c, r)
+      })
+      if (edge) {
         heap.push(cell, 0)
       }
     }
   }
-  while (heap.size > 0) {
+  return { distance, heap }
+}
+
+/**
+ * Carries a field's search on until `cell` is settled: until nothing left on the frontier could reach it more cheaply.
+ * Every cell nearer the goal than it is settled then too, so a walk down the field from it reads the same as from a
+ * field searched to the end. Stops early when the step's budget runs out, answering whether it got there.
+ */
+function settle(state: NavState, field: FlowField, cell: number): boolean {
+  const { heap, distance } = field
+  if (!heap) {
+    return true
+  }
+  const { columns, steps } = state
+  const cells = distance.length
+  while (heap.size > 0 && heap.topKey < read(distance, cell)) {
+    if (state.budget <= 0) {
+      state.unfinished.set(field, cell)
+      return false
+    }
+    state.budget--
     const key = heap.topKey
-    const cell = heap.pop()
-    const here = read(distance, cell)
+    const at = heap.pop()
+    const here = read(distance, at)
     if (key > here) {
       // A stale entry: the cell was reached more cheaply since it was pushed.
       continue
     }
-    const column = cell % columns
-    const row = Math.floor(cell / columns)
-    for (const [dc, dr, length] of NEIGHBOURS) {
-      const c = column + dc
-      const r = row + dr
-      if (c < 0 || r < 0 || c >= columns || r >= rows) {
+    for (let direction = 0; direction < NEIGHBOURS.length; direction++) {
+      // The field runs from the goal outward, so the walk is from the neighbour into `at`.
+      const time = steps[direction * cells + at] ?? Infinity
+      if (time === Infinity) {
         continue
       }
-      const next = r * columns + c
-      const through = (read(cost, cell) + read(cost, next)) / 2
-      if (!Number.isFinite(through)) {
-        continue
-      }
-      // The field runs from the goal outward, so the walk is from `next` to `cell`: its slope is that way round.
-      const run = length * NAV_CELL
-      const grade = (read(height, cell) - read(height, next)) / run
+      const [dc, dr] = NEIGHBOURS[direction] ?? [0, 0]
+      const next = at + dr * columns + dc
       // Rounded to the field's own precision first: comparing an unrounded total against a rounded-up stored one
       // would keep "improving" cells by nothing, and push them again and again.
-      const total = Math.fround(here + run * through * slopeCost(grade))
+      const total = Math.fround(here + time)
       if (total < read(distance, next)) {
         distance[next] = total
         heap.push(next, total)
       }
     }
   }
-  return distance
+  if (heap.size === 0) {
+    field.heap = null
+  }
+  state.unfinished.delete(field)
+  return true
 }
 
-function field(state: NavState, goal: NavGoal): Float32Array {
+/** The field for a goal, settled as far as `cell`, or null if this step's budget ran out first. */
+function field(state: NavState, goal: NavGoal, cell: number): Float32Array | null {
   const key = goalKey(goal)
-  const cached = state.fields.get(key)
-  if (cached) {
+  let made = state.fields.get(key)
+  if (made) {
     // Most recently used last.
     state.fields.delete(key)
-    state.fields.set(key, cached)
-    return cached
+  } else {
+    made = startField(state, goal)
   }
-  const made = flowField(state, goal)
   state.fields.set(key, made)
   if (state.fields.size > MAX_FIELDS) {
-    const oldest = state.fields.keys().next().value
+    const oldest = state.fields.entries().next().value
     if (oldest !== undefined) {
-      state.fields.delete(oldest)
+      state.fields.delete(oldest[0])
+      state.unfinished.delete(oldest[1])
     }
   }
-  return made
+  return settle(state, made, cell) ? made.distance : null
+}
+
+/**
+ * Carries on the route searches soldiers asked for and the budget cut short, with what's left of it this step, so the
+ * routes are ready when their squads next take stock.
+ */
+export function navigationSystem(sim: Simulation): void {
+  const state = states.get(sim)
+  if (!state || state.unfinished.size === 0) {
+    return
+  }
+  const current = navState(sim)
+  for (const [field, cell] of current.unfinished) {
+    if (!settle(current, field, cell)) {
+      return
+    }
+  }
 }
 
 function cellAt(state: NavState, x: number, z: number): number {
@@ -372,22 +503,26 @@ function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: numbe
 /**
  * Where a soldier should walk next to reach `target`, which lies in `goal`: straight there when the way is clear,
  * otherwise to the furthest point along the cheapest route that he can walk to in a straight line, round ruins and
- * through gaps in the wire. Recomputed every time a squad takes stock, so the route bends smoothly.
+ * through gaps in the wire. Recomputed every time a squad takes stock, so the route bends smoothly. Null while the route
+ * is still being worked out (see `SEARCH_BUDGET`): he carries on as he was.
  */
 export function nextWaypoint(
   sim: Simulation,
   soldier: EntityId,
   target: { readonly x: number; readonly z: number },
   goal: NavGoal
-): { x: number; z: number } {
+): { x: number; z: number } | null {
   const state = navState(sim)
   const x = sim.soldiers.position.x[soldier]
   const z = sim.soldiers.position.z[soldier]
   if (clearLine(sim, state, x, z, target.x, target.z)) {
     return { x: target.x, z: target.z }
   }
-  const distance = field(state, goal)
   let cell = cellAt(state, x, z)
+  const distance = field(state, goal, cell)
+  if (!distance) {
+    return null
+  }
   if (!Number.isFinite(read(distance, cell))) {
     // Nowhere to go from here (inside a ruin's footprint, say): head straight for it and let the ground sort it out.
     return { x: target.x, z: target.z }

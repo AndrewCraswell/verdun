@@ -199,7 +199,9 @@ function orderMoveTo(
   if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
     // Round ruins and pools and through gaps in the wire, rather than straight through them.
     const via = nextWaypoint(sim, soldier, target, goal)
-    applyCommand(sim, { type: "move-to", soldier, x: via.x, z: via.z, run })
+    if (via) {
+      applyCommand(sim, { type: "move-to", soldier, x: via.x, z: via.z, run })
+    }
   }
 }
 
