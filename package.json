@@ -25,7 +25,8 @@
     "prepare": "lefthook install",
     "map:analyze": "node scripts/analyze-sector.mjs",
     "map:elevation": "node scripts/fetch-elevation.mjs",
-    "weather:build": "node scripts/build-historical-weather.mjs"
+    "weather:build": "node scripts/build-historical-weather.mjs",
+    "balance": "node scripts/balance.mjs"
   },
   "devDependencies": {
     "knip": "^6.38.0",
