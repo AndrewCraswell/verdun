@@ -171,6 +171,15 @@ little better (4 of 5, 64%) and the Germans worse (2 of 5, 72%): walking longer 
 men aren't what drives the losses. Whether the losses band should move, or something else is making attacks bloodier
 than before pathfinding (about 50% then), is open; the harness needs casualty causes from the simulation to say which.
 
+**Losses by cause** (`5907d94`, the harness now reports them): rifles cause about half of every attack's losses
+(46–68%), enemy shells 16–37%, grenades 5–19%, own shells 2–9% (inside the 5–15% band for prepared attacks), and
+**machine guns only 1–7%**. History had it the other way: machine guns were what broke attacks, and the overnight log
+measured them at about a fifth of an attack's losses. The German guns fire only about 120 rounds each in a six-minute
+assault (some 18 s of trigger time) and hit with 1–2% of rounds; riflemen hit with 7–10%. Moving the guns into the map's
+emplacements made it worse (1–2% of losses, attacks then always won), because the gunners couldn't see out from behind
+their posts or from sap floors, so that change was dropped. Why the guns fire so little is the next balance question,
+and the likely reason attacks cost the wrong things.
+
 ### Season harness (stage 1–3)
 
 The war map is pure logic too. The season harness plays whole seasons turn by turn, with each sector's day resolved by a
