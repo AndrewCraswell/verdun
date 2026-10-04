@@ -226,8 +226,10 @@ what the eye adds:
 - **The launch**: a streak of sparks climbing from the trench (a stretched spark trail), the star small as it climbs.
 - **The star**: a small core drawn well above the bloom threshold (1.05), so the post-process blooms it into a glare; a
   tighter glare card; and a wide halo of lit air, larger and brighter in mist, rain and snow (`hazeOf`).
-- **The parachute**: under its canopy the flare swings in a slow pendulum, 0.9 m each way every 2.8 s, opening out over
-  its first seconds of hanging. Its light and shadows swing with it.
+- **The parachute**: a silk dome 3.5 m above the flare, drawn 1.4 m across (twice a real one, to read from the camera's
+  height), opening over 1.5 s once the flare tops its climb and glowing with the flare's light through the silk. Under
+  it the flare swings in a slow pendulum, 0.9 m each way every 2.8 s, opening out over its first seconds of hanging. Its
+  light and shadows swing with it.
 - **Flicker**: a fast shimmer and a slower waver, with brief dips at random; in the last 4.5 s it gutters hard, the dips
   deepen and the flame warms from cold white to orange.
 - **Sparks and smoke**: burning magnesium drips and falls away, more as it gutters; a smoke trail drifts off on the

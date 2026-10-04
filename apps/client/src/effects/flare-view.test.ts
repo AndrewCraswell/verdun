@@ -66,12 +66,14 @@ describe("the flare view", () => {
     expect(drawn.position.y).toBeCloseTo(flarePosition(flare, state.tick).y, 0)
     const core = scene.getMeshByName("flare-core-0")
     expect(core?.isEnabled()).toBe(true)
+    // Still climbing: the parachute hasn't opened.
+    expect(scene.getMeshByName("flare-canopy-0")?.isEnabled()).toBe(false)
     const material = core?.material
     expect(material instanceof StandardMaterial && material.emissiveColor.r > 1.05).toBe(true)
   })
 
   it("swings under its parachute and lights the ground beneath with the leading spot light and its shadows", () => {
-    const { view, launch, state } = setup()
+    const { view, launch, state, scene } = setup()
     const flare = launch(100, 100)
     state.tick = 8 * TICKS
     const positions: number[] = []
@@ -83,6 +85,15 @@ describe("the flare view", () => {
     expect(Math.min(...positions)).toBeLessThan(-0.3)
     expect(Math.max(...positions)).toBeGreaterThan(0.3)
     expect(Math.max(...positions.map(Math.abs))).toBeLessThan(1)
+    // The parachute hangs open over the swing's pivot, a few metres up, glowing with the flare's light.
+    const canopy = scene.getMeshByName("flare-canopy-0")
+    expect(canopy?.isEnabled()).toBe(true)
+    const pivot = flarePosition(flare, state.tick)
+    expect(canopy?.position.x).toBeCloseTo(pivot.x, 5)
+    expect((canopy?.position.y ?? 0) - view.drawn[0]!.position.y).toBeCloseTo(3.5, 1)
+    expect(canopy?.scaling.x).toBeCloseTo(1.4, 5)
+    const silk = canopy?.material
+    expect(silk instanceof StandardMaterial && silk.emissiveColor.r > 0.3).toBe(true)
     const [lead, second] = view.lights
     expect(lead?.isEnabled()).toBe(true)
     expect(lead?.intensity).toBeGreaterThan(0.5)

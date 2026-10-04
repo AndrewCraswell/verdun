@@ -10,6 +10,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder"
+import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
@@ -40,6 +41,12 @@ const GLARE = { size: 6, glow: 0.6 } as const
 const HALO = { size: 26, hazeSize: 50, alpha: 0.035, hazeAlpha: 0.16 } as const
 /** The parachute swings the flare in a slow pendulum: metres either side, and seconds a swing. */
 const SWAY = { amplitude: 0.9, period: 2.8 } as const
+/**
+ * The parachute: a silk dome on shroud lines this many metres above the flare, drawn larger than a real one (about
+ * 0.6 m across) so it reads from the camera's height. It opens over `opening` seconds once the flare stops climbing, and
+ * glows with the flare's light through the silk: 3.5 m over a 25,000 candela star, it is lit at about 2,000 lux.
+ */
+const CANOPY = { lines: 3.5, width: 1.4, depth: 0.55, opening: 1.5, glow: 0.9, night: 0.05 } as const
 /**
  * The spot lights given to the flares nearest the camera. Babylon's standard lighting fades linearly to a range rather
  * than by the inverse square, so range and intensity follow the flare's height: a high flare lights a wide, dim pool,
@@ -134,9 +141,23 @@ function glowCard(scene: Scene, name: string, texture: Texture, fog: boolean): M
   return card
 }
 
-/** One flare's drawing: its star, its lit air, its sparks and its smoke, reused from flare to flare. */
+/** A parachute's dome: the top half of a sphere, seen inside and out, lit only by its flare. */
+function canopy(scene: Scene, name: string): Mesh {
+  const dome = CreateSphere(name, { diameter: 1, slice: 0.5, segments: 8 }, scene)
+  dome.isPickable = false
+  const material = new StandardMaterial(name, scene)
+  material.disableLighting = true
+  material.backFaceCulling = false
+  material.alpha = 0.92
+  dome.material = material
+  dome.setEnabled(false)
+  return dome
+}
+
+/** One flare's drawing: its star, its lit air, its parachute, its sparks and its smoke, reused from flare to flare. */
 interface Visual {
   flare: Flare | null
+  readonly canopy: Mesh
   readonly core: Mesh
   readonly glare: Mesh
   readonly halo: Mesh
@@ -202,6 +223,7 @@ function createVisual(
 
   return {
     flare: null,
+    canopy: canopy(scene, `flare-canopy-${index}`),
     core: glowCard(scene, `flare-core-${index}`, textures.core, false),
     glare: glowCard(scene, `flare-glare-${index}`, textures.halo, false),
     halo: glowCard(scene, `flare-halo-${index}`, textures.halo, true),
@@ -362,6 +384,7 @@ export function createFlareView(
           // Burnt out: no star, no sparks, the smoke drifting on until it thins away.
           if (visual.outFor >= 0) {
             visual.outFor += frameSeconds
+            visual.canopy.setEnabled(false)
             visual.core.setEnabled(false)
             visual.glare.setEnabled(false)
             visual.halo.setEnabled(false)
@@ -399,6 +422,23 @@ export function createFlareView(
         const flicker = Math.max(0, 1 + shimmer * (1 + 3 * guttering) - dip)
         visual.brightness = flareBrightness(flare, tick) * flicker
         const color = Color3.Lerp(COLOR.burning, COLOR.guttering, guttering ** 1.5)
+
+        // The parachute hangs at the pivot of the swing, opening out once the flare tops its climb, tilting against the
+        // swing, its silk lit from beneath.
+        const open = Math.min(1, hanging / CANOPY.opening)
+        visual.canopy.setEnabled(open > 0)
+        if (open > 0) {
+          const ground = heightAt(sim.map, at.x, at.z)
+          visual.canopy.position.set(at.x, ground + at.y + CANOPY.lines, at.z)
+          const width = CANOPY.width * (0.3 + 0.7 * open)
+          visual.canopy.scaling.set(width, CANOPY.depth * (2 - open), width)
+          const lean = (swing / CANOPY.lines) * 0.5
+          visual.canopy.rotation.set(lean * 0.6 * Math.cos(angle * 0.9), 0, -lean * Math.sin(angle))
+          const silk = visual.canopy.material
+          if (silk instanceof StandardMaterial) {
+            silk.emissiveColor = color.scale(CANOPY.glow * visual.brightness + CANOPY.night * (1 - light))
+          }
+        }
 
         // The star itself, blooming, and the lit air round it.
         const rising = age < FLARE.riseSeconds
@@ -498,6 +538,7 @@ export function createFlareView(
     },
     dispose() {
       for (const visual of visuals) {
+        visual.canopy.dispose(false, true)
         visual.core.dispose(false, true)
         visual.glare.dispose(false, true)
         visual.halo.dispose(false, true)
