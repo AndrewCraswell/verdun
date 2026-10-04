@@ -4,7 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
 import { afterEach, describe, expect, it } from "vitest"
-import { airLight, lightParticles, litByAir } from "./particle-light.ts"
+import { airLight, lightParticles, litByAir, setInFog } from "./particle-light.ts"
 
 const engines: NullEngine[] = []
 
@@ -48,6 +48,22 @@ describe("litByAir", () => {
     sparks.blendMode = ParticleSystem.BLENDMODE_ADD
 
     expect([smoke, fireball, sparks].filter(litByAir)).toEqual([smoke])
+  })
+})
+
+describe("setInFog", () => {
+  it("sets smoke, dust and flame in the scene's fog, which Babylon leaves them out of, but not flashes", () => {
+    const world = scene()
+    const dust = new ParticleSystem("burst-dust-field", 10, world)
+    dust.blendMode = ParticleSystem.BLENDMODE_STANDARD
+    const fireball = new ParticleSystem("burst-fireball-field", 10, world)
+    fireball.blendMode = ParticleSystem.BLENDMODE_STANDARD
+    const flash = new ParticleSystem("burst-flash-field", 10, world)
+    flash.blendMode = ParticleSystem.BLENDMODE_ADD
+    expect(dust.applyFog).toBe(false)
+
+    setInFog([dust, fireball, flash])
+    expect([dust, fireball, flash].map((system) => system.applyFog)).toEqual([true, true, false])
   })
 })
 

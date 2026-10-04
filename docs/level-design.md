@@ -268,7 +268,10 @@ The colour grade runs in the pipeline's image processing pass.
   **mist** lying in the hollows. Smoke, dust and mist are drawn unlit, so they're lit by hand
   ([particle-light.ts](../apps/client/src/level/particle-light.ts)): each takes its midday colour times the fog's colour
   against midday's, so it darkens at night instead of glowing, and warms at sunset. Flames, flashes and sparks give off
-  their own light and are left alone.
+  their own light and are left alone. Babylon leaves particles out of the scene's fog unless asked, so everything drawn
+  over the scene (smoke, dust, earth, mist and flame) is set in it: left out, a burst's column of earth stood black
+  against fog that hid the ground beneath it. Flashes and sparks add their light and stay out of the fog, shining
+  through it as they would.
 
 Screen-space ambient occlusion was tried in planning and left out: the shadows already take the frame budget it would
 need, and the darkened spoil and wet hollows give much of the same grounding.

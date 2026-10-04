@@ -17,7 +17,7 @@ import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage, DEBRIS } from "./battle-damage.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
-import { airLight, lightParticles, litByAir } from "./particle-light.ts"
+import { airLight, lightParticles, litByAir, setInFog } from "./particle-light.ts"
 import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
 import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
@@ -364,7 +364,8 @@ export async function dressLevel(
   const ambience = dressing.ambience
   let wireCuts = -1
   let washing = 0
-  // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night.
+  // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night. They and the flames
+  // sit in the fog.
   const unlit = [
     atmosphere?.smoke,
     atmosphere?.mist,
@@ -372,8 +373,9 @@ export async function dressLevel(
     dressing.aftermath.clods,
     life.smoke,
     ...bursts.systems
-  ]
-  const particleLight = lightParticles(unlit.filter((system) => system !== undefined).filter(litByAir))
+  ].filter((system) => system !== undefined)
+  setInFog(unlit)
+  const particleLight = lightParticles(unlit.filter(litByAir))
   const light = new Color3()
   // Detail, far copy or nothing for each batch, by the drawing camera's distance, before the scene culls them.
   view.scene.onBeforeActiveMeshesEvaluationObservable.add(() => {
