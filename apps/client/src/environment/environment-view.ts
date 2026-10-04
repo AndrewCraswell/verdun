@@ -14,6 +14,7 @@ import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createGroundMarks } from "./ground-marks.ts"
 import { createPrecipitation, type Precipitation } from "./precipitation.ts"
 import { createCloudTexture, type WeatherSurface, WeatherSurfacePlugin } from "./weather-surface-plugin.ts"
+import { type Wind, WindSwayPlugin } from "./wind-sway-plugin.ts"
 
 /** The level's own atmosphere: shadows from the key light, and smoke and mist that drift on the wind. */
 export interface LevelAir {
@@ -33,6 +34,8 @@ export interface EnvironmentView {
   readonly precipitation: Precipitation
   /** Cloud shadows and lying snow, as the ground and props are drawn with them now. */
   readonly surface: Readonly<WeatherSurface>
+  /** The wind the grass and trees sway in. */
+  readonly wind: Readonly<Wind>
   /** Fires on each lightning flash with how far off it struck, in metres: thunder follows at 3 s a kilometre. */
   readonly onLightning: Observable<number>
   /** Draws the simulation's time of day and weather. Call once a frame. */
@@ -59,6 +62,11 @@ const SNOW_COVERS = 8
  * `sodden` below as the ground soaks. Rain of `heavy` mm an hour ripples them hard.
  */
 const PUDDLES = { from: 0.2, full: 0.95, dry: 0.5, sodden: 0.05, heavy: 4 } as const
+/**
+ * Plants sway as hard as the wind is strong, `perMetre` of strength for each metre a second, and never quite still:
+ * a breath of air moves the grass on the calmest day.
+ */
+const SWAY = { perMetre: 0.2, least: 0.15, most: 3 } as const
 /** Seconds between marking where men tread in snow, and between finding the hollows again after craters. */
 const MARKS = { tread: 0.5, reshape: 2 } as const
 
@@ -143,6 +151,8 @@ export function createEnvironmentView(
   const clouds = createCloudTexture(scene)
   const marks = createGroundMarks(scene, sim.map)
   const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, marks, surface))
+  const wind: Wind = { towardX: 1, towardZ: 0, strength: SWAY.least, time: 0 }
+  const swaying = materials.map((material) => new WindSwayPlugin(material, wind))
   let untilTread = 0
   let untilReshape = 0
   let reshaped = false
@@ -155,6 +165,7 @@ export function createEnvironmentView(
     daylight,
     precipitation,
     surface,
+    wind,
     onLightning,
     update(frameSeconds) {
       const { environment } = sim
@@ -171,6 +182,12 @@ export function createEnvironmentView(
       // Becalmed, the clouds still come in from the west.
       surface.cloudOffsetX -= (windSpeed > 0 ? sim.wind.x / windSpeed : 1) * drift
       surface.cloudOffsetZ -= (windSpeed > 0 ? sim.wind.z / windSpeed : 0) * drift
+      if (windSpeed > 0) {
+        wind.towardX = sim.wind.x / windSpeed
+        wind.towardZ = sim.wind.z / windSpeed
+      }
+      wind.strength = Math.min(SWAY.most, Math.max(SWAY.least, windSpeed * SWAY.perMetre))
+      wind.time += frameSeconds
       const sunUp = Math.min(1, Math.max(0, environment.sky.sun.altitude / 10))
       surface.shadowedShare = weather.cloudCover
       surface.shadowDepth = CLOUD_SHADOW * sunUp * Math.sin(Math.PI * weather.cloudCover)
@@ -234,6 +251,7 @@ export function createEnvironmentView(
       daylight.dispose()
       precipitation.dispose()
       surfaced.forEach((plugin) => plugin.dispose())
+      swaying.forEach((plugin) => plugin.dispose())
       clouds.dispose()
       marks.dispose()
       onLightning.clear()

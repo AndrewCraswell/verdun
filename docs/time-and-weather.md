@@ -379,6 +379,12 @@ In `apps/client/src/environment/`:
   it isn't. The water darkens the ground and mirrors the haze, more at a glancing angle (Fresnel), and rain ripples it;
   frozen, it lies still. Craters re-shape the hollows, at most every 2 s. The level's permanent crater ponds are their
   own meshes and stay whatever the weather.
+- **Wind in the grass and trees** (`wind-sway-plugin.ts`): a vertex plugin on the kit's shared materials, in GLSL and
+  WGSL. The level tags its plant batches with a stiffness (`metadata.sway`: grass 1, crowned dead trees 0.25, trunks
+  stripped to poles 0.1), and only tagged meshes compile the swaying variant, one per stiffness band, so there is no
+  per-mesh uniform. A plant leans downwind by 0.2 m per metre of height at a strength of 1 (a 5 m/s wind; at least 0.15
+  in a calm, at most 3), swings about that, flutters a little across the wind, and gusts roll across the field at about
+  11 m/s. Each instance's position sets its phase. Shadows come from Babylon's own depth shader and don't sway.
 - **Trails in snow**: every half second the view presses where each man stands into a 1 m texture of trodden snow, which
   thins the snow there and greys it with mud. Fresh snow fills trails (two thirds filled by 2 mm of water), and a thaw
   wipes them.
