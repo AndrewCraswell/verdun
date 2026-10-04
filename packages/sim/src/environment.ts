@@ -1,5 +1,5 @@
 import type { Simulation } from "./simulation.ts"
-import { FLEURY, type GeoLocation, illuminanceUnder, type Sky, sightRange, skyAt } from "./sky.ts"
+import { FLEURY, type GeoLocation, illuminanceUnder, type Sky, sightRange, skyAt, snowGlow } from "./sky.ts"
 import {
   blendWeather,
   createForecast,
@@ -145,7 +145,8 @@ function observe(environment: Environment): void {
   }
   environment.sky = skyAt(moment, environment.location)
   environment.illuminance = illuminanceUnder(environment.sky, environment.weather.cloudCover)
-  environment.sightRange = sightRange(environment.illuminance, environment.weather.visibility)
+  const { snowCover, cloudCover, visibility } = environment.weather
+  environment.sightRange = sightRange(environment.illuminance * snowGlow(snowCover, cloudCover), visibility)
 }
 
 /** Brings the weather, sky and wind up to the clock now, as after the clock or forecast changed. */

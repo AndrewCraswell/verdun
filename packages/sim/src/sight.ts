@@ -2,7 +2,7 @@ import type { EntityId } from "bitecs"
 import { flareLight, isDark } from "./flares.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, TICK_RATE } from "./simulation.ts"
-import { sightRange } from "./sky.ts"
+import { sightRange, snowGlow } from "./sky.ts"
 import { seesThroughSmoke } from "./smoke.ts"
 import { soldierEye } from "./stance.ts"
 
@@ -14,9 +14,14 @@ export const FLASH_SECONDS = 1.5
 /** How far off a muzzle flash is seen at night, in metres: as far as anyone would shoot at it. */
 export const FLASH_REACH = 800
 
-/** Light on the ground at a point now, in lux: the sky's, through the cloud, and any flares overhead. */
+/**
+ * Light to see by at a point now, in lux: the sky's, through the cloud, and any flares overhead, raised where snow lies
+ * (`snowGlow`), since a man shows up against it.
+ */
 export function lightAt(sim: Simulation, x: number, z: number): number {
-  return sim.environment.illuminance + (sim.flares.length > 0 ? flareLight(sim, x, z) : 0)
+  const { illuminance, weather } = sim.environment
+  const light = illuminance + (sim.flares.length > 0 ? flareLight(sim, x, z) : 0)
+  return weather.snowCover > 0 ? light * snowGlow(weather.snowCover, weather.cloudCover) : light
 }
 
 /** Whether a soldier fired so recently that, in the dark, the flash still shows where he is. */

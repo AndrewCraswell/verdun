@@ -127,6 +127,20 @@ const SIGHT_BY_LIGHT: readonly (readonly [number, number])[] = [
  */
 const SOLDIER_VISIBILITY = 0.6
 
+/** Lying snow covers the churned ground from about this much water, in millimetres, as the weather plugin draws it. */
+const SNOW_COVERS = 8
+
+/**
+ * How much lying snow helps the eye at night, as a factor on the light: a man is seen against the ground behind him, and
+ * snow sends back about 80% of the light where mud and grass send back 10–15%, so a dark figure on snow stands out as if
+ * the night were several times brighter. Under cloud the light also bounces between the snow and the cloud base, which
+ * brightens snowy overcast nights further. About 4.5 times on a clear night over full cover, 6 under overcast.
+ */
+export function snowGlow(snowCover: number, cloudCover: number): number {
+  const cover = Math.min(1, snowCover / SNOW_COVERS)
+  return 1 + cover * (3.5 + 1.5 * cloudCover)
+}
+
 /** How far a man can be made out, in metres: limited by the light and by fog, rain or snow. */
 export function sightRange(illuminance: number, visibility: number): number {
   const byLight = interpolate(SIGHT_BY_LIGHT, Math.log10(Math.max(illuminance, 1e-6)))

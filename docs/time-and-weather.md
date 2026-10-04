@@ -183,6 +183,11 @@ fog of war use the same rule (`canMakeOut`, `sightReach`):
 - **The light on him**: the sky's, through the cloud, plus any **flare** overhead (`lightAt`). Reach is
   `sightRange(light, visibility)` from the table above, so a man under a flare can be seen from a few hundred metres
   while the ground around him stays dark.
+- **Snow on the ground** (`snowGlow`): a man is seen against what lies behind him, and snow sends back about 80% of the
+  light where mud sends back 10–15%. Lying snow multiplies the light to see by, up to 4.5 times over full cover (8 mm of
+  water) on a clear night and 6 under overcast, where light bounces between snow and cloud. A moonless night over snow
+  lets a sentry make out a man at about twice the distance. It raises seeing only, not the light itself, so flares and
+  the night routine still go by the sky.
 - **His muzzle flash**: for 1.5 s after firing in the dark (`FLASH_SECONDS`), a shooter can be seen from up to 800 m
   (`FLASH_REACH`), capped by the visibility. Whoever saw the flash can fire back at it.
 - **Aim** falls with the light on the target (`aimInLight`): full by day and in twilight, about a third by a full moon,

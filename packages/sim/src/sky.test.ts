@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { FLEURY, illuminanceUnder, interpolate, sightRange, skyAt } from "./sky.ts"
+import { FLEURY, illuminanceUnder, interpolate, sightRange, skyAt, snowGlow } from "./sky.ts"
 
 const at = (iso: string) => skyAt(Date.parse(iso), FLEURY)
 
@@ -47,6 +47,16 @@ describe("sight range", () => {
     expect(sightRange(0.002, 30_000)).toBeLessThan(40)
     expect(sightRange(0.25, 30_000)).toBeGreaterThan(120)
     expect(sightRange(0.25, 30_000)).toBeLessThan(200)
+  })
+
+  it("stretches over snow at night, as a man shows up against it", () => {
+    expect(snowGlow(0, 1)).toBe(1)
+    expect(snowGlow(20, 0)).toBeCloseTo(4.5)
+    expect(snowGlow(20, 1)).toBeGreaterThan(snowGlow(20, 0))
+    expect(snowGlow(2, 0)).toBeLessThan(snowGlow(8, 0))
+    // A moonless night over snow: a man is made out at about twice the distance.
+    const bare = sightRange(0.002, 30_000)
+    expect(sightRange(0.002 * snowGlow(20, 0), 30_000)).toBeGreaterThan(bare * 1.6)
   })
 
   it("is limited by fog, not light, by day", () => {
