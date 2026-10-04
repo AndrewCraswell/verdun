@@ -21,6 +21,12 @@ export interface SoldierComponents {
    * Steering overrides any move order.
    */
   readonly steer: { readonly x: Float32Array; readonly z: Float32Array }
+  /** Index into `Simulation.squads`, or -1 for a soldier without a squad. */
+  readonly squad: { readonly id: Int32Array }
+  /** Remaining health, from 1 (unhurt) to 0. */
+  readonly health: { readonly value: Float32Array }
+  /** Tag: present once a soldier has fallen. The fallen keep their place on the battlefield but take no part. */
+  readonly dead: Record<string, never>
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -30,6 +36,9 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     speed: { value: new Float32Array(capacity) },
     moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
-    steer: { x: new Float32Array(capacity), z: new Float32Array(capacity) }
+    steer: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    squad: { id: new Int32Array(capacity).fill(-1) },
+    health: { value: new Float32Array(capacity) },
+    dead: {}
   }
 }

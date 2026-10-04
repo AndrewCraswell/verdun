@@ -1,9 +1,18 @@
 export type { EntityId } from "bitecs"
-export type { Command, FaceCommand, MoveToCommand, SteerCommand } from "./commands.ts"
+export type {
+  Command,
+  FaceCommand,
+  KillCommand,
+  MoveToCommand,
+  SquadOrderCommand,
+  SteerCommand,
+  TakeCommandCommand
+} from "./commands.ts"
 export { Side } from "./components.ts"
 export {
   createSimulation,
   enqueueCommand,
+  fallenIds,
   type Simulation,
   type SimulationOptions,
   soldierIds,
@@ -14,10 +23,12 @@ export {
   TICK_RATE,
   WALKING_SPEED
 } from "./simulation.ts"
+export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
 export {
   restoreSimulation,
   SIM_STATE_VERSION,
   type SimulationSnapshot,
+  type SquadState,
   type SoldierState,
   takeSnapshot
 } from "./snapshot.ts"

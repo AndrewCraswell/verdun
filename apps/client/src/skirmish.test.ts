@@ -29,6 +29,16 @@ describe("setupSkirmish", () => {
     expect(Math.max(...xs)).toBeGreaterThan(240)
   })
 
+  it("forms each line into squads of eight and gives the player the middle French squad", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const { french, playerSquad } = setupSkirmish(sim, 48)
+
+    expect(sim.squads).toHaveLength(12)
+    expect(sim.squads.every((squad) => squad.members.length === 8)).toBe(true)
+    expect(playerSquad.side).toBe(Side.French)
+    expect(playerSquad.members).toEqual(french.slice(24, 32))
+  })
+
   it("refuses a map with no trenches to man", () => {
     expect(() => setupSkirmish(createSimulation({ map: flat, seed: 1 }))).toThrow("fire trench")
   })

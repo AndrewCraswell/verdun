@@ -4,15 +4,16 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import type { Scene } from "@babylonjs/core/scene"
 import { mapDepth, mapWidth } from "@verdun/map"
-import { type EntityId, eyeAt, type LineOfSight, type Side, type Simulation, soldierIds } from "@verdun/sim"
+import { type EntityId, eyeAt, isAlive, type LineOfSight, type Simulation, soldierIds, type Squad } from "@verdun/sim"
 import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
 import { computeViewshed, createFogGrid } from "./viewshed.ts"
 
 export interface FogOfWarOptions {
-  /** The soldier whose eyes the player sees through. */
-  readonly viewer: EntityId
-  /** The player's side: its soldiers are always shown. */
-  readonly side: Side
+  /**
+   * The player's squad. The ground shows what its leader (the soldier under control) can see; an enemy shows when any
+   * living member can see them. Soldiers of the squad's side are always shown.
+   */
+  readonly squad: Squad
   /** The ground material to darken where the viewer can't see. */
   readonly groundMaterial: Material
   /** How far the viewer can see, in metres. */
@@ -33,14 +34,14 @@ export interface FogOfWar {
 }
 
 /**
- * What the player's soldier can see: the ground they can see stays lit and the rest darkens, and enemies show only when
- * a sight line from the viewer's eye to theirs is clear.
+ * What the player's squad can see: ground the controlled soldier can see stays lit and the rest darkens, and enemies show
+ * only while a squad member has a clear sight line to them.
  */
 export function createFogOfWar(
   scene: Scene,
   sim: Simulation,
   lineOfSight: LineOfSight,
-  { viewer, side, groundMaterial, range = 300, updatesPerSecond = 4 }: FogOfWarOptions
+  { squad, groundMaterial, range = 300, updatesPerSecond = 4 }: FogOfWarOptions
 ): FogOfWar {
   const grid = createFogGrid(sim.map)
   const texture = new RawTexture(
@@ -67,19 +68,34 @@ export function createFogOfWar(
   let sinceUpdate = interval
 
   function recompute(): void {
-    const eye = eyeAt(sim.map, sim.soldiers.position.x[viewer], sim.soldiers.position.z[viewer])
-    computeViewshed(sim.map, eye, range, grid)
+    visibleEnemies.clear()
+    const viewer = squad.leader
+    if (viewer < 0) {
+      grid.values.fill(0)
+      texture.update(grid.values)
+      return
+    }
+    computeViewshed(
+      sim.map,
+      eyeAt(sim.map, sim.soldiers.position.x[viewer], sim.soldiers.position.z[viewer]),
+      range,
+      grid
+    )
     texture.update(grid.values)
 
-    visibleEnemies.clear()
+    const spotters = squad.members
+      .filter((member) => isAlive(sim, member))
+      .map((member) => eyeAt(sim.map, sim.soldiers.position.x[member], sim.soldiers.position.z[member]))
     const rangeSquared = range * range
     for (const soldier of soldierIds(sim)) {
-      if (sim.soldiers.side.value[soldier] === side) {
+      if (sim.soldiers.side.value[soldier] === squad.side) {
         continue
       }
       const head = eyeAt(sim.map, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])
-      const distanceSquared = (head.x - eye.x) ** 2 + (head.z - eye.z) ** 2
-      if (distanceSquared <= rangeSquared && lineOfSight.isClear(eye, head)) {
+      const spotted = spotters.some(
+        (eye) => (head.x - eye.x) ** 2 + (head.z - eye.z) ** 2 <= rangeSquared && lineOfSight.isClear(eye, head)
+      )
+      if (spotted) {
         visibleEnemies.add(soldier)
       }
     }
@@ -98,7 +114,7 @@ export function createFogOfWar(
       return true
     },
     isShown(soldier) {
-      return sim.soldiers.side.value[soldier] === side || visibleEnemies.has(soldier)
+      return sim.soldiers.side.value[soldier] === squad.side || visibleEnemies.has(soldier)
     }
   }
 }

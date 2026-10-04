@@ -89,6 +89,21 @@ describe("createBattlefieldScene", () => {
     expect(view.groundMaterial.name).toBe("ground")
   })
 
+  it("draws the fallen lying down where they dropped, darker, and always", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const fallen = spawnSoldier(sim, { side: Side.German, x: 30, z: 30 })
+    spawnSoldier(sim, { side: Side.German, x: 40, z: 30 })
+    sim.pendingCommands.push({ type: "kill", soldier: fallen })
+    stepSimulation(sim)
+    const view = render(sim)
+    view.syncSoldiers(() => false)
+
+    expect(view.soldierMeshes[Side.German].thinInstanceCount).toBe(0)
+    expect(view.fallenMeshes[Side.German].thinInstanceCount).toBe(1)
+    const [lying] = view.fallenMeshes[Side.German].thinInstanceGetWorldMatrices()
+    expect(lying?.getTranslation().y).toBeCloseTo(heightAt(map, 30, 30) + 0.28, 4)
+  })
+
   it("grows its instance buffers when more soldiers join", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })

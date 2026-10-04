@@ -5,7 +5,16 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer"
 import { Scene } from "@babylonjs/core/scene"
 import { carveTrenches, createFlatMap, sampleIndex, TRENCH_PROFILE, type Trench } from "@verdun/map"
-import { createLineOfSight, createSimulation, EYE_HEIGHT, type LineOfSight, Side, spawnSoldier } from "@verdun/sim"
+import {
+  createLineOfSight,
+  createSimulation,
+  createSquad,
+  EYE_HEIGHT,
+  type LineOfSight,
+  Side,
+  spawnSoldier,
+  stepSimulation
+} from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
 import { createFogOfWar } from "./fog-of-war.ts"
@@ -136,16 +145,17 @@ describe("createFogOfWar", () => {
     carveTrenches(map, [trench])
     const sim = createSimulation({ map, seed: 1 })
     const player = spawnSoldier(sim, { side: Side.French, x: 50, z: 30 })
+    const lookout = spawnSoldier(sim, { side: Side.French, x: 40, z: 30 })
     const friend = spawnSoldier(sim, { side: Side.French, x: 20, z: 30 })
     const enemyInOpen = spawnSoldier(sim, { side: Side.German, x: 55, z: 80 })
+    const squad = createSquad(sim, Side.French, [player, lookout])
     const lineOfSight = await createLineOfSight(map)
     sightLines.push(lineOfSight)
     const fog = createFogOfWar(scene(), sim, lineOfSight, {
-      viewer: player,
-      side: Side.French,
+      squad,
       groundMaterial: new StandardMaterial("ground", scene())
     })
-    return { sim, player, friend, enemyInOpen, fog }
+    return { sim, squad, player, lookout, friend, enemyInOpen, fog }
   }
 
   it("hides enemies from a soldier down in the trench, but always shows friends", async () => {
@@ -175,18 +185,36 @@ describe("createFogOfWar", () => {
   })
 
   it("doesn't see enemies beyond its range", async () => {
-    const { sim, player, enemyInOpen } = await trenchSetup()
+    const { sim, squad, player, enemyInOpen } = await trenchSetup()
     const lineOfSight = await createLineOfSight(sim.map)
     sightLines.push(lineOfSight)
     sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
     const shortSighted = createFogOfWar(scene(), sim, lineOfSight, {
-      viewer: player,
-      side: Side.French,
+      squad,
       groundMaterial: new StandardMaterial("ground", scene()),
       range: 20
     })
     shortSighted.update(0)
 
     expect(shortSighted.isShown(enemyInOpen)).toBe(false)
+  })
+
+  it("shows enemies any squad member can see, even when the soldier in control can't", async () => {
+    const { sim, lookout, enemyInOpen, fog } = await trenchSetup()
+    sim.soldiers.position.z[lookout] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    fog.update(0)
+
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+  })
+
+  it("goes dark once the whole squad has fallen", async () => {
+    const { sim, player, lookout, enemyInOpen, fog } = await trenchSetup()
+    sim.soldiers.position.z[lookout] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    sim.pendingCommands.push({ type: "kill", soldier: player }, { type: "kill", soldier: lookout })
+    stepSimulation(sim)
+    fog.update(0)
+
+    expect(fog.visibleEnemies.size).toBe(0)
+    expect(fog.isShown(enemyInOpen)).toBe(false)
   })
 })

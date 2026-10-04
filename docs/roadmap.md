@@ -37,7 +37,9 @@ Scope:
 - [x] **M2 One soldier**: player-controlled soldier (WASD relative to the camera, mouse aim, camera follow), line of
       sight as Rapier ray casts against a map-wide heightfield, fog of war that darkens unseen ground and hides enemies
       out of sight. Trench floors hide you; the fire step lets you see out.
-- [ ] **M3 Squad**: 8 soldiers, orders, switching, death moves control to the next soldier.
+- [x] **M3 Squad**: squads of 8 with follow, hold and advance orders; switching soldier (Tab, 1–8); the fallen stay on
+      the field and control passes to the next living squadmate. Enemies show when any squadmate sees them. Deaths come
+      from a dev-only kill key until combat (M4).
 - [ ] **M4 Combat and bots**: rifles and MG, suppression, morale, bot squads on both sides, flow-field movement. Profile
       line of sight with 400 soldiers.
 - [ ] **M5 Artillery**: barrages, crater stamping, chunk re-meshing and collider rebuilds.

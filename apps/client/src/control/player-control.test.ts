@@ -3,10 +3,16 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
-import { createSimulation, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
+import { createSimulation, createSquad, isAlive, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
-import { aimToward, createPlayerControl, type GroundVector, steerFromKeys } from "./player-control.ts"
-import { createSoldierMarker } from "./soldier-marker.ts"
+import {
+  aimToward,
+  createPlayerControl,
+  type GroundVector,
+  type PlayerAction,
+  steerFromKeys
+} from "./player-control.ts"
+import { createSquadMarkers } from "./soldier-marker.ts"
 
 /** The default camera: south of its target, looking north. */
 const LOOKING_NORTH = -Math.PI / 2
@@ -49,7 +55,8 @@ afterEach(() => {
   }
 })
 
-function setup() {
+/** A squad of three in a row at z = 50, the first leading, on flat ground 3 m up. */
+function setup(debugActions = false) {
   const engine = new NullEngine()
   engines.push(engine)
   const scene = new Scene(engine)
@@ -57,29 +64,49 @@ function setup() {
     map: createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3),
     seed: 1
   })
-  const soldier = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
+  const members = [50, 53, 56].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))
+  const squad = createSquad(sim, Side.French, members)
   const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), scene)
   const held = new Set<string>()
+  const actions: PlayerAction[] = []
   let pointer: GroundVector | null = null
-  const control = createPlayerControl(sim, soldier, camera, {
+  const control = createPlayerControl(
+    sim,
+    squad,
+    camera,
+    { held, pointerGround: () => pointer, takeActions: () => actions.splice(0) },
+    { debugActions }
+  )
+  const frame = () => {
+    control.update(0.05)
+    stepSimulation(sim)
+  }
+  return {
+    scene,
+    sim,
+    squad,
+    members,
+    soldier: members[0]!,
+    camera,
     held,
-    pointerGround: () => pointer
-  })
-  return { scene, sim, soldier, camera, held, control, point: (value: GroundVector | null) => (pointer = value) }
+    actions,
+    control,
+    frame,
+    point: (value: GroundVector | null) => (pointer = value)
+  }
 }
 
 describe("createPlayerControl", () => {
   it("steers the soldier with held keys through simulation commands", () => {
-    const { sim, soldier, held, control } = setup()
+    const { sim, soldier, held, control, frame } = setup()
     held.add("KeyW")
     for (let step = 0; step < 20; step++) {
-      control.update(0.05)
-      stepSimulation(sim)
+      frame()
     }
     held.clear()
-    control.update(0.05)
-    stepSimulation(sim)
+    frame()
 
+    expect(control.soldier).toBe(soldier)
     expect(sim.soldiers.position.z[soldier]).toBeCloseTo(51.4)
     expect(sim.pendingCommands).toHaveLength(0)
   })
@@ -121,18 +148,102 @@ describe("createPlayerControl", () => {
     expect(camera.target.y).toBeCloseTo(4.2)
     expect(camera.panningSensibility).toBe(0)
   })
+
+  it("switches to the next soldier, or to a squad slot, and steers whoever is in control", () => {
+    const { sim, squad, members, actions, held, frame } = setup()
+    actions.push({ kind: "switch-next" })
+    frame()
+    expect(squad.leader).toBe(members[1])
+
+    actions.push({ kind: "switch-slot", slot: 2 })
+    frame()
+    expect(squad.leader).toBe(members[2])
+
+    held.add("KeyD")
+    for (let step = 0; step < 20; step++) {
+      frame()
+    }
+    expect(sim.soldiers.position.x[members[2]!]).toBeCloseTo(57.4)
+    expect(sim.soldiers.position.x[members[1]!]).toBe(53)
+  })
+
+  it("ignores switches to empty slots or the soldier already in control", () => {
+    const { sim, squad, members, actions, control } = setup()
+    actions.push({ kind: "switch-slot", slot: 7 }, { kind: "switch-slot", slot: 0 })
+    control.update(0.05)
+
+    expect(sim.pendingCommands).toHaveLength(0)
+    expect(squad.leader).toBe(members[0])
+  })
+
+  it("gives the squad follow, hold and advance orders", () => {
+    const { squad, actions, frame } = setup()
+    actions.push({ kind: "order-follow" })
+    frame()
+    expect(squad.order).toEqual({ kind: "follow" })
+
+    actions.push({ kind: "order-advance", x: 20, z: 80 })
+    frame()
+    expect(squad.order).toEqual({ kind: "advance", x: 20, z: 80 })
+
+    actions.push({ kind: "order-hold" })
+    frame()
+    expect(squad.order).toEqual({ kind: "hold" })
+  })
+
+  it("passes control on when the controlled soldier dies, and kills only in dev builds", () => {
+    const released = setup(false)
+    released.actions.push({ kind: "debug-kill" })
+    released.frame()
+    expect(isAlive(released.sim, released.soldier)).toBe(true)
+
+    const { sim, members, actions, control, frame } = setup(true)
+    actions.push({ kind: "debug-kill" })
+    frame()
+    expect(isAlive(sim, members[0]!)).toBe(false)
+    expect(control.soldier).toBe(members[1])
+  })
+
+  it("does nothing once the whole squad has fallen", () => {
+    const { sim, members, held, control } = setup()
+    for (const member of members) {
+      sim.pendingCommands.push({ type: "kill", soldier: member })
+    }
+    stepSimulation(sim)
+    held.add("KeyW")
+    control.update(0.05)
+
+    expect(control.soldier).toBe(-1)
+    expect(sim.pendingCommands).toHaveLength(0)
+  })
 })
 
-describe("createSoldierMarker", () => {
-  it("sits at the soldier's feet and turns to their facing", () => {
-    const { scene, sim, soldier } = setup()
-    const marker = createSoldierMarker(scene, sim, soldier)
+describe("createSquadMarkers", () => {
+  it("marks the controlled soldier, turned to their facing, and rings the rest of the living squad", () => {
+    const { scene, sim, squad, members, soldier } = setup()
+    const markers = createSquadMarkers(scene, sim, squad)
     sim.soldiers.facing.x[soldier] = 1
     sim.soldiers.facing.z[soldier] = 0
-    marker.update()
+    sim.pendingCommands.push({ type: "kill", soldier: members[2]! })
+    stepSimulation(sim)
+    markers.update()
 
-    expect(marker.root.position.x).toBe(50)
-    expect(marker.root.position.y).toBeCloseTo(3.05)
-    expect(marker.root.rotation.y).toBeCloseTo(Math.PI / 2)
+    expect(markers.leader.position.x).toBe(50)
+    expect(markers.leader.position.y).toBeCloseTo(3.05)
+    expect(markers.leader.rotation.y).toBeCloseTo(Math.PI / 2)
+    expect(markers.members.thinInstanceCount).toBe(1)
+  })
+
+  it("hides the leader marker once the squad is gone", () => {
+    const { scene, sim, squad, members } = setup()
+    const markers = createSquadMarkers(scene, sim, squad)
+    for (const member of members) {
+      sim.pendingCommands.push({ type: "kill", soldier: member })
+    }
+    stepSimulation(sim)
+    markers.update()
+
+    expect(markers.leader.isEnabled()).toBe(false)
+    expect(markers.members.thinInstanceCount).toBe(0)
   })
 })

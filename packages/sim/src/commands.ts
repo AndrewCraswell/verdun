@@ -1,5 +1,6 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
 import { clampToMap, type Simulation } from "./simulation.ts"
+import type { SquadOrder } from "./squads.ts"
 
 /** Orders a soldier to walk to a ground position. */
 export interface MoveToCommand {
@@ -28,11 +29,39 @@ export interface FaceCommand {
   readonly z: number
 }
 
-/** Everything that can change the simulation from outside. Grows as mechanics land. */
-export type Command = MoveToCommand | SteerCommand | FaceCommand
+/** Gives a squad a standing order for every member except its leader. */
+export interface SquadOrderCommand {
+  readonly type: "squad-order"
+  readonly squad: number
+  readonly order: SquadOrder
+}
 
+/**
+ * Makes a squad member its leader: the player switching to another soldier. The previous leader stops walking and falls
+ * in with the squad's order; the new one drops any order and waits for the player's input.
+ */
+export interface TakeCommandCommand {
+  readonly type: "take-command"
+  readonly squad: number
+  readonly soldier: EntityId
+}
+
+/** Kills a soldier outright. A stand-in for weapons until combat lands, and handy for tests and debugging. */
+export interface KillCommand {
+  readonly type: "kill"
+  readonly soldier: EntityId
+}
+
+/** Everything that can change the simulation from outside. Grows as mechanics land. */
+export type Command = MoveToCommand | SteerCommand | FaceCommand | SquadOrderCommand | TakeCommandCommand | KillCommand
+
+/** A living soldier: fallen soldiers ignore every order. */
 function isSoldier(sim: Simulation, entity: EntityId): boolean {
-  return entityExists(sim.world, entity) && hasComponent(sim.world, entity, sim.soldiers.position)
+  return (
+    entityExists(sim.world, entity) &&
+    hasComponent(sim.world, entity, sim.soldiers.position) &&
+    !hasComponent(sim.world, entity, sim.soldiers.dead)
+  )
 }
 
 /** Applies one command. Commands that no longer make sense (a soldier who has died) are ignored. */
@@ -71,6 +100,35 @@ export function applyCommand(sim: Simulation, command: Command): void {
       }
       sim.soldiers.facing.x[command.soldier] = command.x / length
       sim.soldiers.facing.z[command.soldier] = command.z / length
+      return
+    }
+    case "squad-order": {
+      const squad = sim.squads[command.squad]
+      if (squad) {
+        squad.order = command.order
+      }
+      return
+    }
+    case "take-command": {
+      const squad = sim.squads[command.squad]
+      if (!squad || !squad.members.includes(command.soldier) || !isSoldier(sim, command.soldier)) {
+        return
+      }
+      if (squad.leader >= 0) {
+        removeComponent(sim.world, squad.leader, sim.soldiers.steer)
+      }
+      removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
+      squad.leader = command.soldier
+      return
+    }
+    case "kill": {
+      if (!isSoldier(sim, command.soldier)) {
+        return
+      }
+      addComponent(sim.world, command.soldier, sim.soldiers.dead)
+      removeComponent(sim.world, command.soldier, sim.soldiers.steer)
+      removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
+      sim.soldiers.health.value[command.soldier] = 0
       return
     }
   }

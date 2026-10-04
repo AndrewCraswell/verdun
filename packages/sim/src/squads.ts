@@ -1,0 +1,142 @@
+import { type EntityId, hasComponent } from "bitecs"
+import { applyCommand } from "./commands.ts"
+import type { Side } from "./components.ts"
+import { clampToMap, type Simulation } from "./simulation.ts"
+
+/** What a squad's soldiers do when the player isn't steering them. */
+export type SquadOrder =
+  /** Keep formation behind the leader. */
+  | { readonly kind: "follow" }
+  /** Stay where they are. */
+  | { readonly kind: "hold" }
+  /** Move to a point and spread out in a line there. */
+  | { readonly kind: "advance"; readonly x: number; readonly z: number }
+
+export interface Squad {
+  readonly id: number
+  readonly side: Side
+  /** Members in slot order: slot 1 first. Fallen members stay listed. */
+  readonly members: readonly EntityId[]
+  /** The soldier the squad forms on; for the player's squad, the one they control. -1 once everyone has fallen. */
+  leader: EntityId
+  order: SquadOrder
+}
+
+/** Spacing between soldiers in a formation, in metres. Close enough to act together, far enough that one shell doesn't kill everyone. */
+const FORMATION_SPACING = 3
+/** Soldiers in each rank of a follow formation. */
+const FORMATION_WIDTH = 4
+/** Squads re-plan this often, in steps: four times a second. */
+export const SQUAD_THINK_INTERVAL = 5
+/** Soldiers within this distance of their slot stay put rather than shuffling. */
+const SLOT_TOLERANCE = 1
+
+export function isAlive(sim: Simulation, soldier: EntityId): boolean {
+  return soldier >= 0 && !hasComponent(sim.world, soldier, sim.soldiers.dead)
+}
+
+/** Forms a squad from soldiers in slot order. The first is its leader; it starts out holding. */
+export function createSquad(sim: Simulation, side: Side, members: readonly EntityId[]): Squad {
+  const squad: Squad = {
+    id: sim.squads.length,
+    side,
+    members: [...members],
+    leader: members[0] ?? -1,
+    order: { kind: "hold" }
+  }
+  sim.squads.push(squad)
+  for (const member of members) {
+    sim.soldiers.squad.id[member] = squad.id
+  }
+  return squad
+}
+
+/** The first living member after `from` in slot order, wrapping around; -1 when everyone has fallen. */
+export function nextLivingMember(sim: Simulation, squad: Squad, from: EntityId): EntityId {
+  const start = Math.max(0, squad.members.indexOf(from))
+  for (let offset = 1; offset <= squad.members.length; offset++) {
+    const candidate = squad.members[(start + offset) % squad.members.length]
+    if (candidate !== undefined && isAlive(sim, candidate)) {
+      return candidate
+    }
+  }
+  return -1
+}
+
+/** Where a member should stand: slots fan out in ranks behind the leader, relative to the way the leader faces. */
+function followSlot(sim: Simulation, leader: EntityId, slot: number): { x: number; z: number } {
+  const { position, facing } = sim.soldiers
+  const forwardX = facing.x[leader]
+  const forwardZ = facing.z[leader]
+  const rightX = forwardZ
+  const rightZ = -forwardX
+  const lateral = ((slot % FORMATION_WIDTH) - (FORMATION_WIDTH - 1) / 2) * FORMATION_SPACING
+  const back = FORMATION_SPACING * (1 + Math.floor(slot / FORMATION_WIDTH))
+  return clampToMap(
+    sim,
+    position.x[leader] + rightX * lateral - forwardX * back,
+    position.z[leader] + rightZ * lateral - forwardZ * back
+  )
+}
+
+/** Where a member should stand after an advance: a line across the direction of travel, centred on the target. */
+function advanceSlot(
+  sim: Simulation,
+  squad: Squad,
+  order: { x: number; z: number },
+  slot: number,
+  count: number
+): { x: number; z: number } {
+  const leader = squad.leader
+  const dx = order.x - sim.soldiers.position.x[leader]
+  const dz = order.z - sim.soldiers.position.z[leader]
+  const length = Math.sqrt(dx * dx + dz * dz)
+  const rightX = length > 0 ? dz / length : 1
+  const rightZ = length > 0 ? -dx / length : 0
+  const lateral = (slot - (count - 1) / 2) * FORMATION_SPACING
+  return clampToMap(sim, order.x + rightX * lateral, order.z + rightZ * lateral)
+}
+
+/**
+ * Sends a soldier to a point unless they're already close. Applied directly rather than queued: commands are for input
+ * from outside the simulation, and squad decisions are made inside it.
+ */
+function orderMoveTo(sim: Simulation, soldier: EntityId, target: { x: number; z: number }): void {
+  const { position } = sim.soldiers
+  const dx = target.x - position.x[soldier]
+  const dz = target.z - position.z[soldier]
+  if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
+    applyCommand(sim, { type: "move-to", soldier, x: target.x, z: target.z })
+  }
+}
+
+/**
+ * Keeps squads together a few times a second: replaces fallen leaders, then sends members to their place in the
+ * current order. A squad's leader is never ordered about; the player (or later, a bot) moves them.
+ */
+export function squadSystem(sim: Simulation): void {
+  for (const squad of sim.squads) {
+    if (!isAlive(sim, squad.leader)) {
+      squad.leader = nextLivingMember(sim, squad, squad.leader)
+    }
+  }
+  if (sim.tick % SQUAD_THINK_INTERVAL !== 0) {
+    return
+  }
+  for (const squad of sim.squads) {
+    if (squad.leader < 0 || squad.order.kind === "hold") {
+      continue
+    }
+    const followers = squad.members.filter((member) => member !== squad.leader && isAlive(sim, member))
+    const order = squad.order
+    followers.forEach((member, slot) => {
+      orderMoveTo(
+        sim,
+        member,
+        order.kind === "follow"
+          ? followSlot(sim, squad.leader, slot)
+          : advanceSlot(sim, squad, order, slot, followers.length)
+      )
+    })
+  }
+}

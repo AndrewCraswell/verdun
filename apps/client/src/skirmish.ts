@@ -1,9 +1,14 @@
 import { pointsAlong, type Trench } from "@verdun/map"
-import { type EntityId, Side, type Simulation, spawnSoldier } from "@verdun/sim"
+import { createSquad, type EntityId, Side, type Simulation, type Squad, spawnSoldier } from "@verdun/sim"
+
+/** Soldiers per squad: the player commands one squad. */
+export const SQUAD_SIZE = 8
 
 export interface Skirmish {
   readonly french: readonly EntityId[]
   readonly german: readonly EntityId[]
+  /** The player's squad: the one in the middle of the French line. */
+  readonly playerSquad: Squad
 }
 
 /** The front-line fire trench for a side: the one facing the enemy that sits closest to no man's land. */
@@ -27,10 +32,27 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number): 
     .map(([x, z]) => spawnSoldier(sim, { side, x, z }))
 }
 
-/** Placeholder scenario until bots land: both sides man their front-line fire trench, facing each other. */
-export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish {
-  return {
-    french: manTrench(sim, frontLine(sim.map.trenches, "north"), Side.French, soldiersPerSide),
-    german: manTrench(sim, frontLine(sim.map.trenches, "south"), Side.German, soldiersPerSide)
+/** Splits a line of soldiers into squads of neighbours. */
+function formSquads(sim: Simulation, side: Side, soldiers: readonly EntityId[]): Squad[] {
+  const squads: Squad[] = []
+  for (let start = 0; start < soldiers.length; start += SQUAD_SIZE) {
+    squads.push(createSquad(sim, side, soldiers.slice(start, start + SQUAD_SIZE)))
   }
+  return squads
+}
+
+/**
+ * Placeholder scenario until bots land: both sides man their front-line fire trench, facing each other, in squads of
+ * eight holding their ground.
+ */
+export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish {
+  const french = manTrench(sim, frontLine(sim.map.trenches, "north"), Side.French, soldiersPerSide)
+  const german = manTrench(sim, frontLine(sim.map.trenches, "south"), Side.German, soldiersPerSide)
+  const frenchSquads = formSquads(sim, Side.French, french)
+  formSquads(sim, Side.German, german)
+  const playerSquad = frenchSquads[Math.floor(frenchSquads.length / 2)]
+  if (!playerSquad) {
+    throw new Error("The French line has no squads to command")
+  }
+  return { french, german, playerSquad }
 }

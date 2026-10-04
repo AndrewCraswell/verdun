@@ -1,6 +1,6 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { heightAt } from "@verdun/map"
-import { enqueueCommand, type EntityId, type Simulation } from "@verdun/sim"
+import { enqueueCommand, type EntityId, isAlive, nextLivingMember, type Simulation, type Squad } from "@verdun/sim"
 
 /** Ground-plane vector, `x` east and `z` north. */
 export interface GroundVector {
@@ -8,12 +8,27 @@ export interface GroundVector {
   readonly z: number
 }
 
+/** A one-off command from the player, as opposed to held movement keys. */
+export type PlayerAction =
+  /** Take control of the next living soldier in the squad. */
+  | { readonly kind: "switch-next" }
+  /** Take control of the soldier in a squad slot, counting from 0. */
+  | { readonly kind: "switch-slot"; readonly slot: number }
+  | { readonly kind: "order-follow" }
+  | { readonly kind: "order-hold" }
+  /** Send the squad to a ground point. */
+  | { readonly kind: "order-advance"; readonly x: number; readonly z: number }
+  /** Dev builds only: kill the controlled soldier, to try squad succession before combat exists. */
+  | { readonly kind: "debug-kill" }
+
 /** What the player is doing right now, independent of where it comes from (keyboard, gamepad, a test). */
 export interface PlayerInput {
   /** Movement keys held: `KeyW`, `KeyA`, `KeyS`, `KeyD` as `KeyboardEvent.code` values. */
   readonly held: ReadonlySet<string>
   /** Ground point under the pointer, or null when it isn't over the battlefield. */
   pointerGround(): GroundVector | null
+  /** One-off actions since the last call, oldest first. */
+  takeActions(): readonly PlayerAction[]
 }
 
 /**
@@ -50,29 +65,91 @@ const FOLLOW_RATE = 6
 /** The camera looks at chest height, not the ground under the soldier's boots. */
 const FOLLOW_HEIGHT = 1.2
 
+export interface PlayerControlOptions {
+  /** Allow dev-only actions such as killing the controlled soldier. */
+  readonly debugActions?: boolean
+}
+
 export interface PlayerControl {
+  readonly squad: Squad
+  /** The soldier currently under the player's control: the squad's leader, or -1 once the squad is wiped out. */
   readonly soldier: EntityId
-  /** Reads input, sends steer and face commands when they change, and moves the camera. Call once per frame. */
+  /** Reads input, turns it into simulation commands, and moves the camera. Call once per frame. */
   update(frameSeconds: number): void
 }
 
 /**
- * Direct control of one soldier. Input becomes simulation commands, so the player's soldier moves through exactly the
- * same path as bots now and networked players later.
+ * Direct control of a squad. The player steers and aims the squad's leader; switching soldier makes another member the
+ * leader, and when the leader falls the simulation hands command to the next. Input only ever becomes simulation
+ * commands, so the player acts through the same path as bots now and networked players later.
  */
 export function createPlayerControl(
   sim: Simulation,
-  soldier: EntityId,
+  squad: Squad,
   camera: ArcRotateCamera,
-  input: PlayerInput
+  input: PlayerInput,
+  { debugActions = false }: PlayerControlOptions = {}
 ): PlayerControl {
+  let lastSoldier: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
   let lastAim: GroundVector | null = null
   camera.panningSensibility = 0
 
+  function takeCommand(soldier: EntityId): void {
+    if (soldier >= 0 && soldier !== squad.leader && isAlive(sim, soldier)) {
+      enqueueCommand(sim, { type: "take-command", squad: squad.id, soldier })
+    }
+  }
+
+  function act(action: PlayerAction): void {
+    switch (action.kind) {
+      case "switch-next":
+        takeCommand(nextLivingMember(sim, squad, squad.leader))
+        return
+      case "switch-slot":
+        takeCommand(squad.members[action.slot] ?? -1)
+        return
+      case "order-follow":
+        enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "follow" } })
+        return
+      case "order-hold":
+        enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "hold" } })
+        return
+      case "order-advance":
+        enqueueCommand(sim, {
+          type: "squad-order",
+          squad: squad.id,
+          order: { kind: "advance", x: action.x, z: action.z }
+        })
+        return
+      case "debug-kill":
+        if (debugActions && squad.leader >= 0) {
+          enqueueCommand(sim, { type: "kill", soldier: squad.leader })
+        }
+        return
+    }
+  }
+
   return {
-    soldier,
+    squad,
+    get soldier() {
+      return squad.leader
+    },
     update(frameSeconds) {
+      for (const action of input.takeActions()) {
+        act(action)
+      }
+      const soldier = squad.leader
+      if (soldier < 0) {
+        return
+      }
+      if (soldier !== lastSoldier) {
+        // A new soldier starts standing still; resend steering and aim for them from scratch.
+        lastSoldier = soldier
+        lastSteer = { x: 0, z: 0 }
+        lastAim = null
+      }
+
       const steer = steerFromKeys(input.held, camera.alpha)
       if (steer.x !== lastSteer.x || steer.z !== lastSteer.z) {
         enqueueCommand(sim, { type: "steer", soldier, ...steer })

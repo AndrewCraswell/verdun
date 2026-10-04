@@ -10,7 +10,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { Scene } from "@babylonjs/core/scene"
 import { heightAt, mapDepth, mapWidth } from "@verdun/map"
-import { type EntityId, Side, type Simulation, soldierIds } from "@verdun/sim"
+import { type EntityId, fallenIds, Side, type Simulation, soldierIds } from "@verdun/sim"
 import { palette } from "./palette.ts"
 import { createGroundMaterial, loadGroundLayers } from "./terrain/ground-material.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
@@ -29,6 +29,8 @@ export interface BattlefieldView {
   readonly groundMaterial: StandardMaterial
   /** Placeholder soldier meshes, one per side, drawn as thin instances. */
   readonly soldierMeshes: Readonly<Record<Side, Mesh>>
+  /** The fallen, lying where they dropped, one mesh per side. */
+  readonly fallenMeshes: Readonly<Record<Side, Mesh>>
   /**
    * Copies soldier positions from the simulation into the render meshes. Call after stepping, or when what is visible
    * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
@@ -61,9 +63,10 @@ function createCamera(scene: Scene, sim: Simulation): ArcRotateCamera {
   return camera
 }
 
-function createSoldierMesh(scene: Scene, side: Side, color: Color3): Mesh {
-  const name = side === Side.French ? "french" : "german"
-  const mesh = CreateCapsule(`soldiers-${name}`, { height: SOLDIER_HEIGHT, radius: 0.28 }, scene)
+const SOLDIER_RADIUS = 0.28
+
+function createSoldierMesh(scene: Scene, name: string, color: Color3): Mesh {
+  const mesh = CreateCapsule(`soldiers-${name}`, { height: SOLDIER_HEIGHT, radius: SOLDIER_RADIUS }, scene)
   const material = new StandardMaterial(`uniform-${name}`, scene)
   material.diffuseColor = color
   material.specularColor = Color3.Black()
@@ -72,6 +75,47 @@ function createSoldierMesh(scene: Scene, side: Side, color: Color3): Mesh {
   mesh.alwaysSelectAsActiveMesh = true
   mesh.thinInstanceCount = 0
   return mesh
+}
+
+/** Thin-instance matrices for one mesh, refilled every sync. */
+interface SoldierBatch {
+  count: number
+  reserve(capacity: number): void
+  /** Adds a soldier standing upright, or lying along the north-south axis when fallen. */
+  add(x: number, y: number, z: number, lying: boolean): void
+  flush(): void
+}
+
+function createBatch(mesh: Mesh): SoldierBatch {
+  let matrices = new Float32Array(0)
+  const batch: SoldierBatch = {
+    count: 0,
+    reserve(capacity) {
+      if (matrices.length < capacity * 16) {
+        matrices = new Float32Array(capacity * 16)
+      }
+    },
+    add(x, y, z, lying) {
+      // Column-major matrix: identity rotation, or a quarter turn about x to lay the capsule down.
+      const offset = batch.count * 16
+      matrices.fill(0, offset, offset + 16)
+      matrices[offset] = 1
+      matrices[offset + 5] = lying ? 0 : 1
+      matrices[offset + 6] = lying ? 1 : 0
+      matrices[offset + 9] = lying ? -1 : 0
+      matrices[offset + 10] = lying ? 0 : 1
+      matrices[offset + 12] = x
+      matrices[offset + 13] = y
+      matrices[offset + 14] = z
+      matrices[offset + 15] = 1
+      batch.count += 1
+    },
+    flush() {
+      mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
+      mesh.thinInstanceCount = batch.count
+    }
+  }
+  return batch
 }
 
 export function createBattlefieldScene(
@@ -101,53 +145,47 @@ export function createBattlefieldScene(
   const terrain = createTerrainChunks(scene, sim.map, { material: ground.material, renderStep: terrainStep })
 
   const soldierMeshes = {
-    [Side.French]: createSoldierMesh(scene, Side.French, palette.horizonBlue),
-    [Side.German]: createSoldierMesh(scene, Side.German, palette.feldgrau)
+    [Side.French]: createSoldierMesh(scene, "french", palette.horizonBlue),
+    [Side.German]: createSoldierMesh(scene, "german", palette.feldgrau)
   }
-  const matrices: Record<Side, Float32Array> = {
-    [Side.French]: new Float32Array(0),
-    [Side.German]: new Float32Array(0)
+  const fallenMeshes = {
+    [Side.French]: createSoldierMesh(scene, "french-fallen", palette.horizonBlue.scale(0.55)),
+    [Side.German]: createSoldierMesh(scene, "german-fallen", palette.feldgrau.scale(0.55))
+  }
+  const batches = new Map<Mesh, SoldierBatch>(
+    [...Object.values(soldierMeshes), ...Object.values(fallenMeshes)].map((mesh) => [mesh, createBatch(mesh)])
+  )
+
+  function sideOf(soldier: EntityId): Side {
+    return sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French
   }
 
   function syncSoldiers(isShown?: (soldier: EntityId) => boolean): void {
-    const { position, side } = sim.soldiers
-    const ids = soldierIds(sim)
-    const counts: Record<Side, number> = { [Side.French]: 0, [Side.German]: 0 }
-
-    for (const soldierSide of [Side.French, Side.German]) {
-      if (matrices[soldierSide].length < ids.length * 16) {
-        matrices[soldierSide] = new Float32Array(ids.length * 16)
-      }
+    const { position } = sim.soldiers
+    const living = soldierIds(sim)
+    const fallen = fallenIds(sim)
+    for (const batch of batches.values()) {
+      batch.count = 0
+      batch.reserve(living.length + fallen.length)
     }
 
-    for (const soldier of ids) {
-      if (isShown && !isShown(soldier)) {
-        continue
+    for (const soldier of living) {
+      if (!isShown || isShown(soldier)) {
+        const x = position.x[soldier]
+        const z = position.z[soldier]
+        batches.get(soldierMeshes[sideOf(soldier)])?.add(x, heightAt(sim.map, x, z) + SOLDIER_HEIGHT / 2, z, false)
       }
-      const soldierSide = side.value[soldier] === Side.German ? Side.German : Side.French
+    }
+    for (const soldier of fallen) {
       const x = position.x[soldier]
       const z = position.z[soldier]
-      const offset = counts[soldierSide] * 16
-      const matrix = matrices[soldierSide]
-      // Column-major translation matrix: identity rotation, capsule centre at half height above the ground.
-      matrix.fill(0, offset, offset + 16)
-      matrix[offset] = 1
-      matrix[offset + 5] = 1
-      matrix[offset + 10] = 1
-      matrix[offset + 12] = x
-      matrix[offset + 13] = heightAt(sim.map, x, z) + SOLDIER_HEIGHT / 2
-      matrix[offset + 14] = z
-      matrix[offset + 15] = 1
-      counts[soldierSide] += 1
+      batches.get(fallenMeshes[sideOf(soldier)])?.add(x, heightAt(sim.map, x, z) + SOLDIER_RADIUS, z, true)
     }
-
-    for (const soldierSide of [Side.French, Side.German]) {
-      const mesh = soldierMeshes[soldierSide]
-      mesh.thinInstanceSetBuffer("matrix", matrices[soldierSide], 16, false)
-      mesh.thinInstanceCount = counts[soldierSide]
+    for (const batch of batches.values()) {
+      batch.flush()
     }
   }
 
   syncSoldiers()
-  return { scene, camera, terrain, groundMaterial: ground.material, soldierMeshes, syncSoldiers }
+  return { scene, camera, terrain, groundMaterial: ground.material, soldierMeshes, fallenMeshes, syncSoldiers }
 }

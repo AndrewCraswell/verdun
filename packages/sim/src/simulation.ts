@@ -1,8 +1,9 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
-import { addComponent, addEntity, createWorld, type EntityId, query, type QueryResult, type World } from "bitecs"
+import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, Side, type SoldierComponents } from "./components.ts"
 import { createRng, type Rng } from "./rng.ts"
+import { type Squad, squadSystem } from "./squads.ts"
 import { movementSystem } from "./systems/movement.ts"
 
 /** Simulation steps per second. */
@@ -21,6 +22,8 @@ export interface Simulation {
   readonly rng: Rng
   /** Commands waiting for the next step, applied in arrival order. */
   readonly pendingCommands: Command[]
+  /** Every squad, indexed by squad id. */
+  readonly squads: Squad[]
   tick: number
 }
 
@@ -39,6 +42,7 @@ export function createSimulation({ map, seed, capacity = DEFAULT_CAPACITY }: Sim
     capacity,
     rng: createRng(seed),
     pendingCommands: [],
+    squads: [],
     tick: 0
   }
 }
@@ -65,10 +69,12 @@ export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEE
   if (soldier >= sim.capacity) {
     throw new RangeError(`Soldier id ${soldier} exceeds simulation capacity ${sim.capacity}`)
   }
-  const { position, side: sideStore, speed: speedStore, facing: facingStore } = sim.soldiers
+  const { position, side: sideStore, speed: speedStore, facing: facingStore, health } = sim.soldiers
   addComponent(sim.world, soldier, position)
   addComponent(sim.world, soldier, sideStore)
   addComponent(sim.world, soldier, speedStore)
+  addComponent(sim.world, soldier, health)
+  health.value[soldier] = 1
   const clamped = clampToMap(sim, x, z)
   position.x[soldier] = clamped.x
   position.z[soldier] = clamped.z
@@ -82,7 +88,12 @@ export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEE
 
 /** Every living soldier. The result is owned by the ECS: read it, don't keep it across steps. */
 export function soldierIds(sim: Simulation): QueryResult {
-  return query(sim.world, [sim.soldiers.position])
+  return query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead)])
+}
+
+/** Every fallen soldier, still lying where they fell. */
+export function fallenIds(sim: Simulation): QueryResult {
+  return query(sim.world, [sim.soldiers.position, sim.soldiers.dead])
 }
 
 /** Queues a command for the next step. Input, AI and (later) the network all enter the simulation here. */
@@ -95,6 +106,7 @@ export function stepSimulation(sim: Simulation): void {
   for (const command of sim.pendingCommands.splice(0)) {
     applyCommand(sim, command)
   }
+  squadSystem(sim)
   movementSystem(sim, STEP_SECONDS)
   sim.tick += 1
 }

@@ -2,18 +2,11 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
 import { generatePrototypeSector } from "@verdun/map"
-import {
-  createFixedStepper,
-  createLineOfSight,
-  createSimulation,
-  Side,
-  STEP_SECONDS,
-  stepSimulation
-} from "@verdun/sim"
+import { createFixedStepper, createLineOfSight, createSimulation, STEP_SECONDS, stepSimulation } from "@verdun/sim"
 import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { createBrowserInput } from "./control/browser-input.ts"
 import { createPlayerControl } from "./control/player-control.ts"
-import { createSoldierMarker } from "./control/soldier-marker.ts"
+import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { setupSkirmish } from "./skirmish.ts"
 import "./style.css"
@@ -45,24 +38,22 @@ async function start(): Promise<void> {
     amplitude: 14
   })
   const sim = createSimulation({ map, seed: 1916 })
-  const { french } = setupSkirmish(sim)
+  const { playerSquad } = setupSkirmish(sim)
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
   const stepper = createFixedStepper(STEP_SECONDS)
 
-  // The player starts as a soldier in the middle of the French front line.
-  const player = french[Math.floor(french.length / 2)]
-  if (player === undefined) {
-    throw new Error("The French line has no soldiers to control")
-  }
-  const control = createPlayerControl(sim, player, view.camera, createBrowserInput(view.scene, view.terrain.meshes))
-  const marker = createSoldierMarker(view.scene, sim, player)
+  // The player commands the squad in the middle of the French front line.
+  const control = createPlayerControl(
+    sim,
+    playerSquad,
+    view.camera,
+    createBrowserInput(view.scene, view.terrain.meshes),
+    { debugActions: import.meta.env.DEV }
+  )
+  const markers = createSquadMarkers(view.scene, sim, playerSquad)
   const lineOfSight = await createLineOfSight(map)
-  const fog = createFogOfWar(view.scene, sim, lineOfSight, {
-    viewer: player,
-    side: Side.French,
-    groundMaterial: view.groundMaterial
-  })
+  const fog = createFogOfWar(view.scene, sim, lineOfSight, { squad: playerSquad, groundMaterial: view.groundMaterial })
   view.camera.radius = 60
   if (import.meta.env.DEV) {
     // Dev-only handle for inspecting the running game from the browser console and automated checks.
@@ -82,7 +73,7 @@ async function start(): Promise<void> {
     if (steps > 0 || sightChanged) {
       view.syncSoldiers(fog.isShown)
     }
-    marker.update()
+    markers.update()
     view.scene.render()
   })
   window.addEventListener("resize", () => engine.resize())
