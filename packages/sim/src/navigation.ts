@@ -1,4 +1,4 @@
-import { type BattlefieldMap, heightAt, mapDepth, mapWidth, type SceneryKind } from "@verdun/map"
+import { type BattlefieldMap, footprintRadius, heightAt, mapDepth, mapWidth, SCENERY_FOOTPRINTS } from "@verdun/map"
 import type { EntityId } from "bitecs"
 import type { Simulation } from "./simulation.ts"
 import { slopeCost, surfacePace } from "./terrain.ts"
@@ -14,27 +14,6 @@ const CLEAR_COST = 3
 const LOOKAHEAD = 12
 /** At most this many flow fields are kept; the least recently used goes first. */
 const MAX_FIELDS = 12
-
-/**
- * What stands in the way on the battlefield, by kind: how far around it reaches, in metres (times the scenery's scale),
- * and what crossing it costs, as a multiple of firm ground (Infinity for impassable).
- */
-const OBSTACLES: Partial<Record<SceneryKind, { readonly radius: number; readonly cost: number }>> = {
-  ruin: { radius: 4, cost: Infinity },
-  wall: { radius: 1.5, cost: Infinity },
-  bunker: { radius: 3, cost: Infinity },
-  gun: { radius: 2.2, cost: Infinity },
-  "wrecked-gun": { radius: 2.2, cost: Infinity },
-  "wrecked-plane": { radius: 4, cost: Infinity },
-  stores: { radius: 2, cost: Infinity },
-  "machine-gun": { radius: 1.5, cost: 4 },
-  rubble: { radius: 2.5, cost: 2.5 },
-  log: { radius: 1, cost: 3 },
-  tree: { radius: 0.6, cost: Infinity },
-  stump: { radius: 0.5, cost: 2 },
-  // Wading through a flooded shell hole: possible, but slow and cold.
-  pool: { radius: 1, cost: 4 }
-}
 
 /** Where soldiers are heading: across a line (an objective, a place behind a barrage), or to a point. */
 export type NavGoal =
@@ -71,14 +50,19 @@ function goalKey(goal: NavGoal): string {
     : `point ${Math.round(goal.x / NAV_CELL)} ${Math.round(goal.z / NAV_CELL)} ${Math.round(goal.radius)}`
 }
 
+/**
+ * The scenery's walking costs laid on the grid, from the map's footprint table: impassable ruins, walls and wrecks,
+ * slow rubble, logs and flooded shell holes. The same table gives the line-of-sight obstacles, so what blocks the eye
+ * and what blocks the feet agree.
+ */
 function layObstacles(map: BattlefieldMap, columns: number, rows: number): Float32Array {
   const obstacles = new Float32Array(columns * rows).fill(1)
   for (const scenery of map.scenery) {
-    const obstacle = OBSTACLES[scenery.kind]
-    if (!obstacle) {
+    const { walkCost } = SCENERY_FOOTPRINTS[scenery.kind]
+    if (walkCost <= 1) {
       continue
     }
-    const radius = scenery.kind === "pool" ? scenery.scale : obstacle.radius * scenery.scale
+    const radius = footprintRadius(scenery)
     const minColumn = Math.max(0, Math.floor((scenery.x - radius) / NAV_CELL))
     const maxColumn = Math.min(columns - 1, Math.floor((scenery.x + radius) / NAV_CELL))
     const minRow = Math.max(0, Math.floor((scenery.z - radius) / NAV_CELL))
@@ -89,7 +73,7 @@ function layObstacles(map: BattlefieldMap, columns: number, rows: number): Float
         const dz = (row + 0.5) * NAV_CELL - scenery.z
         if (dx * dx + dz * dz <= radius * radius) {
           const cell = row * columns + column
-          obstacles[cell] = Math.max(read(obstacles, cell), obstacle.cost)
+          obstacles[cell] = Math.max(read(obstacles, cell), walkCost)
         }
       }
     }
