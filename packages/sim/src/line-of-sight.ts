@@ -1,5 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat"
-import { type BattlefieldMap, footprintRadius, heightAt, sampleIndex, SCENERY_FOOTPRINTS } from "@verdun/map"
+import { type BattlefieldMap, heightAt, sampleIndex } from "@verdun/map"
+import { type SightBlock, sightBlocks } from "./sight-shapes.ts"
 
 /** A point in the world, in metres: `y` is up. */
 export interface WorldPoint {
@@ -35,18 +36,23 @@ export interface LineOfSight {
 /** Scenery colliders reach this far below the ground, so none floats clear of a slope. */
 const SCENERY_FOOTING = 0.5
 
-/** A standing piece of scenery's sight-blocking shape: an upright cylinder from below the ground to its height. */
-function sceneryDesc(map: BattlefieldMap, index: number, height: number): RAPIER.ColliderDesc | null {
-  const item = map.scenery[index]
-  if (!item || height <= 0) {
-    return null
+/** A sight-blocking shape as a collider, from below the ground under it up to its height. */
+function blockDesc(map: BattlefieldMap, block: SightBlock): RAPIER.ColliderDesc {
+  const halfHeight = (block.height + SCENERY_FOOTING) / 2
+  const y = heightAt(map, block.x, block.z) - SCENERY_FOOTING + halfHeight
+  if (block.kind === "cylinder") {
+    return RAPIER.ColliderDesc.cylinder(halfHeight, block.radius).setTranslation(block.x, y, block.z)
   }
-  const halfHeight = (height + SCENERY_FOOTING) / 2
-  return RAPIER.ColliderDesc.cylinder(halfHeight, footprintRadius(item)).setTranslation(
-    item.x,
-    heightAt(map, item.x, item.z) - SCENERY_FOOTING + halfHeight,
-    item.z
-  )
+  // A turn about the vertical, taking the box's along axis (local z) to (sin yaw, cos yaw), as scenery headings do.
+  return RAPIER.ColliderDesc.cuboid(block.halfAcross, halfHeight, block.halfAlong)
+    .setTranslation(block.x, y, block.z)
+    .setRotation({ w: Math.cos(block.yaw / 2), x: 0, y: Math.sin(block.yaw / 2), z: 0 })
+}
+
+/** A piece of scenery's colliders, as it stands or knocked down to a height. */
+function sceneryColliders(world: RAPIER.World, map: BattlefieldMap, index: number, height?: number): RAPIER.Collider[] {
+  const item = map.scenery[index]
+  return item ? sightBlocks(item, height).map((block) => world.createCollider(blockDesc(map, block))) : []
 }
 
 let rapierReady: Promise<void> | undefined
@@ -83,17 +89,14 @@ function heightfieldDesc(map: BattlefieldMap): RAPIER.ColliderDesc {
 
 /**
  * Line of sight against the terrain and what stands on it, as Rapier ray casts against static colliders: a heightfield
- * for the ground and an upright cylinder for each piece of scenery that stands high enough to hide a man (ruins, walls,
- * trees, wrecks; see SCENERY_FOOTPRINTS). Soldiers aren't physics bodies, so they don't block sight.
+ * for the ground, and for scenery the shapes of its art (see sight-shapes.ts): boxes for houses, walls and wrecks,
+ * cylinders for trees and smaller things. Soldiers aren't physics bodies, so they don't block sight.
  */
 export async function createLineOfSight(map: BattlefieldMap): Promise<LineOfSight> {
   await initRapier()
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 })
   let terrain = world.createCollider(heightfieldDesc(map))
-  const scenery = map.scenery.map((item, index) => {
-    const desc = sceneryDesc(map, index, SCENERY_FOOTPRINTS[item.kind].sightHeight * item.scale)
-    return desc ? world.createCollider(desc) : null
-  })
+  const scenery = map.scenery.map((_, index) => sceneryColliders(world, map, index))
   // Scene queries only see colliders after a step. Nothing moves, so the step does no other work.
   world.step()
 
@@ -123,12 +126,10 @@ export async function createLineOfSight(map: BattlefieldMap): Promise<LineOfSigh
       return 1
     },
     setSightHeight(index, height) {
-      const existing = scenery[index]
-      if (existing) {
-        world.removeCollider(existing, false)
+      for (const collider of scenery[index] ?? []) {
+        world.removeCollider(collider, false)
       }
-      const desc = sceneryDesc(map, index, height)
-      scenery[index] = desc ? world.createCollider(desc) : null
+      scenery[index] = sceneryColliders(world, map, index, height)
       world.step()
     },
     dispose() {

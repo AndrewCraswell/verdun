@@ -105,7 +105,8 @@ describe("createLineOfSight", () => {
     const map = {
       ...createFlatMap({ name: "village", cellSize: 0.5, columns: 200, rows: 200 }),
       scenery: [
-        { kind: "ruin" as const, x: 50, z: 30, heading: 0, variant: 0, scale: 1 },
+        // A house's standing shell.
+        { kind: "ruin" as const, x: 50, z: 30, heading: 0, variant: 1, scale: 1 },
         { kind: "rubble" as const, x: 50, z: 70, heading: 0, variant: 0, scale: 1 },
         { kind: "bridge" as const, x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
       ]
@@ -125,4 +126,59 @@ describe("createLineOfSight", () => {
     lineOfSight.setSightHeight(0, 0)
     expect(lineOfSight.isClear({ x: 20, y: 0.4, z: 30 }, { x: 80, y: 0.4, z: 30 })).toBe(true)
   })
+
+  it("hides behind a house's whole shell, not a round pillar at its middle", async () => {
+    const map = {
+      ...createFlatMap({ name: "village", cellSize: 0.5, columns: 200, rows: 200 }),
+      // 14.3 m across (east-west, at heading 0) and 11.1 m along (north-south).
+      scenery: [{ kind: "ruin" as const, x: 50, z: 50, heading: 0, variant: 1, scale: 1 }]
+    }
+    const lineOfSight = await open(map)
+    const eastWest = (z: number) => lineOfSight.isClear(eyeAt(map, 20, z), eyeAt(map, 80, z))
+    const northSouth = (x: number) => lineOfSight.isClear(eyeAt(map, x, 20), eyeAt(map, x, 80))
+
+    expect(eastWest(54.5)).toBe(false)
+    expect(eastWest(56.5)).toBe(true)
+    expect(northSouth(56.5)).toBe(false)
+    expect(northSouth(58)).toBe(true)
+  })
+
+  it("turns a wall's length with its heading, and hides only men low behind it", async () => {
+    const wall = (heading: number) => ({
+      ...createFlatMap({ name: "wall", cellSize: 0.5, columns: 200, rows: 200 }),
+      scenery: [{ kind: "wall" as const, x: 50, z: 50, heading, variant: 0, scale: 1 }]
+    })
+    const low = (lineOfSight: LineOfSight, from: [number, number], to: [number, number]) =>
+      lineOfSight.isClear({ x: from[0], y: 0.6, z: from[1] }, { x: to[0], y: 0.6, z: to[1] })
+
+    // At heading 0 the wall runs east-west: it hides a man crawling up from the south a metre off its middle...
+    const facingNorth = await open(wall(0))
+    expect(low(facingNorth, [51, 30], [51, 70])).toBe(false)
+    expect(lineOfSight(facingNorth, [51, 30], [51, 70])).toBe(true)
+    // ...but a man passing along its line a metre from it is in the open.
+    expect(low(facingNorth, [30, 51], [70, 51])).toBe(true)
+
+    // Turned a quarter, it runs north-south.
+    const facingEast = await open(wall(Math.PI / 2))
+    expect(low(facingEast, [51, 30], [51, 70])).toBe(true)
+    expect(low(facingEast, [30, 51], [70, 51])).toBe(false)
+  })
+
+  it("lets a man see over a razed house's rubble, but not through its chimney", async () => {
+    const map = {
+      ...createFlatMap({ name: "razed", cellSize: 0.5, columns: 200, rows: 200 }),
+      scenery: [{ kind: "ruin" as const, x: 50, z: 50, heading: 0, variant: 0, scale: 1 }]
+    }
+    const lineOfSight = await open(map)
+
+    expect(lineOfSight.isClear(eyeAt(map, 20, 50), eyeAt(map, 80, 50))).toBe(true)
+    expect(lineOfSight.isClear({ x: 20, y: 0.6, z: 50 }, { x: 80, y: 0.6, z: 50 })).toBe(false)
+    // The chimney stands 3 m to the right and 3.5 m back: right is east and back is south at heading 0.
+    expect(lineOfSight.isClear(eyeAt(map, 53, 20), eyeAt(map, 53, 80))).toBe(false)
+  })
 })
+
+/** Whether a standing man at one ground point can see a standing man at another. */
+function lineOfSight(sight: LineOfSight, from: [number, number], to: [number, number]): boolean {
+  return sight.isClear({ x: from[0], y: EYE_HEIGHT, z: from[1] }, { x: to[0], y: EYE_HEIGHT, z: to[1] })
+}

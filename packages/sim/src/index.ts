@@ -101,6 +101,8 @@ export {
   soldierEye
 } from "./stance.ts"
 export { canRun, WINDED } from "./systems/movement.ts"
+export { blockReach, insideBlock, type SightBlock, sightBlocks } from "./sight-shapes.ts"
+export { climbLimit } from "./terrain.ts"
 export {
   concentrationAt,
   GAS_CELL,

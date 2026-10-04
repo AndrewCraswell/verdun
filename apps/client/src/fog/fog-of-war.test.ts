@@ -44,6 +44,20 @@ describe("computeViewshed", () => {
     expect([grid.columns, grid.rows, grid.values.length]).toEqual([300, 200, 60_000])
   })
 
+  it("can't see past a house's shell, as the enemy can't", () => {
+    const map = {
+      ...createFlatMap({ name: "village", cellSize: 0.5, columns: 200, rows: 200 }),
+      scenery: [{ kind: "ruin" as const, x: 50, z: 60, heading: 0, variant: 1, scale: 1 }]
+    }
+    const grid = createFogGrid(map)
+    computeViewshed(map, { x: 50, y: EYE_HEIGHT, z: 40 }, 45, grid)
+
+    expect(seen(grid, 50, 50)).toBe(true)
+    // Behind the house, and beside it in the open.
+    expect(seen(grid, 50, 75)).toBe(false)
+    expect(seen(grid, 75, 75)).toBe(true)
+  })
+
   it("sees open ground out to its range and nothing beyond", () => {
     const map = createFlatMap({ name: "flat", cellSize: 0.5, columns: 200, rows: 200 })
     const grid = createFogGrid(map)

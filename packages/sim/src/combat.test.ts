@@ -1,8 +1,8 @@
-import { carveTrenches, createFlatMap, TRENCH_PROFILE, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, stampCrater, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { afterEach, describe, expect, it } from "vitest"
 import { BROKEN_MORALE, fireAt, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
-import { Side } from "./components.ts"
+import { Side, Stance } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
   createSimulation,
@@ -14,6 +14,7 @@ import {
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad, isAlive } from "./squads.ts"
+import { soldierEye } from "./stance.ts"
 
 const opened: LineOfSight[] = []
 afterEach(() => {
@@ -289,5 +290,30 @@ describe("combat determinism", () => {
 
     expect(besideHit).toBeGreaterThan(5)
     expect(wideHit).toBe(0)
+  })
+})
+
+describe("cover in a shell hole", () => {
+  it("hides a man lying or crouching in it, and shows only the head of one standing", async () => {
+    const map = createFlatMap({ name: "craters", cellSize: 0.5, columns: 400, rows: 400 })
+    // A 77 mm field gun's crater after the ground has been churned: some 4 m across and 1.3 m deep.
+    stampCrater(map, { x: 100, z: 50, radius: 2, depth: 1.3 })
+    const sim = createSimulation({ map, seed: 1 })
+    const lineOfSight = await createLineOfSight(map)
+    opened.push(lineOfSight)
+    sim.lineOfSight = lineOfSight
+    const german = spawnSoldier(sim, { side: Side.German, x: 100, z: 150 })
+    const inHole = spawnSoldier(sim, { side: Side.French, x: 100, z: 50 })
+    const inOpen = spawnSoldier(sim, { side: Side.French, x: 120, z: 50 })
+    const seen = (soldier: number) => lineOfSight.isClear(soldierEye(sim, german), soldierEye(sim, soldier))
+
+    sim.soldiers.stance.value[inHole] = Stance.Prone
+    expect(seen(inHole)).toBe(false)
+    sim.soldiers.stance.value[inHole] = Stance.Crouching
+    expect(seen(inHole)).toBe(false)
+    sim.soldiers.stance.value[inHole] = Stance.Standing
+    expect(seen(inHole)).toBe(true)
+    // Standing, his head shows over the lip but his body doesn't: he's as hard to hit as a man behind a parapet.
+    expect(hitChance(sim, german, inHole)).toBeLessThan(hitChance(sim, german, inOpen) * 0.5)
   })
 })
