@@ -3,10 +3,11 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Particle } from "@babylonjs/core/Particles/particle"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap } from "@verdun/map"
+import { createFlatMap, heightAt } from "@verdun/map"
 import {
   createSimulation,
   enqueueCommand,
@@ -172,6 +173,18 @@ describe("the environment view", () => {
     }
     expect(view?.precipitation.rain.emitRate).toBeGreaterThan(1000)
     expect(view?.precipitation.rain.direction1.x).toBeGreaterThan(0)
+    // Drops splash on the ground round the camera, puddles stand and ripple, and the grass bends to the wind.
+    expect(view?.precipitation.splashes.emitRate).toBeGreaterThan(50)
+    const splash = Vector3.Zero()
+    const splashes = view?.precipitation.splashes
+    if (splashes) {
+      splashes.startPositionFunction?.(Matrix.Identity(), splash, new Particle(splashes), false)
+    }
+    expect(splash.y).toBeCloseTo(heightAt(map, splash.x, splash.z) + 0.03, 5)
+    expect(view?.surface.waterShown).toBe(1)
+    expect(view?.surface.rain).toBeGreaterThan(0.5)
+    expect(view?.wind.strength).toBeGreaterThan(0.5)
+    expect(view?.wind.towardX).toBeCloseTo(1)
     expect(ground.diffuseColor.r).toBeLessThan(dryGround * 0.7)
     expect(ground.specularPower).toBe(48)
     expect(smoke.gravity.x).toBeGreaterThan(0)
@@ -197,6 +210,7 @@ describe("the environment view", () => {
     expect(view?.precipitation.snow.emitRate).toBeGreaterThan(0)
     expect(view?.surface.snow).toBe(0)
     expect(view?.precipitation.rain.emitRate).toBe(0)
+    expect(view?.precipitation.splashes.emitRate).toBe(0)
     view?.dispose()
   })
 })

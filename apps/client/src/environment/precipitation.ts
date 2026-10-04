@@ -12,6 +12,14 @@ import type { Weather } from "@verdun/sim"
 const FALL = { halfWidth: 55, height: 30 } as const
 const RAIN = { speed: 8.5, perMillimetre: 900, capacity: 6000 } as const
 const SNOW = { speed: 1.1, perMillimetre: 350, capacity: 9000 } as const
+/**
+ * Raindrops splashing on the ground nearest the camera, in a box `halfWidth` metres round its target: a share of the
+ * drops falling there, each a brief crown of droplets.
+ */
+const SPLASH = { halfWidth: 22, share: 0.7, capacity: 1500 } as const
+
+/** The ground's height at a point, in metres: where splashes land. */
+export type GroundHeight = (x: number, z: number) => number
 
 /** Particles a second for a precipitation rate: more drops in heavier rain, though not in proportion. */
 export function dropsPerSecond(millimetresPerHour: number, perMillimetre: number): number {
@@ -66,6 +74,7 @@ function createFall(scene: Scene, name: string, capacity: number, texture: Textu
 export interface Precipitation {
   readonly rain: ParticleSystem
   readonly snow: ParticleSystem
+  readonly splashes: ParticleSystem
   /**
    * Lets rain and snow fall around a point for the weather: as hard as it's falling, blown by the wind, and as bright
    * as the light (0 to 1).
@@ -74,8 +83,8 @@ export interface Precipitation {
   dispose(): void
 }
 
-/** Rain and snow falling around the camera, so the player always stands in the weather. */
-export function createPrecipitation(scene: Scene): Precipitation {
+/** Rain and snow falling around the camera, so the player always stands in the weather, and rain splashing round it. */
+export function createPrecipitation(scene: Scene, groundAt: GroundHeight = () => 0): Precipitation {
   const rain = createFall(scene, "rain", RAIN.capacity, sprite(scene, 4, 64, "raindrop"))
   rain.billboardMode = ParticleSystem.BILLBOARDMODE_STRETCHED
   // Drawn wider than a real drop, which would be a fraction of a pixel from the camera's height.
@@ -94,9 +103,30 @@ export function createPrecipitation(scene: Scene): Precipitation {
   snow.minAngularSpeed = -1
   snow.maxAngularSpeed = 1
 
+  // Each splash starts on the ground under a random point near the camera, jumps a hand's height and falls back.
+  const splashes = createFall(scene, "rain-splashes", SPLASH.capacity, sprite(scene, 16, 16, "splash"))
+  let splashCentre = Vector3.Zero()
+  splashes.startPositionFunction = (_world, position) => {
+    const x = splashCentre.x + (Math.random() * 2 - 1) * SPLASH.halfWidth
+    const z = splashCentre.z + (Math.random() * 2 - 1) * SPLASH.halfWidth
+    position.set(x, groundAt(x, z) + 0.03, z)
+  }
+  splashes.direction1 = new Vector3(-0.4, 1, -0.4)
+  splashes.direction2 = new Vector3(0.4, 1, 0.4)
+  splashes.minEmitPower = 0.6
+  splashes.maxEmitPower = 1.3
+  splashes.gravity = new Vector3(0, -9.8, 0)
+  splashes.minLifeTime = 0.12
+  splashes.maxLifeTime = 0.28
+  splashes.minSize = 0.06
+  splashes.maxSize = 0.12
+  splashes.addSizeGradient(0, 0.6)
+  splashes.addSizeGradient(1, 2.2)
+
   return {
     rain,
     snow,
+    splashes,
     update(weather, around, light) {
       const origin = new Vector3(around.x, around.y + FALL.height, around.z)
       const snowing = weather.snowFraction
@@ -116,10 +146,20 @@ export function createPrecipitation(scene: Scene): Precipitation {
         // Each drop or flake lives just long enough to reach the ground, so it keeps its colour all the way down.
         system.colorDead = new Color4(shade * 0.9, shade * 0.92, shade, alpha * 0.7)
       }
+      // Splashes: the share of drops falling in the box round the camera's target, fading as they spread.
+      splashCentre = around
+      const rainfall = weather.precipitation * (1 - snowing)
+      splashes.emitRate =
+        dropsPerSecond(rainfall, RAIN.perMillimetre) * SPLASH.share * (SPLASH.halfWidth / FALL.halfWidth) ** 2
+      const shade = 0.3 + 0.7 * light
+      splashes.color1 = new Color4(shade, shade, shade * 1.03, 0.55)
+      splashes.color2 = new Color4(shade * 0.9, shade * 0.92, shade, 0.4)
+      splashes.colorDead = new Color4(shade * 0.9, shade * 0.92, shade, 0)
     },
     dispose() {
       rain.dispose()
       snow.dispose()
+      splashes.dispose()
     }
   }
 }

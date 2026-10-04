@@ -361,7 +361,9 @@ In `apps/client/src/environment/`:
   the camera's distance so at least 35% of the ground where it looks still shows. Babylon's fog is by distance from the
   camera, but real fog lies near the ground, and the camera looks down through it from 50–260 m.
 - **Rain and snow** (`precipitation.ts`): particles falling around the camera's target, blown by the wind, as dense as
-  the rate, drawn wider than real drops so they show from above.
+  the rate, drawn wider than real drops so they show from above. Where the rain lands within 22 m of the camera's
+  target, about seven drops in ten splash: a crown of droplets that jumps a hand's height off the ground under it and
+  falls back in a quarter of a second.
 - **Wet ground and props** darken and catch the light; **thunderstorms** flash, and `onLightning` reports each strike's
   distance (1.5–8 km) so thunder can follow at 3 s a kilometre; the level's **smoke and mist** drift on the weather's
   wind, and mist thickens as visibility falls (`environment-view.ts`).

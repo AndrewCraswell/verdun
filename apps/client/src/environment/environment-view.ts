@@ -9,6 +9,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Observable } from "@babylonjs/core/Misc/observable"
 import type { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
+import { heightAt } from "@verdun/map"
 import { type Simulation, soldierIds, WeatherPattern } from "@verdun/sim"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createGroundMarks } from "./ground-marks.ts"
@@ -131,7 +132,7 @@ export function createEnvironmentView(
     return null
   }
   const daylight = createDaylight(scene, sim.environment, key, sky)
-  const precipitation = createPrecipitation(scene)
+  const precipitation = createPrecipitation(scene, (x, z) => heightAt(sim.map, x, z))
   const wetness = createWetness(materials)
   const surface: WeatherSurface = {
     cloudOffsetX: 0,
