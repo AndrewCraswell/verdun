@@ -1,4 +1,5 @@
-import { type BattlefieldMap, createFlatMap, sampleIndex } from "./format.ts"
+import { type BattlefieldMap, createFlatMap, mapDepth, sampleIndex, Surface } from "./format.ts"
+import { valueNoise } from "./noise.ts"
 
 export interface RollingTerrainOptions {
   readonly name: string
@@ -8,31 +9,11 @@ export interface RollingTerrainOptions {
   readonly seed: number
   /** Peak-to-trough scale of the largest hills, in metres. */
   readonly amplitude: number
-}
-
-/** Deterministic pseudo-random value in [0, 1) for an integer lattice point. */
-function latticeValue(seed: number, x: number, z: number): number {
-  let hash = Math.imul(x, 374_761_393) ^ Math.imul(z, 668_265_263) ^ Math.imul(seed, 1_274_126_177)
-  hash = Math.imul(hash ^ (hash >>> 13), 1_274_126_177)
-  hash ^= hash >>> 16
-  return (hash >>> 0) / 4_294_967_296
-}
-
-function smoothstep(t: number): number {
-  return t * t * (3 - 2 * t)
-}
-
-/** Smooth value noise in [0, 1) with features roughly `scale` metres apart. */
-function valueNoise(seed: number, x: number, z: number, scale: number): number {
-  const gridX = x / scale
-  const gridZ = z / scale
-  const x0 = Math.floor(gridX)
-  const z0 = Math.floor(gridZ)
-  const tx = smoothstep(gridX - x0)
-  const tz = smoothstep(gridZ - z0)
-  const near = latticeValue(seed, x0, z0) * (1 - tx) + latticeValue(seed, x0 + 1, z0) * tx
-  const far = latticeValue(seed, x0, z0 + 1) * (1 - tx) + latticeValue(seed, x0 + 1, z0 + 1) * tx
-  return near * (1 - tz) + far * tz
+  /**
+   * The band of no man's land between the lines, as fractions of the map depth. Ground there is churned by shellfire.
+   * Defaults to the middle 40% of the map.
+   */
+  readonly noMansLand?: { readonly from: number; readonly to: number }
 }
 
 const OCTAVES = [
@@ -43,25 +24,64 @@ const OCTAVES = [
 
 const TOTAL_WEIGHT = OCTAVES.reduce((sum, octave) => sum + octave.weight, 0)
 
-/** Gently rolling farmland: a stand-in for real elevation data until it is imported. */
+/** Seed offsets keep the surface noise independent of the height noise. */
+const SURFACE_SEED = 7_919
+const EDGE_SEED = 104_729
+
+function heightNoise(seed: number, x: number, z: number): number {
+  let height = 0
+  for (const [octaveIndex, octave] of OCTAVES.entries()) {
+    height += valueNoise(seed + octaveIndex, x, z, octave.scale) * octave.weight
+  }
+  return height / TOTAL_WEIGHT
+}
+
+/**
+ * Picks a surface from where a sample sits: churned ground in no man's land (with a ragged edge), chalk showing on
+ * rises, mud in hollows, grass elsewhere behind the lines.
+ */
+function chooseSurface(
+  seed: number,
+  x: number,
+  z: number,
+  relativeHeight: number,
+  noMansLand: { from: number; to: number }
+): Surface {
+  // Up to 6 m either way, so the edge of the shelled ground isn't a straight line.
+  const ragged = (valueNoise(seed + EDGE_SEED, x, z, 18) - 0.5) * 12
+  if (z > noMansLand.from + ragged && z < noMansLand.to - ragged) {
+    return valueNoise(seed + SURFACE_SEED, x, z, 9) > 0.72 ? Surface.Mud : Surface.Churned
+  }
+  const patch = valueNoise(seed + SURFACE_SEED, x, z, 24)
+  if (relativeHeight > 0.62 && patch > 0.45) {
+    return Surface.Chalk
+  }
+  if (relativeHeight < 0.38 || patch < 0.22) {
+    return Surface.Mud
+  }
+  return Surface.Grass
+}
+
+/** Gently rolling farmland torn up between the lines: a stand-in for real elevation data until it is imported. */
 export function generateRollingTerrain(options: RollingTerrainOptions): BattlefieldMap {
-  const { name, widthMeters, depthMeters, cellSize, seed, amplitude } = options
+  const { name, widthMeters, depthMeters, cellSize, seed, amplitude, noMansLand = { from: 0.3, to: 0.7 } } = options
   const map = createFlatMap({
     name,
     cellSize,
     columns: Math.round(widthMeters / cellSize),
     rows: Math.round(depthMeters / cellSize)
   })
+  const depth = mapDepth(map)
+  const band = { from: noMansLand.from * depth, to: noMansLand.to * depth }
 
   for (let row = 0; row <= map.rows; row++) {
     for (let column = 0; column <= map.columns; column++) {
       const x = column * cellSize
       const z = row * cellSize
-      let height = 0
-      for (const [octaveIndex, octave] of OCTAVES.entries()) {
-        height += valueNoise(seed + octaveIndex, x, z, octave.scale) * octave.weight
-      }
-      map.heights[sampleIndex(map, column, row)] = (height / TOTAL_WEIGHT) * amplitude
+      const relativeHeight = heightNoise(seed, x, z)
+      const index = sampleIndex(map, column, row)
+      map.heights[index] = relativeHeight * amplitude
+      map.surfaces[index] = chooseSurface(seed, x, z, relativeHeight, band)
     }
   }
   return map

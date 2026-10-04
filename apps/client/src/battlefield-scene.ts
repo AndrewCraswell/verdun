@@ -11,8 +11,8 @@ import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { Scene } from "@babylonjs/core/scene"
 import { heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { Side, type Simulation, soldierIds } from "@verdun/sim"
-import { palette } from "./palette.ts"
-import { buildTerrainVertexData } from "./terrain-mesh.ts"
+import { palette, surfaceColors } from "./palette.ts"
+import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
 
 /** Camera looks down at about 57 degrees below the horizon: angled top-down, like Company of Heroes. */
 export const CAMERA_TILT_DEGREES = 57
@@ -22,7 +22,7 @@ const SOLDIER_HEIGHT = 1.8
 export interface BattlefieldView {
   readonly scene: Scene
   readonly camera: ArcRotateCamera
-  readonly terrain: Mesh
+  readonly terrain: TerrainChunks
   /** Placeholder soldier meshes, one per side, drawn as thin instances. */
   readonly soldierMeshes: Readonly<Record<Side, Mesh>>
   /** Copies soldier positions from the simulation into the render meshes. Call after stepping. */
@@ -68,7 +68,7 @@ function createSoldierMesh(scene: Scene, side: Side, color: Color3): Mesh {
 export function createBattlefieldScene(
   engine: AbstractEngine,
   sim: Simulation,
-  { terrainStep = 4, attachControl = false }: BattlefieldViewOptions = {}
+  { terrainStep = 2, attachControl = false }: BattlefieldViewOptions = {}
 ): BattlefieldView {
   const scene = new Scene(engine)
   scene.clearColor = palette.sky
@@ -88,12 +88,11 @@ export function createBattlefieldScene(
   const sun = new DirectionalLight("sun", new Vector3(-0.4, -1, 0.3), scene)
   sun.intensity = 0.45
 
-  const terrain = new Mesh("terrain", scene)
-  buildTerrainVertexData(sim.map, terrainStep).applyToMesh(terrain)
-  const ground = new StandardMaterial("mud", scene)
-  ground.diffuseColor = palette.mud
+  // Surface colours come from vertex colours; the material only adds lighting and fog.
+  const ground = new StandardMaterial("ground", scene)
+  ground.diffuseColor = Color3.White()
   ground.specularColor = Color3.Black()
-  terrain.material = ground
+  const terrain = createTerrainChunks(scene, sim.map, { material: ground, surfaceColors, renderStep: terrainStep })
 
   const soldierMeshes = {
     [Side.French]: createSoldierMesh(scene, Side.French, palette.horizonBlue),

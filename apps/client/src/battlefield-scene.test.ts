@@ -37,11 +37,12 @@ describe("createBattlefieldScene", () => {
     expect(view.camera.target.z).toBeCloseTo(40)
   })
 
-  it("builds the terrain mesh from the map at a coarser step", () => {
+  it("builds chunked terrain over the whole map", () => {
     const view = render(createSimulation({ map, seed: 1 }))
 
-    // 240 x 160 cells sampled every 4th: 61 x 41 vertices.
-    expect(view.terrain.getTotalVertices()).toBe(61 * 41)
+    // 120 m x 80 m in 64 m chunks: 2 x 2.
+    expect(view.terrain.meshes).toHaveLength(4)
+    expect(view.terrain.meshes.every((chunk) => chunk.getTotalVertices() > 0)).toBe(true)
   })
 
   it("draws each side's soldiers on the ground, and follows them as they move", () => {
