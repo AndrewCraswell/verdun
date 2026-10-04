@@ -362,6 +362,17 @@ In `apps/client/src/environment/`:
   the sky half cloudy; a clear or an overcast sky throws none. Snow lies on level ground and the tops of things, patchy
   at first and covering the field from about 8 mm of water; its brightness follows the light, blue-grey by moonlight.
   All are uniforms, so the weather changes without recompiling a shader.
+- **Puddles** (`ground-marks.ts`, drawn by the same plugin): water stands in the hollows after rain. Each point's water
+  line is the mean height of the ground within about 3 m (two box blurs of the height grid at 1 m), capped 25 cm above
+  the ground there, so shell craters, trench floors and ruts hold water and level ground and slopes don't. None shows
+  until the ground is 20% wet; then the water rises from 50 cm below the brims to 5 cm below as the ground soaks. Any
+  level surface under the water line goes under, so a plank lying in a flooded crater is drowned and a crate standing in
+  it isn't. The water darkens the ground and mirrors the haze, more at a glancing angle (Fresnel), and rain ripples it;
+  frozen, it lies still. Craters re-shape the hollows, at most every 2 s. The level's permanent crater ponds are their
+  own meshes and stay whatever the weather.
+- **Trails in snow**: every half second the view presses where each man stands into a 1 m texture of trodden snow, which
+  thins the snow there and greys it with mud. Fresh snow fills trails (two thirds filled by 2 mm of water), and a thaw
+  wipes them.
 
 ## Saves and networking
 

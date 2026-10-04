@@ -227,6 +227,7 @@ async function start(): Promise<void> {
     const crater = cratered
     if (crater) {
       stats.time("terrain", () => view.terrain.rebuildRegion(crater.minX, crater.minZ, crater.maxX, crater.maxZ))
+      environment?.reshape()
       cratered = null
     }
     trace("effects", () => {

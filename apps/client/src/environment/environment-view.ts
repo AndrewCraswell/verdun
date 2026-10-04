@@ -9,8 +9,9 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Observable } from "@babylonjs/core/Misc/observable"
 import type { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
-import { type Simulation, WeatherPattern } from "@verdun/sim"
+import { type Simulation, soldierIds, WeatherPattern } from "@verdun/sim"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
+import { createGroundMarks } from "./ground-marks.ts"
 import { createPrecipitation, type Precipitation } from "./precipitation.ts"
 import { createCloudTexture, type WeatherSurface, WeatherSurfacePlugin } from "./weather-surface-plugin.ts"
 
@@ -36,6 +37,8 @@ export interface EnvironmentView {
   readonly onLightning: Observable<number>
   /** Draws the simulation's time of day and weather. Call once a frame. */
   update(frameSeconds: number): void
+  /** Craters have reshaped the ground: puddles find its new hollows, within a couple of seconds. */
+  reshape(): void
   dispose(): void
 }
 
@@ -51,6 +54,18 @@ const CLOUD_DRIFT = { aloft: 3, least: 3 } as const
 const CLOUD_SHADOW = 0.45
 /** Snow lying this deep, in millimetres of water, covers the ground. */
 const SNOW_COVERS = 8
+/**
+ * Puddles: none until the ground is this wet; then water rises in the hollows from `dry` metres below their brims to
+ * `sodden` below as the ground soaks. Rain of `heavy` mm an hour ripples them hard.
+ */
+const PUDDLES = { from: 0.2, full: 0.95, dry: 0.5, sodden: 0.05, heavy: 4 } as const
+/** Seconds between marking where men tread in snow, and between finding the hollows again after craters. */
+const MARKS = { tread: 0.5, reshape: 2 } as const
+
+const smoothstep = (from: number, to: number, value: number) => {
+  const t = Math.min(1, Math.max(0, (value - from) / (to - from)))
+  return t * t * (3 - 2 * t)
+}
 
 const isSun = (light: unknown): light is DirectionalLight => light instanceof DirectionalLight
 const isSky = (light: unknown): light is HemisphericLight => light instanceof HemisphericLight
@@ -116,10 +131,21 @@ export function createEnvironmentView(
     shadowedShare: 0,
     shadowDepth: 0,
     snow: 0,
-    snowBrightness: 1
+    snowBrightness: 1,
+    waterMargin: PUDDLES.dry,
+    waterShown: 0,
+    rain: 0,
+    time: 0,
+    reflectR: 0,
+    reflectG: 0,
+    reflectB: 0
   }
   const clouds = createCloudTexture(scene)
-  const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, surface))
+  const marks = createGroundMarks(scene, sim.map)
+  const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, marks, surface))
+  let untilTread = 0
+  let untilReshape = 0
+  let reshaped = false
   const onLightning = new Observable<number>()
   const mistRate = air?.mist.emitRate ?? 0
   let untilLightning = LIGHTNING.maxGap
@@ -151,6 +177,35 @@ export function createEnvironmentView(
       surface.snow = Math.min(1, weather.snowCover / SNOW_COVERS)
       surface.snowBrightness = 0.15 + 0.85 * light
 
+      // Puddles rise in the hollows as the ground soaks, mirror the haze, and ripple in rain; frozen, they lie still.
+      const soaking = smoothstep(PUDDLES.from, PUDDLES.full, weather.wetness)
+      surface.waterShown = smoothstep(PUDDLES.from, PUDDLES.from + 0.15, weather.wetness)
+      surface.waterMargin = PUDDLES.dry + (PUDDLES.sodden - PUDDLES.dry) * soaking
+      const rainfall = weather.temperature > 0 ? weather.precipitation * (1 - weather.snowFraction) : 0
+      surface.rain = Math.min(1, rainfall / PUDDLES.heavy)
+      surface.time += frameSeconds
+      surface.reflectR = scene.fogColor.r
+      surface.reflectG = scene.fogColor.g
+      surface.reflectB = scene.fogColor.b
+
+      // Men tread trails through lying snow; fresh snow fills them.
+      untilTread -= frameSeconds
+      if (untilTread <= 0) {
+        untilTread = MARKS.tread
+        const { x, z } = sim.soldiers.position
+        const standing = weather.snowCover > 0.05 ? soldierIds(sim) : []
+        marks.tread(
+          standing.map((soldier) => ({ x: x[soldier] ?? 0, z: z[soldier] ?? 0 })),
+          weather.snowCover
+        )
+      }
+      untilReshape -= frameSeconds
+      if (reshaped && untilReshape <= 0) {
+        untilReshape = MARKS.reshape
+        reshaped = false
+        marks.reshape()
+      }
+
       if (weather.pattern === WeatherPattern.Storm) {
         untilLightning -= frameSeconds
         if (untilLightning <= 0) {
@@ -172,11 +227,15 @@ export function createEnvironmentView(
         air.mist.emitRate = mistRate * (0.4 + 2.6 * fog)
       }
     },
+    reshape() {
+      reshaped = true
+    },
     dispose() {
       daylight.dispose()
       precipitation.dispose()
       surfaced.forEach((plugin) => plugin.dispose())
       clouds.dispose()
+      marks.dispose()
       onLightning.clear()
     }
   }
