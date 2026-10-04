@@ -184,8 +184,9 @@ impulse responses from BOOM content; its EULA bans it.
 
 ### Audio: free
 
-- [ ] [Sonniss GDC Game Audio Bundles](https://rekkerd.org/sonniss-releases-gdc-2026-game-audio-bundle/): royalty-free,
-      no attribution, a new one every year (2026 is 7.47 GB+). Not yet checked for war material.
+- [x] [Sonniss GDC Game Audio Bundles](https://sonniss.com/gameaudiogdc): royalty-free, no attribution, a new one every
+      year. Samplers of 2–4 files per library. 2016–2026 audited on 2026-10-04; 209 war-relevant libraries (716 files,
+      24 GB) kept in `vendor/audio/sonniss-gdc/` (see its README). 2015 skipped (no track list).
 - [ ] [Freesound](https://freesound.org) CC0 sounds only. CC-BY ships raw with credit; never CC BY-NC.
 - [ ] Will Gaisberg, "Gas Shell Bombardment" (HMV 09308, 1918): the only authentic WW1 battle recording. Public domain;
       transfer an original 78 ourselves. Gramophone or menu flavour only.

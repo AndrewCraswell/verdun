@@ -14,6 +14,7 @@ export default defineConfig({
         "src/main.ts",
         "src/dev/**",
         "src/control/browser-input.ts",
+        "src/audio/battle-sounds.ts",
         "src/hud/hud.ts",
         "src/control/camera-rig.ts",
         "src/ui/menu.ts",

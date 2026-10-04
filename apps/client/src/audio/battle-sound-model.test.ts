@@ -1,0 +1,178 @@
+import { createFlatMap, layOutFront, mapDepth, Surface } from "@verdun/map"
+import {
+  createSimulation,
+  MaskState,
+  Shell,
+  type SimEvent,
+  Side,
+  type Simulation,
+  spawnSoldier,
+  stepSimulation,
+  TICK_RATE,
+  Weapon
+} from "@verdun/sim"
+import { describe, expect, it } from "vitest"
+import {
+  createBattleSoundModel,
+  hearingDistance,
+  type Listener,
+  placeSound,
+  SPEED_OF_SOUND
+} from "./battle-sound-model.ts"
+
+/** Looking straight down at (100, 40) from 40 m up, with the screen's right along +x. The test map is 300 m by 200 m. */
+const LISTENER: Listener = { x: 100, z: 40, height: 40, rightX: 1, rightZ: 0 }
+
+function battle() {
+  const flat = createFlatMap({ name: "sector", cellSize: 0.5, columns: 600, rows: 400 }, 5, Surface.Grass)
+  const sim = createSimulation({ map: { ...flat, trenches: layOutFront(flat) }, seed: 1 })
+  const french = spawnSoldier(sim, { side: Side.French, x: 100, z: 30 })
+  const german = spawnSoldier(sim, { side: Side.German, x: 100, z: 190 })
+  const gunner = spawnSoldier(sim, { side: Side.German, x: 110, z: 60, weapon: Weapon.MachineGun })
+  return { sim, french, german, gunner }
+}
+
+/** Replaces the events of the step just taken, as if the simulation had produced them. */
+function happen(sim: Simulation, ...events: SimEvent[]): void {
+  sim.events.length = 0
+  sim.events.push(...events)
+}
+
+function shot(shooter: number, from: { x: number; z: number }, to: { x: number; z: number }): SimEvent {
+  return { type: "shot", shooter, target: -1, hit: false, from: { ...from, y: 1.6 }, to: { ...to, y: 1.2 } }
+}
+
+describe("placeSound", () => {
+  it("is full volume up close, fades with distance and arrives at the speed of sound", () => {
+    const near = placeSound(LISTENER, "heavy-far", 100, 40)
+    const far = placeSound(LISTENER, "heavy-far", 100, 900)
+    expect(near?.volume).toBe(1)
+    expect(far?.volume).toBeCloseTo(200 / hearingDistance(LISTENER, 100, 900))
+    expect(far?.delay).toBeCloseTo(hearingDistance(LISTENER, 100, 900) / SPEED_OF_SOUND)
+  })
+
+  it("pans toward the side of the screen the sound is on", () => {
+    expect(placeSound(LISTENER, "rifle-fr-near", 140, 40)?.pan).toBeGreaterThan(0.5)
+    expect(placeSound(LISTENER, "rifle-fr-near", 60, 40)?.pan).toBeLessThan(-0.5)
+    expect(placeSound({ ...LISTENER, rightX: -1 }, "rifle-fr-near", 140, 40)?.pan).toBeLessThan(-0.5)
+  })
+
+  it("drops sounds too far off to hear", () => {
+    expect(placeSound(LISTENER, "death", 100, 2000)).toBeNull()
+  })
+})
+
+describe("createBattleSoundModel", () => {
+  it("plays each side's rifle, near or far by distance", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(
+      sim,
+      shot(french, { x: 100, z: 30 }, { x: 100, z: 190 }),
+      shot(german, { x: 100, z: 190 }, { x: 100, z: 70 })
+    )
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "rifle-de-far"])
+  })
+
+  it("plays a nearby machine gun round by round, a distant one a burst at a time", () => {
+    const { sim, french, gunner } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    const round = shot(gunner, { x: 110, z: 60 }, { x: 100, z: 120 })
+    happen(sim, round, round)
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["mg-near", "mg-near"])
+
+    const far = { ...LISTENER, z: 190 }
+    happen(sim, round)
+    expect(model.step(far).map((call) => call.cue)).toEqual(["mg-far"])
+    sim.tick += 1
+    happen(sim, round)
+    expect(model.step(far)).toEqual([])
+    sim.tick += 2 * TICK_RATE
+    happen(sim, round)
+    expect(model.step(far).map((call) => call.cue)).toEqual(["mg-far"])
+  })
+
+  it("cracks rounds past the listener when they come from far off", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(sim, shot(german, { x: 100, z: 190 }, { x: 102, z: 41 }))
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-de-far", "crack"])
+    sim.tick += TICK_RATE
+    happen(sim, shot(french, { x: 100, z: 30 }, { x: 101, z: 41 }))
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near"])
+  })
+
+  it("plays each kind of burst, near or far", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    const burst = (shell: Shell, z: number): SimEvent => ({
+      type: "burst",
+      shell,
+      at: { x: 100, y: 5, z },
+      crater: null
+    })
+    happen(
+      sim,
+      burst(Shell.FieldHighExplosive, 60),
+      burst(Shell.HeavyHighExplosive, 195),
+      burst(Shell.FieldShrapnel, 50),
+      burst(Shell.FieldGas, 45),
+      burst(Shell.Grenade, 130)
+    )
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual([
+      "field-near",
+      "heavy-far",
+      "shrapnel-near",
+      "gas-shell",
+      "grenade-far"
+    ])
+  })
+
+  it("hears batteries far behind the lines as their shells are fired, delayed by the distance", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    sim.artillery.shells.push(
+      { shell: Shell.HeavyHighExplosive, side: Side.German, x: 100, z: 150, landsAtTick: sim.tick + 200 },
+      { shell: Shell.FieldHighExplosive, side: Side.German, x: 120, z: 150, landsAtTick: sim.tick + 200 }
+    )
+    const calls = model.step(LISTENER)
+    // One report per interval, however many shells leave at once.
+    expect(calls.map((call) => call.cue)).toEqual(["battery-heavy"])
+    expect(calls[0]?.delay).toBeGreaterThan((mapDepth(sim.map) + 4000 - LISTENER.z) / SPEED_OF_SOUND)
+    expect(model.step(LISTENER)).toEqual([])
+  })
+
+  it("hears men fall nearby, but not far off", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    sim.pendingCommands.push({ type: "kill", soldier: german })
+    stepSimulation(sim)
+    expect(model.step(LISTENER).filter((call) => call.cue === "death")).toEqual([])
+    sim.pendingCommands.push({ type: "kill", soldier: french })
+    stepSimulation(sim)
+    expect(model.step(LISTENER).filter((call) => call.cue === "death")).toHaveLength(1)
+  })
+
+  it("strikes the gas gong when men nearby start masking, and breathes through the mask", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    sim.tick = 10
+    happen(sim)
+    expect(model.step(LISTENER)).toEqual([])
+    sim.soldiers.mask.state[french] = MaskState.Donning
+    sim.tick = 20
+    const gongs = model.step(LISTENER).filter((call) => call.cue === "gas-gong")
+    expect(gongs).toHaveLength(6)
+    expect(gongs[5]?.delay).toBeGreaterThan(gongs[0]?.delay ?? Infinity)
+    expect(model.breathingInMask()).toBe(false)
+    sim.soldiers.mask.state[french] = MaskState.On
+    expect(model.breathingInMask()).toBe(true)
+    sim.tick = 30
+    expect(model.step(LISTENER)).toEqual([])
+  })
+
+  it("breathes in no mask when there's no soldier to control", () => {
+    const { sim } = battle()
+    expect(createBattleSoundModel(sim, { soldier: () => null }).breathingInMask()).toBe(false)
+  })
+})
