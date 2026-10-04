@@ -24,13 +24,21 @@ export interface Skirmish {
   readonly german: readonly EntityId[]
   /** The player's squad: the one in the middle of the French line. */
   readonly playerSquad: Squad
+  /** Squads holding each side's support line, behind the front: the reserves that counter-attack a lost front line. */
+  readonly reserves: readonly Squad[]
+}
+
+/** A side's fire trenches facing the enemy, the front line first and then back toward the rear. */
+function fireLines(trenches: readonly Trench[], facing: "north" | "south"): Trench[] {
+  const forwardZ = (trench: Trench) => trench.points[0]?.[1] ?? 0
+  return trenches
+    .filter((trench) => trench.kind === "fire" && trench.facing === facing)
+    .sort((a, b) => (facing === "north" ? forwardZ(b) - forwardZ(a) : forwardZ(a) - forwardZ(b)))
 }
 
 /** The front-line fire trench for a side: the one facing the enemy that sits closest to no man's land. */
 function frontLine(trenches: readonly Trench[], facing: "north" | "south"): Trench {
-  const fire = trenches.filter((trench) => trench.kind === "fire" && trench.facing === facing)
-  const forwardZ = (trench: Trench) => trench.points[0]?.[1] ?? 0
-  const [front] = fire.sort((a, b) => (facing === "north" ? forwardZ(b) - forwardZ(a) : forwardZ(a) - forwardZ(b)))
+  const [front] = fireLines(trenches, facing)
   if (!front) {
     throw new Error(`The map has no ${facing}-facing fire trench to man`)
   }
@@ -74,9 +82,10 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number, p
 
 /**
  * Both sides man their front-line fire trench on the fire step, facing each other, in squads of eight holding their
- * ground and firing at whatever they can see. The player commands the squad in the middle of the French line.
+ * ground and firing at whatever they can see, with reserves in the support line behind where the map has one. The
+ * player commands the squad in the middle of the French line.
  */
-export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish {
+export function setupSkirmish(sim: Simulation, soldiersPerSide = 200, reservesPerSide = 64): Skirmish {
   const squadsPerSide = Math.ceil(soldiersPerSide / SQUAD_SIZE)
   const frenchSquads = manTrench(
     sim,
@@ -86,6 +95,15 @@ export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish 
     Math.floor(squadsPerSide / 2)
   )
   const germanSquads = manTrench(sim, frontLine(sim.map.trenches, "south"), Side.German, soldiersPerSide)
+  const reserves = (["north", "south"] as const).flatMap((facing) => {
+    const support = fireLines(sim.map.trenches, facing)[1]
+    return support && reservesPerSide > 0
+      ? manTrench(sim, support, facing === "north" ? Side.French : Side.German, reservesPerSide)
+      : []
+  })
+  for (const squad of reserves) {
+    squad.order = { kind: "reserve" }
+  }
   const playerSquad = frenchSquads.find((squad) => squad.controller === "player")
   if (!playerSquad) {
     throw new Error("The French line has no squads to command")
@@ -93,7 +111,8 @@ export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish 
   return {
     french: frenchSquads.flatMap((squad) => squad.members),
     german: germanSquads.flatMap((squad) => squad.members),
-    playerSquad
+    playerSquad,
+    reserves
   }
 }
 

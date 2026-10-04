@@ -99,8 +99,8 @@ export interface FireMissionCommand {
 
 /**
  * An attack behind a creeping barrage: field guns lay a line of fire `startZ`, lifting `lift` metres every `interval`
- * seconds toward the objective and beyond it, and every squad on the side follows `standoff` metres behind it, then
- * rushes the objective when the barrage lifts past.
+ * seconds toward the objective and beyond it, and the side's squads follow `standoff` metres behind it, then rush the
+ * objective when the barrage lifts past.
  */
 export interface BarrageAttackCommand {
   readonly type: "barrage-attack"
@@ -121,6 +121,8 @@ export interface BarrageAttackCommand {
    * objective. Zero or absent for none.
    */
   readonly standingRoundsPerMinute?: number
+  /** Ids of the squads that go: absent for every squad on the side. */
+  readonly squads?: readonly number[]
 }
 
 /** Everything that can change the simulation from outside. Grows as mechanics land. */
@@ -288,7 +290,8 @@ export function applyCommand(sim: Simulation, command: Command): void {
         orderFireMission(sim, { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: standing / 5 })
       }
       for (const squad of sim.squads) {
-        if (squad.side === command.side && squad.leader >= 0) {
+        const chosen = command.squads === undefined || command.squads.includes(squad.id)
+        if (squad.side === command.side && squad.leader >= 0 && chosen) {
           squad.order = {
             kind: "creep",
             mission,

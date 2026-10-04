@@ -9,7 +9,7 @@ const map = { ...flat, trenches: layOutFront(flat) }
 describe("setupSkirmish", () => {
   it("mans each side's front-line fire trench, French to the south and Germans to the north", () => {
     const sim = createSimulation({ map, seed: 1 })
-    const { french, german } = setupSkirmish(sim, 50)
+    const { french, german } = setupSkirmish(sim, 50, 0)
     const depth = mapDepth(map)
 
     expect(Array.from(soldierIds(sim))).toHaveLength(100)
@@ -31,7 +31,7 @@ describe("setupSkirmish", () => {
 
   it("forms each line into squads of eight and gives the player the middle French squad", () => {
     const sim = createSimulation({ map, seed: 1 })
-    const { french, playerSquad } = setupSkirmish(sim, 48)
+    const { french, playerSquad } = setupSkirmish(sim, 48, 0)
 
     expect(sim.squads).toHaveLength(12)
     expect(sim.squads.every((squad) => squad.members.length === 8)).toBe(true)
@@ -39,6 +39,20 @@ describe("setupSkirmish", () => {
     expect(playerSquad.members).toEqual(french.slice(24, 32))
     expect(playerSquad.controller).toBe("player")
     expect(sim.squads.filter((squad) => squad.controller === "player")).toHaveLength(1)
+  })
+
+  it("keeps reserves in each side's support line, behind its front line", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const { french, german, reserves } = setupSkirmish(sim, 48, 16)
+
+    expect(reserves).toHaveLength(4)
+    expect(reserves.every((squad) => squad.controller === "ai" && squad.order.kind === "reserve")).toBe(true)
+    const behind = (squad: (typeof reserves)[number], front: readonly number[]) => {
+      const lineZ = sim.soldiers.position.z[front[0] ?? 0]
+      const z = sim.soldiers.position.z[squad.leader]
+      return squad.side === Side.French ? z < lineZ - 20 : z > lineZ + 20
+    }
+    expect(reserves.every((squad) => behind(squad, squad.side === Side.French ? french : german))).toBe(true)
   })
 
   it("puts soldiers up on the fire step, toward the enemy, with a machine gun every fifth squad", () => {
@@ -70,9 +84,9 @@ describe("setupSkirmish", () => {
       expect(squad.order.kind).toBe("creep")
       expect(squad.order.kind === "creep" && Math.abs(squad.order.objectiveZ - depth * 0.75) <= 3).toBe(true)
     }
-    expect(sim.squads.filter((squad) => squad.side === Side.German).every((squad) => squad.order.kind === "hold")).toBe(
-      true
-    )
+    expect(
+      sim.squads.filter((squad) => squad.side === Side.German).every((squad) => squad.order.kind !== "creep")
+    ).toBe(true)
   })
 
   it("bombards the enemy front line with heavy and field guns", () => {

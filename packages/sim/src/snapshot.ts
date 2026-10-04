@@ -2,12 +2,13 @@ import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
 import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
+import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 9
+export const SIM_STATE_VERSION = 10
 
 export interface SoldierState {
   readonly id: number
@@ -59,6 +60,8 @@ export interface SimulationSnapshot {
   /** Shell smoke and dust in each cell of the same grid. */
   readonly smoke: readonly number[]
   readonly wind: { readonly x: number; readonly z: number }
+  /** Each side's commander: when it lost its front line and when it counter-attacked. */
+  readonly commanders: Record<Side, CommanderState>
 }
 
 function toSide(value: number): Side {
@@ -124,7 +127,11 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     artillery: copyArtilleryState(sim.artillery),
     gas: Array.from(sim.gas.concentration),
     smoke: Array.from(sim.smoke.concentration),
-    wind: { x: sim.wind.x, z: sim.wind.z }
+    wind: { x: sim.wind.x, z: sim.wind.z },
+    commanders: {
+      [Side.French]: { ...sim.commanders[Side.French] },
+      [Side.German]: { ...sim.commanders[Side.German] }
+    }
   }
 }
 
@@ -201,5 +208,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   sim.gas.active = snapshot.gas.some((value) => value > 0)
   sim.smoke.concentration.set(snapshot.smoke)
   sim.smoke.active = snapshot.smoke.some((value) => value > 0)
+  Object.assign(sim.commanders[Side.French], snapshot.commanders[Side.French])
+  Object.assign(sim.commanders[Side.German], snapshot.commanders[Side.German])
   return sim
 }

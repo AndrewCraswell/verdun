@@ -112,6 +112,11 @@ function squadDecides(sim: Simulation, soldier: EntityId): boolean {
   return squad !== undefined && !(squad.controller === "player" && squad.leader === soldier)
 }
 
+/** Whether a soldier's squad is waiting in reserve, its men down the dugouts until they're sent in. */
+function inReserve(sim: Simulation, soldier: EntityId): boolean {
+  return sim.squads[sim.soldiers.squad.id[soldier]]?.order.kind === "reserve"
+}
+
 /** A squad's sentry stays on the fire step through a bombardment, watching for the attack: its leader. */
 function isSentry(sim: Simulation, soldier: EntityId): boolean {
   const squad = sim.squads[sim.soldiers.squad.id[soldier]]
@@ -160,7 +165,7 @@ export function stanceSystem(sim: Simulation): void {
     const moving = hasComponent(sim.world, soldier, moveOrder) || hasComponent(sim.world, soldier, sim.soldiers.steer)
     if (stance.value[soldier] === Stance.Sheltering) {
       if (shelter.emergeAt[soldier] < 0) {
-        const calm = sinceShelled >= SHELTER_CALM
+        const calm = sinceShelled >= SHELTER_CALM && !inReserve(sim, soldier)
         const alarm = sinceShelled >= ALARM_CALM && enemyWithin(sim, soldier, ALARM_RANGE, living)
         // An order to move, such as going over the top, gets them up the steps whatever is falling.
         if (calm || alarm || moving) {
@@ -175,7 +180,8 @@ export function stanceSystem(sim: Simulation): void {
     if (isInTrench(sim.map, position.x[soldier], position.z[soldier])) {
       // Stances run before artillery each step, so a burst can be up to a whole interval old by now.
       const justShelled = sim.tick - shelter.lastShelled[soldier] <= STANCE_INTERVAL
-      stance.value[soldier] = justShelled && !moving && !isSentry(sim, soldier) ? Stance.Sheltering : Stance.Standing
+      const goesDown = justShelled || inReserve(sim, soldier)
+      stance.value[soldier] = goesDown && !moving && !isSentry(sim, soldier) ? Stance.Sheltering : Stance.Standing
       continue
     }
     stance.value[soldier] = !moving || suppression.value[soldier] >= PINNED ? Stance.Prone : Stance.Standing

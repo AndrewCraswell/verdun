@@ -168,3 +168,23 @@ Committed as "Make machine guns sweep, rifles fire like men under fire, and sold
 
 Results: an attack with no artillery at all is wiped out in two minutes (1 of 200 French left, 2 Germans dead; MGs 37
 kills, rifles 158). Barrage attacks: French 94-126 of 200 left, 83-118 Germans captured.
+
+## Reserves and the counter-attack
+
+Committed as "Add reserves and the counter-attack".
+
+- **Reserves**: the skirmish mans each side's support line (the second fire trench back) with 64 reserves per side, in a
+  new `reserve` squad order: they wait below in the dugouts, sentries up, until sent in. The French reserves go over
+  with the whistle as a second wave.
+- **Commanders** (`packages/sim/src/commander.ts`): every 5 s each side checks its front line. It's lost when at least 8
+  enemies are within 15 m of it and outnumber the defenders left there 3 to 1. Three minutes later (the German Gegenstoß
+  came in minutes, not hours) the guns pound the lost trench for 2 minutes. Then the reserves leave their dugouts and go
+  in behind a creeping barrage. One counter-attack per side. Snapshots are version 10.
+- **Load-order bug**, reported by the level-design agent: the dev build didn't boot
+  (`Cannot access 'TICK_RATE' before initialization`), because `commander.ts` computed a constant from `TICK_RATE` at
+  module load and it and `simulation.ts` import each other. In Node the same constant silently came out `NaN`, so the
+  commander never ran. Fixed by converting at the point of use. I checked the rest of the sim for the same pattern and
+  found none.
+- Result: the counter-attack goes in about 5 minutes after the front falls. The preparation kills about 25 of the 150
+  French holding the captured trench. The 56-62 reserves then fail against them, outnumbered over 2 to 1, at a cost of
+  15-25 more French.

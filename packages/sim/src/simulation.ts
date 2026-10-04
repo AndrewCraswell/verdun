@@ -3,6 +3,7 @@ import { addComponent, addEntity, createWorld, type EntityId, Not, query, type Q
 import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryState } from "./artillery.ts"
 import { captureSystem, type CaptureEvent } from "./capture.ts"
 import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
+import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
@@ -45,13 +46,15 @@ export interface Simulation {
   readonly smoke: GasField
   /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
   readonly wind: { x: number; z: number }
+  /** Each side's commander: whether it has lost its front line and counter-attacked. */
+  readonly commanders: Record<Side, CommanderState>
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
 }
 
 /** Something that happened during a step that a renderer may want to show. */
-export type SimEvent = ShotEvent | BurstEvent | CaptureEvent
+export type SimEvent = ShotEvent | BurstEvent | CaptureEvent | CounterAttackEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -81,6 +84,7 @@ export function createSimulation({
     gas: createGasField(map),
     smoke: createGasField(map),
     wind: { x: wind.x, z: wind.z },
+    commanders: createCommanders(),
     events: [],
     tick: 0
   }
@@ -178,6 +182,7 @@ export function stepSimulation(sim: Simulation): void {
   for (const command of sim.pendingCommands.splice(0)) {
     applyCommand(sim, command)
   }
+  commanderSystem(sim)
   squadSystem(sim)
   stanceSystem(sim)
   captureSystem(sim)

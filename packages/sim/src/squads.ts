@@ -11,6 +11,10 @@ export type SquadOrder =
   | { readonly kind: "follow" }
   /** Stay where they are. */
   | { readonly kind: "hold" }
+  /**
+   * Wait in reserve: stay put and, in a trench, down its dugouts out of harm's way, all but the sentry, until sent in.
+   */
+  | { readonly kind: "reserve" }
   /** Move to a point and spread out in a line there. */
   | { readonly kind: "advance"; readonly x: number; readonly z: number }
   /**
@@ -176,7 +180,7 @@ export function squadSystem(sim: Simulation): void {
     return
   }
   for (const squad of sim.squads) {
-    if (squad.leader < 0 || squad.order.kind === "hold") {
+    if (squad.leader < 0 || squad.order.kind === "hold" || squad.order.kind === "reserve") {
       continue
     }
     const order = squad.order
