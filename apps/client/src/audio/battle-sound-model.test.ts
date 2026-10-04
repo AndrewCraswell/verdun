@@ -125,11 +125,11 @@ describe("createBattleSoundModel", () => {
     expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["flare"])
   })
 
-  it("hears grenades thrown nearby", () => {
+  it("hears grenades thrown nearby, the thrower shouting it", () => {
     const { sim, french, german } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })
     happen(sim, { type: "throw", soldier: french }, { type: "throw", soldier: german })
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["throw"])
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["throw", "voice-grenade-fr"])
   })
 
   it("rains earth down after a burst close by, and leaves the controlled soldier's ears ringing", () => {
@@ -138,8 +138,9 @@ describe("createBattleSoundModel", () => {
     const crater = { minX: 95, minZ: 30, maxX: 105, maxZ: 40 }
     happen(sim, { type: "burst", shell: Shell.FieldHighExplosive, at: { x: 100, y: 5, z: 35 }, crater })
     const calls = model.step(LISTENER)
-    expect(calls.map((call) => call.cue)).toEqual(["field-near", "debris", "ear-ring"])
-    expect(calls[1]?.delay).toBeGreaterThan(calls[0]?.delay ?? Infinity)
+    expect(calls.map((call) => call.cue)).toEqual(["field-near", "voice-cover-fr", "debris", "ear-ring"])
+    const delay = (cue: string) => calls.find((call) => call.cue === cue)?.delay ?? NaN
+    expect(delay("debris")).toBeGreaterThan(delay("field-near"))
     expect(model.takeShock()).toBeCloseTo(1 - 5 / 15)
     expect(model.takeShock()).toBe(0)
   })
@@ -183,8 +184,10 @@ describe("createBattleSoundModel", () => {
       burst(Shell.FieldGas, 45),
       burst(Shell.Grenade, 130)
     )
+    // The machine gunner by the first burst shouts to take cover; no one else gets a word in so soon.
     expect(model.step(LISTENER).map((call) => call.cue)).toEqual([
       "field-near",
+      "voice-cover-de",
       "heavy-far",
       "shrapnel-near",
       "gas-shell",
@@ -337,9 +340,57 @@ describe("voices", () => {
     happen(sim)
     expect(model.step(LISTENER)).toEqual([])
     squad.order = { kind: "advance", x: 100, z: 150 }
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["charge"])
+    const calls = model.step(LISTENER)
+    // The leader cries out to go, and the men cheer after him.
+    expect(calls.map((call) => call.cue)).toEqual(["voice-charge-fr", "charge"])
+    expect(calls[1]?.delay).toBeGreaterThan(calls[0]?.delay ?? Infinity)
     expect(model.step(LISTENER)).toEqual([])
     happen(sim, { type: "counter-attack", side: Side.German })
     expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["charge"])
+  })
+
+  it("shouts one at a time, and not the same line again too soon", () => {
+    const { sim, french } = battle()
+    const comrade = spawnSoldier(sim, { side: Side.French, x: 105, z: 35 })
+    const enemy = spawnSoldier(sim, { side: Side.German, x: 100, z: 60 })
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    const shouts = () => model.step(LISTENER).filter((call) => call.cue.startsWith("voice-"))
+    happen(sim, { type: "throw", soldier: french }, { type: "throw", soldier: enemy })
+    expect(shouts().map((call) => call.cue)).toEqual(["voice-grenade-fr"])
+    sim.tick += 2 * TICK_RATE
+    happen(sim, { type: "throw", soldier: comrade }, { type: "throw", soldier: enemy })
+    // Each in his own language: the French line was just shouted, so the German's is heard.
+    expect(shouts().map((call) => call.cue)).toEqual(["voice-grenade-de"])
+    sim.tick += 5 * TICK_RATE
+    happen(sim, { type: "throw", soldier: comrade })
+    expect(shouts().map((call) => call.cue)).toEqual(["voice-grenade-fr"])
+  })
+
+  it("cries the gas alarm as the gong is struck", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    sim.tick = 10
+    happen(sim)
+    model.step(LISTENER)
+    sim.soldiers.mask.state[french] = MaskState.Donning
+    sim.tick = 20
+    expect(model.step(LISTENER).map((call) => call.cue)).toContain("voice-gas-fr")
+  })
+
+  it("shouts as a man is pinned down, once, and calls out every second time a man is hit", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(sim)
+    const at = (seconds: number) => {
+      sim.tick = Math.round((seconds * TICK_RATE) / 4) * 4
+      return model.step(LISTENER).map((call) => call.cue)
+    }
+    sim.soldiers.suppression.value[french] = 0.9
+    expect(at(1)).toEqual(["voice-pinned-fr"])
+    expect(at(10)).toEqual([])
+    sim.soldiers.health.value[french] = 0.8
+    expect(at(20)).toEqual(["pain"])
+    sim.soldiers.health.value[french] = 0.6
+    expect(at(30)).toEqual(["pain", "voice-hit-fr"])
   })
 })

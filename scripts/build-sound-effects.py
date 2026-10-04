@@ -12,8 +12,10 @@ or the cue's longest length), faded out, and matched in loudness to the cue's ot
 one at random and set the level itself.
 """
 
+import difflib
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -325,6 +327,17 @@ CUES = {
     ),
 }
 
+# Soldiers' shouted lines, generated with ElevenLabs by scripts/generate-voices.mjs into vendor/audio/elevenlabs. Only
+# the takes chosen by ear, listed under "keep" in VOICE_LINES, are used. To choose among new takes, --shortlist lists
+# those worth hearing: they say the scripted words (WORDS_MATCH, against their transcript) and are really shouted (at
+# least SHOUT_MIN of their energy from 1 to 4 kHz, where a bellow carries and a spoken line doesn't), the best
+# TAKES_PER_LINE of each line.
+VOICES = "elevenlabs"
+VOICE_LINES = Path(__file__).resolve().parent / "voice-lines.json"
+WORDS_MATCH = 0.9
+SHOUT_MIN = 0.4
+TAKES_PER_LINE = 2
+
 # The ringing in the ears after a shell bursts close by: a high tone with a faint hiss, made here rather than recorded.
 EAR_RING = dict(seconds=4.0, tone=3400, wobble=0.6, hiss=0.04)
 
@@ -511,6 +524,70 @@ def ear_ring():
     return clip * (PEAK / float(np.abs(clip).max()))
 
 
+def words(text):
+    """A line's words for comparing: no delivery tags, punctuation or case."""
+    text = re.sub(r"\[[^\]]*\]", " ", text).lower()
+    return " ".join(re.sub(r"[^\w\s]", " ", text).split())
+
+
+def shout(clip):
+    """Share of a clip's energy from 1 to 4 kHz, over its loud moments."""
+    hop = 2048
+    frames = [clip[i : i + hop] for i in range(0, len(clip) - hop, hop)]
+    loud = [frame for frame in frames if np.sqrt(np.mean(frame**2)) > 0.02]
+    if not loud:
+        return 0.0
+    spectrum = np.mean([np.abs(np.fft.rfft(frame * np.hanning(hop))) ** 2 for frame in loud], axis=0)
+    freqs = np.fft.rfftfreq(hop, 1 / RATE)
+    return float(np.sum(spectrum[(freqs >= 1000) & (freqs <= 4000)]) / np.sum(spectrum))
+
+
+def trimmed(clip):
+    """The clip without the silence before and after the voice."""
+    level = envelope_db(clip)
+    voiced = np.nonzero(level > -45)[0]
+    if not len(voiced):
+        return clip
+    return finish(clip[max(0, voiced[0] - 2) * HOP : (voiced[-1] + 6) * HOP], fade_out=0.05)
+
+
+def voice_takes(vendor):
+    """Every generated take that's on disk, by name: its line, cue, script and transcript."""
+    listing = vendor / VOICES / "takes.json"
+    if not listing.exists():
+        return {}
+    takes = json.loads(listing.read_text(encoding="utf-8"))
+    return {name: take for name, take in takes.items() if (vendor / VOICES / f"{name}.mp3").exists()}
+
+
+def voice_cues(vendor):
+    """Each voice cue's takes, as chosen by ear."""
+    takes = voice_takes(vendor)
+    cues = {}
+    for name in json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []):
+        if name not in takes:
+            print(f"[sound-effects] kept take {name} isn't in {VOICES}; generate it first", flush=True)
+            continue
+        cues.setdefault(takes[name]["cue"], []).append(trimmed(load(vendor / VOICES / f"{name}.mp3")))
+    return {cue: match_loudness(clips) for cue, clips in cues.items()}
+
+
+def shortlist(vendor):
+    """Prints the takes not yet kept that are worth hearing, the best of each line first, to choose among by ear."""
+    kept = set(json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []))
+    by_line = {}
+    for name, take in voice_takes(vendor).items():
+        match = difflib.SequenceMatcher(None, words(take["text"]), words(take.get("transcript", ""))).ratio()
+        if name in kept or match < WORDS_MATCH:
+            continue
+        score = shout(load(vendor / VOICES / f"{name}.mp3"))
+        if score >= SHOUT_MIN:
+            by_line.setdefault(take["line"], []).append((score, name))
+    for line, takes in sorted(by_line.items()):
+        for score, name in sorted(takes, reverse=True)[:TAKES_PER_LINE]:
+            print(f"{name}: shouted {score:.0%}", flush=True)
+
+
 def write(path, clip, bitrate=BITRATE):
     aud.Sound.buffer(clip.reshape(-1, 1), RATE).write(
         str(path),
@@ -549,6 +626,11 @@ def build(vendor, output):
         manifest[name] = {"variations": len(clips), "loop": cue.get("loop", False) or "bed" in cue}
         lengths = ", ".join(f"{len(clip) / RATE:.1f}" for clip in clips)
         print(f"[sound-effects] {name}: {len(clips)} variations ({lengths} s)", flush=True)
+    for name, clips in voice_cues(vendor).items():
+        for index, clip in enumerate(clips):
+            write(sfx / f"{name}-{index}.ogg", clip)
+        manifest[name] = {"variations": len(clips), "loop": False}
+        print(f"[sound-effects] {name}: {len(clips)} takes", flush=True)
     write(sfx / "ear-ring-0.ogg", ear_ring())
     manifest["ear-ring"] = {"variations": 1, "loop": False}
     print("[sound-effects] ear-ring: made", flush=True)
@@ -568,6 +650,12 @@ def build(vendor, output):
 
 if __name__ == "__main__":
     arguments = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    if len(arguments) != 2:
-        sys.exit("usage: blender -b --factory-startup -P scripts/build-sound-effects.py -- <vendor/audio> <output>")
-    build(Path(arguments[0]).resolve(), Path(arguments[1]).resolve())
+    if len(arguments) == 2 and arguments[0] == "--shortlist":
+        shortlist(Path(arguments[1]).resolve())
+    elif len(arguments) == 2:
+        build(Path(arguments[0]).resolve(), Path(arguments[1]).resolve())
+    else:
+        sys.exit(
+            "usage: blender -b --factory-startup -P scripts/build-sound-effects.py -- <vendor/audio> <output>\n"
+            "       blender -b --factory-startup -P scripts/build-sound-effects.py -- --shortlist <vendor/audio>"
+        )

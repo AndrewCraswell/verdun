@@ -23,6 +23,8 @@ export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
 
 /** Random detune per play, in cents either way, so repeats don't sound identical. */
 const DETUNE = 80
+/** Voices only this much, in cents: more and a man no longer sounds like himself. */
+const VOICE_DETUNE = 25
 /** After a near miss the battle drops by up to this share of its volume, the nearer the more (see Mixer.shock). */
 const MUFFLE = 0.8
 /** Share of each battle sound sent to the reverb of the listener's space. */
@@ -223,7 +225,9 @@ async function startBattleSounds(
         delay: call.delay,
         cutoff: call.cutoff,
         reverb: bus === "battle" ? REVERB_SEND : 0,
-        detune: EARS.has(call.cue) ? 0 : (Math.random() * 2 - 1) * DETUNE,
+        detune: EARS.has(call.cue)
+          ? 0
+          : (Math.random() * 2 - 1) * (call.cue.startsWith("voice-") ? VOICE_DETUNE : DETUNE),
         bus
       })
     }

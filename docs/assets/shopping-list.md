@@ -225,7 +225,8 @@ loading, stripper clips and bayonet fixing.
 - Unity's _WWII Weapons Sound System_ ($99.99 per part): unproven, almost no WW1 weapons.
 - Fab "151 World War Sound Effects", Pixabay "WW1" uploads and MP3-only itch.io packs: unknown provenance or low
   quality.
-- ElevenLabs "World War" sound effects and other AI-generated sounds.
+- ElevenLabs "World War" sound effects and other AI-generated sounds. The soldiers' shouts are the one exception:
+  generated with ElevenLabs and chosen take by take by ear (see [sound](../sound.md)).
 
 ### Audio: known gaps (no product found)
 

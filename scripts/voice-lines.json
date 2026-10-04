@@ -1,0 +1,225 @@
+{
+  "model": "eleven_v4",
+  "stability": 0,
+  "takes": 3,
+  "voices": {
+    "fr-tenko": "0bKGtCCpdKSI5NjGhU3z",
+    "fr-tristan": "hv6gVog5LgtIUX88Nmq8",
+    "fr-guillaume": "Qrl71rx6Yg8RvyPYRGCQ",
+    "de-clemens": "eJHgBguIWw9PtA4GHbSP",
+    "de-ben": "aTTiK3YzK3dXETpuDE2h"
+  },
+  "lines": [
+    {
+      "id": "fr-charge-1",
+      "cue": "voice-charge-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[yelling at the top of his lungs] EN AVANT ! EN AVANT !"
+    },
+    {
+      "id": "fr-charge-2",
+      "cue": "voice-charge-fr",
+      "voices": ["fr-guillaume", "fr-tenko"],
+      "text": "[yelling] À LA BAÏONNETTE ! EN AVANT !"
+    },
+    {
+      "id": "fr-charge-3",
+      "cue": "voice-charge-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[yelling] ALLEZ, LES GARS ! EN AVANT !"
+    },
+    {
+      "id": "fr-charge-4",
+      "cue": "voice-charge-fr",
+      "voices": ["fr-guillaume", "fr-tenko"],
+      "text": "[screaming] DEBOUT LES MORTS !"
+    },
+    {
+      "id": "fr-cover-4",
+      "cue": "voice-cover-fr",
+      "voices": ["fr-guillaume", "fr-tristan", "fr-tenko"],
+      "text": "[screaming] À TERRE ! À TERRE !"
+    },
+    {
+      "id": "fr-cover-5",
+      "cue": "voice-cover-fr",
+      "voices": ["fr-guillaume", "fr-tristan", "fr-tenko"],
+      "text": "[screaming] PLANQUEZ-VOUS !"
+    },
+    {
+      "id": "fr-gas-1",
+      "cue": "voice-gas-fr",
+      "voices": ["fr-tenko", "fr-guillaume"],
+      "text": "[screaming] LES GAZ ! LES GAZ ! MASQUES !"
+    },
+    {
+      "id": "fr-gas-2",
+      "cue": "voice-gas-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[screaming] ALERTE AUX GAZ ! MASQUES, VITE !"
+    },
+    {
+      "id": "fr-grenade-1",
+      "cue": "voice-grenade-fr",
+      "voices": ["fr-guillaume", "fr-tristan", "fr-tenko"],
+      "text": "[yelling] GRENADE !"
+    },
+    {
+      "id": "fr-grenade-2",
+      "cue": "voice-grenade-fr",
+      "voices": ["fr-guillaume", "fr-tristan", "fr-tenko"],
+      "text": "[screaming] ATTENTION, GRENADE !"
+    },
+    {
+      "id": "fr-hit-1",
+      "cue": "voice-hit-fr",
+      "voices": ["fr-tenko", "fr-guillaume"],
+      "text": "[screaming in pain] JE SUIS TOUCHÉ !"
+    },
+    {
+      "id": "fr-hit-3",
+      "cue": "voice-hit-fr",
+      "voices": ["fr-guillaume", "fr-tenko"],
+      "text": "[screaming] BRANCARDIER ! BRANCARDIER !"
+    },
+    {
+      "id": "fr-mg-1",
+      "cue": "voice-pinned-fr",
+      "voices": ["fr-tristan", "fr-tenko"],
+      "text": "[screaming] MITRAILLEUSE ! BAISSEZ-VOUS !"
+    },
+    {
+      "id": "fr-mg-3",
+      "cue": "voice-pinned-fr",
+      "voices": ["fr-tristan", "fr-tenko"],
+      "text": "[screaming] ILS ARRIVENT ! ILS ARRIVENT !"
+    },
+    {
+      "id": "de-charge-1",
+      "cue": "voice-charge-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[yelling at the top of his lungs] SPRUNG AUF! MARSCH, MARSCH!"
+    },
+    {
+      "id": "de-charge-3",
+      "cue": "voice-charge-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[yelling] MIR NACH! HURRA!"
+    },
+    {
+      "id": "de-charge-4",
+      "cue": "voice-charge-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[screaming] HURRA! HURRA!"
+    },
+    {
+      "id": "de-cover-4",
+      "cue": "voice-cover-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] HINLEGEN! HINLEGEN!"
+    },
+    {
+      "id": "de-gas-1",
+      "cue": "voice-gas-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] GAS! GAS! MASKEN AUF!"
+    },
+    {
+      "id": "de-gas-3",
+      "cue": "voice-gas-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] GASALARM! GASALARM!"
+    },
+    {
+      "id": "de-grenade-1",
+      "cue": "voice-grenade-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[yelling] HANDGRANATE!"
+    },
+    {
+      "id": "de-grenade-2",
+      "cue": "voice-grenade-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[screaming] ACHTUNG, HANDGRANATE!"
+    },
+    {
+      "id": "de-hit-1",
+      "cue": "voice-hit-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[screaming in pain] ICH BIN GETROFFEN!"
+    },
+    {
+      "id": "de-hit-3",
+      "cue": "voice-hit-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] SANITÄTER! SANITÄTER!"
+    },
+    {
+      "id": "de-mg-1",
+      "cue": "voice-pinned-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] MG! RUNTER!"
+    },
+    {
+      "id": "de-mg-3",
+      "cue": "voice-pinned-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[screaming] SIE KOMMEN! SIE KOMMEN!"
+    }
+  ],
+  "keep": [
+    "fr-charge-1-fr-tristan-3",
+    "fr-charge-2-fr-guillaume-1",
+    "fr-charge-2-fr-guillaume-3",
+    "fr-charge-3-fr-guillaume-3",
+    "fr-charge-3-fr-tristan-2",
+    "fr-charge-4-fr-guillaume-2",
+    "fr-charge-4-fr-guillaume-3",
+    "fr-charge-4-fr-tenko-1",
+    "fr-cover-4-fr-guillaume-2",
+    "fr-cover-4-fr-guillaume-3",
+    "fr-cover-5-fr-tristan-2",
+    "fr-gas-1-fr-guillaume-3",
+    "fr-gas-1-fr-tenko-1",
+    "fr-gas-2-fr-guillaume-1",
+    "fr-gas-2-fr-guillaume-2",
+    "fr-gas-2-fr-tristan-1",
+    "fr-gas-2-fr-tristan-2",
+    "fr-grenade-1-fr-tenko-2",
+    "fr-grenade-1-fr-tristan-2",
+    "fr-grenade-2-fr-tristan-1",
+    "fr-hit-1-fr-guillaume-1",
+    "fr-hit-1-fr-tenko-2",
+    "fr-hit-3-fr-guillaume-2",
+    "fr-hit-3-fr-guillaume-3",
+    "fr-mg-1-fr-tristan-1",
+    "fr-mg-1-fr-tristan-2",
+    "fr-mg-3-fr-tristan-1",
+    "fr-mg-3-fr-tristan-2",
+    "de-charge-1-de-ben-2",
+    "de-charge-1-de-clemens-2",
+    "de-charge-3-de-clemens-1",
+    "de-charge-4-de-ben-1",
+    "de-charge-4-de-ben-2",
+    "de-cover-4-de-ben-1",
+    "de-cover-4-de-ben-2",
+    "de-cover-4-de-ben-3",
+    "de-gas-1-de-ben-1",
+    "de-gas-3-de-ben-1",
+    "de-gas-3-de-ben-3",
+    "de-gas-3-de-clemens-2",
+    "de-grenade-1-de-clemens-1",
+    "de-grenade-1-de-clemens-2",
+    "de-grenade-2-de-ben-2",
+    "de-grenade-2-de-clemens-3",
+    "de-hit-1-de-ben-1",
+    "de-hit-1-de-ben-2",
+    "de-hit-1-de-clemens-2",
+    "de-hit-3-de-ben-2",
+    "de-mg-1-de-ben-2",
+    "de-mg-1-de-clemens-1",
+    "de-mg-1-de-clemens-2",
+    "de-mg-3-de-ben-1",
+    "de-mg-3-de-ben-3"
+  ]
+}

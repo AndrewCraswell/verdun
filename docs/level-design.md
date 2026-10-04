@@ -318,6 +318,11 @@ than stopping the game.
   - **Men** cry out when hit and fall within reach. Squads cheer as they go over the top, and the enemy's counter-attack
     is heard from its front line. The gas alarm (a struck shell case) sounds when men nearby start masking. The
     controlled soldier breathes through his mask, and short and hard while pinned down.
+  - **Shouts**, in each man's own language, within 90 m: a squad's leader cries "En avant !" or "Sprung auf!" before the
+    cheer, the nearest man masking cries the gas alarm, men near a shell landing shout to take cover (as a heavy shell
+    is heard coming, just after a field shell), a thrower shouts his grenade, every second man hit calls out for a
+    stretcher-bearer, and a man shouts as he is pinned down. One at a time, at most one every 1.5 s, and the same line
+    at most once in 6 s.
   - **Footsteps** ([footstep-model.ts](../apps/client/src/audio/footstep-model.ts)): with the camera low, men standing
     within 18 m step once a stride on snow, the stones of the ruins or bare earth, and running men's kit rattles.
 - **Weather and the front** ([atmosphere-model.ts](../apps/client/src/audio/atmosphere-model.ts)):
@@ -332,8 +337,9 @@ than stopping the game.
 
 The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms, Super Thump's Weapons of World War II
 and the Sonniss GDC bundles, recorded by professionals: designed stand-ins and weak sampler sounds were taken out, and
-sounds with no good recording stay silent ([sound](sound.md) lists them). The ringing and the reverbs are generated.
-`scripts/build-sound-effects.py` cuts them:
+sounds with no good recording stay silent ([sound](sound.md) lists them). The ringing and the reverbs are generated. The
+shouts were generated with ElevenLabs (`scripts/generate-voices.mjs`, lines in `scripts/voice-lines.json`), and each
+take was chosen by ear: the build uses only those listed under `keep`. `scripts/build-sound-effects.py` cuts them:
 
 - It finds each take in the long source recordings and cuts it until it dies away.
 - It loops beds with a crossfade, and cuts the loudest stretches of recordings that never fall quiet.

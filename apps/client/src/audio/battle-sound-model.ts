@@ -65,9 +65,28 @@ export const SOUND_CUES = [
   "flare",
   "step-earth",
   "step-snow",
-  "step-stone"
+  "step-stone",
+  "voice-charge-fr",
+  "voice-charge-de",
+  "voice-cover-fr",
+  "voice-cover-de",
+  "voice-gas-fr",
+  "voice-gas-de",
+  "voice-grenade-fr",
+  "voice-grenade-de",
+  "voice-hit-fr",
+  "voice-hit-de",
+  "voice-pinned-fr",
+  "voice-pinned-de"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
+/** What a soldier shouts: each a cue per side's language, from scripts/voice-lines.json. */
+type Shout = "charge" | "cover" | "gas" | "grenade" | "hit" | "pinned"
+
+/** A shout as each side gives it: in French or German. */
+function shoutCue(shout: Shout, side: Side): SoundCue {
+  return `voice-${shout}-${side === Side.French ? "fr" : "de"}`
+}
 
 /** Where the player hears from: the ground point the camera looks at, how high the camera is, and the screen's right. */
 export interface Listener {
@@ -182,7 +201,19 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   flare: { volume: 0.5, reference: 30 },
   "step-earth": { volume: 0.3, reference: 4 },
   "step-snow": { volume: 0.3, reference: 4 },
-  "step-stone": { volume: 0.3, reference: 4 }
+  "step-stone": { volume: 0.3, reference: 4 },
+  "voice-charge-fr": { volume: 0.7, reference: 15 },
+  "voice-charge-de": { volume: 0.7, reference: 15 },
+  "voice-cover-fr": { volume: 0.7, reference: 15 },
+  "voice-cover-de": { volume: 0.7, reference: 15 },
+  "voice-gas-fr": { volume: 0.7, reference: 15 },
+  "voice-gas-de": { volume: 0.7, reference: 15 },
+  "voice-grenade-fr": { volume: 0.7, reference: 15 },
+  "voice-grenade-de": { volume: 0.7, reference: 15 },
+  "voice-hit-fr": { volume: 0.7, reference: 15 },
+  "voice-hit-de": { volume: 0.7, reference: 15 },
+  "voice-pinned-fr": { volume: 0.7, reference: 15 },
+  "voice-pinned-de": { volume: 0.7, reference: 15 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */
@@ -241,6 +272,21 @@ const GONG_STROKES = 6
 const GONG_SPACING = 0.45
 /** Masks near the listener are counted this often, in steps. */
 const MASK_CHECK_INTERVAL = 10
+/**
+ * Men shout within VOICE_RANGE of the listener: one at a time, at most one shout every VOICE_INTERVAL seconds, and
+ * each line at most once in VOICE_REPEAT seconds, so a battle's shouts come through one by one rather than in a babble.
+ */
+const VOICE_RANGE = 90
+const VOICE_INTERVAL = 1.5
+const VOICE_REPEAT = 6
+/** A squad's leader cries out to go, and the men's cheer follows this many seconds later. */
+const CHARGE_CRY = 0.8
+/** Men this close to where a shell lands shout to take cover: as a heavy shell is heard coming, after a field shell. */
+const COVER_RANGE = 40
+const COVER_DELAY = 0.4
+/** Every HIT_EVERY-th man heard crying out when hit then calls out that he's hit, HIT_DELAY seconds after. */
+const HIT_EVERY = 2
+const HIT_DELAY = 0.9
 /** Batteries stand this far behind their end of the map (the simulation's BATTERY_DISTANCE). */
 const BATTERY_DISTANCE = 4000
 
@@ -341,7 +387,9 @@ export interface BattleSoundOptions {
  * close, in whole bursts from afar, and riflemen nearby working the bolt), rounds cracking past, grenades thrown, every shell
  * and grenade burst by type with the rush of heavy shells coming in and earth raining down after near ones, the
  * batteries firing far behind the lines, men hit or falling nearby, squads going over the top and counter-attacks
- * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks.
+ * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks. Men
+ * nearby shout in their own language: the charge, the gas alarm, to take cover from shells, a grenade thrown, that
+ * they're hit, and as they're pinned down.
  */
 export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
@@ -359,6 +407,10 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   const health = Float32Array.from(sim.soldiers.health.value)
   const orders = new Map(sim.squads.map((squad) => [squad.id, squad.order.kind]))
   const lastCharge = new Map<Side, number>()
+  const suppression = Float32Array.from(sim.soldiers.suppression.value)
+  let lastShout = -Infinity
+  const lastLine = new Map<SoundCue, number>()
+  let cries = 0
   const seconds = (ticks: number) => ticks / TICK_RATE
   let occlusionChecks = 0
 
@@ -386,6 +438,63 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       return call
     }
     return { ...call, volume: call.volume * OCCLUDED_GAIN, cutoff: Math.min(call.cutoff, OCCLUDED_CUTOFF) }
+  }
+
+  /**
+   * Soldier `id` shouting, if he's near enough to hear and no one has just shouted the same, or anything at all.
+   * Whether he did.
+   */
+  function shout(listener: Listener, calls: SoundCall[], kind: Shout, id: EntityId, after = 0): boolean {
+    const now = seconds(sim.tick)
+    const x = sim.soldiers.position.x[id] ?? 0
+    const z = sim.soldiers.position.z[id] ?? 0
+    const cue = shoutCue(kind, sim.soldiers.side.value[id] === Side.French ? Side.French : Side.German)
+    if (
+      now - lastShout < VOICE_INTERVAL ||
+      now - (lastLine.get(cue) ?? -Infinity) < VOICE_REPEAT ||
+      fallen.has(id) ||
+      Math.hypot(x - listener.x, z - listener.z) >= VOICE_RANGE
+    ) {
+      return false
+    }
+    const call = place(listener, cue, x, z, after)
+    if (!call) {
+      return false
+    }
+    lastShout = now
+    lastLine.set(cue, now)
+    calls.push(call)
+    return true
+  }
+
+  /** The man standing nearest (x, z) within `range` metres, of `side` if given, or null when none is. */
+  function nearest(x: number, z: number, range: number, side?: Side): EntityId | null {
+    let found: EntityId | null = null
+    let best = range
+    for (const id of soldierIds(sim)) {
+      const distance = Math.hypot((sim.soldiers.position.x[id] ?? 0) - x, (sim.soldiers.position.z[id] ?? 0) - z)
+      if (distance < best && !fallen.has(id) && (side === undefined || sim.soldiers.side.value[id] === side)) {
+        best = distance
+        found = id
+      }
+    }
+    return found
+  }
+
+  /** Whether a shout from about (x, z) could be heard now: checked before looking for who would give it. */
+  function shoutable(listener: Listener, x: number, z: number, reach: number): boolean {
+    return (
+      seconds(sim.tick) - lastShout >= VOICE_INTERVAL &&
+      Math.hypot(x - listener.x, z - listener.z) < VOICE_RANGE + reach
+    )
+  }
+
+  /** The man nearest a shell landing shouts to take cover. */
+  function takeCover(listener: Listener, calls: SoundCall[], x: number, z: number, after: number): void {
+    const id = shoutable(listener, x, z, COVER_RANGE) ? nearest(x, z, COVER_RANGE) : null
+    if (id !== null) {
+      shout(listener, calls, "cover", id, after)
+    }
   }
 
   function shotSounds(listener: Listener, calls: SoundCall[]): void {
@@ -432,6 +541,9 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       if (event.shell === Shell.FieldGas) {
         continue
       }
+      if (event.shell !== Shell.Grenade) {
+        takeCover(listener, calls, x, z, COVER_DELAY)
+      }
       if (event.crater && Math.hypot(x - listener.x, z - listener.z) < DEBRIS_RANGE) {
         push(calls, place(listener, "debris", x, z, DEBRIS_DELAY))
       }
@@ -462,6 +574,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         // Ends as the burst is heard: both travel to the listener from where the shell lands.
         const after = Math.max(0, remaining - INCOMING_LEAD)
         push(calls, place(listener, "incoming-heavy", shell.x, shell.z, after, INCOMING_HEIGHT))
+        takeCover(listener, calls, shell.x, shell.z, after)
       }
     }
   }
@@ -481,6 +594,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         const z = sim.soldiers.position.z[event.soldier] ?? 0
         if (Math.hypot(x - listener.x, z - listener.z) < THROW_RANGE) {
           push(calls, place(listener, "throw", x, z))
+          shout(listener, calls, "grenade", event.soldier)
         }
       }
     }
@@ -540,17 +654,30 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         if (Math.hypot(x - listener.x, z - listener.z) < PAIN_RANGE) {
           lastPain = now
           push(calls, place(listener, "pain", x, z))
+          cries++
+          if (cries % HIT_EVERY === 0) {
+            shout(listener, calls, "hit", id, HIT_DELAY)
+          }
         }
+      }
+      const wasPinned = (suppression[id] ?? 0) >= PINNED
+      const pressed = sim.soldiers.suppression.value[id] ?? 0
+      suppression[id] = pressed
+      if (!wasPinned && pressed >= PINNED && after > 0) {
+        shout(listener, calls, "pinned", id)
       }
     }
   }
 
   function chargeSounds(listener: Listener, calls: SoundCall[]): void {
     const now = seconds(sim.tick)
-    const cheer = (side: Side, x: number, z: number) => {
+    /** The cheer of men going over the top, after the cry to go from `leader`, or else the man nearest. */
+    const cheer = (side: Side, x: number, z: number, leader: EntityId | null) => {
       if (now - (lastCharge.get(side) ?? -Infinity) >= CHARGE_REPEAT) {
         lastCharge.set(side, now)
-        push(calls, place(listener, "charge", x, z))
+        const crier = leader ?? (shoutable(listener, x, z, COVER_RANGE) ? nearest(x, z, COVER_RANGE, side) : null)
+        const cried = crier !== null && shout(listener, calls, "charge", crier)
+        push(calls, place(listener, "charge", x, z, cried ? CHARGE_CRY : 0))
       }
     }
     for (const squad of sim.squads) {
@@ -563,14 +690,14 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       const x = sim.soldiers.position.x[squad.leader] ?? 0
       const z = sim.soldiers.position.z[squad.leader] ?? 0
       if (Math.hypot(x - listener.x, z - listener.z) < CHARGE_RANGE) {
-        cheer(squad.side, x, z)
+        cheer(squad.side, x, z, squad.leader)
       }
     }
     for (const event of sim.events) {
       if (event.type === "counter-attack") {
         const z = frontLineZ(sim.map.trenches, event.side)
         if (z !== null) {
-          cheer(event.side, listener.x, z)
+          cheer(event.side, listener.x, z, null)
         }
       }
     }
@@ -581,6 +708,8 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       return
     }
     let masked = 0
+    let crier: EntityId | null = null
+    let crierRange = Infinity
     for (const id of soldierIds(sim)) {
       const near = Math.hypot(
         (sim.soldiers.position.x[id] ?? 0) - listener.x,
@@ -588,11 +717,19 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       )
       if (near < GAS_ALARM_RANGE && sim.soldiers.mask.state[id] !== MaskState.Off) {
         masked++
+        if (near < crierRange) {
+          crier = id
+          crierRange = near
+        }
       }
     }
     const now = seconds(sim.tick)
     if (masked > 0 && masksNear === 0 && now - lastGasAlarm >= GAS_ALARM_REPEAT) {
       lastGasAlarm = now
+      // The nearest man pulling on his mask cries the alarm as the gong is struck.
+      if (crier !== null) {
+        shout(listener, calls, "gas", crier)
+      }
       for (let stroke = 0; stroke < GONG_STROKES; stroke++) {
         push(calls, place(listener, "gas-gong", listener.x, listener.z, stroke * GONG_SPACING))
       }
