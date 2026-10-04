@@ -45,6 +45,14 @@ const CELL = 128
 const INDEX_CELL = 8
 /** A removed piece's matrix: scaled to nothing where it stood, so its batch's bounds stay put. */
 const GONE = Matrix.Scaling(0, 0, 0)
+/** Empty slots a batch of debris keeps for pieces shellfire throws down, so adding one doesn't remake its buffers. */
+const SPARE = 8
+/**
+ * A batch switches back to the detail it left only once the camera is this much nearer than where it switched away,
+ * a share of the distance and at least `HYSTERESIS.least` metres, so a near burst shaking the camera doesn't flick it
+ * back and forth. Each switch changes what's drawn, which costs a recorded frame (snapshot rendering) its replay.
+ */
+const HYSTERESIS = { share: 0.08, least: 4 } as const
 
 interface Slot extends PlacedPiece {
   readonly batch: Batch
@@ -58,8 +66,20 @@ interface Batch extends SceneryBatch {
   readonly max: Vector3
   /** The matrices the mesh draws, sixteen floats each; the far copy draws a copy of them. */
   matrices: Float32Array
+  /** Slots holding a piece: the rest are spare, scaled to nothing. */
+  used: number
+  /** Spare slots the batch keeps when it grows. */
+  readonly spare: number
   /** Which of mesh and far copy is drawing now: 0 neither, 1 the mesh, 2 the far copy. */
   showing: 0 | 1 | 2
+}
+
+/** Options for batching. */
+interface BatchOptions {
+  /** Beyond these distances from the camera, in metres, by piece, a piece isn't drawn. */
+  readonly drawDistances?: Readonly<Record<string, number>>
+  /** Pieces shellfire throws down as it goes (see battle-damage.ts): their batches keep spare slots for them. */
+  readonly debris?: ReadonlySet<string>
 }
 
 /**
@@ -115,6 +135,11 @@ function instanced(mesh: Mesh, matrices: Float32Array): Mesh {
   return mesh
 }
 
+/** A threshold's margin: how much nearer than it the camera must come to switch back. */
+function margin(distance: number): number {
+  return Math.max(HYSTERESIS.least, distance * HYSTERESIS.share)
+}
+
 /** Squared distance from a point to a box. */
 function distanceSquaredToBox(point: Vector3, min: Vector3, max: Vector3): number {
   const dx = Math.max(min.x - point.x, 0, point.x - max.x)
@@ -133,7 +158,7 @@ function distanceSquaredToBox(point: Vector3, min: Vector3, max: Vector3): numbe
 export function batchScenery(
   pieces: ReadonlyMap<string, Mesh>,
   placements: readonly { readonly piece: string; readonly world: Matrix }[],
-  drawDistances: Readonly<Record<string, number>> = {}
+  { drawDistances = {}, debris = new Set() }: BatchOptions = {}
 ): SceneryBatches {
   const counts = new Map<string, number>()
   for (const { piece } of placements) {
@@ -156,7 +181,20 @@ export function batchScenery(
     }
   }
 
-  function makeBatch(name: string, piece: string, source: Mesh, matrices: Float32Array): Batch {
+  /** Matrices for these pieces and `spare` empty slots, scaled to nothing where the first piece stands. */
+  function withSpare(worlds: readonly Matrix[], spare: number): Float32Array {
+    const matrices = new Float32Array((worlds.length + spare) * 16)
+    worlds.forEach((world, at) => world.copyToArray(matrices, at * 16))
+    const empty = GONE.clone().setTranslation(worlds[0]?.getTranslation() ?? Vector3.Zero())
+    for (let at = worlds.length; at < worlds.length + spare; at++) {
+      empty.copyToArray(matrices, at * 16)
+    }
+    return matrices
+  }
+
+  function makeBatch(name: string, piece: string, source: Mesh, worlds: readonly Matrix[]): Batch {
+    const spare = debris.has(piece) ? SPARE : 0
+    const matrices = withSpare(worlds, spare)
     const mesh = instanced(sharing(source, name), matrices)
     const farLevel = source.getLODLevels().find((level) => level.mesh !== null)
     const far = farLevel?.mesh ? instanced(sharing(farLevel.mesh, `${name}:far`), Float32Array.from(matrices)) : null
@@ -171,24 +209,52 @@ export function batchScenery(
       min: minimum.clone(),
       max: maximum.clone(),
       matrices,
+      used: worlds.length,
+      spare,
       showing: 1
     }
   }
 
-  /** Adds a matrix to a batch: rare enough (a shell's debris) to rebuild its buffers whole. */
+  /**
+   * Adds a piece to a batch: into a spare slot where there's one, rewriting the buffers in place; otherwise, rarely,
+   * remaking them with room for it and a fresh set of spare slots.
+   */
   function append(batch: Batch, world: Matrix): number {
-    const index = batch.matrices.length / 16
-    const grown = new Float32Array(batch.matrices.length + 16)
-    grown.set(batch.matrices)
-    world.copyToArray(grown, index * 16)
-    batch.matrices = grown
-    instanced(batch.mesh, grown)
-    if (batch.far) {
-      instanced(batch.far, Float32Array.from(grown))
+    const index = batch.used
+    if ((index + 1) * 16 <= batch.matrices.length) {
+      batch.mesh.thinInstanceSetMatrixAt(index, world, true)
+      batch.far?.thinInstanceSetMatrixAt(index, world, true)
+    } else {
+      const grown = new Float32Array((index + 1 + batch.spare) * 16)
+      grown.set(batch.matrices)
+      world.copyToArray(grown, index * 16)
+      const empty = GONE.clone().setTranslation(world.getTranslation())
+      for (let at = index + 1; at < index + 1 + batch.spare; at++) {
+        empty.copyToArray(grown, at * 16)
+      }
+      batch.matrices = grown
+      instanced(batch.mesh, grown)
+      if (batch.far) {
+        instanced(batch.far, Float32Array.from(grown))
+      }
     }
-    const { minimum, maximum } = batch.mesh.getBoundingInfo().boundingBox
-    batch.min.copyFrom(minimum)
-    batch.max.copyFrom(maximum)
+    batch.used = index + 1
+    // Measure the batch again only when the piece lies outside it.
+    const position = world.getTranslation()
+    if (
+      position.x < batch.min.x ||
+      position.y < batch.min.y ||
+      position.z < batch.min.z ||
+      position.x > batch.max.x ||
+      position.y > batch.max.y ||
+      position.z > batch.max.z
+    ) {
+      batch.mesh.thinInstanceRefreshBoundingInfo(false)
+      batch.far?.thinInstanceRefreshBoundingInfo(false)
+      const { minimum, maximum } = batch.mesh.getBoundingInfo().boundingBox
+      batch.min.copyFrom(minimum)
+      batch.max.copyFrom(maximum)
+    }
     return index
   }
 
@@ -212,9 +278,7 @@ export function batchScenery(
     if (!source) {
       continue
     }
-    const matrices = new Float32Array(worlds.length * 16)
-    worlds.forEach((world, at) => world.copyToArray(matrices, at * 16))
-    const batch = makeBatch(key, piece, source, matrices)
+    const batch = makeBatch(key, piece, source, worlds)
     batches.set(key, batch)
     worlds.forEach((world, at) => indexed({ piece, world, position: world.getTranslation(), batch, index: at }))
   }
@@ -267,7 +331,7 @@ export function batchScenery(
       if (batch) {
         at = append(batch, world)
       } else {
-        batch = makeBatch(key, piece, source, Float32Array.from(world.asArray()))
+        batch = makeBatch(key, piece, source, [world])
         batches.set(key, batch)
       }
       const slot: Slot = { piece, world, position, batch, index: at }
@@ -276,11 +340,14 @@ export function batchScenery(
     },
     update(eye) {
       for (const batch of batches.values()) {
-        const distanceSquared = distanceSquaredToBox(eye, batch.min, batch.max)
+        const distance = Math.sqrt(distanceSquaredToBox(eye, batch.min, batch.max))
+        // Coming back nearer, a batch switches only once well inside the threshold it crossed going away.
+        const draw = batch.showing === 0 ? batch.drawDistance - margin(batch.drawDistance) : batch.drawDistance
+        const far = batch.showing === 2 ? batch.farDistance - margin(batch.farDistance) : batch.farDistance
         let showing: Batch["showing"] = 1
-        if (distanceSquared > batch.drawDistance * batch.drawDistance) {
+        if (distance > draw) {
           showing = 0
-        } else if (batch.far && distanceSquared > batch.farDistance * batch.farDistance) {
+        } else if (batch.far && distance > far) {
           showing = 2
         }
         if (showing !== batch.showing) {

@@ -98,6 +98,8 @@ interface Harness {
   rows(mesh: Mesh): number[]
   /** Each instance's world matrix, as last written. */
   matrices(mesh: Mesh): Matrix[]
+  /** How many soldiers the mesh draws: its instances not collapsed to nothing. */
+  drawn(mesh: Mesh): number
 }
 
 function harness(sim: Simulation): Harness {
@@ -128,6 +130,13 @@ function harness(sim: Simulation): Harness {
       set(kind, buffer, stride, staticBuffer)
     })
   }
+  // The instances drawn that stand for a soldier: a bucket's spare ones are collapsed to nothing.
+  const live = (mesh: Mesh) => {
+    const buffer = transforms.get(mesh) ?? new Float32Array(0)
+    return Array.from({ length: mesh.thinInstanceCount }, (_, index) => index).filter((index) =>
+      buffer.subarray(index * 16, index * 16 + 16).some((value) => value !== 0)
+    )
+  }
   let now = 0
   const crowd = createSoldierCrowd(scene, sim, kit, { clock: () => now })
   return {
@@ -140,11 +149,14 @@ function harness(sim: Simulation): Harness {
     },
     rows(mesh) {
       const buffer = settings.get(mesh)
-      return Array.from({ length: mesh.thinInstanceCount }, (_, index) => buffer?.[index * 4] ?? -1)
+      return live(mesh).map((index) => buffer?.[index * 4] ?? -1)
     },
     matrices(mesh) {
       const buffer = transforms.get(mesh) ?? new Float32Array(0)
-      return Array.from({ length: mesh.thinInstanceCount }, (_, index) => Matrix.FromArray(buffer, index * 16))
+      return live(mesh).map((index) => Matrix.FromArray(buffer, index * 16))
+    },
+    drawn(mesh) {
+      return live(mesh).length
     }
   }
 }
@@ -156,23 +168,43 @@ function step(sim: Simulation, steps: number): void {
 }
 
 describe("createSoldierCrowd", () => {
+  it("draws whole buckets of instances, the spare ones collapsed to nothing, so the count drawn rarely changes", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    for (let index = 0; index < 3; index++) {
+      spawnSoldier(sim, { side: Side.French, x: 10 + index * 4, z: 10 })
+    }
+    const { crowd, kit, drawn } = harness(sim)
+    crowd.sync()
+    crowd.update()
+
+    const bodies = kit.bodies[Side.French]
+    expect(drawn(bodies)).toBe(3)
+    expect(bodies.thinInstanceCount).toBe(32)
+    // A man fewer draws the same number of instances, one more of them collapsed.
+    sim.soldiers.health.value[0] = 0
+    step(sim, 1)
+    crowd.sync()
+    crowd.update()
+    expect(bodies.thinInstanceCount).toBe(32)
+  })
+
   it("draws each side's men standing on the ground, with rifles, and a machine gun before a still gunner", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
     spawnSoldier(sim, { side: Side.French, x: 14, z: 10, weapon: Weapon.MachineGun })
     spawnSoldier(sim, { side: Side.German, x: 50, z: 70, facing: { x: 1, z: 0 } })
-    const { crowd, kit, matrices } = harness(sim)
+    const { crowd, kit, matrices, drawn } = harness(sim)
     crowd.sync()
     crowd.update()
 
-    expect(kit.bodies[Side.French].thinInstanceCount).toBe(2)
-    expect(kit.bodies[Side.German].thinInstanceCount).toBe(1)
-    expect(kit.rifle.thinInstanceCount).toBe(2)
-    expect(kit.guns[Side.French].thinInstanceCount).toBe(1)
+    expect(drawn(kit.bodies[Side.French])).toBe(2)
+    expect(drawn(kit.bodies[Side.German])).toBe(1)
+    expect(drawn(kit.rifle)).toBe(2)
+    expect(drawn(kit.guns[Side.French])).toBe(1)
     // The gun stands on the ground a metre ahead of its gunner, who faces north.
     expect(matrices(kit.guns[Side.French])[0]?.getTranslation().y).toBeCloseTo(heightAt(map, 14, 11), 4)
-    expect(kit.guns[Side.German].thinInstanceCount).toBe(0)
-    expect(kit.mask.thinInstanceCount).toBe(0)
+    expect(drawn(kit.guns[Side.German])).toBe(0)
+    expect(drawn(kit.mask)).toBe(0)
     expect(crowd.stats.drawn).toBe(3)
 
     const [german] = matrices(kit.bodies[Side.German])
@@ -193,14 +225,14 @@ describe("createSoldierCrowd", () => {
     surrender(sim, prisoner)
     enqueueCommand(sim, { type: "kill", soldier: fallen })
     step(sim, 1)
-    const { crowd, kit } = harness(sim)
+    const { crowd, kit, drawn } = harness(sim)
     crowd.sync((soldier) => soldier === seen || soldier === prisoner)
     crowd.update()
 
-    expect(kit.bodies[Side.German].thinInstanceCount).toBe(2)
+    expect(drawn(kit.bodies[Side.German])).toBe(2)
     // The prisoner walks to the rear without his rifle.
-    expect(kit.bodies[Side.French].thinInstanceCount).toBe(1)
-    expect(kit.rifle.thinInstanceCount).toBe(2)
+    expect(drawn(kit.bodies[Side.French])).toBe(1)
+    expect(drawn(kit.rifle)).toBe(2)
   })
 
   it("glides between simulation steps instead of jumping", () => {
@@ -317,7 +349,7 @@ describe("createSoldierCrowd", () => {
   it("recoils on firing, flinches when hit, throws, and pulls on a gas mask", () => {
     const sim = createSimulation({ map, seed: 1 })
     const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
-    const { crowd, kit, tick, rows } = harness(sim)
+    const { crowd, kit, tick, rows, drawn } = harness(sim)
     const clipNow = () => {
       crowd.update()
       return clipAt(rows(kit.bodies[Side.French])[0])
@@ -341,21 +373,21 @@ describe("createSoldierCrowd", () => {
     sim.soldiers.mask.state[soldier] = MaskState.On
     crowd.sync()
     expect(clipNow()).toBe("stengun_reload")
-    expect(kit.mask.thinInstanceCount).toBe(1)
+    expect(drawn(kit.mask)).toBe(1)
   })
 
   it("culls soldiers outside the view, once a frame", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
     spawnSoldier(sim, { side: Side.French, x: 100, z: 70 })
-    const { crowd, kit, scene } = harness(sim)
+    const { crowd, kit, scene, drawn } = harness(sim)
     // Looking north-east from the middle: the man in the south-west corner is behind the camera.
     const camera = new FreeCamera("camera", new Vector3(60, 40, 40), scene)
     camera.setTarget(new Vector3(100, heightAt(map, 100, 70), 70))
     crowd.sync()
     scene.render()
 
-    expect(kit.bodies[Side.French].thinInstanceCount).toBe(1)
+    expect(drawn(kit.bodies[Side.French])).toBe(1)
     crowd.dispose()
     expect(scene.onBeforeCameraRenderObservable.hasObservers()).toBe(false)
   })
@@ -510,14 +542,14 @@ describe("createSoldierCrowd", () => {
   it("reads each soldier's weapon afresh", () => {
     const sim = createSimulation({ map, seed: 1 })
     const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
-    const { crowd, kit } = harness(sim)
+    const { crowd, kit, drawn } = harness(sim)
     crowd.sync()
     sim.soldiers.weapon.kind[soldier] = Weapon.MachineGun
     crowd.sync()
     crowd.update()
 
-    expect(kit.rifle.thinInstanceCount).toBe(0)
-    expect(kit.guns[Side.French].thinInstanceCount).toBe(1)
+    expect(drawn(kit.rifle)).toBe(0)
+    expect(drawn(kit.guns[Side.French])).toBe(1)
   })
 
   it("makes room for a larger crowd", () => {
@@ -525,12 +557,12 @@ describe("createSoldierCrowd", () => {
     for (let index = 0; index < 100; index++) {
       spawnSoldier(sim, { side: Side.German, x: 5 + (index % 10) * 10, z: 5 + Math.floor(index / 10) * 7 })
     }
-    const { crowd, kit, rows } = harness(sim)
+    const { crowd, kit, rows, drawn } = harness(sim)
     crowd.sync()
     crowd.update()
 
-    expect(kit.bodies[Side.German].thinInstanceCount).toBe(100)
-    expect(kit.rifle.thinInstanceCount).toBe(100)
+    expect(drawn(kit.bodies[Side.German])).toBe(100)
+    expect(drawn(kit.rifle)).toBe(100)
     expect(rows(kit.bodies[Side.German]).every((row) => clipAt(row) === "idle")).toBe(true)
   })
 })

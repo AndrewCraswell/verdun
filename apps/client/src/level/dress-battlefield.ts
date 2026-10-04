@@ -13,7 +13,7 @@ import { GroundSplatPlugin } from "../terrain/ground-splat-plugin.ts"
 import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
 import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
-import { type BattleDamage, createBattleDamage } from "./battle-damage.ts"
+import { type BattleDamage, createBattleDamage, DEBRIS } from "./battle-damage.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
 import { airLight, lightParticles, litByAir } from "./particle-light.ts"
@@ -79,7 +79,7 @@ export function dressBattlefield(map: BattlefieldMap, kit: LevelKit): Battlefiel
       missing.add(placement.piece)
     }
   }
-  const scenery = batchScenery(kit.pieces, placed, DRAW_DISTANCE)
+  const scenery = batchScenery(kit.pieces, placed, { drawDistances: DRAW_DISTANCE, debris: DEBRIS })
   for (const batch of scenery.batches) {
     const sway = SWAY[batch.piece]
     for (const mesh of sway === undefined ? [] : [batch.mesh, batch.far]) {

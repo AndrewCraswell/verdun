@@ -27,6 +27,8 @@ const STUMPS = ["Env_Tree_Destroyed_01", "Env_Tree_Destroyed_02", "Env_Tree_Dest
 const TRENCH_SECTION = /^Env_Trench_Deep_/
 /** Earth blown into a trench, and the planks it brought down. */
 const COLLAPSE = { mound: "Env_Trench_Mound_01", planks: "Prop_Trench_Planks_02" } as const
+/** What shellfire throws down as it goes: stumps, and the earth and planks blown into a trench. */
+export const DEBRIS: ReadonlySet<string> = new Set([COLLAPSE.mound, COLLAPSE.planks, ...STUMPS])
 /** Kit trench pieces' origins stand this high above the trench floor (see trench-dressing.ts). */
 const FLOOR_BELOW_ORIGIN = 1.4
 

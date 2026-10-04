@@ -21,6 +21,7 @@ import {
   Weapon
 } from "@verdun/sim"
 import type { SoldierRenderer } from "../battlefield-scene.ts"
+import { drawnCount } from "../effects/instance-buffer.ts"
 import {
   type Action,
   type BakedClip,
@@ -131,6 +132,8 @@ interface Layer {
   matrices: Float32Array
   settings: Float32Array
   count: number
+  /** Instances drawn last frame: the live ones, then the rest of their bucket collapsed to nothing. */
+  drawn: number
 }
 
 function createLayer(mesh: Mesh, animated: boolean): Layer {
@@ -138,7 +141,14 @@ function createLayer(mesh: Mesh, animated: boolean): Layer {
   mesh.alwaysSelectAsActiveMesh = true
   mesh.doNotSyncBoundingInfo = true
   mesh.isPickable = false
-  const layer: Layer = { mesh, animated, matrices: new Float32Array(0), settings: new Float32Array(0), count: 0 }
+  const layer: Layer = {
+    mesh,
+    animated,
+    matrices: new Float32Array(0),
+    settings: new Float32Array(0),
+    count: 0,
+    drawn: 0
+  }
   allocate(layer, 64)
   mesh.thinInstanceCount = 0
   return layer
@@ -165,12 +175,22 @@ function claim(layer: Layer): number {
   return layer.count++
 }
 
+/**
+ * Sends the layer's instances to the GPU. It draws whole buckets of them (see effects/instance-buffer.ts), the bucket's
+ * spare instances and any left over from last frame collapsed to nothing, so the count drawn changes only now and then
+ * and a recorded frame stays good for longer.
+ */
 function flush(layer: Layer): void {
+  const drawn = drawnCount(layer.count, layer.matrices.length / 16)
+  layer.matrices.fill(0, layer.count * 16, Math.max(drawn, layer.drawn) * 16)
+  layer.drawn = drawn
   layer.mesh.thinInstanceBufferUpdated("matrix")
   if (layer.animated) {
     layer.mesh.thinInstanceBufferUpdated("bakedVertexAnimationSettingsInstanced")
   }
-  layer.mesh.thinInstanceCount = layer.count
+  if (layer.mesh.thinInstanceCount !== drawn) {
+    layer.mesh.thinInstanceCount = drawn
+  }
 }
 
 /** Shortest signed turn from one heading to another, in radians. */
