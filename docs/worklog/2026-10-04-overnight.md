@@ -216,3 +216,19 @@ format 4 (wire belts, knife rests, objectives) in `98032ed`.
 
 **Not pushed.** The level-design agent's commits `98032ed` and `723e184` are under mine, and their user asked them not
 to push yet, so my commits wait locally until they say so.
+
+## Objectives and a HUD
+
+Committed as "Add objectives and a heads-up display".
+
+- **Objectives** (`packages/sim/src/objectives.ts`): the map's objectives start with whichever side's lines they lie
+  behind, or no one in no man's land. Every 2 s, a side with men within the radius and no enemy there takes one (an
+  `objective-taken` event). With both there it's contested and stays with whoever held it; ground left empty stays held.
+  `sectorControl(sim)` gives each side's share. Snapshots are version 12.
+- **HUD** (`apps/client/src/hud/`): bottom left, the soldier you control (stance, gas mask, pinned, wounded, grenades)
+  and the squad's strength; top right, the sector's objectives with holders and both sides' killed and captured; top
+  centre, a battle log of changes of hands, counter-attacks, prisoners, surrenders and the gas alarm. The model is pure
+  and unit-tested; the DOM view is checked in the browser. **Not yet in `main.ts`**: the level-design agent owns it and
+  has been asked to add `createHud(document.body, sim, playerSquad, TICK_RATE)`, with `hud.record(sim.events)` after
+  each step and `hud.update(frameSeconds)` each frame. Until then it can be tried from the dev console (see the commit
+  for the snippet).

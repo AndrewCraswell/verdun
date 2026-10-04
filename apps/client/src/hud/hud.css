@@ -1,0 +1,50 @@
+/* Heads-up display: plain, period-neutral type over the battlefield, out of the way of the action. */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+  color: #f2ede0;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 80%);
+}
+
+.hud-panel {
+  position: absolute;
+  padding: 8px 12px;
+  background: rgb(20 18 14 / 55%);
+  border-radius: 4px;
+}
+
+.hud-soldier {
+  left: 12px;
+  bottom: 12px;
+}
+
+.hud-sector {
+  right: 12px;
+  top: 12px;
+  min-width: 220px;
+}
+
+.hud-log {
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  text-align: center;
+  background: none;
+}
+
+.hud-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.hud-alarm {
+  color: #ffb27a;
+}
+
+.hud-muted {
+  opacity: 0.7;
+}

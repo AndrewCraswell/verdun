@@ -8,6 +8,7 @@ import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
+import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
@@ -51,13 +52,22 @@ export interface Simulation {
   readonly wind: { x: number; z: number }
   /** Each side's commander: whether it has lost its front line and counter-attacked. */
   readonly commanders: Record<Side, CommanderState>
+  /** The map's objectives and who holds them. */
+  readonly objectives: ObjectiveState[]
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
 }
 
 /** Something that happened during a step that a renderer may want to show. */
-export type SimEvent = ShotEvent | ThrowEvent | BurstEvent | CaptureEvent | CounterAttackEvent | WireCutEvent
+export type SimEvent =
+  | ShotEvent
+  | ThrowEvent
+  | BurstEvent
+  | CaptureEvent
+  | CounterAttackEvent
+  | WireCutEvent
+  | ObjectiveTakenEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -89,6 +99,7 @@ export function createSimulation({
     wire: createWireField(map),
     wind: { x: wind.x, z: wind.z },
     commanders: createCommanders(),
+    objectives: createObjectives(map),
     events: [],
     tick: 0
   }
@@ -194,5 +205,6 @@ export function stepSimulation(sim: Simulation): void {
   artillerySystem(sim)
   gasSystem(sim)
   movementSystem(sim, STEP_SECONDS)
+  objectiveSystem(sim)
   sim.tick += 1
 }

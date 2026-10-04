@@ -8,8 +8,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      // main.ts and the dev tools need a real browser canvas and GPU; they are verified in the browser instead.
-      exclude: ["src/**/*.test.ts", "src/main.ts", "src/dev/**", "src/control/browser-input.ts"],
+      // main.ts, the dev tools, browser input and the HUD need a real browser; they are verified in the browser instead.
+      exclude: ["src/**/*.test.ts", "src/main.ts", "src/dev/**", "src/control/browser-input.ts", "src/hud/hud.ts"],
       thresholds: { lines: 90, statements: 90, functions: 90, branches: 85 }
     }
   }

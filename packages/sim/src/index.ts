@@ -84,4 +84,5 @@ export {
   releaseGas
 } from "./gas.ts"
 export { SMOKE_EXTINCTION, seesThroughSmoke, smokeBetween } from "./smoke.ts"
+export { type ObjectiveState, type ObjectiveTakenEvent, sectorControl } from "./objectives.ts"
 export { WIRE_CELL, wireAt, type WireCutEvent, type WireField, wirePace } from "./wire.ts"

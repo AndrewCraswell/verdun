@@ -9,7 +9,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 11
+export const SIM_STATE_VERSION = 12
 
 export interface SoldierState {
   readonly id: number
@@ -65,6 +65,8 @@ export interface SimulationSnapshot {
   readonly commanders: Record<Side, CommanderState>
   /** Wire cut since it was staked: [cell, density left] for each cell shells have touched. */
   readonly wireCuts: readonly (readonly [number, number])[]
+  /** Who holds each of the map's objectives, in the map's order. */
+  readonly objectives: readonly { readonly holder: Side | -1; readonly contested: boolean }[]
 }
 
 function toSide(value: number): Side {
@@ -135,7 +137,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       [Side.French]: { ...sim.commanders[Side.French] },
       [Side.German]: { ...sim.commanders[Side.German] }
     },
-    wireCuts: wireCuts(sim.wire)
+    wireCuts: wireCuts(sim.wire),
+    objectives: sim.objectives.map(({ holder, contested }) => ({ holder, contested }))
   }
 }
 
@@ -217,5 +220,12 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   for (const [cell, density] of snapshot.wireCuts) {
     sim.wire.density[cell] = density
   }
+  snapshot.objectives.forEach((saved, index) => {
+    const objective = sim.objectives[index]
+    if (objective) {
+      objective.holder = saved.holder
+      objective.contested = saved.contested
+    }
+  })
   return sim
 }
