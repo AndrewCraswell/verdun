@@ -22,20 +22,25 @@ export const SOUND_CUES = [
   "mg-near",
   "mg-far",
   "crack",
+  "bullet-impact",
   "field-near",
   "field-far",
   "heavy-near",
   "heavy-far",
+  "incoming-heavy",
+  "debris",
   "shrapnel-near",
   "shrapnel-far",
   "grenade-near",
   "grenade-far",
+  "throw",
   "gas-shell",
   "battery-field",
   "battery-heavy",
   "death",
   "gas-gong",
-  "mask-breath"
+  "mask-breath",
+  "ear-ring"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 
@@ -76,20 +81,25 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "mg-near": { volume: 0.55, reference: 25 },
   "mg-far": { volume: 0.6, reference: 80 },
   crack: { volume: 0.45, reference: 10 },
+  "bullet-impact": { volume: 0.5, reference: 8 },
   "field-near": { volume: 1, reference: 40 },
   "field-far": { volume: 0.9, reference: 150 },
   "heavy-near": { volume: 1, reference: 60 },
   "heavy-far": { volume: 1, reference: 200 },
+  "incoming-heavy": { volume: 0.8, reference: 40 },
+  debris: { volume: 0.6, reference: 15 },
   "shrapnel-near": { volume: 0.9, reference: 40 },
   "shrapnel-far": { volume: 0.8, reference: 150 },
   "grenade-near": { volume: 0.8, reference: 20 },
   "grenade-far": { volume: 0.7, reference: 60 },
+  throw: { volume: 0.35, reference: 8 },
   "gas-shell": { volume: 0.6, reference: 20 },
   "battery-field": { volume: 1, reference: 400 },
   "battery-heavy": { volume: 1, reference: 500 },
   death: { volume: 0.6, reference: 15 },
   "gas-gong": { volume: 0.5, reference: 30 },
-  "mask-breath": { volume: 0.3, reference: 1 }
+  "mask-breath": { volume: 0.3, reference: 1 },
+  "ear-ring": { volume: 0.35, reference: 1 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */
@@ -101,6 +111,22 @@ const CRACK_RADIUS = 12
 const CRACK_MIN_RANGE = 40
 /** At most one crack this often, in seconds: a burst of cracks blurs into noise. */
 const CRACK_INTERVAL = 0.1
+/** Rounds striking the ground this close to the listener are heard thudding in, at most one this often (seconds). */
+const IMPACT_RADIUS = 15
+const IMPACT_INTERVAL = 0.08
+/**
+ * Heavy howitzer shells were slow enough to be heard coming. Their rush starts this many seconds before landing (the
+ * length of the incoming-heavy recordings) for shells landing within INCOMING_RANGE. Field shells outran their sound.
+ */
+export const INCOMING_LEAD = 2
+const INCOMING_RANGE = 150
+/** Earth rains down after a burst this close, starting this many seconds after it. */
+const DEBRIS_RANGE = 35
+const DEBRIS_DELAY = 0.4
+/** Grenades are heard leaving the thrower's hand within this many metres. */
+const THROW_RANGE = 40
+/** A burst this close to the controlled soldier leaves his ears ringing and the battle muffled. */
+const SHOCK_RANGE = 15
 /** Men are heard falling within this many metres, at most one this often (seconds). */
 const DEATH_RANGE = 120
 const DEATH_INTERVAL = 0.5
@@ -151,6 +177,11 @@ export interface BattleSoundModel {
   step(listener: Listener): SoundCall[]
   /** Whether the soldier the player controls has his mask on, so his breathing is heard through it. */
   breathingInMask(): boolean
+  /**
+   * How hard a shell bursting close to the controlled soldier has hit his ears since the last call, from 0 (nothing)
+   * to 1 (on top of him), for muffling the battle while they ring.
+   */
+  takeShock(): number
 }
 
 export interface BattleSoundOptions {
@@ -160,11 +191,14 @@ export interface BattleSoundOptions {
 
 /**
  * Turns the simulation's events and changes into sounds: every shot by weapon and side (machine guns round by round up
- * close, in whole bursts from afar), rounds cracking past, every shell and grenade burst by type, the batteries firing
- * far behind the lines, men falling nearby, and the shell-case gong when men nearby start pulling on gas masks.
+ * close, in whole bursts from afar), rounds cracking past and striking the ground nearby, grenades thrown, every shell
+ * and grenade burst by type with the rush of heavy shells coming in and earth raining down after near ones, the
+ * batteries firing far behind the lines, men falling nearby, the ringing of a near miss, and the shell-case gong when
+ * men nearby start pulling on gas masks.
  */
 export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
+  const rushing = new WeakSet<ShellInFlight>()
   let fallen = new Set(fallenIds(sim))
   const lastFarBurst = new Map<EntityId, number>()
   let lastCrack = -Infinity
@@ -172,6 +206,8 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   let lastBattery = -Infinity
   let lastGasAlarm = -Infinity
   let masksNear = 0
+  let lastImpact = -Infinity
+  let shock = 0
   const seconds = (ticks: number) => ticks / TICK_RATE
 
   function shotSounds(listener: Listener, calls: SoundCall[]): void {
@@ -199,16 +235,62 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         // The round outruns the report: its crack comes first.
         push(calls, placeSound(listener, "crack", to.x, to.z))
       }
+      const struck = Math.hypot(to.x - listener.x, to.z - listener.z) < IMPACT_RADIUS
+      if (!event.hit && struck && now - lastImpact >= IMPACT_INTERVAL) {
+        lastImpact = now
+        push(calls, placeSound(listener, "bullet-impact", to.x, to.z))
+      }
     }
   }
 
   function burstSounds(listener: Listener, calls: SoundCall[]): void {
+    const me = soldier()
     for (const event of sim.events) {
-      if (event.type === "burst") {
-        const [near, far] = BURST_CUES[event.shell]
-        const limit = event.shell === Shell.Grenade ? NEAR.grenade : NEAR.shell
-        const cue = hearingDistance(listener, event.at.x, event.at.z) < limit ? near : far
-        push(calls, placeSound(listener, cue, event.at.x, event.at.z))
+      if (event.type !== "burst") {
+        continue
+      }
+      const { x, z } = event.at
+      const [near, far] = BURST_CUES[event.shell]
+      const limit = event.shell === Shell.Grenade ? NEAR.grenade : NEAR.shell
+      push(calls, placeSound(listener, hearingDistance(listener, x, z) < limit ? near : far, x, z))
+      if (event.shell === Shell.FieldGas) {
+        continue
+      }
+      if (event.crater && Math.hypot(x - listener.x, z - listener.z) < DEBRIS_RANGE) {
+        push(calls, placeSound(listener, "debris", x, z, DEBRIS_DELAY))
+      }
+      if (me !== null && !fallen.has(me)) {
+        const close = Math.hypot(x - (sim.soldiers.position.x[me] ?? 0), z - (sim.soldiers.position.z[me] ?? 0))
+        if (close < SHOCK_RANGE) {
+          shock = Math.max(shock, 1 - close / SHOCK_RANGE)
+          push(calls, { cue: "ear-ring", volume: LEVELS["ear-ring"].volume * shock, pan: 0, delay: 0 })
+        }
+      }
+    }
+  }
+
+  function incomingSounds(listener: Listener, calls: SoundCall[]): void {
+    for (const shell of sim.artillery.shells) {
+      if (shell.shell !== Shell.HeavyHighExplosive || rushing.has(shell)) {
+        continue
+      }
+      const remaining = seconds(shell.landsAtTick - sim.tick)
+      if (remaining <= INCOMING_LEAD && Math.hypot(shell.x - listener.x, shell.z - listener.z) < INCOMING_RANGE) {
+        rushing.add(shell)
+        // Ends as the burst is heard: both travel to the listener from where the shell lands.
+        push(calls, placeSound(listener, "incoming-heavy", shell.x, shell.z, Math.max(0, remaining - INCOMING_LEAD)))
+      }
+    }
+  }
+
+  function throwSounds(listener: Listener, calls: SoundCall[]): void {
+    for (const event of sim.events) {
+      if (event.type === "throw") {
+        const x = sim.soldiers.position.x[event.soldier] ?? 0
+        const z = sim.soldiers.position.z[event.soldier] ?? 0
+        if (Math.hypot(x - listener.x, z - listener.z) < THROW_RANGE) {
+          push(calls, placeSound(listener, "throw", x, z))
+        }
       }
     }
   }
@@ -279,11 +361,18 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
     step(listener) {
       const calls: SoundCall[] = []
       shotSounds(listener, calls)
+      throwSounds(listener, calls)
       burstSounds(listener, calls)
+      incomingSounds(listener, calls)
       batterySounds(listener, calls)
       deathSounds(listener, calls)
       gasAlarm(listener, calls)
       return calls
+    },
+    takeShock() {
+      const taken = shock
+      shock = 0
+      return taken
     },
     breathingInMask() {
       const id = soldier()

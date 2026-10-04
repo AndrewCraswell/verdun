@@ -1,5 +1,6 @@
 import {
   type AudioEngineV2,
+  CreateAudioBusAsync,
   CreateSoundAsync,
   CreateSoundBufferAsync,
   LastCreatedAudioEngine
@@ -25,6 +26,13 @@ export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
 const VOICES_PER_VARIATION = 2
 /** Random detune per play, in cents either way, so repeats don't sound identical. */
 const DETUNE = 80
+/**
+ * After a near miss the battle drops by up to this share of its volume (the nearer, the more), stays down this many
+ * seconds while the ears ring, then comes back over MUFFLE_RECOVERY seconds.
+ */
+const MUFFLE = 0.8
+const MUFFLE_HOLD = 0.4
+const MUFFLE_RECOVERY = 3
 
 function isManifest(value: unknown): value is Record<string, { variations: number }> {
   return typeof value === "object" && value !== null
@@ -86,15 +94,23 @@ export async function createBattleSounds(
 ): Promise<BattleSounds> {
   const engine: AudioEngineV2 =
     LastCreatedAudioEngine() ?? (await CreateAudioEngineAsync({ resumeOnInteraction: true }))
+  // Everything but the ringing in the ears goes through one bus, so a near miss can muffle the battle.
+  const battle = await CreateAudioBusAsync("battle", {}, engine)
   const voices = new Map<SoundCue, StaticSound[][]>()
   await Promise.all(
     [...files].map(async ([cue, variations]) => {
+      const out = cue === "ear-ring" ? {} : { outBus: battle }
       const sounds = await Promise.all(
         variations.map(async (data, index) => {
           const buffer = await CreateSoundBufferAsync(data, {}, engine)
           return Promise.all(
             Array.from({ length: VOICES_PER_VARIATION }, (_, copy) =>
-              CreateSoundAsync(`${cue}-${index}-${copy}`, buffer, { maxInstances: 1, stereoEnabled: true }, engine)
+              CreateSoundAsync(
+                `${cue}-${index}-${copy}`,
+                buffer,
+                { maxInstances: 1, stereoEnabled: true, ...out },
+                engine
+              )
             )
           )
         })
@@ -106,10 +122,18 @@ export async function createBattleSounds(
   const model = createBattleSoundModel(sim, options)
   const breathing = voices.get("mask-breath")?.[0]?.[0] ?? null
   let breathingOn = false
+  /** When the muffled battle starts coming back, in milliseconds (performance.now), or null when it isn't muffled. */
+  let recoverAt: number | null = null
 
   return {
     step() {
-      for (const call of model.step(listenerOf(camera))) {
+      const calls = model.step(listenerOf(camera))
+      const shock = model.takeShock()
+      if (shock > 0) {
+        battle.setVolume(1 - MUFFLE * shock, { duration: 0.03 })
+        recoverAt = performance.now() + MUFFLE_HOLD * 1000
+      }
+      for (const call of calls) {
         const variations = voices.get(call.cue)
         const copies = variations?.[Math.floor(Math.random() * variations.length)]
         if (!copies || copies.length === 0) {
@@ -126,6 +150,10 @@ export async function createBattleSounds(
       }
     },
     update() {
+      if (recoverAt !== null && performance.now() >= recoverAt) {
+        recoverAt = null
+        battle.setVolume(1, { duration: MUFFLE_RECOVERY })
+      }
       const masked = model.breathingInMask()
       if (breathing && masked !== breathingOn) {
         breathingOn = masked
