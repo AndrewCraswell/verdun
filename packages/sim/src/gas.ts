@@ -337,7 +337,23 @@ function breathe(sim: Simulation, seconds: number): void {
   }
 }
 
-/** One step of gas: the cloud moves and spreads a few times a second, and soldiers breathe it. */
+/**
+ * Rain scrubs a cloud out of the air: phosgene dissolves and breaks down in water, and rain beats down dust and smoke.
+ * Half-lives in seconds in 1 mm/h of rain, shorter in heavier rain. Snow scrubs a third as well.
+ */
+const WASHOUT_HALF_LIFE = { gas: 300, smoke: 120 } as const
+const SNOW_WASHOUT = 1 / 3
+
+/** Takes what the rain washes out of a cloud over `seconds`, at `halfLife` seconds in 1 mm/h. */
+function washOut(field: GasField, seconds: number, rain: number, halfLife: number): void {
+  const keep = Math.exp((-Math.LN2 * seconds * rain) / halfLife)
+  const { concentration } = field
+  for (let cell = 0; cell < concentration.length; cell++) {
+    concentration[cell] = concentration[cell]! * keep
+  }
+}
+
+/** One step of gas: the cloud moves and spreads a few times a second, rain washes it out, and soldiers breathe it. */
 export function gasSystem(sim: Simulation): void {
   if (sim.tick % GAS_INTERVAL !== 0) {
     return
@@ -348,6 +364,16 @@ export function gasSystem(sim: Simulation): void {
   }
   if (sim.smoke.active) {
     spreadGas(sim.smoke, sim.wind, seconds, BURST_SMOKE)
+  }
+  const { precipitation, snowFraction } = sim.environment.weather
+  const rain = precipitation * (1 - snowFraction * (1 - SNOW_WASHOUT))
+  if (rain > 0.02) {
+    if (sim.gas.active) {
+      washOut(sim.gas, seconds, rain, WASHOUT_HALF_LIFE.gas)
+    }
+    if (sim.smoke.active) {
+      washOut(sim.smoke, seconds, rain, WASHOUT_HALF_LIFE.smoke)
+    }
   }
   const anyMasked = sim.soldiers.mask.state.some((state) => state !== MaskState.Off)
   if (sim.gas.active || anyMasked) {

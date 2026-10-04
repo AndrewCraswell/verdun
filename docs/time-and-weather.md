@@ -219,16 +219,30 @@ Seven patterns, each a spell lasting hours to days:
   average, January between −5 and 6 °C, July between 11 and 27 °C.
 - **Range**: the chain starts on 1 January 1914, so every week of the war has weather.
 
+## The ground in the weather
+
+`packages/sim/src/ground.ts` turns the weather's ground wetness into going underfoot:
+
+- **Sodden**: wetness beyond 0.3, the dampness fair weather leaves, scaled to 0–1 (`sodden`). Frozen ground (below −2
+  °C) counts as dry. Fair weather changes nothing.
+- **Pace** (`weatherPace`): sodden mud and churned ground take up to 45% off a man's pace, a flooded trench 25%, grass
+  and chalk 15%; deep snow (20 mm of water lying, about 20 cm) up to a quarter more. On top of the surfaces' own paces,
+  slopes, wire and gas masks.
+- **Shell bursts** (`burstReach`): in sodden mud a shell buries itself before it bursts and the mud swallows its
+  fragments: up to 30% off its lethal reach, as men found at Verdun and Passchendaele.
+- **Gas and smoke**: rain washes phosgene out of the air (an extra half-life of 5 minutes in 1 mm/h of rain, shorter in
+  heavier) and beats down shell smoke (2 minutes); snow a third as well.
+
 ## Effects on play
 
-| Condition   | Now                                                                                                                                                                  | Planned                                                                                        |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Night       | Sight range closes to tens of metres; flares light the ground and muzzle flashes give shooters away; aim falls with the light; the player sees only what his men can | Reliefs, rations and ammunition come up only at night; raids and wire work                     |
-| Dawn, dusk  | The light changes                                                                                                                                                    | Stand-to: both sides man the parapet, the usual hour of attack                                 |
-| Fog         | Sight range closes to tens of metres                                                                                                                                 | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails    |
-| Rain, mud   | Ground wetness is simulated and drawn                                                                                                                                | Mud slows men and guns; shells bury themselves and burst less effectively; rain washes gas out |
-| Wind        | Gas and shell smoke drift with it                                                                                                                                    | Gas attacks wait for a wind toward the enemy                                                   |
-| Snow, frost | Snow falls; lying snow is simulated                                                                                                                                  | Tracks give patrols away; frozen ground firms up mud; snow drawn lying                         |
+| Condition   | Now                                                                                                                                                                                        | Planned                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Night       | Sight range closes to tens of metres; flares light the ground and muzzle flashes give shooters away; aim falls with the light; the player sees only what his men can                       | Reliefs, rations and ammunition come up only at night; raids and wire work                  |
+| Dawn, dusk  | The light changes                                                                                                                                                                          | Stand-to: both sides man the parapet, the usual hour of attack                              |
+| Fog         | Sight range closes to tens of metres                                                                                                                                                       | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails |
+| Rain, mud   | Sodden mud slows men by up to 45% (trenches 25%, grass and chalk 15%); shells bursting in it lose 30% of their reach; rain washes gas out (half-life 5 min in 1 mm/h) and beats smoke down | Routes that avoid the worst mud                                                             |
+| Wind        | Gas and shell smoke drift with it                                                                                                                                                          | Gas attacks wait for a wind toward the enemy                                                |
+| Snow, frost | Snow falls; deep lying snow slows men by up to a quarter; frozen ground goes like dry                                                                                                      | Tracks give patrols away; snow drawn lying                                                  |
 
 ## Rendering
 

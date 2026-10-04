@@ -24,7 +24,8 @@ const EASY_DOWNHILL = 0.3
 /** Never slower than this fraction: even a sheer wall gets climbed eventually. */
 const SLOWEST = 0.08
 
-function surfaceAt(map: BattlefieldMap, x: number, z: number): Surface {
+/** The surface at a point: the nearest sample's. */
+export function surfaceAt(map: BattlefieldMap, x: number, z: number): Surface {
   const column = Math.min(map.columns, Math.max(0, Math.round(x / map.cellSize)))
   const row = Math.min(map.rows, Math.max(0, Math.round(z / map.cellSize)))
   const value = map.surfaces[sampleIndex(map, column, row)]

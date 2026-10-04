@@ -1,6 +1,7 @@
 import { type EntityId, query, removeComponent } from "bitecs"
 import { PINNED } from "../combat.ts"
 import { MaskState, Stance } from "../components.ts"
+import { weatherPace } from "../ground.ts"
 import { clampToMap, type Simulation } from "../simulation.ts"
 import { CRAWL_FACTOR } from "../stance.ts"
 import { groundPace } from "../terrain.ts"
@@ -15,7 +16,8 @@ const RUN_FACTOR = 2
  * Moves soldiers for one step. Directly steered soldiers walk where the player pushes them, or crawl if they're prone.
  * Soldiers with a move order walk straight toward the target, face where they walk, and drop the order on arrival;
  * while pinned they go to ground and wait, and men down a dugout stay there. Mud, churned ground and slopes slow
- * everyone, a trench wall most of all; uncut wire all but stops them; and so does breathing through a gas mask.
+ * everyone, a trench wall most of all, and more after days of rain or in deep snow; uncut wire all but stops them; and
+ * so does breathing through a gas mask.
  */
 export function movementSystem(sim: Simulation, stepSeconds: number): void {
   const { position, speed, moveOrder, facing, steer, stance, suppression, mask } = sim.soldiers
@@ -23,7 +25,8 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     speed.value[soldier] *
     stepSeconds *
     (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1) *
-    wirePace(sim.wire, position.x[soldier], position.z[soldier])
+    wirePace(sim.wire, position.x[soldier], position.z[soldier]) *
+    weatherPace(sim, position.x[soldier], position.z[soldier])
   const arrived: EntityId[] = []
 
   for (const soldier of query(sim.world, [position, steer])) {

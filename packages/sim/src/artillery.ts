@@ -3,6 +3,7 @@ import type { EntityId } from "bitecs"
 import { applyCommand } from "./commands.ts"
 import { Side, Stance } from "./components.ts"
 import { refreshGasGround, releaseGas } from "./gas.ts"
+import { burstReach } from "./ground.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
@@ -326,7 +327,8 @@ function halfLethalFor(sim: Simulation, stats: ShellStats, at: WorldPoint, soldi
   if (stance === Stance.Sheltering) {
     return stats.lethalCovered * DUGOUT_LETHAL_FACTOR
   }
-  const radius = shielded(sim, at, soldier) ? stats.lethalCovered : stats.lethalExposed
+  // Sodden mud swallows a burst: the shell buries itself and the earth takes its fragments.
+  const radius = (shielded(sim, at, soldier) ? stats.lethalCovered : stats.lethalExposed) * burstReach(sim, at.x, at.z)
   return stance === Stance.Prone ? radius * PRONE_LETHAL_FACTOR : radius
 }
 
