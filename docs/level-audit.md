@@ -78,3 +78,10 @@ In order, each verified in the browser and committed on its own:
    and seated on their plots.
 6. **Dressing**: debris across no man's land and in the woods, tree variety (shattered, leaning, fallen), parapets
    broken up with sandbags, timber and spoil.
+
+## Progress
+
+- **Done**: the ground worked for what stands on it (1); shelled craters, slumping and the better triangle split (2);
+  cavity and contact shading, greyer chalk (3); the world beyond the sector, with its woods (4); and the shell bursts
+  rebuilt (see [level design](level-design.md#shellfire)), which the audit hadn't covered.
+- **Next**: ruins composed from parts (5), then the dressing of no man's land, the woods and the parapets (6).

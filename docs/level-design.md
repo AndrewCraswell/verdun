@@ -11,6 +11,10 @@ of 1916. The terrain is surveyed: IGN's LiDAR HD bare-earth model, which a centu
 battle. The village sits on its real site, on the high ground in the east, with the ground falling some 48 m to the
 west. The trench lines, the ravine and the sunken road are laid out for play on top of it.
 
+Beyond the sector's edges the real ground goes on to the horizon (see [the world beyond](#the-world-beyond)), so the
+battlefield sits in a landscape rather than on a table. [The level audit](level-audit.md) records how the sector
+measured against a AAA bar and the overhaul that followed.
+
 ### Real ground
 
 `node scripts/fetch-elevation.mjs` downloads the sector's window of IGN's LiDAR HD terrain model (MNT, 0.5 m, the
@@ -56,7 +60,29 @@ street, with garden walls between the plots; a plot a big shell hole has taken h
 were yards to begin with. Rubble lies heaped against the ruins' walls. The landmark, seen from anywhere in the sector,
 is the great barn of the farm on the main street with its chimney stack still standing, on the plot the shells reached
 least. Fleury had a church, but the kit has none, and a barn and chimney read better from above than a church improvised
-from house ruins. The village is all in no man's land, as it was in July 1916; the crossroads is an objective.
+from house ruins. The village is all in no man's land, as it was in July 1916; the crossroads is an objective. No house
+stands within 14 m of the map's edge.
+
+### Ground work
+
+The ground is worked for what stands on it ([sculpt.ts](../packages/map/src/sculpt.ts), `GROUND_WORK`). It changes the
+map's own heights and surfaces, so line of sight and movement see the ground the art stands on:
+
+- **Levelled**: house plots and the landmark's yard to the middle of the ground under them (a median, so a shell hole on
+  one side doesn't drag the level down), easing back into the slope; dumps, wrecks and garden walls likewise.
+- **Dug in**: each field gun in a pit 0.7 m deep, its spoil thrown up into a berm round the front and sides and left
+  open behind, where the crew came and went.
+- **Banked**: earth heaped against the concrete posts to the loopholes.
+- **Trodden**: churned earth round the ruins with limestone rubble in patches, and mud round the guns and dumps.
+
+Nothing within about 1.7 m of a trench's centre line is touched, so every trench keeps its profile.
+
+### Craters
+
+Every shell hole has a ragged edge and lopsided spoil ([craters.ts](../packages/map/src/craters.ts)): its outline
+wanders in and out of a circle in a few lobes, and a shell coming in at an angle throws most of its earth one way. Each
+crater's shape is fixed by where it lands, so the simulation, which stamps craters too, always cuts the same one. After
+the generator's bombardment, fresh walls and lips slump to about 45 degrees (`slumpGround`), so no wall stands vertical.
 
 ### Playing the ground
 
@@ -132,7 +158,13 @@ art will follow it.
 The terrain is drawn from the simulation's height grid in 64 m chunks, one vertex a metre. The chunks around where the
 camera looks, within about 90 m, are drawn at every 0.5 m sample instead, so the survey's full detail shows up close:
 old shell holes, the lip of every crater, the ruts of the old streets. They are rebuilt a chunk a frame as the camera
-pans, and a short skirt hangs below every chunk's edges to close the slivers where a detailed chunk meets a coarser one.
+pans, and a short skirt hangs below every chunk's edges to close the slivers where a detailed chunk meets a coarser one
+and where the sector meets the backdrop. Each quad splits along the diagonal whose ends are nearer in height, which
+follows ridges and crater walls instead of cutting across them in a staircase.
+
+The ground's relief is baked into its shading as well as its shape: ground lying below the ground a metre or two round
+it (crater bowls, the foot of a bank) sees less sky and darkens, crests and lips catch a little more light, and the
+ground darkens at the foot of whatever stands on it (ruins, walls, trees, guns, wrecks).
 
 The terrain is textured with four Synty ground layers (grass, mud, chalk, churned earth) blended per vertex by surface
 ([ground-splat-plugin.ts](../apps/client/src/terrain/ground-splat-plugin.ts), GLSL and WGSL). Layers blend by their
@@ -141,9 +173,37 @@ ragged; a second, rotated lookup breaks up the repeat. Each layer's normal map b
 muddy ground lying well below its surroundings is drawn darker and cooler, wet. The spoil beside trenches is darkened to
 match the trench kit's earth. Steep ground (crater walls, the ravine's banks, the sunken road's sides) takes its colour
 from a second lookup projected sideways, so textures don't smear down the slope. Grass tufts grow where the shelling
-spared the grass, thickest where it's unbroken.
+spared the grass, thickest where it's unbroken. Chalk is graded grey and kept at about half its texture's contrast: at
+full contrast its white pebbles glared like snow.
 
-## Shellfire's marks
+### The world beyond
+
+[backdrop.ts](../apps/client/src/terrain/backdrop.ts) draws the real ground round the sector out to the horizon: a 3 km
+square of IGN's survey centred on the sector, every 5 m in
+[fleury-surroundings.bin](../packages/map/data/fleury-surroundings.bin)
+(`node scripts/fetch-elevation.mjs surroundings`), drawn every 10 m with the sector's own ground material. Within 60 m
+of the sector it eases from the sector's edge heights into the survey, so the two meet without a step, and under the
+sector it sinks out of sight. Shelled earth runs along the front's line east and west of the sector, and grass comes
+back behind the lines, where woods of dead trees stand (thin instances of the kit's far tree models: one draw per kind
+of tree, none culled one by one). Fog does the rest. The ravines that cut the plateau east and west of Fleury, and Fort
+de Souville's outline to the south-east, are the survey's own.
+
+## Shellfire
+
+### The burst
+
+Shells burst as the newsreels showed them ([shell-burst.ts](../apps/client/src/level/shell-burst.ts)): a white flash, a
+fireball rolling up out of the ground, a column of earth thrown straight up and falling back (ten metres for a field
+gun's shell, twenty-five for a heavy howitzer's), a ring of dust driven out along the ground, sparks, and black smoke
+boiling up through the column and drifting off on the wind. Shrapnel bursts in the air as a white ball of smoke over a
+patter of dust where the balls strike; gas shells burst with a dull pop and a greenish puff before the cloud takes over;
+grenades make a small burst of their own. Each element is one pooled particle system for every burst of its size class,
+emitting from a queue, so a barrage costs no new systems. The crater is the simulation's.
+
+Babylon reads particle size gradients as the size itself, in metres, not as a factor of the system's size: smoke, dust
+and the column set their sizes over life in metres and vary each particle by its scale.
+
+### Its marks
 
 What a shell leaves once the flash and the column of earth have gone
 ([shell-aftermath.ts](../apps/client/src/level/shell-aftermath.ts)):
