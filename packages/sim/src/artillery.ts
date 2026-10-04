@@ -5,6 +5,8 @@ import { Side, Stance } from "./components.ts"
 import { refreshGasGround, releaseGas } from "./gas.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
+import { soldiersNear } from "./spatial.ts"
+import { isAlive } from "./squads.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 import { cutWire } from "./wire.ts"
 
@@ -148,8 +150,8 @@ const DUGOUT_LETHAL_FACTOR = 0.2
 const SHRAPNEL_PRONE_FACTOR = 0.35
 /** Batteries stand this far behind their own end of the map, out of sight. */
 const BATTERY_DISTANCE = 4000
-/** Terrain sight lines are rebuilt at most this often after craters, in steps: the rebuild costs about 14 ms. */
-const SIGHT_REBUILD_INTERVAL = 10
+/** Terrain sight lines are rebuilt at most this often after craters, in steps (2 s): the rebuild costs about 14 ms. */
+const SIGHT_REBUILD_INTERVAL = 40
 /**
  * Delay between the first enemy seen in no man's land and the defensive barrage landing: the SOS flare goes up, the
  * battery is telephoned, the guns are laid. Historically one to two minutes.
@@ -335,7 +337,10 @@ function shielded(sim: Simulation, from: WorldPoint, soldier: EntityId): boolean
 
 /** Suppresses and shakes everyone near a burst, more the closer they are. Shellfire breaks men more than bullets. */
 function shake(sim: Simulation, at: WorldPoint, radius: number): void {
-  for (const soldier of soldierIds(sim)) {
+  for (const soldier of soldiersNear(sim, at.x, at.z, radius)) {
+    if (!isAlive(sim, soldier)) {
+      continue
+    }
     const dx = sim.soldiers.position.x[soldier] - at.x
     const dz = sim.soldiers.position.z[soldier] - at.z
     // Math.sqrt, not Math.hypot: it's correctly rounded on every engine, which keeps the simulation deterministic.
@@ -354,7 +359,10 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   const stats = SHELLS[landed.shell]
   const at = { x: landed.x, y: heightAt(sim.map, landed.x, landed.z) + 0.3, z: landed.z }
   const reach = stats.lethalExposed * 3
-  for (const soldier of Array.from(soldierIds(sim))) {
+  for (const soldier of soldiersNear(sim, at.x, at.z, reach)) {
+    if (!isAlive(sim, soldier)) {
+      continue
+    }
     const dx = sim.soldiers.position.x[soldier] - at.x
     const dz = sim.soldiers.position.z[soldier] - at.z
     const distance = Math.sqrt(dx * dx + dz * dz)
@@ -396,7 +404,10 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   const forward = landed.side === Side.French ? 1 : -1
   const burstZ = landed.z - forward * SHRAPNEL_SHORT
   const at = { x: landed.x, y: heightAt(sim.map, landed.x, burstZ) + stats.airburstHeight, z: burstZ }
-  for (const soldier of Array.from(soldierIds(sim))) {
+  for (const soldier of soldiersNear(sim, landed.x, burstZ, SHRAPNEL_REACH + SHRAPNEL_SPREAD)) {
+    if (!isAlive(sim, soldier)) {
+      continue
+    }
     const along = (sim.soldiers.position.z[soldier] - burstZ) * forward
     const across = Math.abs(sim.soldiers.position.x[soldier] - landed.x)
     if (along < 0 || along > SHRAPNEL_REACH || across > 2 + (SHRAPNEL_SPREAD * along) / SHRAPNEL_REACH) {

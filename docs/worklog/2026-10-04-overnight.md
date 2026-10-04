@@ -309,3 +309,24 @@ inputs:
   about 2.5 ms a step for 528 soldiers on Fleury, up from about 1.6 ms before the night's later systems; profiling is
   next.
 - `Squad.members` is now mutable, for the Game mechanics session's squad redeploy.
+
+## Performance
+
+A profiler run (each system timed separately, Fleury barrage attack) showed:
+
+| Soldiers | Step before | Step after | Main cost before                                                    |
+| -------- | ----------- | ---------- | ------------------------------------------------------------------- |
+| 534      | 4.2 ms      | about 2 ms | artillery (sight-line rebuilds after craters), combat               |
+| 2,026    | 14.1 ms     | 4.1 ms     | combat: every target pick sorted every enemy, a new array each time |
+
+Fixes, in "Make thousands of soldiers affordable":
+
+- **Spatial index** (`packages/sim/src/spatial.ts`): soldiers bucketed on a 16 m grid once a step. Target picking
+  searches outward in widening circles; grenades, surrender, the sentry's alarm, shell bursts and the machine-gun beaten
+  zone ask only for men nearby. Buckets are filled in id order, so queries stay deterministic.
+- **Idle soldiers look round every 2 s**, not every 0.5 s. A soldier who loses his target (killed, out of sight)
+  re-targets at once, so machine guns still traverse straight to the next man.
+- **Cheap checks first** in target picking: a far-off man under cover is rejected with one sight line, not two.
+- **Sight lines** are rebuilt after craters every 2 s, not every 0.5 s (each rebuild is about 14 ms).
+- Still open: the worst single step is about 125-140 ms, from building a new flow field or rebuilding sight lines on
+  that step. Moving the simulation to a Web Worker would take that off the frame; see below.

@@ -4,6 +4,8 @@ import { PINNED, Weapon } from "./combat.ts"
 import { Stance } from "./components.ts"
 import { EYE_HEIGHT, type WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
+import { soldiersNear } from "./spatial.ts"
+import { isAlive } from "./squads.ts"
 
 /** Eye height of a soldier lying prone, in metres: head up enough to see and shoot. */
 export const PRONE_EYE_HEIGHT = 0.45
@@ -123,12 +125,10 @@ function isSentry(sim: Simulation, soldier: EntityId): boolean {
   return squad?.controller === "ai" && squad.leader === soldier
 }
 
-function enemyWithin(sim: Simulation, soldier: EntityId, range: number, living: readonly EntityId[]): boolean {
+function enemyWithin(sim: Simulation, soldier: EntityId, range: number): boolean {
   const { position, side } = sim.soldiers
-  return living.some(
-    (other) =>
-      side.value[other] !== side.value[soldier] &&
-      (position.x[other] - position.x[soldier]) ** 2 + (position.z[other] - position.z[soldier]) ** 2 <= range * range
+  return soldiersNear(sim, position.x[soldier], position.z[soldier], range).some(
+    (other) => side.value[other] !== side.value[soldier] && isAlive(sim, other)
   )
 }
 
@@ -166,7 +166,7 @@ export function stanceSystem(sim: Simulation): void {
     if (stance.value[soldier] === Stance.Sheltering) {
       if (shelter.emergeAt[soldier] < 0) {
         const calm = sinceShelled >= SHELTER_CALM && !inReserve(sim, soldier)
-        const alarm = sinceShelled >= ALARM_CALM && enemyWithin(sim, soldier, ALARM_RANGE, living)
+        const alarm = sinceShelled >= ALARM_CALM && enemyWithin(sim, soldier, ALARM_RANGE)
         // An order to move, such as going over the top, gets them up the steps whatever is falling.
         if (calm || alarm || moving) {
           shelter.emergeAt[soldier] = sim.tick + climbSteps(sim, soldier)

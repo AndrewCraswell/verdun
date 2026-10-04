@@ -170,12 +170,14 @@ describe("combat", () => {
     const sim = await field()
     const gunner = spawnSoldier(sim, { side: Side.German, x: 100, z: 190, weapon: Weapon.MachineGun })
     const rifleman = spawnSoldier(sim, { side: Side.German, x: 110, z: 190 })
+    // Targets that don't shoot back, so nobody gets pinned down: each the player's own soldier, who only fires on command.
     for (const x of [60, 80, 100, 120, 140]) {
-      spawnSoldier(sim, { side: Side.French, x, z: 10 })
+      createSquad(sim, Side.French, [spawnSoldier(sim, { side: Side.French, x, z: 10 })], "player")
     }
     let gunnerShots = 0
     let rifleShots = 0
-    stepFor(sim, 3, () => {
+    // Long enough for both to spot the enemy (a soldier with no target looks again every two seconds) and fire a while.
+    stepFor(sim, 6, () => {
       gunnerShots += shotEvents(sim.events).filter((event) => event.shooter === gunner).length
       rifleShots += shotEvents(sim.events).filter((event) => event.shooter === rifleman).length
     })

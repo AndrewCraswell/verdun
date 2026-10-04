@@ -182,7 +182,7 @@ describe("high-explosive bursts", () => {
     expect(sim.soldiers.morale.value[near]).toBeLessThan(1)
     expect(sim.soldiers.suppression.value[far]).toBe(0)
     expect(sim.artillery.pendingSightRebuild).not.toBeNull()
-    stepFor(sim, 1)
+    stepFor(sim, 2.1)
     expect(sim.artillery.pendingSightRebuild).toBeNull()
   })
 

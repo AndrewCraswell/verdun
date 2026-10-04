@@ -71,7 +71,8 @@ describe("grenades", () => {
     const bomber = spawnSoldier(sim, { side: Side.French, x: 100, z: 118 })
     sim.soldiers.facing.z[bomber] = -1
     spawnSoldier(sim, { side: Side.German, x: 100, z: 100 })
-    for (let step = 0; step < TICK_RATE; step++) {
+    // A soldier with nothing to shoot at looks around every two seconds.
+    for (let step = 0; step < 2.1 * TICK_RATE; step++) {
       stepSimulation(sim)
     }
 

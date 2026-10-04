@@ -3,6 +3,8 @@ import { addComponent, type EntityId, removeComponent } from "bitecs"
 import { BROKEN_MORALE, shakeSquad } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
 import { type Simulation, soldierIds } from "./simulation.ts"
+import { soldiersNear } from "./spatial.ts"
+import { isAlive } from "./squads.ts"
 
 /** Surrenders are considered this often, in steps. */
 const CAPTURE_INTERVAL = 5
@@ -61,18 +63,14 @@ export function captureSystem(sim: Simulation): void {
   const near = (soldier: EntityId, range: number) => {
     let enemies = 0
     let friends = 0
-    for (const other of living) {
-      if (other === soldier) {
+    for (const other of soldiersNear(sim, position.x[soldier], position.z[soldier], range)) {
+      if (other === soldier || !isAlive(sim, other)) {
         continue
       }
-      const dx = position.x[other] - position.x[soldier]
-      const dz = position.z[other] - position.z[soldier]
-      if (dx * dx + dz * dz <= range * range) {
-        if (side.value[other] === side.value[soldier]) {
-          friends++
-        } else {
-          enemies++
-        }
+      if (side.value[other] === side.value[soldier]) {
+        friends++
+      } else {
+        enemies++
       }
     }
     return { enemies, friends }

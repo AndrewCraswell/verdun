@@ -5,6 +5,7 @@ import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { seesThroughSmoke, smokeBetween } from "./smoke.ts"
+import { nearestSoldiers, soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
 
@@ -53,6 +54,11 @@ const BEATEN_ZONE = { halfWidth: 1.5, depth: 5, depthPerMetre: 0.08, share: 0.6 
 
 /** Soldiers re-pick their target this often, in steps, staggered by soldier id so the work spreads out. */
 const THINK_INTERVAL = 10
+/**
+ * A soldier with no target looks again this often, in steps: two seconds. Spotting someone new takes a moment, and on
+ * a quiet line most men have nothing to shoot at.
+ */
+const IDLE_THINK_INTERVAL = 40
 /** Of the nearest enemies, at most this many are checked for a sight line when picking a target. */
 const CANDIDATES = 6
 /** How far below the eye a target's waist is: hidden waists mean the target is behind cover. */
@@ -193,25 +199,33 @@ function sweepsTheOpen(sim: Simulation, shooter: EntityId, target: EntityId): bo
   )
 }
 
-function pickTarget(sim: Simulation, shooter: EntityId, enemies: readonly EntityId[]): EntityId {
+function pickTarget(sim: Simulation, shooter: EntityId): EntityId {
   const x = sim.soldiers.position.x[shooter]
   const z = sim.soldiers.position.z[shooter]
-  const nearest = enemies
-    .map((enemy) => ({
-      enemy,
-      distance: (sim.soldiers.position.x[enemy] - x) ** 2 + (sim.soldiers.position.z[enemy] - z) ** 2
-    }))
-    .sort((a, b) => a.distance - b.distance || a.enemy - b.enemy)
-    .slice(0, CANDIDATES)
-  return (
-    nearest.find(
-      ({ enemy, distance }) =>
-        canEngage(sim, shooter, enemy) &&
-        (distance <= COVERED_TARGET_RANGE * COVERED_TARGET_RANGE ||
-          isExposed(sim, shooter, enemy) ||
-          sweepsTheOpen(sim, shooter, enemy))
-    )?.enemy ?? -1
+  const side = sim.soldiers.side.value[shooter]
+  const nearest = nearestSoldiers(
+    sim,
+    x,
+    z,
+    CANDIDATES,
+    weaponOf(sim, shooter).range,
+    (other) => sim.soldiers.side.value[other] !== side && isAlive(sim, other)
   )
+  return (
+    nearest.find((enemy) => {
+      const distance = (sim.soldiers.position.x[enemy] - x) ** 2 + (sim.soldiers.position.z[enemy] - z) ** 2
+      // The cheap tests first: a far-off man under cover is turned down with one sight line, not two.
+      const worthIt =
+        distance <= COVERED_TARGET_RANGE * COVERED_TARGET_RANGE ||
+        sweepsTheOpen(sim, shooter, enemy) ||
+        isExposed(sim, shooter, enemy)
+      return worthIt && canEngage(sim, shooter, enemy)
+    }) ?? -1
+  )
+}
+
+function weaponOf(sim: Simulation, soldier: EntityId): WeaponStats {
+  return WEAPONS[sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
 }
 
 /** A bullet strikes a soldier: a wound, often a mortal one. */
@@ -237,8 +251,8 @@ function inBeatenZone(sim: Simulation, shooter: EntityId, target: EntityId): Ent
   const depth = BEATEN_ZONE.depth + BEATEN_ZONE.depthPerMetre * range
   let nearest: EntityId = -1
   let nearestDistance = Infinity
-  for (const other of soldierIds(sim)) {
-    if (other === target || side.value[other] !== side.value[target]) {
+  for (const other of soldiersNear(sim, position.x[target], position.z[target], depth + BEATEN_ZONE.halfWidth)) {
+    if (other === target || side.value[other] !== side.value[target] || !isAlive(sim, other)) {
       continue
     }
     const ox = position.x[other] - position.x[target]
@@ -383,24 +397,28 @@ export function throwGrenade(sim: Simulation, thrower: EntityId, x: number, z: n
  * Bombs an enemy close by and in cover: down in a trench bay, behind a parapet, flat in a shell hole. Rifles can't
  * reach men there, but a grenade lobbed over can. Returns whether a grenade was thrown.
  */
-function bombIfWorthIt(
-  sim: Simulation,
-  soldier: EntityId,
-  enemies: readonly EntityId[],
-  friends: readonly EntityId[]
-): boolean {
+function bombIfWorthIt(sim: Simulation, soldier: EntityId): boolean {
   // Without sight lines nobody knows where anyone is, so nobody fights.
   if (!sim.lineOfSight || sim.soldiers.grenades.count[soldier] === 0 || sim.soldiers.weapon.cooldown[soldier] > 0) {
     return false
   }
-  const { position } = sim.soldiers
+  const { position, side } = sim.soldiers
+  const ours = side.value[soldier]
   let best: EntityId = -1
   let bestDistance = Infinity
-  for (const enemy of enemies) {
+  const near = soldiersNear(sim, position.x[soldier], position.z[soldier], GRENADE_RANGE.max)
+  for (const enemy of near) {
+    if (side.value[enemy] === ours || !isAlive(sim, enemy)) {
+      continue
+    }
     const dx = position.x[enemy] - position.x[soldier]
     const dz = position.z[enemy] - position.z[soldier]
     const distance = Math.sqrt(dx * dx + dz * dz)
-    if (distance >= GRENADE_RANGE.min && distance <= GRENADE_RANGE.max && distance < bestDistance) {
+    if (
+      distance >= GRENADE_RANGE.min &&
+      distance <= GRENADE_RANGE.max &&
+      (distance < bestDistance || (distance === bestDistance && enemy < best))
+    ) {
       best = enemy
       bestDistance = distance
     }
@@ -412,9 +430,14 @@ function bombIfWorthIt(
   const z = position.z[best]
   // Bombers throw from the front: not where a friend is close to the target, nor over the heads of friends nearer to
   // it, who may be running in by the time it bursts.
-  const friendNear = friends.some((friend) => {
+  const friendNear = soldiersNear(sim, x, z, Math.max(GRENADE_CLEARANCE, bestDistance)).some((friend) => {
     const toTarget = (position.x[friend] - x) ** 2 + (position.z[friend] - z) ** 2
-    return friend !== soldier && (toTarget < GRENADE_CLEARANCE ** 2 || toTarget < bestDistance ** 2)
+    return (
+      friend !== soldier &&
+      side.value[friend] === ours &&
+      isAlive(sim, friend) &&
+      (toTarget < GRENADE_CLEARANCE ** 2 || toTarget < bestDistance ** 2)
+    )
   })
   return !friendNear && throwGrenade(sim, soldier, x, z)
 }
@@ -424,35 +447,32 @@ function bombIfWorthIt(
  * (staggered), and everyone whose weapon is ready fires at their target if they can still see it.
  */
 export function combatSystem(sim: Simulation): void {
-  const { weapon, target, suppression, morale, side } = sim.soldiers
-  const living = Array.from(soldierIds(sim))
-  const bySide = new Map<number, EntityId[]>()
-  for (const soldier of living) {
-    const list = bySide.get(side.value[soldier]) ?? []
-    list.push(soldier)
-    bySide.set(side.value[soldier], list)
-  }
-
-  for (const soldier of living) {
+  const { weapon, target, suppression, morale } = sim.soldiers
+  for (const soldier of soldierIds(sim)) {
+    if (!isAlive(sim, soldier)) {
+      // Fell or surrendered earlier this step.
+      continue
+    }
     suppression.value[soldier] = Math.max(0, suppression.value[soldier] - SUPPRESSION_DECAY * STEP_SECONDS)
     morale.value[soldier] = Math.min(1, morale.value[soldier] + MORALE_RECOVERY * STEP_SECONDS)
     weapon.cooldown[soldier] = Math.max(0, weapon.cooldown[soldier] - STEP_SECONDS)
     if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED || isSheltering(sim, soldier)) {
       continue
     }
-    if ((sim.tick + soldier) % THINK_INTERVAL === 0) {
-      const enemies = [...bySide.entries()].filter(([key]) => key !== side.value[soldier]).flatMap(([, list]) => list)
-      if (bombIfWorthIt(sim, soldier, enemies, bySide.get(side.value[soldier]) ?? [])) {
+    const interval = target.id[soldier] >= 0 ? THINK_INTERVAL : IDLE_THINK_INTERVAL
+    if ((sim.tick + soldier) % interval === 0) {
+      if (bombIfWorthIt(sim, soldier)) {
         continue
       }
-      target.id[soldier] = pickTarget(sim, soldier, enemies)
+      target.id[soldier] = pickTarget(sim, soldier)
     }
     const aimed = target.id[soldier]
     if (aimed >= 0 && weapon.cooldown[soldier] <= 0) {
       if (canEngage(sim, soldier, aimed)) {
         fireAt(sim, soldier, aimed)
       } else {
-        target.id[soldier] = -1
+        // Target down or out of sight: traverse straight to the next, rather than wait for the next look round.
+        target.id[soldier] = pickTarget(sim, soldier)
       }
     }
   }
