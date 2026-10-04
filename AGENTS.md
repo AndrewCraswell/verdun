@@ -48,6 +48,10 @@ Several agents work in this checkout at once, all on `main`.
   the working tree. Leave such files for their owner, or coordinate.
 - **Don't stash, reset, check out or restore files you didn't change.**
 - Before pushing, `git fetch` and rebase if `main` moved.
+- **Share the machine's CPU and GPU.** Every session's browser pane is a full copy of the game rendering flat out, so
+  open the game only to check a change and close the tab straight after. Don't leave test runs or dev servers going in
+  the background once you're done with them. Measure frame rates only with every other copy of the game closed, one
+  session at a time, and say what else was running.
 
 ## Assets
 
