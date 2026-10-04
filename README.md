@@ -36,16 +36,18 @@ with coverage, and the production build.
 
 ### Controls (prototype)
 
-| Input                  | Action                                               |
-| ---------------------- | ---------------------------------------------------- |
-| W A S D                | Move the soldier you control, relative to the camera |
-| Mouse                  | Aim                                                  |
-| Mouse wheel, left-drag | Zoom, rotate the camera                              |
-| Tab, 1–8               | Switch to the next soldier, or to a squad slot       |
-| F, H                   | Squad order: follow me, hold                         |
-| Right-click            | Squad order: advance to that point                   |
-| K                      | Dev builds only: kill the soldier you control        |
-| \`                     | Dev builds only: open Babylon's Inspector            |
+| Input                    | Action                                               |
+| ------------------------ | ---------------------------------------------------- |
+| W A S D                  | Move the soldier you control, relative to the camera |
+| Mouse                    | Aim                                                  |
+| Left-click               | Fire                                                 |
+| Mouse wheel, middle-drag | Zoom, rotate the camera                              |
+| Tab, 1–8                 | Switch to the next soldier, or to a squad slot       |
+| F, H                     | Squad order: follow me, hold                         |
+| Right-click              | Squad order: advance to that point                   |
+| G                        | Whistle: every French squad goes over the top        |
+| K                        | Dev builds only: kill the soldier you control        |
+| \`                       | Dev builds only: open Babylon's Inspector            |
 
 ## Documentation
 

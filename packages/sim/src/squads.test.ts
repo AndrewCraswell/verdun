@@ -78,20 +78,29 @@ describe("squad orders", () => {
     expect(distance(sim, members[1]!, members[2]!)).toBeGreaterThan(2)
   })
 
-  it("advance spreads the squad in a line across the target", () => {
+  it("advance spreads an AI squad, leader and all, in a line across the target", () => {
     const { sim, squad, members } = squadOfEight()
     enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: 90, z: 120 } })
     stepFor(sim, 80)
 
-    const followers = members.slice(1)
-    // The line lies across the direction of travel, which leans slightly east, so its ends tilt a little.
-    for (const member of followers) {
-      expect(Math.abs(sim.soldiers.position.z[member] - 120)).toBeLessThan(1.5)
+    for (const member of members) {
+      expect(sim.soldiers.position.z[member]).toBeCloseTo(120)
     }
-    const xs = followers.map((member) => sim.soldiers.position.x[member])
-    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(18, 0)
-    // The leader isn't ordered about: the player moves them.
+    const xs = members.map((member) => sim.soldiers.position.x[member])
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(21)
+  })
+
+  it("advance leaves a player-controlled leader where the player steers them", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const members = Array.from({ length: 4 }, (_, index) =>
+      spawnSoldier(sim, { side: Side.French, x: 80 + index * 3, z: 50 })
+    )
+    const squad = createSquad(sim, Side.French, members, "player")
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: 90, z: 120 } })
+    stepFor(sim, 80)
+
     expect(sim.soldiers.position.z[members[0]!]).toBe(50)
+    expect(members.slice(1).every((member) => Math.abs(sim.soldiers.position.z[member] - 120) < 0.01)).toBe(true)
   })
 
   it("ignores orders for squads that don't exist", () => {

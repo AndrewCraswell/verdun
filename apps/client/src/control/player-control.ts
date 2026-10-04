@@ -18,7 +18,11 @@ export type PlayerAction =
   | { readonly kind: "order-hold" }
   /** Send the squad to a ground point. */
   | { readonly kind: "order-advance"; readonly x: number; readonly z: number }
-  /** Dev builds only: kill the controlled soldier, to try squad succession before combat exists. */
+  /** Pull the trigger: the controlled soldier fires where they aim. */
+  | { readonly kind: "fire" }
+  /** Blow the whistle: the whole side goes over the top. */
+  | { readonly kind: "whistle" }
+  /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
 
 /** What the player is doing right now, independent of where it comes from (keyboard, gamepad, a test). */
@@ -68,6 +72,8 @@ const FOLLOW_HEIGHT = 1.2
 export interface PlayerControlOptions {
   /** Allow dev-only actions such as killing the controlled soldier. */
   readonly debugActions?: boolean
+  /** What the whistle does: the scenario decides where the attack goes. */
+  readonly onWhistle?: () => void
 }
 
 export interface PlayerControl {
@@ -88,7 +94,7 @@ export function createPlayerControl(
   squad: Squad,
   camera: ArcRotateCamera,
   input: PlayerInput,
-  { debugActions = false }: PlayerControlOptions = {}
+  { debugActions = false, onWhistle }: PlayerControlOptions = {}
 ): PlayerControl {
   let lastSoldier: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
@@ -121,6 +127,14 @@ export function createPlayerControl(
           squad: squad.id,
           order: { kind: "advance", x: action.x, z: action.z }
         })
+        return
+      case "fire":
+        if (squad.leader >= 0) {
+          enqueueCommand(sim, { type: "fire", soldier: squad.leader })
+        }
+        return
+      case "whistle":
+        onWhistle?.()
         return
       case "debug-kill":
         if (debugActions && squad.leader >= 0) {

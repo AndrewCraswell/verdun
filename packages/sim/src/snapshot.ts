@@ -1,11 +1,12 @@
 import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
+import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 3
+export const SIM_STATE_VERSION = 4
 
 export interface SoldierState {
   readonly id: number
@@ -18,6 +19,11 @@ export interface SoldierState {
   readonly steer: { readonly x: number; readonly z: number } | null
   readonly health: number
   readonly dead: boolean
+  readonly weapon: Weapon
+  readonly cooldown: number
+  readonly target: number
+  readonly suppression: number
+  readonly morale: number
 }
 
 export interface SquadState {
@@ -25,6 +31,7 @@ export interface SquadState {
   readonly members: readonly number[]
   readonly leader: number
   readonly order: SquadOrder
+  readonly controller: "player" | "ai"
 }
 
 /** Everything needed to resume a simulation exactly: the basis of save files and crash recovery. */
@@ -42,7 +49,8 @@ function toSide(value: number): Side {
 }
 
 export function takeSnapshot(sim: Simulation): SimulationSnapshot {
-  const { position, side, speed, moveOrder, facing, steer, health, dead } = sim.soldiers
+  const { position, side, speed, moveOrder, facing, steer, health, dead, weapon, target, suppression, morale } =
+    sim.soldiers
   const soldiers = [...Array.from(soldierIds(sim)), ...Array.from(fallenIds(sim))]
     .sort((a, b) => a - b)
     .map((id): SoldierState => ({
@@ -55,13 +63,19 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       facing: { x: facing.x[id], z: facing.z[id] },
       steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id] } : null,
       health: health.value[id],
-      dead: hasComponent(sim.world, id, dead)
+      dead: hasComponent(sim.world, id, dead),
+      weapon: weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle,
+      cooldown: weapon.cooldown[id],
+      target: target.id[id],
+      suppression: suppression.value[id],
+      morale: morale.value[id]
     }))
   const squads = sim.squads.map((squad): SquadState => ({
     side: squad.side,
     members: [...squad.members],
     leader: squad.leader,
-    order: squad.order
+    order: squad.order,
+    controller: squad.controller
   }))
   return { version: SIM_STATE_VERSION, tick: sim.tick, rngState: sim.rng.state, soldiers, squads }
 }
@@ -80,7 +94,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       x: soldier.x,
       z: soldier.z,
       speed: soldier.speed,
-      facing: soldier.facing
+      facing: soldier.facing,
+      weapon: soldier.weapon
     })
     if (id !== soldier.id) {
       throw new Error(`Snapshot soldier ids must be contiguous from 1; expected ${soldier.id}, got ${id}`)
@@ -96,6 +111,10 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       sim.soldiers.steer.z[id] = soldier.steer.z
     }
     sim.soldiers.health.value[id] = soldier.health
+    sim.soldiers.weapon.cooldown[id] = soldier.cooldown
+    sim.soldiers.target.id[id] = soldier.target
+    sim.soldiers.suppression.value[id] = soldier.suppression
+    sim.soldiers.morale.value[id] = soldier.morale
     if (soldier.dead) {
       addComponent(sim.world, id, sim.soldiers.dead)
     }
@@ -106,7 +125,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       side: squad.side,
       members: [...squad.members],
       leader: squad.leader,
-      order: squad.order
+      order: squad.order,
+      controller: squad.controller
     })
     for (const member of squad.members) {
       sim.soldiers.squad.id[member] = squadId

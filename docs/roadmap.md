@@ -40,8 +40,11 @@ Scope:
 - [x] **M3 Squad**: squads of 8 with follow, hold and advance orders; switching soldier (Tab, 1–8); the fallen stay on
       the field and control passes to the next living squadmate. Enemies show when any squadmate sees them. Deaths come
       from a dev-only kill key until combat (M4).
-- [ ] **M4 Combat and bots**: rifles and MG, suppression, morale, bot squads on both sides, flow-field movement. Profile
-      line of sight with 400 soldiers.
+- [x] **M4 Combat and bots**: rifles and machine guns firing along Rapier sight lines; hit chance from range, cover,
+      movement, suppression and morale; casualties shake squad morale and broken soldiers stop advancing. Every soldier
+      not under a player's control picks and engages targets on their own, holding fire on covered targets beyond 100 m
+      so quiet lines stay quiet. The whistle (G) sends the French over the top. 400 soldiers in combat hold 60 fps.
+      Flow-field navigation is still to come: soldiers walk straight lines.
 - [ ] **M5 Artillery**: barrages, crater stamping, chunk re-meshing and collider rebuilds.
 - [ ] **M6 Gas**: density grid, wind, settling, masks.
 - [ ] **M7 Crowd**: 400 soldiers with VAT instancing and LODs from the

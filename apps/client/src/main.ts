@@ -7,8 +7,9 @@ import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { createBrowserInput } from "./control/browser-input.ts"
 import { createPlayerControl } from "./control/player-control.ts"
 import { createSquadMarkers } from "./control/soldier-marker.ts"
+import { createTracers } from "./effects/tracers.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
-import { setupSkirmish } from "./skirmish.ts"
+import { goOverTheTop, setupSkirmish } from "./skirmish.ts"
 import "./style.css"
 
 /** WebGPU first, WebGL2 where the browser lacks it. */
@@ -49,10 +50,12 @@ async function start(): Promise<void> {
     playerSquad,
     view.camera,
     createBrowserInput(view.scene, view.terrain.meshes),
-    { debugActions: import.meta.env.DEV }
+    { debugActions: import.meta.env.DEV, onWhistle: () => goOverTheTop(sim, playerSquad.side) }
   )
   const markers = createSquadMarkers(view.scene, sim, playerSquad)
   const lineOfSight = await createLineOfSight(map)
+  sim.lineOfSight = lineOfSight
+  const tracers = createTracers(view.scene)
   const fog = createFogOfWar(view.scene, sim, lineOfSight, { squad: playerSquad, groundMaterial: view.groundMaterial })
   view.camera.radius = 60
   if (import.meta.env.DEV) {
@@ -68,7 +71,9 @@ async function start(): Promise<void> {
     const steps = stepper.advance(frameSeconds)
     for (let step = 0; step < steps; step++) {
       stepSimulation(sim)
+      tracers.add(sim.events)
     }
+    tracers.update(frameSeconds)
     const sightChanged = fog.update(frameSeconds)
     if (steps > 0 || sightChanged) {
       view.syncSoldiers(fog.isShown)

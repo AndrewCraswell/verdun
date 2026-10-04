@@ -128,6 +128,11 @@ export function createBattlefieldScene(
   const camera = createCamera(scene, sim)
   if (attachControl) {
     camera.attachControl(true)
+    // Rotate with the middle button: the left fires and the right gives orders.
+    const pointers = camera.inputs.attached["pointers"]
+    if (pointers && "buttons" in pointers) {
+      pointers.buttons = [1]
+    }
   }
 
   const sky = new HemisphericLight("sky", new Vector3(0, 1, 0), scene)

@@ -1,4 +1,5 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
+import { fireAimed, shakeSquad } from "./combat.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
@@ -52,8 +53,24 @@ export interface KillCommand {
   readonly soldier: EntityId
 }
 
+/**
+ * A player pulls the trigger: the soldier fires along their facing, at the enemy nearest the aim within a narrow cone.
+ * Ignored while the weapon is still reloading.
+ */
+export interface FireCommand {
+  readonly type: "fire"
+  readonly soldier: EntityId
+}
+
 /** Everything that can change the simulation from outside. Grows as mechanics land. */
-export type Command = MoveToCommand | SteerCommand | FaceCommand | SquadOrderCommand | TakeCommandCommand | KillCommand
+export type Command =
+  | MoveToCommand
+  | SteerCommand
+  | FaceCommand
+  | SquadOrderCommand
+  | TakeCommandCommand
+  | KillCommand
+  | FireCommand
 
 /** A living soldier: fallen soldiers ignore every order. */
 function isSoldier(sim: Simulation, entity: EntityId): boolean {
@@ -129,6 +146,13 @@ export function applyCommand(sim: Simulation, command: Command): void {
       removeComponent(sim.world, command.soldier, sim.soldiers.steer)
       removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
       sim.soldiers.health.value[command.soldier] = 0
+      shakeSquad(sim, command.soldier)
+      return
+    }
+    case "fire": {
+      if (isSoldier(sim, command.soldier)) {
+        fireAimed(sim, command.soldier)
+      }
       return
     }
   }

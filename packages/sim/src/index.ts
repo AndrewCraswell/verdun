@@ -1,6 +1,8 @@
 export type { EntityId } from "bitecs"
+export { BROKEN_MORALE, fireAimed, hitChance, type ShotEvent, Weapon, WEAPONS } from "./combat.ts"
 export type {
   Command,
+  FireCommand,
   FaceCommand,
   KillCommand,
   MoveToCommand,

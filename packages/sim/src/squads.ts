@@ -1,4 +1,5 @@
 import { type EntityId, hasComponent } from "bitecs"
+import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
@@ -20,6 +21,8 @@ export interface Squad {
   /** The soldier the squad forms on; for the player's squad, the one they control. -1 once everyone has fallen. */
   leader: EntityId
   order: SquadOrder
+  /** Who moves the leader: a player steering them, or the squad's own orders (the leader joins an advance). */
+  readonly controller: "player" | "ai"
 }
 
 /** Spacing between soldiers in a formation, in metres. Close enough to act together, far enough that one shell doesn't kill everyone. */
@@ -36,13 +39,19 @@ export function isAlive(sim: Simulation, soldier: EntityId): boolean {
 }
 
 /** Forms a squad from soldiers in slot order. The first is its leader; it starts out holding. */
-export function createSquad(sim: Simulation, side: Side, members: readonly EntityId[]): Squad {
+export function createSquad(
+  sim: Simulation,
+  side: Side,
+  members: readonly EntityId[],
+  controller: Squad["controller"] = "ai"
+): Squad {
   const squad: Squad = {
     id: sim.squads.length,
     side,
     members: [...members],
     leader: members[0] ?? -1,
-    order: { kind: "hold" }
+    order: { kind: "hold" },
+    controller
   }
   sim.squads.push(squad)
   for (const member of members) {
@@ -79,22 +88,18 @@ function followSlot(sim: Simulation, leader: EntityId, slot: number): { x: numbe
   )
 }
 
-/** Where a member should stand after an advance: a line across the direction of travel, centred on the target. */
+/**
+ * Where a member should stand after an advance: a line running east-west across the target, parallel to the front.
+ * Fixed to the front rather than to the direction of travel, so the line stays put as soldiers arrive.
+ */
 function advanceSlot(
   sim: Simulation,
-  squad: Squad,
   order: { x: number; z: number },
   slot: number,
   count: number
 ): { x: number; z: number } {
-  const leader = squad.leader
-  const dx = order.x - sim.soldiers.position.x[leader]
-  const dz = order.z - sim.soldiers.position.z[leader]
-  const length = Math.sqrt(dx * dx + dz * dz)
-  const rightX = length > 0 ? dz / length : 1
-  const rightZ = length > 0 ? -dx / length : 0
   const lateral = (slot - (count - 1) / 2) * FORMATION_SPACING
-  return clampToMap(sim, order.x + rightX * lateral, order.z + rightZ * lateral)
+  return clampToMap(sim, order.x + lateral, order.z)
 }
 
 /**
@@ -127,15 +132,21 @@ export function squadSystem(sim: Simulation): void {
     if (squad.leader < 0 || squad.order.kind === "hold") {
       continue
     }
-    const followers = squad.members.filter((member) => member !== squad.leader && isAlive(sim, member))
     const order = squad.order
+    // In an advance an AI squad's leader goes too; a player's leader goes where the player steers.
+    const leaderMoves = order.kind === "advance" && squad.controller === "ai"
+    const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
     followers.forEach((member, slot) => {
+      if (sim.soldiers.morale.value[member] < BROKEN_MORALE) {
+        // Broken soldiers go to ground where they are.
+        const { x, z } = sim.soldiers.position
+        applyCommand(sim, { type: "move-to", soldier: member, x: x[member], z: z[member] })
+        return
+      }
       orderMoveTo(
         sim,
         member,
-        order.kind === "follow"
-          ? followSlot(sim, squad.leader, slot)
-          : advanceSlot(sim, squad, order, slot, followers.length)
+        order.kind === "follow" ? followSlot(sim, squad.leader, slot) : advanceSlot(sim, order, slot, followers.length)
       )
     })
   }

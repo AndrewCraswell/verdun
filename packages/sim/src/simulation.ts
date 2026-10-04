@@ -1,7 +1,9 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
+import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, Side, type SoldierComponents } from "./components.ts"
+import type { LineOfSight } from "./line-of-sight.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
 import { movementSystem } from "./systems/movement.ts"
@@ -24,6 +26,13 @@ export interface Simulation {
   readonly pendingCommands: Command[]
   /** Every squad, indexed by squad id. */
   readonly squads: Squad[]
+  /**
+   * Terrain sight lines for spotting and shooting. Created asynchronously (Rapier is WebAssembly), so it's attached
+   * after the simulation is made; until then nobody can see anyone, so nobody fires.
+   */
+  lineOfSight: LineOfSight | null
+  /** What happened during the last step, for renderers: shots fired. Replaced every step. */
+  readonly events: ShotEvent[]
   tick: number
 }
 
@@ -43,6 +52,8 @@ export function createSimulation({ map, seed, capacity = DEFAULT_CAPACITY }: Sim
     rng: createRng(seed),
     pendingCommands: [],
     squads: [],
+    lineOfSight: null,
+    events: [],
     tick: 0
   }
 }
@@ -62,9 +73,13 @@ export interface SoldierSpawn {
   readonly speed?: number
   /** Initial facing; defaults toward the enemy: north for the French, south for the Germans. */
   readonly facing?: { readonly x: number; readonly z: number }
+  readonly weapon?: Weapon
 }
 
-export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEED, facing }: SoldierSpawn): EntityId {
+export function spawnSoldier(
+  sim: Simulation,
+  { side, x, z, speed = WALKING_SPEED, facing, weapon = Weapon.Rifle }: SoldierSpawn
+): EntityId {
   const soldier = addEntity(sim.world)
   if (soldier >= sim.capacity) {
     throw new RangeError(`Soldier id ${soldier} exceeds simulation capacity ${sim.capacity}`)
@@ -80,6 +95,12 @@ export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEE
   position.z[soldier] = clamped.z
   sideStore.value[soldier] = side
   speedStore.value[soldier] = speed
+  addComponent(sim.world, soldier, sim.soldiers.weapon)
+  sim.soldiers.weapon.kind[soldier] = weapon
+  sim.soldiers.weapon.cooldown[soldier] = 0
+  sim.soldiers.target.id[soldier] = -1
+  sim.soldiers.suppression.value[soldier] = 0
+  sim.soldiers.morale.value[soldier] = 1
   const towardEnemy = side === Side.French ? 1 : -1
   facingStore.x[soldier] = facing?.x ?? 0
   facingStore.z[soldier] = facing?.z ?? towardEnemy
@@ -103,10 +124,12 @@ export function enqueueCommand(sim: Simulation, command: Command): void {
 
 /** Advances the world by exactly one fixed step. */
 export function stepSimulation(sim: Simulation): void {
+  sim.events.length = 0
   for (const command of sim.pendingCommands.splice(0)) {
     applyCommand(sim, command)
   }
   squadSystem(sim)
+  combatSystem(sim)
   movementSystem(sim, STEP_SECONDS)
   sim.tick += 1
 }

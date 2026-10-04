@@ -18,6 +18,9 @@ function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyK") {
     return { kind: "debug-kill" }
   }
+  if (code === "KeyG") {
+    return { kind: "whistle" }
+  }
   const digit = /^Digit([1-8])$/.exec(code)?.[1]
   return digit ? { kind: "switch-slot", slot: Number(digit) - 1 } : null
 }
@@ -25,7 +28,7 @@ function actionForKey(code: string): PlayerAction | null {
 /**
  * Keyboard and mouse input from the browser. Uses `KeyboardEvent.code`, so keys stay in the same place on AZERTY and
  * other layouts. Held keys are released when the window loses focus, so a soldier never walks off on their own.
- * Right-clicking the ground orders the squad there.
+ * Left-click fires; right-clicking the ground orders the squad there.
  */
 export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]): PlayerInput {
   const held = new Set<string>()
@@ -56,6 +59,11 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
     held.clear()
   })
   const canvas = scene.getEngine().getRenderingCanvas()
+  canvas?.addEventListener("pointerdown", (event) => {
+    if (event.button === 0) {
+      actions.push({ kind: "fire" })
+    }
+  })
   canvas?.addEventListener("contextmenu", (event) => {
     event.preventDefault()
     const point = pointerGround()

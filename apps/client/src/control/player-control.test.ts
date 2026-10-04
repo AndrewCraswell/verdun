@@ -191,6 +191,30 @@ describe("createPlayerControl", () => {
     expect(squad.order).toEqual({ kind: "hold" })
   })
 
+  it("fires the controlled soldier's weapon, and calls the whistle", () => {
+    const whistles: number[] = []
+    const engine = new NullEngine()
+    engines.push(engine)
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const leader = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
+    const squad = createSquad(sim, Side.French, [leader], "player")
+    const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))
+    const actions: PlayerAction[] = [{ kind: "fire" }, { kind: "whistle" }]
+    const control = createPlayerControl(
+      sim,
+      squad,
+      camera,
+      { held: new Set(), pointerGround: () => null, takeActions: () => actions.splice(0) },
+      { onWhistle: () => whistles.push(sim.tick) }
+    )
+    control.update(0.05)
+
+    expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
+    expect(whistles).toEqual([0])
+    stepSimulation(sim)
+    expect(sim.events.filter((event) => event.shooter === leader)).toHaveLength(1)
+  })
+
   it("passes control on when the controlled soldier dies, and kills only in dev builds", () => {
     const released = setup(false)
     released.actions.push({ kind: "debug-kill" })
