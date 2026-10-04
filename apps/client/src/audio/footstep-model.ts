@@ -9,6 +9,8 @@ const STRIDE = 0.75
 /** Men are checked this often, in steps, and at most MAX_STEPS footsteps start each time. */
 const FOOT_INTERVAL = 2
 const MAX_STEPS = 4
+/** A man covering this much ground between checks (0.1 s) is running, and his kit rattles with each stride. */
+const RUNNING = 0.3
 /** Snow this deep, in millimetres of water, lies thick enough to crunch underfoot. */
 const SNOW_DEPTH = 2
 /** Ruins this dense put stones and rubble underfoot. */
@@ -63,7 +65,8 @@ export function createFootstepModel(sim: Simulation, ruins: (x: number, z: numbe
           walked.set(id, { x, z, since: 0 })
           continue
         }
-        last.since += Math.hypot(x - last.x, z - last.z)
+        const moved = Math.hypot(x - last.x, z - last.z)
+        last.since += moved
         last.x = x
         last.z = z
         if (last.since >= STRIDE && calls.length < MAX_STEPS) {
@@ -71,6 +74,10 @@ export function createFootstepModel(sim: Simulation, ruins: (x: number, z: numbe
           const call = placeSound(listener, surfaceAt(sim, ruins, x, z), x, z)
           if (call) {
             calls.push(call)
+          }
+          const rattle = moved >= RUNNING ? placeSound(listener, "gear", x, z) : null
+          if (rattle) {
+            calls.push(rattle)
           }
         }
       }

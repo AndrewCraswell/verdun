@@ -8,6 +8,7 @@ import {
   createBattleSoundModel,
   type BattleSoundOptions,
   type Listener,
+  type ListenerSpace,
   listenerSpace,
   type SoundCall,
   SOUND_CUES,
@@ -30,8 +31,9 @@ const REVERB_SEND = 0.35
 const EARS: ReadonlySet<SoundCue> = new Set(["ear-ring", "mask-breath"])
 /** The listener's surroundings are looked up this often, in steps. */
 const SPACE_INTERVAL = 10
-/** Breathing in the mask, as loud as. */
+/** Breathing in the mask, as loud as; and short, hard breathing while pinned down. */
 const BREATHING_VOLUME = 0.3
+const PINNED_BREATH_VOLUME = 0.25
 /** The looping beds at full: rain, wind and the distant front (see atmosphere-model.ts). */
 const BED_VOLUMES = {
   rain: 0.45,
@@ -39,7 +41,9 @@ const BED_VOLUMES = {
   "front-roar": 0.8,
   fire: 0.5,
   "night-warm": 0.4,
-  "night-cold": 0.35
+  "night-cold": 0.35,
+  "rain-trench": 0.4,
+  "wire-wind": 0.3
 } as const
 /** Beds are re-levelled this often, in steps. */
 const BED_INTERVAL = 10
@@ -188,12 +192,16 @@ async function startBattleSounds(
     "front-roar": bed("front-roar"),
     fire: bed("fire"),
     "night-warm": bed("night-warm"),
-    "night-cold": bed("night-cold")
+    "night-cold": bed("night-cold"),
+    "rain-trench": bed("rain-trench"),
+    "wire-wind": bed("wire-wind")
   }
   const level = options.level ? createLevelSoundModel(options.level) : null
   const ruins = ambienceZones(sim.map).ruins
   const footsteps = createFootstepModel(sim, ruins)
   let breathing: AudioBufferSourceNode | null = null
+  let panting: AudioBufferSourceNode | null = null
+  let space: ListenerSpace = { trench: 0, dugout: 0, ruins: 0 }
 
   function play(call: SoundCall): void {
     const variations = decoded.get(call.cue)
@@ -224,7 +232,8 @@ async function startBattleSounds(
     step() {
       const listener = listenerOf(camera)
       if (sim.tick % SPACE_INTERVAL === 0) {
-        mixer.setSpace(listenerSpace(sim, listener, options.soldier(), ruins))
+        space = listenerSpace(sim, listener, options.soldier(), ruins)
+        mixer.setSpace(space)
       }
       const calls = [
         ...model.step(listener),
@@ -242,6 +251,8 @@ async function startBattleSounds(
         beds["night-warm"]?.setLevel(levels.nightWarm * tuned("night-warm"))
         beds["night-cold"]?.setLevel(levels.nightCold * tuned("night-cold"))
         mixer.daylight = levels.daylight
+        beds["rain-trench"]?.setLevel(levels.rain * space.trench * tuned("rain-trench"))
+        beds["wire-wind"]?.setLevel(levels.wire * tuned("wire-wind"))
       }
       const shock = model.takeShock()
       if (shock > 0) {
@@ -252,6 +263,25 @@ async function startBattleSounds(
       }
     },
     update() {
+      const pinned = model.breathingPinned()
+      const pant = decoded.get("pinned-breath")?.[0]
+      if (pinned && !panting && pant) {
+        panting = mixer.play({
+          name: "pinned-breath",
+          buffer: pant,
+          volume: PINNED_BREATH_VOLUME * mixer.tuning.level("pinned-breath"),
+          pan: 0,
+          delay: 0,
+          cutoff: 20000,
+          reverb: 0,
+          detune: 0,
+          bus: "ears",
+          loop: true
+        })
+      } else if (!pinned && panting) {
+        panting.stop()
+        panting = null
+      }
       const masked = model.breathingInMask()
       const buffer = decoded.get("mask-breath")?.[0]
       if (masked && !breathing && buffer) {
@@ -273,6 +303,7 @@ async function startBattleSounds(
     },
     dispose() {
       breathing?.stop()
+      panting?.stop()
       for (const playing of Object.values(beds)) {
         playing?.stop()
       }

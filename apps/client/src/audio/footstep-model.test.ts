@@ -42,9 +42,19 @@ describe("createFootstepModel", () => {
     const model = createFootstepModel(sim, open)
     sim.tick = 0
     expect(model.step(LISTENER)).toEqual([])
-    expect(walk(sim, model, walker, 0.4)).toEqual([])
-    expect(walk(sim, model, walker, 0.4).map((call) => call.cue)).toEqual(["step-earth"])
+    // Walking pace: 0.25 m a check.
+    expect(walk(sim, model, walker, 0.25)).toEqual([])
+    expect(walk(sim, model, walker, 0.25)).toEqual([])
+    expect(walk(sim, model, walker, 0.25).map((call) => call.cue)).toEqual(["step-earth"])
     expect(walk(sim, model, walker, 0)).toEqual([])
+  })
+
+  it("rattles a running man's kit with each stride", () => {
+    const { sim, walker } = battle()
+    const model = createFootstepModel(sim, open)
+    sim.tick = 0
+    model.step(LISTENER)
+    expect(walk(sim, model, walker, 0.8).map((call) => call.cue)).toEqual(["step-earth", "gear"])
   })
 
   it("is silent for men lying down, and with the camera high", () => {

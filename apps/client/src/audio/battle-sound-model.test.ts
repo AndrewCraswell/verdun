@@ -232,6 +232,16 @@ describe("createBattleSoundModel", () => {
     expect(model.step(LISTENER)).toEqual([])
   })
 
+  it("breathes short and hard while pinned down, unless masked", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    expect(model.breathingPinned()).toBe(false)
+    sim.soldiers.suppression.value[french] = 0.9
+    expect(model.breathingPinned()).toBe(true)
+    sim.soldiers.mask.state[french] = MaskState.On
+    expect(model.breathingPinned()).toBe(false)
+  })
+
   it("breathes in no mask when there's no soldier to control", () => {
     const { sim } = battle()
     expect(createBattleSoundModel(sim, { soldier: () => null }).breathingInMask()).toBe(false)

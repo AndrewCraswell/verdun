@@ -2,6 +2,19 @@ import { SOUND_CUES } from "../audio/battle-sound-model.ts"
 import type { Mixer } from "../audio/mixer.ts"
 import { AMBIENCE_FILES } from "../level/ambience.ts"
 
+const WEATHER_AND_LEVEL: readonly string[] = [
+  "rain",
+  "rain-trench",
+  "wind",
+  "wire-wind",
+  "thunder",
+  "night-warm",
+  "night-cold",
+  "front-roar",
+  "fire",
+  "crow"
+]
+
 /** The panel's groups: what each slider sets, under a heading. */
 const GROUPS: readonly (readonly [string, readonly string[]])[] = [
   ["Buses", ["bus:master", "bus:battle", "bus:ambience", "bus:ears"]],
@@ -12,13 +25,11 @@ const GROUPS: readonly (readonly [string, readonly string[]])[] = [
       "ambience:guns-far"
     ]
   ],
-  ["Weather, night and front", ["rain", "wind", "thunder", "night-warm", "night-cold", "front-roar"]],
   [
-    "Battle",
-    SOUND_CUES.filter(
-      (cue) => !["rain", "wind", "thunder", "night-warm", "night-cold", "front-roar", "fire", "crow"].includes(cue)
-    )
+    "Weather, night and front",
+    ["rain", "rain-trench", "wind", "wire-wind", "thunder", "night-warm", "night-cold", "front-roar"]
   ],
+  ["Battle", SOUND_CUES.filter((cue) => !WEATHER_AND_LEVEL.includes(cue))],
   ["Level", ["fire", "crow"]]
 ]
 /** Sliders run from silent to four times as loud (+12 dB). */

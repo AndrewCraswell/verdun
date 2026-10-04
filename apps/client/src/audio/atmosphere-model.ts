@@ -1,4 +1,4 @@
-import { type SimEvent, type Simulation, TICK_RATE, WeatherPattern } from "@verdun/sim"
+import { type SimEvent, type Simulation, TICK_RATE, WeatherPattern, wireAt } from "@verdun/sim"
 import { lightLevel } from "../environment/daylight.ts"
 import { type Listener, placeSound, type SoundCall } from "./battle-sound-model.ts"
 
@@ -16,6 +16,8 @@ export interface AtmosphereLevels {
   readonly nightCold: number
   /** How light it is, from 0 (night) to 1 (day). */
   readonly daylight: number
+  /** The wire singing in the wind, close to its belts with the camera low. */
+  readonly wire: number
 }
 
 /**
@@ -32,6 +34,9 @@ const ROAR_FULL = 260
 /** Crickets sing on nights warmer than CRICKETS_FROM °C, fully from CRICKETS_FULL, and fall quiet in rain. */
 const CRICKETS_FROM = 10
 const CRICKETS_FULL = 16
+/** Wire within WIRE_REACH metres of the listener sings, with the camera below WIRE_HEIGHT (fully at half that). */
+const WIRE_REACH = 12
+const WIRE_HEIGHT = 80
 /** How much roar a quiet front still makes: the guns never quite stop. */
 const ROAR_QUIET = 0.3
 /** Fighting is measured over about this many seconds. */
@@ -47,6 +52,17 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
+/** The densest wire within WIRE_REACH of the listener, from 0 to 1. */
+function wireNear(sim: Simulation, listener: Listener): number {
+  let densest = 0
+  for (let dz = -WIRE_REACH; dz <= WIRE_REACH; dz += WIRE_REACH / 2) {
+    for (let dx = -WIRE_REACH; dx <= WIRE_REACH; dx += WIRE_REACH / 2) {
+      densest = Math.max(densest, wireAt(sim.wire, listener.x + dx, listener.z + dz))
+    }
+  }
+  return clamp01(densest)
+}
+
 /** The beds' levels for a listener, given how heavy the fighting is (0 to 1). */
 export function atmosphereLevels(sim: Simulation, listener: Listener, intensity: number): AtmosphereLevels {
   const { precipitation, snowFraction, wind, temperature } = sim.environment.weather
@@ -55,12 +71,14 @@ export function atmosphereLevels(sim: Simulation, listener: Listener, intensity:
   const rain = Math.sqrt(clamp01(precipitation / RAIN_FULL)) * (1 - snowFraction)
   const daylight = lightLevel(sim.environment.illuminance)
   const warm = clamp01((temperature - CRICKETS_FROM) / (CRICKETS_FULL - CRICKETS_FROM))
+  const blowing = clamp01((Math.hypot(wind.x, wind.z) - WIND_CALM) / (WIND_FULL - WIND_CALM))
   return {
+    wire: blowing * wireNear(sim, listener) * clamp01(2 - (2 * listener.height) / WIRE_HEIGHT),
     rain,
     nightWarm: (1 - daylight) * warm * (1 - rain),
     nightCold: (1 - daylight) * (1 - warm),
     daylight,
-    wind: clamp01((Math.hypot(wind.x, wind.z) - WIND_CALM) / (WIND_FULL - WIND_CALM)),
+    wind: blowing,
     roar: zoom * (ROAR_QUIET + (1 - ROAR_QUIET) * intensity)
   }
 }

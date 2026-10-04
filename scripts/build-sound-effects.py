@@ -232,6 +232,8 @@ CUES = {
         take=8,
         floor=-8,
     ),
+    # Kit rattling on a running man: webbing, canteen and pack (Joshua Reinhardt's army gear).
+    "gear": dict(sources=[(GDC, "PR ARMY GEAR ROOM_WALK_C414.wav")], take=8, loudest=0.6),
     # Fire crackling in the braziers and where shells set things alight, and crows taking off from the wire.
     "fire": dict(
         sources=[(GDC, "Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav")], take=1, bed=(5, 30, 3)
@@ -284,6 +286,16 @@ CUES = {
         sources=[(GDC, "AMBForst_Nighttime-Woodlands Windy Trees Rustling Quiet_SYSO_SYSO009.wav")],
         take=1,
         bed=(20, 90, 4),
+    ),
+    # Rain dripping onto corrugated iron down in a trench, and the wire's belts singing in the wind (contact mic on a
+    # wire fence) close by.
+    "rain-trench": dict(sources=[(GDC, "PM_RD_DESIGNED_DRIPPY_ON_IRON_PLATE_3.wav")], take=1, bed=(5, 60, 3)),
+    "wire-wind": dict(sources=[(GDC, "MAFX005 wire fence contact mic wind 19.WAV")], take=1, bed=(10, 80, 4)),
+    # The controlled soldier's breath, short and broken, while he is pinned down.
+    "pinned-breath": dict(
+        sources=[(GDC, "HUMAN BREATH Male_Mouth Inhale and Exhale Like Got Frightened Intermittent _C.wav")],
+        take=1,
+        bed=(0.5, 12.5, 1.5),
     ),
     "front-roar": dict(
         sources=[(WARFARE, "VAR DISTANT FIRING 01 - AB - MKH8020.wav")], take=1, bed=(10, 100, 4)

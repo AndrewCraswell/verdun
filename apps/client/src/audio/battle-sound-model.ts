@@ -7,6 +7,7 @@ import {
   isInTrench,
   isSheltering,
   MaskState,
+  PINNED,
   Shell,
   type ShellInFlight,
   Side,
@@ -54,6 +55,10 @@ export const SOUND_CUES = [
   "wind",
   "front-roar",
   "fire",
+  "rain-trench",
+  "wire-wind",
+  "pinned-breath",
+  "gear",
   "night-warm",
   "night-cold",
   "crow",
@@ -167,6 +172,10 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   wind: { volume: 1, reference: 1 },
   "front-roar": { volume: 1, reference: 1 },
   fire: { volume: 1, reference: 1 },
+  "rain-trench": { volume: 1, reference: 1 },
+  "wire-wind": { volume: 1, reference: 1 },
+  "pinned-breath": { volume: 1, reference: 1 },
+  gear: { volume: 0.22, reference: 4 },
   "night-warm": { volume: 1, reference: 1 },
   "night-cold": { volume: 1, reference: 1 },
   crow: { volume: 0.18, reference: 15 },
@@ -305,6 +314,8 @@ export interface BattleSoundModel {
   step(listener: Listener): SoundCall[]
   /** Whether the soldier the player controls has his mask on, so his breathing is heard through it. */
   breathingInMask(): boolean
+  /** Whether the soldier the player controls is pinned down, breathing short and hard (and not in his mask). */
+  breathingPinned(): boolean
   /**
    * How hard a shell bursting close to the controlled soldier has hit his ears since the last call, from 0 (nothing)
    * to 1 (on top of him), for muffling the battle while they ring.
@@ -606,6 +617,15 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       const taken = shock
       shock = 0
       return taken
+    },
+    breathingPinned() {
+      const id = soldier()
+      return (
+        id !== null &&
+        !fallen.has(id) &&
+        (sim.soldiers.suppression.value[id] ?? 0) >= PINNED &&
+        sim.soldiers.mask.state[id] === MaskState.Off
+      )
     },
     breathingInMask() {
       const id = soldier()

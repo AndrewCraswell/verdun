@@ -58,6 +58,19 @@ describe("night", () => {
   })
 })
 
+describe("wire", () => {
+  it("sings in the wind close to the belts with the camera low, and not in a calm or from high up", () => {
+    const sim = battle()
+    const { columns } = sim.wire
+    sim.wire.density[Math.floor(CLOSE.z) * columns + Math.floor(CLOSE.x)] = 1
+    weather(sim, { wind: { x: 10, z: 0 } })
+    expect(atmosphereLevels(sim, CLOSE, 0).wire).toBe(1)
+    expect(atmosphereLevels(sim, { ...CLOSE, height: 100 }, 0).wire).toBe(0)
+    weather(sim, { wind: { x: 1, z: 0 } })
+    expect(atmosphereLevels(sim, CLOSE, 0).wire).toBe(0)
+  })
+})
+
 describe("createAtmosphereModel", () => {
   it("measures the fighting from the bursts and shots of each step", () => {
     const sim = battle()
