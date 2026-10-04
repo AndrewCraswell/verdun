@@ -10,23 +10,32 @@ import { wirePace } from "../wire.ts"
 
 /** Walking pace in a gas mask, as a fraction of normal: every breath is drawn through the filter. */
 const MASKED_PACE = 0.85
-/** Running with 30 kg of kit: about twice walking pace, for a short dash. */
-const RUN_FACTOR = 2
+/** Running with 30 kg of kit: a dash at two and a quarter times walking pace, 3.2 m/s on firm ground. */
+const RUN_FACTOR = 2.25
 /** A spent soldier walks at this fraction of his pace until he has his breath back. */
 const SPENT_PACE = 0.75
 /** Below this stamina a soldier can't run, and once spent he recovers to it before he walks at full pace again. */
 export const WINDED = 25
 /**
- * Stamina spent or regained a second. Running costs 4 a second, so a rested man runs about 25 s, some 70 m: no man's
- * land can't be sprinted, and the rush is saved for the last stretch behind the barrage.
+ * Stamina spent or regained a second. Running costs 1.25 a second, so a rested man runs about a minute on firm ground,
+ * some 190 m, and the best part of a minute across a crater field, 60 m or so: enough for a charge across no man's land
+ * once the barrage lifts, but not to run all the way from his own trench.
  */
-const STAMINA = { run: -4, crawl: -1, walk: 2, still: 5, dugout: 8 } as const
+const STAMINA = { run: -1.25, crawl: -1, walk: 2, still: 5, dugout: 8 } as const
 /** Climbing out of a trench, over the parapet or up the back wall, costs this much stamina at once. */
 const CLIMB_OUT = 15
-/** Running across mud, churned ground or uphill costs more, by as much as the ground slows him, up to this many times. */
-const HARD_GOING = 3
+/**
+ * Running across mud, churned ground or uphill costs more breath, by as much as the ground slows him, up to this many
+ * times: a little, since the going already slows him. At three times, a crater field winded a man in eight seconds.
+ */
+const HARD_GOING = 1.25
 /** Morale below this (shaken) halves stamina recovery: fear is tiring. */
 const SHAKEN_MORALE = 0.6
+/**
+ * A man in wire goes at the better of its pace where he stands and this many metres ahead: stepping out of a tangle
+ * isn't wading through it, and a man who had brushed its edge stood held at a twentieth of his pace for half a minute.
+ */
+const WIRE_STEP = 0.5
 /** Climbing walls prone means getting up on hands and knees: this much slower again. */
 const PRONE_CLIMB = 0.5
 
@@ -63,7 +72,7 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     const walk =
       speed.value[soldier] *
       (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1) *
-      wirePace(sim.wire, x, z) *
+      Math.max(wirePace(sim.wire, x, z), wirePace(sim.wire, x + dx * WIRE_STEP, z + dz * WIRE_STEP)) *
       weatherPace(sim, x, z) *
       ground *
       (STANCE_PACE[posture] ?? 1) *
@@ -77,7 +86,7 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     }
     if (running) {
       // Hard going costs breath as well as pace.
-      stamina.value[soldier] += (STAMINA.run - STAMINA.walk) * stepSeconds * (Math.min(HARD_GOING, 1 / ground) - 1)
+      stamina.value[soldier] += STAMINA.run * stepSeconds * (Math.min(HARD_GOING, 1 / ground) - 1)
     }
     return Math.min(walk, climb) * stepSeconds
   }

@@ -61,7 +61,7 @@ function steered(sim: Simulation, x: number, z: number, stance: "standing" | "cr
 }
 
 describe("moving at each stance", () => {
-  it("runs at twice walking pace, crouch-walks at 0.6 and crawls at a quarter", () => {
+  it("runs at two and a quarter times walking pace, crouch-walks at 0.6 and crawls at a quarter", () => {
     const sim = field()
     const walker = steered(sim, 10, 10, "standing")
     const runner = steered(sim, 20, 10, "standing", true)
@@ -71,7 +71,7 @@ describe("moving at each stance", () => {
     const covered = (soldier: number) => sim.soldiers.position.z[soldier] - 10
 
     expect(covered(walker)).toBeCloseTo(5 * WALKING_SPEED, 0)
-    expect(covered(runner)).toBeCloseTo(2 * covered(walker), 0)
+    expect(covered(runner)).toBeCloseTo(2.25 * covered(walker), 0)
     expect(covered(croucher) / covered(walker)).toBeCloseTo(0.6, 1)
     expect(covered(crawler) / covered(walker)).toBeCloseTo(0.25, 1)
   })
@@ -86,17 +86,44 @@ describe("moving at each stance", () => {
   })
 })
 
+describe("wire", () => {
+  it("lets a man at the edge of a belt step straight out of it, rather than wade out at a twentieth of his pace", () => {
+    const map = createFlatMap({ name: "wired", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
+    const sim = createSimulation({
+      map: {
+        ...map,
+        wire: [
+          {
+            points: [
+              [10, 50],
+              [90, 50]
+            ]
+          }
+        ]
+      },
+      seed: 1
+    })
+    // Half a pace inside the wire's north edge, at z = 52, walking out north.
+    const soldier = steered(sim, 50, 51.6, "standing")
+    run(sim, 1)
+
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(52.5)
+  })
+})
+
 describe("stamina", () => {
-  it("runs out after about 70 m of running, then he walks, and gets his breath back standing still", () => {
-    const sim = field()
+  it("runs out after about a minute of running, then he walks, and gets his breath back standing still", () => {
+    // A field long enough to run a minute in.
+    const long = createFlatMap({ name: "long field", cellSize: 0.5, columns: 200, rows: 600 }, 5, Surface.Grass)
+    const sim = createSimulation({ map: long, seed: 1 })
     const soldier = steered(sim, 50, 5, "standing", true)
-    const winded = run(sim, 40, () => !canRun(sim, soldier))
+    const winded = run(sim, 90, () => !canRun(sim, soldier))
     const ran = sim.soldiers.position.z[soldier] - 5
 
-    expect(winded).toBeGreaterThan(17)
-    expect(winded).toBeLessThan(21)
-    expect(ran).toBeGreaterThan(48)
-    expect(ran).toBeLessThan(60)
+    expect(winded).toBeGreaterThan(55)
+    expect(winded).toBeLessThan(65)
+    expect(ran).toBeGreaterThan(170)
+    expect(ran).toBeLessThan(210)
     expect(sim.soldiers.stamina.value[soldier]).toBeLessThan(WINDED)
 
     enqueueCommand(sim, { type: "steer", soldier, x: 0, z: 0 })

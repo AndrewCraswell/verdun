@@ -6,6 +6,10 @@ import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environmen
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
+import { cutLane } from "./wire.ts"
+
+/** Half the width of the lane cut through a squad's own wire before it goes over, in metres. */
+const LANE_HALF_WIDTH = 3
 
 /** Orders a soldier to walk, or run, to a ground position. */
 export interface MoveToCommand {
@@ -367,9 +371,14 @@ export function applyCommand(sim: Simulation, command: Command): void {
         orderFireMission(sim, { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: standing })
         orderFireMission(sim, { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: standing / 5 })
       }
+      // Lanes through their own wire for the squads going over, out to the middle of no man's land: the belts were
+      // gapped the night before an attack, or the first wave would hang on its own side's wire.
+      const ownWireTo = (command.startZ + command.objectiveZ - direction * (command.objectiveDepth ?? 0)) / 2
       for (const squad of sim.squads) {
         const chosen = command.squads === undefined || command.squads.includes(squad.id)
         if (squad.side === command.side && squad.leader >= 0 && chosen) {
+          const { x, z } = sim.soldiers.position
+          cutLane(sim, x[squad.leader], z[squad.leader], ownWireTo, LANE_HALF_WIDTH)
           squad.order = {
             kind: "creep",
             mission,

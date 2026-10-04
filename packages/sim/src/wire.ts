@@ -130,6 +130,49 @@ export function wirePace(field: WireField, x: number, z: number): number {
   return 1 - ((density - CUT_THROUGH) / (1 - CUT_THROUGH)) * (1 - WIRE_PACE)
 }
 
+/**
+ * Cuts a lane through the wire, as engineers did through their own belts the night before an attack: every cell within
+ * `halfWidth` of x between two depths is cleared, and renderers hear of it as a run of cuts along the lane. Returns
+ * whether any wire was there to cut.
+ */
+export function cutLane(sim: Simulation, x: number, fromZ: number, toZ: number, halfWidth: number): boolean {
+  const field = sim.wire
+  const minColumn = Math.max(0, Math.floor((x - halfWidth) / WIRE_CELL))
+  const maxColumn = Math.min(field.columns - 1, Math.floor((x + halfWidth) / WIRE_CELL))
+  const minRow = Math.max(0, Math.floor(Math.min(fromZ, toZ) / WIRE_CELL))
+  const maxRow = Math.min(field.rows - 1, Math.floor(Math.max(fromZ, toZ) / WIRE_CELL))
+  let cutFrom = -1
+  let cut = false
+  const tear = (from: number, to: number) => {
+    const z = ((from + to + 1) / 2) * WIRE_CELL
+    sim.events.push({ type: "wire-cut", x, z, radius: Math.max(halfWidth, ((to - from + 1) * WIRE_CELL) / 2) })
+  }
+  for (let row = minRow; row <= maxRow; row++) {
+    let rowCut = false
+    for (let column = minColumn; column <= maxColumn; column++) {
+      const cell = row * field.columns + column
+      if ((field.density[cell] ?? 0) > 0) {
+        field.density[cell] = 0
+        rowCut = true
+      }
+    }
+    if (rowCut && cutFrom < 0) {
+      cutFrom = row
+    } else if (!rowCut && cutFrom >= 0) {
+      tear(cutFrom, row - 1)
+      cutFrom = -1
+    }
+    cut ||= rowCut
+  }
+  if (cutFrom >= 0) {
+    tear(cutFrom, maxRow)
+  }
+  if (cut) {
+    field.cuts++
+  }
+  return cut
+}
+
 /** Cuts wire around a burst. Returns whether any was cut, so renderers need only hear about bursts that mattered. */
 export function cutWire(sim: Simulation, x: number, z: number, radius: number): boolean {
   if (radius <= 0) {

@@ -1,6 +1,7 @@
 import { type ChangedArea, heightAt, mapDepth, mapWidth, mergeAreas, stampCrater, type Trench } from "@verdun/map"
 import type { EntityId } from "bitecs"
 import { craterDepthFactor } from "./climate.ts"
+import { Weapon } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import { Side, Stance } from "./components.ts"
 import { refreshGasGround, releaseGas } from "./gas.ts"
@@ -442,8 +443,12 @@ function shielded(sim: Simulation, from: WorldPoint, soldier: EntityId): boolean
   return sim.lineOfSight ? !sim.lineOfSight.isClear(from, chest(sim, soldier)) : false
 }
 
-/** Suppresses and shakes everyone near a burst, more the closer they are. Shellfire breaks men more than bullets. */
-function shake(sim: Simulation, at: WorldPoint, radius: number): void {
+/**
+ * Suppresses and shakes everyone near a burst, more the closer they are. Shellfire breaks men more than bullets. Men
+ * near it go below, except machine-gun crews under their own side's shells: they were drilled to stay on the gun
+ * through their own SOS barrage, which fell close in front of them, and an attack across it met their fire.
+ */
+function shake(sim: Simulation, at: WorldPoint, radius: number, firedBy: Side): void {
   for (const soldier of soldiersNear(sim, at.x, at.z, radius)) {
     if (!isAlive(sim, soldier)) {
       continue
@@ -456,7 +461,11 @@ function shake(sim: Simulation, at: WorldPoint, radius: number): void {
       const closeness = 1 - distance / radius
       sim.soldiers.suppression.value[soldier] = Math.min(1, sim.soldiers.suppression.value[soldier] + 0.8 * closeness)
       sim.soldiers.morale.value[soldier] = Math.max(0, sim.soldiers.morale.value[soldier] - 0.08 * closeness)
-      markShelled(sim, soldier)
+      const crewOnTheGun =
+        sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun && sim.soldiers.side.value[soldier] === firedBy
+      if (!crewOnTheGun) {
+        markShelled(sim, soldier)
+      }
     }
   }
 }
@@ -485,7 +494,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
       wound(sim, soldier, landed.shell === Shell.HeavyHighExplosive ? 1.4 : 1, landed)
     }
   }
-  shake(sim, at, stats.suppressionRadius)
+  shake(sim, at, stats.suppressionRadius, landed.side)
   const crater = stampCrater(sim.map, {
     x: landed.x,
     z: landed.z,
@@ -535,7 +544,7 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
       wound(sim, soldier, 0.8, landed)
     }
   }
-  shake(sim, at, stats.suppressionRadius)
+  shake(sim, at, stats.suppressionRadius, landed.side)
   releaseGas(sim.smoke, landed.x, burstZ, stats.smokeMass)
   // Shrapnel balls snip a strand here and there where they come down.
   cutWire(sim, landed.x, landed.z, stats.wireCutRadius)

@@ -3,20 +3,22 @@ import { isInTrench } from "./stance.ts"
 
 /**
  * Walking pace on each surface, as a fraction of pace on firm ground. Verdun's mud and shell-churned ground were
- * notorious: men took hours to cross a few hundred metres of crater field at night, sinking to the knee.
+ * notorious: men took hours to cross a few hundred metres of crater field at night, sinking to the knee. By day, at a
+ * dash, the surface and the crater lips (see `UPHILL_COST`) together leave a man about half his pace on firm ground.
+ * Rain makes it worse (ground.ts).
  */
 const SURFACE_PACE: Readonly<Record<Surface, number>> = {
   [Surface.Grass]: 1,
   [Surface.Chalk]: 0.95,
-  [Surface.Mud]: 0.6,
-  [Surface.Churned]: 0.5
+  [Surface.Mud]: 0.65,
+  [Surface.Churned]: 0.55
 }
 /** Duckboards on a trench floor keep men out of the mud. */
 const TRENCH_PACE = 0.9
 /** How far ahead the ground is probed for slope, in metres. */
 const SLOPE_PROBE = 0.6
-/** Each unit of uphill grade costs this much: a 1-in-1 slope halves pace or worse; a trench wall is a scramble. */
-const UPHILL_COST = 2.5
+/** Each unit of uphill grade costs this much: a 1-in-1 slope a third of pace; a trench wall is a scramble. */
+const UPHILL_COST = 2.2
 /** Steep drops slow men too (jumping down into a trench, sliding into a shell hole), but less. */
 const DOWNHILL_COST = 0.8
 /** Grades gentler than this downhill cost nothing. */

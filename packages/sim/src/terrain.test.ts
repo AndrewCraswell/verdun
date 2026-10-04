@@ -19,8 +19,8 @@ describe("groundPace", () => {
   it("is full pace on firm ground, slower in mud and slowest on shell-churned ground", () => {
     expect(groundPace(fieldWith(Surface.Grass), 50, 50, 1, 0)).toBe(1)
     expect(groundPace(fieldWith(Surface.Chalk), 50, 50, 1, 0)).toBeCloseTo(0.95)
-    expect(groundPace(fieldWith(Surface.Mud), 50, 50, 1, 0)).toBeCloseTo(0.6)
-    expect(groundPace(fieldWith(Surface.Churned), 50, 50, 1, 0)).toBeCloseTo(0.5)
+    expect(groundPace(fieldWith(Surface.Mud), 50, 50, 1, 0)).toBeCloseTo(0.65)
+    expect(groundPace(fieldWith(Surface.Churned), 50, 50, 1, 0)).toBeCloseTo(0.55)
   })
 
   it("makes a trench wall a slow scramble, but the duckboards along its floor easy going", () => {
@@ -47,7 +47,7 @@ describe("groundPace", () => {
     expect(groundPace(withTrench, 50, 50, 1, 0)).toBeCloseTo(0.9)
     expect(slowestOut(1)).toBeLessThan(0.3)
     expect(slowestOut(-1)).toBeLessThan(0.3)
-    expect(groundPace(withTrench, 50, 20, 0, 1)).toBeCloseTo(0.6)
+    expect(groundPace(withTrench, 50, 20, 0, 1)).toBeCloseTo(0.65)
   })
 
   it("slows men climbing a slope more than men going down it", () => {
@@ -59,14 +59,14 @@ describe("groundPace", () => {
     }
 
     const up = groundPace(map, 50, 50, 0, 1)
-    expect(up).toBeCloseTo(1 / (1 + 2.5 * 0.5), 2)
+    expect(up).toBeCloseTo(1 / (1 + 2.2 * 0.5), 2)
     expect(groundPace(map, 50, 50, 0, -1)).toBeGreaterThan(up)
     expect(groundPace(map, 50, 50, 1, 0)).toBe(1)
   })
 })
 
 describe("walking over the ground", () => {
-  it("lets soldiers run at about twice walking pace", () => {
+  it("lets soldiers run at about two and a quarter times walking pace", () => {
     const sim = createSimulation({ map: fieldWith(Surface.Grass), seed: 1 })
     const walker = spawnSoldier(sim, { side: Side.French, x: 20, z: 20 })
     const runner = spawnSoldier(sim, { side: Side.French, x: 30, z: 20 })
@@ -76,7 +76,7 @@ describe("walking over the ground", () => {
       stepSimulation(sim)
     }
 
-    expect(sim.soldiers.position.z[runner] - 20).toBeCloseTo(2 * (sim.soldiers.position.z[walker] - 20), 0)
+    expect(sim.soldiers.position.z[runner] - 20).toBeCloseTo(2.25 * (sim.soldiers.position.z[walker] - 20), 0)
   })
 
   it("takes soldiers longer across churned ground", () => {
@@ -93,6 +93,6 @@ describe("walking over the ground", () => {
     })
 
     expect(times[0]).toBeCloseTo(14 / WALKING_SPEED, 0)
-    expect(times[1]).toBeCloseTo(14 / (WALKING_SPEED * 0.5), 0)
+    expect(times[1]).toBeCloseTo(14 / (WALKING_SPEED * 0.55), 0)
   })
 })

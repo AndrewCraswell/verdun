@@ -137,7 +137,7 @@ describe("navigation", () => {
     /** Wire along z = 100 with gaps at x = 60 and x = 140, and the ground round the first gap trodden to mud. */
     const muddy = () => {
       const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
-      for (let row = 180; row <= 220; row++) {
+      for (let row = 150; row <= 250; row++) {
         for (let column = 80; column <= 160; column++) {
           map.surfaces[sampleIndex(map, column, row)] = Surface.Mud
         }

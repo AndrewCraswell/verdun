@@ -10,6 +10,7 @@ import {
   SHELLS,
   UNLIMITED
 } from "./artillery.ts"
+import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
@@ -232,6 +233,23 @@ describe("high-explosive bursts", () => {
     expect(sim.artillery.pendingSightRebuild).not.toBeNull()
     stepFor(sim, 2.1)
     expect(sim.artillery.pendingSightRebuild).toBeNull()
+  })
+
+  it("send men near a burst below, but keep machine-gun crews at their guns under their own side's shells", async () => {
+    const sim = await field()
+    const rifleman = spawnSoldier(sim, { side: Side.German, x: 95, z: 130 })
+    const gunner = spawnSoldier(sim, { side: Side.German, x: 105, z: 130, weapon: Weapon.MachineGun })
+    stepSimulation(sim)
+    drop(sim, Shell.FieldHighExplosive, 100, 100, Side.German)
+    stepSimulation(sim)
+    const { lastShelled } = sim.soldiers.shelter
+
+    expect(lastShelled[rifleman]).toBe(sim.tick - 1)
+    expect(lastShelled[gunner]).not.toBe(sim.tick - 1)
+    // The enemy's shells send the crew below like anyone else.
+    drop(sim, Shell.FieldHighExplosive, 100, 100, Side.French)
+    stepSimulation(sim)
+    expect(lastShelled[gunner]).toBe(sim.tick - 1)
   })
 
   it("kill or wound regardless of side: crowding your own barrage is deadly", async () => {

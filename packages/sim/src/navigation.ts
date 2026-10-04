@@ -601,15 +601,24 @@ function distanceToSegment(
 
 /** A straight walk snags on wire this intact or worse, as a fraction of walking pace. */
 const WIRE_SNAG = 0.5
+/** A straight walk is checked this often along its length, in metres: finer than the wire's metre cells. */
+const LINE_STEP = 0.25
+/** And this far either side of it for wire, in metres: a man is a body's width, and shaves no tangle's edge. */
+const LINE_MARGIN = 0.4
 
 /**
- * Whether a straight walk between two points crosses nothing dear: no ruins or pools in the way, and no wire. Wire is
- * checked at its own finer grain, so a walk past the edge of a gap doesn't clip the tangles.
+ * Whether a straight walk between two points crosses nothing dear: no ruins or pools in the way, and no wire within a
+ * body's width of it. Wire is checked at its own finer grain, so a walk past the edge of a gap doesn't clip the tangles.
+ * The walker's own spot isn't checked: a man already in the wire can always walk straight out of it.
  */
 function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: number, toX: number, toZ: number): boolean {
   const dx = toX - fromX
   const dz = toZ - fromZ
-  const steps = Math.ceil(Math.sqrt(dx * dx + dz * dz) / 0.5)
+  const length = Math.sqrt(dx * dx + dz * dz)
+  const steps = Math.ceil(length / LINE_STEP)
+  // Across the line, a margin's width.
+  const sideX = length > 0 ? (-dz / length) * LINE_MARGIN : 0
+  const sideZ = length > 0 ? (dx / length) * LINE_MARGIN : 0
   for (let step = 1; step <= steps; step++) {
     const along = step / steps
     const x = fromX + dx * along
@@ -618,11 +627,47 @@ function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: numbe
     if (!(read(state.obstacles, cell) < CLEAR_COST)) {
       return false
     }
-    if (state.wired[cell] === 1 && wirePace(sim.wire, x, z) < WIRE_SNAG) {
-      return false
+    for (const side of [0, 1, -1]) {
+      const sx = x + sideX * side
+      const sz = z + sideZ * side
+      if (state.wired[cellAt(state, sx, sz)] === 1 && wirePace(sim.wire, sx, sz) < WIRE_SNAG) {
+        return false
+      }
     }
   }
   return true
+}
+
+/** Offsets tried, nearest first, for a clear spot near a waypoint that lies in the wire: within a metre. */
+const NUDGES: readonly (readonly [number, number])[] = [0.5, 1].flatMap((reach) =>
+  [0, 1, 2, 3, 4, 5, 6, 7].map((eighth): [number, number] => [
+    Math.round(Math.cos((eighth * Math.PI) / 4) * reach * 1000) / 1000,
+    Math.round(Math.sin((eighth * Math.PI) / 4) * reach * 1000) / 1000
+  ])
+)
+
+/**
+ * The waypoint itself if it's clear of the wire by a body's width, or else the nearest such spot within a metre of it. Routes run
+ * through the grid's 2 m cells, and in a gap two or three metres wide a cell's middle can lie in the tangle at the
+ * gap's edge: men made for it, and waded.
+ */
+function clearOfWire(sim: Simulation, point: { x: number; z: number }): { x: number; z: number } {
+  // Clear for a body's width all round, or a man coming at it slantwise clips the tangle beside it.
+  const clear = (x: number, z: number) =>
+    wirePace(sim.wire, x, z) >= WIRE_SNAG &&
+    wirePace(sim.wire, x - LINE_MARGIN, z) >= WIRE_SNAG &&
+    wirePace(sim.wire, x + LINE_MARGIN, z) >= WIRE_SNAG &&
+    wirePace(sim.wire, x, z - LINE_MARGIN) >= WIRE_SNAG &&
+    wirePace(sim.wire, x, z + LINE_MARGIN) >= WIRE_SNAG
+  if (clear(point.x, point.z)) {
+    return point
+  }
+  for (const [dx, dz] of NUDGES) {
+    if (clear(point.x + dx, point.z + dz)) {
+      return { x: point.x + dx, z: point.z + dz }
+    }
+  }
+  return point
 }
 
 /**
@@ -653,12 +698,12 @@ export function nextWaypoint(
     return { x: target.x, z: target.z }
   }
   // Start from the middle of his own cell, which lies on the cheap route; step on along it while he can still walk
-  // there in a straight line.
+  // there in a straight line. Each cell's middle is taken clear of the wire, so a narrow gap is walked down its middle.
   const centre = (of: number) => ({
     x: ((of % state.columns) + 0.5) * NAV_CELL,
     z: (Math.floor(of / state.columns) + 0.5) * NAV_CELL
   })
-  const start = centre(cell)
+  const start = clearOfWire(sim, centre(cell))
   let best = start
   let firstStep: { x: number; z: number } | null = null
   for (let step = 0; step < LOOKAHEAD; step++) {
@@ -680,7 +725,7 @@ export function nextWaypoint(
       break
     }
     cell = next
-    const point = centre(cell)
+    const point = clearOfWire(sim, centre(cell))
     firstStep ??= point
     if (!clearLine(sim, state, x, z, point.x, point.z)) {
       break

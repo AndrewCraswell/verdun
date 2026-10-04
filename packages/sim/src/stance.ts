@@ -39,8 +39,11 @@ const CLIMB_SECONDS = { min: 6, spread: 14 } as const
  * was their guns, not the riflemen's, that so often won the race to the parapet.
  */
 const MACHINE_GUN_CLIMB_SECONDS = { min: 3, spread: 5 } as const
-/** A sentry's shout: attackers this close bring the men up at once, if the shelling lets them. */
-const ALARM_RANGE = 40
+/**
+ * A sentry's shout: attackers this close bring the men up at once, if the shelling lets them. Sentries watched through
+ * periscopes for the rush: far enough out that men running at a dash don't reach the parapet before the garrison does.
+ */
+const ALARM_RANGE = 50
 /** Even with the enemy close, nobody climbs out while shells are still landing this recently, in seconds. */
 const ALARM_CALM = 3
 

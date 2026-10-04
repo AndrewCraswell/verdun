@@ -4,7 +4,7 @@ import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
 import { createSimulation, stepSimulation } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { createWireField, wireAt, wirePace } from "./wire.ts"
+import { createWireField, cutLane, wireAt, wirePace } from "./wire.ts"
 
 /** A field with a belt of wire along z = 100 from x = 20 to 180, broken by a 6 m gap at x = 140. */
 function wired() {
@@ -31,6 +31,23 @@ function wired() {
 }
 
 describe("barbed wire", () => {
+  it("cuts a lane through a belt, just the lane's width, and says where so the wire can be torn away", () => {
+    const sim = createSimulation({ map: wired(), seed: 1 })
+    sim.events.length = 0
+    const cuts = sim.wire.cuts
+
+    expect(cutLane(sim, 60, 90, 110, 3)).toBe(true)
+    expect(wireAt(sim.wire, 60, 100)).toBe(0)
+    expect(wireAt(sim.wire, 57.5, 101)).toBe(0)
+    expect(wireAt(sim.wire, 65, 100)).toBe(1)
+    expect(sim.wire.cuts).toBe(cuts + 1)
+    const torn = sim.events.filter((event) => event.type === "wire-cut")
+    expect(torn.length).toBeGreaterThan(0)
+    expect(torn.every((event) => event.type === "wire-cut" && event.x === 60)).toBe(true)
+    // Where there's no wire, there's nothing to cut.
+    expect(cutLane(sim, 60, 120, 140, 3)).toBe(false)
+  })
+
   it("is staked along each belt, about 3.4 m deep, and around knife rests", () => {
     const field = createWireField(wired())
 
