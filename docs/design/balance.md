@@ -189,13 +189,13 @@ in front of their line, within a field shell's 35 m reach of their own men. Lett
 side's shells was tried and reverted: it made the defence so strong that three bombardments held on 2 of 5 and 0 of 5
 seeds at 76–89% losses, own fire rose to 18–19%, and machine guns still caused only 4%.
 
-**Where it stands** (`3dfb380`): every scenario passes its success band; three bombardments hold on 4 of 5 seeds from
-both sides at 60–64% losses, just over the losses band. In every scenario, the infantry-only one included, **rifles
-cause about 50–70% of attackers' losses and machine guns 2–8%**: per round a gun hits about 1% of the time (0.1 at point
-blank, falling with range, and times 0.3 against men lying down, which most attackers are once fire pins them), and it
-picks targets only among the 6 nearest enemies, often men hidden in shell holes, so it sits idle for 15% of the time
-with standing men in sight. Whether machine guns should be the main killer, as they were, is a design decision for the
-combat tuning.
+**Where it stands**: every scenario passes its bands. With craters reaching routes as they land (the gameplay session's
+change after `3dfb380`), three bombardments hold on 4 of 5 seeds from both sides at 56–58% losses, with 8% to own fire.
+In every scenario, the infantry-only one included, **rifles cause about 50–70% of attackers' losses and machine guns
+2–8%**: per round a gun hits about 1% of the time (0.1 at point blank, falling with range, and times 0.3 against men
+lying down, which most attackers are once fire pins them), and it picks targets only among the 6 nearest enemies, often
+men hidden in shell holes, so it sits idle for 15% of the time with standing men in sight. Whether machine guns should
+be the main killer, as they were, is a design decision for the combat tuning.
 
 ### Season harness (stage 1–3)
 
