@@ -20,7 +20,7 @@ import {
   soldierIds,
   Stance
 } from "@verdun/sim"
-import { createGasCloud, type GasCloud } from "./effects/gas-cloud.ts"
+import { type CloudPuffs, createGasCloud, createSmokeCloud, type GasCloud } from "./effects/gas-cloud.ts"
 import { palette, surfaceColors } from "./palette.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
 
@@ -43,6 +43,8 @@ export interface BattlefieldView {
   readonly prisonerMeshes: Readonly<Record<Side, Mesh>>
   /** Gas drifting over the ground; it redraws itself as the simulation moves the cloud. */
   readonly gas: GasCloud
+  /** Shell smoke and dust drifting and thinning: the curtain a barrage throws up. */
+  readonly smoke: CloudPuffs
   /**
    * Copies soldier positions from the simulation into the render meshes. Call after stepping, or when what is visible
    * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
@@ -166,12 +168,14 @@ export function createBattlefieldScene(
   })
 
   const gas = createGasCloud(scene, sim, groundMaterial)
-  // Gas moves a few times a second in the simulation: redraw it when it has stepped on, not every frame.
+  const smoke = createSmokeCloud(scene, sim)
+  // Clouds move a few times a second in the simulation: redraw them when it has stepped on, not every frame.
   let gasDrawnAt = -1
   scene.onBeforeRenderObservable.add(() => {
     if (sim.tick - gasDrawnAt >= GAS_INTERVAL) {
       gasDrawnAt = sim.tick
       gas.update()
+      smoke.update()
     }
   })
 
@@ -241,5 +245,16 @@ export function createBattlefieldScene(
   }
 
   syncSoldiers()
-  return { scene, camera, terrain, groundMaterial, soldierMeshes, fallenMeshes, prisonerMeshes, gas, syncSoldiers }
+  return {
+    scene,
+    camera,
+    terrain,
+    groundMaterial,
+    soldierMeshes,
+    fallenMeshes,
+    prisonerMeshes,
+    gas,
+    smoke,
+    syncSoldiers
+  }
 }

@@ -1,4 +1,4 @@
-import { createFlatMap } from "@verdun/map"
+import { createFlatMap, Surface } from "@verdun/map"
 import { describe, expect, it } from "vitest"
 import { surrender } from "./capture.ts"
 import { Side, Stance } from "./components.ts"
@@ -15,7 +15,7 @@ import {
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad, isAlive } from "./squads.ts"
 
-const map = createFlatMap({ name: "field", cellSize: 1, columns: 200, rows: 200 })
+const map = createFlatMap({ name: "field", cellSize: 1, columns: 200, rows: 200 }, 0, Surface.Grass)
 
 function stepFor(sim: Simulation, seconds: number) {
   for (let step = 0; step < Math.round(seconds * TICK_RATE); step++) {

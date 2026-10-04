@@ -7,7 +7,7 @@ import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, 
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 7
+export const SIM_STATE_VERSION = 8
 
 export interface SoldierState {
   readonly id: number
@@ -15,7 +15,7 @@ export interface SoldierState {
   readonly x: number
   readonly z: number
   readonly speed: number
-  readonly moveOrder: { readonly x: number; readonly z: number } | null
+  readonly moveOrder: { readonly x: number; readonly z: number; readonly run: boolean } | null
   readonly facing: { readonly x: number; readonly z: number }
   readonly steer: { readonly x: number; readonly z: number } | null
   readonly health: number
@@ -55,6 +55,8 @@ export interface SimulationSnapshot {
   readonly artillery: ArtilleryState
   /** Gas concentration in each cell of the gas grid, in mg/m³, and the wind carrying it. */
   readonly gas: readonly number[]
+  /** Shell smoke and dust in each cell of the same grid. */
+  readonly smoke: readonly number[]
   readonly wind: { readonly x: number; readonly z: number }
 }
 
@@ -83,7 +85,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       x: position.x[id],
       z: position.z[id],
       speed: speed.value[id],
-      moveOrder: hasComponent(sim.world, id, moveOrder) ? { x: moveOrder.x[id], z: moveOrder.z[id] } : null,
+      moveOrder: hasComponent(sim.world, id, moveOrder)
+        ? { x: moveOrder.x[id], z: moveOrder.z[id], run: moveOrder.run[id] === 1 }
+        : null,
       facing: { x: facing.x[id], z: facing.z[id] },
       steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id] } : null,
       health: health.value[id],
@@ -117,6 +121,7 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     squads,
     artillery: copyArtilleryState(sim.artillery),
     gas: Array.from(sim.gas.concentration),
+    smoke: Array.from(sim.smoke.concentration),
     wind: { x: sim.wind.x, z: sim.wind.z }
   }
 }
@@ -145,6 +150,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.moveOrder)
       sim.soldiers.moveOrder.x[id] = soldier.moveOrder.x
       sim.soldiers.moveOrder.z[id] = soldier.moveOrder.z
+      sim.soldiers.moveOrder.run[id] = soldier.moveOrder.run ? 1 : 0
     }
     if (soldier.steer) {
       addComponent(sim.world, id, sim.soldiers.steer)
@@ -190,5 +196,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   Object.assign(sim.artillery.sosCalledAt, artillery.sosCalledAt)
   sim.gas.concentration.set(snapshot.gas)
   sim.gas.active = snapshot.gas.some((value) => value > 0)
+  sim.smoke.concentration.set(snapshot.smoke)
+  sim.smoke.active = snapshot.smoke.some((value) => value > 0)
   return sim
 }

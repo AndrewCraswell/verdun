@@ -34,6 +34,11 @@ interface ShellStats {
   readonly airburstHeight: number
   /** Gas released on bursting, in milligrams: about 0.6 kg of liquid agent in a field gun's gas shell. */
   readonly gasMass: number
+  /**
+   * Smoke and dust thrown up, in the smoke grid's units: enough from a field gun's shell to hide a man behind it for a
+   * few seconds, several times as much from a heavy howitzer's.
+   */
+  readonly smokeMass: number
 }
 
 export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
@@ -47,7 +52,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     rangeError: 20,
     deflectionError: 4,
     airburstHeight: 0,
-    gasMass: 0
+    gasMass: 0,
+    smokeMass: 8000
   },
   [Shell.FieldShrapnel]: {
     craterRadius: 0,
@@ -59,7 +65,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     rangeError: 20,
     deflectionError: 4,
     airburstHeight: 6,
-    gasMass: 0
+    gasMass: 0,
+    smokeMass: 1500
   },
   [Shell.HeavyHighExplosive]: {
     craterRadius: 2.5,
@@ -71,7 +78,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     rangeError: 30,
     deflectionError: 6,
     airburstHeight: 0,
-    gasMass: 0
+    gasMass: 0,
+    smokeMass: 25_000
   },
   // A small burster just opens the shell: a quiet pop that men often didn't notice over the barrage.
   [Shell.FieldGas]: {
@@ -84,7 +92,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     rangeError: 20,
     deflectionError: 4,
     airburstHeight: 0,
-    gasMass: 600_000
+    gasMass: 600_000,
+    smokeMass: 1000
   }
 }
 
@@ -138,6 +147,12 @@ export interface Creep {
   readonly interval: number
   /** The line stops creeping, and the mission ends, beyond this z. */
   readonly stopZ: number
+  /**
+   * The infantry's objective and the protective line beyond it. One lift after leaving the objective the barrage jumps
+   * to the protective line and holds there, shielding the men consolidating their gains from counter-attack
+   * without dropping shells among them.
+   */
+  readonly protect?: { readonly objectiveZ: number; readonly lineZ: number }
 }
 
 export interface FireMissionPlan {
@@ -198,7 +213,11 @@ export function copyArtilleryState(state: ArtilleryState): ArtilleryState {
   return {
     missions: state.missions.map((mission) => ({
       ...mission,
-      ...(mission.creep ? { creep: { ...mission.creep } } : {})
+      ...(mission.creep
+        ? {
+            creep: { ...mission.creep, ...(mission.creep.protect ? { protect: { ...mission.creep.protect } } : {}) }
+          }
+        : {})
     })),
     shells: state.shells.map((shell) => ({ ...shell })),
     pendingSightRebuild: state.pendingSightRebuild ? { ...state.pendingSightRebuild } : null,
@@ -327,6 +346,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   if (stats.gasMass > 0) {
     releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
   }
+  releaseGas(sim.smoke, landed.x, landed.z, stats.smokeMass)
   return { type: "burst", shell: landed.shell, at, crater }
 }
 
@@ -360,6 +380,7 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     }
   }
   shake(sim, at, stats.suppressionRadius)
+  releaseGas(sim.smoke, landed.x, burstZ, stats.smokeMass)
   return { type: "burst", shell: landed.shell, at, crater: null }
 }
 
@@ -436,10 +457,21 @@ export function artillerySystem(sim: Simulation): void {
     if (mission.creep) {
       const lifts = Math.floor(elapsed / mission.creep.interval)
       const direction = Math.sign(mission.creep.stopZ - mission.z)
-      mission.lineZ = mission.z + direction * lifts * mission.creep.lift
-      if ((mission.lineZ - mission.creep.stopZ) * direction > 0) {
+      const creepingLine = mission.z + direction * lifts * mission.creep.lift
+      if ((creepingLine - mission.creep.stopZ) * direction > 0) {
         mission.finished = true
         continue
+      }
+      const protect = mission.creep.protect
+      // Off the objective, the first lift drops a full lift beyond it, keeping its garrison's heads down while the
+      // attackers rush in without landing among them; after that, the protective line.
+      const beyond = protect ? (creepingLine - protect.objectiveZ) * direction : 0
+      if (!protect || beyond <= 0) {
+        mission.lineZ = creepingLine
+      } else if (beyond <= mission.creep.lift) {
+        mission.lineZ = protect.objectiveZ + direction * mission.creep.lift
+      } else {
+        mission.lineZ = protect.lineZ
       }
     } else if (elapsed >= mission.duration) {
       mission.finished = true

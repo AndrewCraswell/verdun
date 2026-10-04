@@ -134,23 +134,31 @@ function creepSlot(
   const direction = Math.sign(order.objectiveZ - start) || 1
   // The moment the barrage lifts off the objective, rush it: every second waiting lets its garrison climb out of their
   // dugouts and man the parapet.
-  const lifted = line === null || (line - order.objectiveZ) * direction > 0
-  const behindBarrage = lifted ? order.objectiveZ : line - direction * order.standoff
+  const behindBarrage =
+    line === null || barrageLifted(sim, order) ? order.objectiveZ : line - direction * order.standoff
   // Don't run past the objective while the barrage is still falling beyond it.
   const z = direction > 0 ? Math.min(behindBarrage, order.objectiveZ) : Math.max(behindBarrage, order.objectiveZ)
   return advanceSlot(sim, { x: order.x, z }, slot, count)
+}
+
+/** Whether a creeping barrage has lifted past a squad's objective, or finished. */
+function barrageLifted(sim: Simulation, order: { mission: number; objectiveZ: number }): boolean {
+  const line = barrageLine(sim, order.mission)
+  const start = sim.artillery.missions[order.mission]?.z ?? order.objectiveZ
+  const direction = Math.sign(order.objectiveZ - start) || 1
+  return line === null || (line - order.objectiveZ) * direction > 0
 }
 
 /**
  * Sends a soldier to a point unless they're already close. Applied directly rather than queued: commands are for input
  * from outside the simulation, and squad decisions are made inside it.
  */
-function orderMoveTo(sim: Simulation, soldier: EntityId, target: { x: number; z: number }): void {
+function orderMoveTo(sim: Simulation, soldier: EntityId, target: { x: number; z: number }, run = false): void {
   const { position } = sim.soldiers
   const dx = target.x - position.x[soldier]
   const dz = target.z - position.z[soldier]
   if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
-    applyCommand(sim, { type: "move-to", soldier, x: target.x, z: target.z })
+    applyCommand(sim, { type: "move-to", soldier, x: target.x, z: target.z, run })
   }
 }
 
@@ -185,9 +193,10 @@ export function squadSystem(sim: Simulation): void {
       if (order.kind === "creep") {
         const target = creepSlot(sim, order, slot, followers.length)
         const direction = Math.sign(order.objectiveZ - sim.soldiers.position.z[member])
-        // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on.
+        // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on. Once the
+        // barrage has lifted off the objective, they run for it.
         if ((target.z - sim.soldiers.position.z[member]) * direction >= 0) {
-          orderMoveTo(sim, member, target)
+          orderMoveTo(sim, member, target, barrageLifted(sim, order))
         }
         return
       }

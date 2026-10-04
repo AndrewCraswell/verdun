@@ -39,6 +39,8 @@ export interface Simulation {
   readonly artillery: ArtilleryState
   /** Gas drifting over the battlefield. */
   readonly gas: GasField
+  /** Smoke and dust thrown up by shell bursts, which hide whatever lies behind them. */
+  readonly smoke: GasField
   /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
   readonly wind: { x: number; z: number }
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
@@ -75,6 +77,7 @@ export function createSimulation({
     lineOfSight: null,
     artillery: createArtilleryState(),
     gas: createGasField(map),
+    smoke: createGasField(map),
     wind: { x: wind.x, z: wind.z },
     events: [],
     tick: 0

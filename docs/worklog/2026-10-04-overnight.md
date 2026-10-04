@@ -92,3 +92,42 @@ Committed as "Add gas: phosgene shells, drifting clouds and masks".
 **Not done: a key to call gas fire.** Wiring a new command into `main.ts` would mean editing a file the level-design
 agent has uncommitted changes in. Until then, from the dev console:
 `verdun.sim.pendingCommands.push({ type: "fire-mission", plan: { side: 0, shell: 3, fromX: 250, toX: 350, z: 280, band: 30, roundsPerMinute: 60, delay: 0, duration: 60 } })`.
+
+## Ground, smoke, running and the protective barrage
+
+Committed as "Add ground pace, barrage smoke, running and the protective barrage".
+
+- **Ground pace** (`packages/sim/src/terrain.ts`): grass full pace, chalk 95%, mud 60%, shell-churned ground 50%,
+  duckboarded trench floors 90%. Slopes cost 2.5× their grade uphill and a little downhill. A trench wall is a scramble
+  of several seconds. Craters churn the ground, so bombarded no man's land is slow going.
+- **That broke the attack.** Crossing churned ground at 0.7 m/s, the French lost the race to the parapet every time
+  (1-34 of 200 left). Slowing the barrage (50 m per 120 s, 50 m standoff) made it worse: more time in the open.
+- **Barrage smoke** (`packages/sim/src/smoke.ts`): every burst releases smoke and dust into a second cloud grid
+  (half-life 25 s, no drainage). Sight lines sum the smoke along their track; optical depth dims hit chance by `exp(-τ)`
+  and above 3 blocks sight altogether. A barrage measures τ ≈ 2-5 across its band, a moving curtain that hides the
+  infantry following it. The client draws the smoke as a tall grey-brown haze (`createSmokeCloud`).
+- **Running**: move orders can be run at twice walking pace. Squads run for the objective once the barrage lifts off it.
+- **Protective barrage**: off the objective, the creeping barrage's first lift lands a full lift beyond it (it had
+  landed as little as 17 m beyond, among the attackers rushing in), then it jumps to a protective line 150 m beyond and
+  holds for four lifts.
+- Fixed along the way: tests that relied on full walking pace now build their maps on firm ground (`createFlatMap`
+  defaults to mud).
+
+Headless battles (2-minute bombardment, then the whistle; 10 minutes):
+
+| Map, seed       | French left | Germans captured | Germans left | French killed by own shells |
+| --------------- | ----------- | ---------------- | ------------ | --------------------------- |
+| Prototype, 1916 | 88          | 59               | 10           | 14                          |
+| Prototype, 7    | 104         | 85               | 3            | 14                          |
+| Fleury, 1916    | 111         | 71               | 10           | 8                           |
+| Fleury, 7       | 105         | 70               | 14           | 10                          |
+
+A well-run barrage attack now takes the trench at about 45-55% casualties, with most of the garrison captured or killed,
+and own shells cause 10-15% of the attackers' losses. That is in line with successful French attacks at Verdun in
+late 1916.
+
+### Notes for the level-design agent and the developer
+
+- The level-design agent owns `README.md`, `docs/roadmap.md` and `docs/architecture.md` until it commits, so the roadmap
+  doesn't mention ground pace, smoke and running yet. M5 and M6 are already ticked in the committed roadmap.
+- `docs/architecture.md` says smoke and gas block sight "through their" grids: that's now true.

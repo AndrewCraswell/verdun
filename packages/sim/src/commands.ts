@@ -5,12 +5,14 @@ import { type Side, Stance } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
-/** Orders a soldier to walk to a ground position. */
+/** Orders a soldier to walk, or run, to a ground position. */
 export interface MoveToCommand {
   readonly type: "move-to"
   readonly soldier: EntityId
   readonly x: number
   readonly z: number
+  /** Run rather than walk: a dash across open ground, as in the last rush of an assault. */
+  readonly run?: boolean
 }
 
 /**
@@ -148,6 +150,7 @@ export function applyCommand(sim: Simulation, command: Command): void {
       addComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
       sim.soldiers.moveOrder.x[command.soldier] = target.x
       sim.soldiers.moveOrder.z[command.soldier] = target.z
+      sim.soldiers.moveOrder.run[command.soldier] = command.run ? 1 : 0
       return
     }
     case "steer": {
@@ -241,8 +244,14 @@ export function applyCommand(sim: Simulation, command: Command): void {
         delay: command.delay,
         // Creeping barrages end when they reach their stop line; the duration is only a backstop. JSON has no Infinity.
         duration: 3600,
-        // Lift on past the objective onto the support lines, so the attackers can take it.
-        creep: { lift: command.lift, interval: command.interval, stopZ: command.objectiveZ + direction * 80 }
+        // Past the objective, jump to a protective barrage 150 m beyond it and hold for about five minutes while the
+        // attackers consolidate.
+        creep: {
+          lift: command.lift,
+          interval: command.interval,
+          stopZ: command.objectiveZ + direction * 4 * command.lift,
+          protect: { objectiveZ: command.objectiveZ, lineZ: command.objectiveZ + direction * 150 }
+        }
       })
       const standing = command.standingRoundsPerMinute ?? 0
       if (standing > 0) {

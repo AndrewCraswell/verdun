@@ -1,4 +1,4 @@
-import { createFlatMap } from "@verdun/map"
+import { createFlatMap, Surface } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -14,7 +14,8 @@ import {
 } from "./simulation.ts"
 
 // 100 m x 50 m of flat ground.
-const map = createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 50 })
+// Firm ground, so soldiers walk at their full pace.
+const map = createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 50 }, 0, Surface.Grass)
 
 function stepFor(sim: ReturnType<typeof createSimulation>, seconds: number) {
   for (let step = 0; step < Math.round(seconds * TICK_RATE); step++) {

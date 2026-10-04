@@ -1,4 +1,4 @@
-import { createFlatMap } from "@verdun/map"
+import { createFlatMap, Surface } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -15,7 +15,8 @@ import {
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad, isAlive, nextLivingMember } from "./squads.ts"
 
-const map = createFlatMap({ name: "test", cellSize: 1, columns: 200, rows: 200 })
+// Firm ground, so soldiers walk at their full pace.
+const map = createFlatMap({ name: "test", cellSize: 1, columns: 200, rows: 200 }, 0, Surface.Grass)
 
 /** A French squad of eight in a row at z = 50, facing north, its first soldier leading. */
 function squadOfEight() {

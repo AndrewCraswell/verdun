@@ -8,7 +8,7 @@ import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { createSimulation, GAS_DETECTED, releaseGas } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { createGasCloud, gasStrength } from "./gas-cloud.ts"
+import { createGasCloud, createSmokeCloud, gasStrength, smokeStrength } from "./gas-cloud.ts"
 
 const engines: NullEngine[] = []
 afterEach(() => {
@@ -30,6 +30,20 @@ describe("gasStrength", () => {
     expect(gasStrength(GAS_DETECTED)).toBeGreaterThan(0)
     expect(gasStrength(200)).toBeGreaterThan(gasStrength(GAS_DETECTED))
     expect(gasStrength(1e6)).toBe(1)
+  })
+})
+
+describe("createSmokeCloud", () => {
+  it("draws shell smoke as a tall, drab cloud that goes once the smoke has cleared", () => {
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const smoke = createSmokeCloud(scene(), sim)
+    expect(smoke.update()).toBeNull()
+
+    releaseGas(sim.smoke, 50, 50, 25_000)
+    expect(smoke.update()?.some((strength) => strength > 0)).toBe(true)
+    expect(smoke.mesh.thinInstanceCount).toBe(1)
+    expect(smokeStrength(1)).toBe(0)
+    expect(smokeStrength(1e6)).toBe(1)
   })
 })
 

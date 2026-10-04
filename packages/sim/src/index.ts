@@ -67,3 +67,4 @@ export {
   MASK_LEAK,
   releaseGas
 } from "./gas.ts"
+export { SMOKE_EXTINCTION, seesThroughSmoke, smokeBetween } from "./smoke.ts"

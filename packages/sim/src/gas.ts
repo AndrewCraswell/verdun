@@ -10,17 +10,26 @@ export const GAS_CELL = 4
 export const GAS_INTERVAL = 4
 /** Phosgene is three and a half times heavier than air: it hugs the ground in a layer about this deep, in metres. */
 const LAYER_HEIGHT = 2
-/** Horizontal turbulent diffusivity near the ground in a light wind, in m²/s. */
-const DIFFUSIVITY = 3
-/** Heavy gas runs downhill: the fraction of a cell's gas that flows per second for each metre its neighbour is lower. */
-const DRAIN_RATE = 0.5
 /** At most this fraction of a cell's gas drains away in one gas step, however steep the ground. */
 const MAX_DRAIN = 0.4
+
+/** How a kind of cloud behaves once released. */
+export interface CloudBehaviour {
+  /** Horizontal turbulent diffusivity near the ground, in m²/s. */
+  readonly diffusivity: number
+  /** Fraction of a cell's cloud that flows per second to a neighbour for each metre that neighbour is lower. */
+  readonly drainRate: number
+  /** Half-lives, in seconds, in the open and in hollows. */
+  readonly halfLife: { readonly open: number; readonly hollow: number }
+}
+
 /**
- * Half-lives of a phosgene cloud, in seconds. In the open it thins and mixes upward within minutes; trapped in a
- * trench or shell hole it lingers for a quarter of an hour.
+ * Phosgene: heavy, so it runs downhill into trenches and shell holes. In the open it thins and mixes upward within
+ * minutes; trapped low it lingers for a quarter of an hour.
  */
-const HALF_LIFE = { open: 240, hollow: 900 } as const
+export const PHOSGENE: CloudBehaviour = { diffusivity: 3, drainRate: 0.5, halfLife: { open: 240, hollow: 900 } }
+/** Shell smoke and thrown dust: they billow and spread, and settle or blow away within half a minute or so. */
+export const BURST_SMOKE: CloudBehaviour = { diffusivity: 4, drainRate: 0, halfLife: { open: 25, hollow: 25 } }
 /** A cell is a hollow when its lowest ground lies this far below the average ground around it. */
 const HOLLOW_DEPTH = 0.8
 /** Below this concentration, in mg/m³, a cell counts as clear. */
@@ -177,8 +186,13 @@ function bilinear(field: GasField, values: Float32Array, column: number, row: nu
   )
 }
 
-/** One gas step of `seconds`: wind, turbulence, drainage into low ground, then decay. */
-export function spreadGas(field: GasField, wind: { readonly x: number; readonly z: number }, seconds: number): void {
+/** One step of `seconds` for a cloud: wind, turbulence, drainage into low ground, then decay. */
+export function spreadGas(
+  field: GasField,
+  wind: { readonly x: number; readonly z: number },
+  seconds: number,
+  behaviour: CloudBehaviour = PHOSGENE
+): void {
   const { columns, rows, concentration, scratch } = field
   // Wind: semi-Lagrangian advection, tracing each cell centre back upwind. Gas blown off the map is gone.
   const backColumns = (wind.x * seconds) / GAS_CELL
@@ -189,7 +203,7 @@ export function spreadGas(field: GasField, wind: { readonly x: number; readonly 
     }
   }
   // Turbulence: explicit diffusion, stable while the coefficient stays under a quarter.
-  const spread = (DIFFUSIVITY * seconds) / (GAS_CELL * GAS_CELL)
+  const spread = (behaviour.diffusivity * seconds) / (GAS_CELL * GAS_CELL)
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
       const cell = row * columns + column
@@ -223,8 +237,8 @@ export function spreadGas(field: GasField, wind: { readonly x: number; readonly 
         }
         const neighbour = r * columns + c
         const drop = floor - (field.floor[neighbour] ?? 0)
-        if (drop > 0) {
-          const fraction = DRAIN_RATE * drop * seconds
+        if (drop > 0 && behaviour.drainRate > 0) {
+          const fraction = behaviour.drainRate * drop * seconds
           flows.push([neighbour, fraction])
           fractions += fraction
         }
@@ -238,8 +252,8 @@ export function spreadGas(field: GasField, wind: { readonly x: number; readonly 
     }
   }
   // Decay: slow where it pools.
-  const keepOpen = Math.exp((-Math.LN2 * seconds) / HALF_LIFE.open)
-  const keepHollow = Math.exp((-Math.LN2 * seconds) / HALF_LIFE.hollow)
+  const keepOpen = Math.exp((-Math.LN2 * seconds) / behaviour.halfLife.open)
+  const keepHollow = Math.exp((-Math.LN2 * seconds) / behaviour.halfLife.hollow)
   let anything = false
   for (let cell = 0; cell < concentration.length; cell++) {
     const value = (scratch[cell] ?? 0) * (field.hollow[cell] === 1 ? keepHollow : keepOpen)
@@ -330,7 +344,10 @@ export function gasSystem(sim: Simulation): void {
   }
   const seconds = GAS_INTERVAL / TICK_RATE
   if (sim.gas.active) {
-    spreadGas(sim.gas, sim.wind, seconds)
+    spreadGas(sim.gas, sim.wind, seconds, PHOSGENE)
+  }
+  if (sim.smoke.active) {
+    spreadGas(sim.smoke, sim.wind, seconds, BURST_SMOKE)
   }
   const anyMasked = sim.soldiers.mask.state.some((state) => state !== MaskState.Off)
   if (sim.gas.active || anyMasked) {

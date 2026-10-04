@@ -2,7 +2,7 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap } from "@verdun/map"
+import { createFlatMap, Surface } from "@verdun/map"
 import {
   createSimulation,
   createSquad,
@@ -71,7 +71,7 @@ function setup(debugActions = false) {
   engines.push(engine)
   const scene = new Scene(engine)
   const sim = createSimulation({
-    map: createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3),
+    map: createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3, Surface.Grass),
     seed: 1
   })
   const members = [50, 53, 56].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))

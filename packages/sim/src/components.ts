@@ -27,7 +27,7 @@ export interface SoldierComponents {
   /** Walking speed in metres per second. */
   readonly speed: { readonly value: Float32Array }
   /** Present while the soldier is walking to an ordered point. */
-  readonly moveOrder: { readonly x: Float32Array; readonly z: Float32Array }
+  readonly moveOrder: { readonly x: Float32Array; readonly z: Float32Array; readonly run: Uint8Array }
   /** Unit vector the soldier faces and aims along. */
   readonly facing: { readonly x: Float32Array; readonly z: Float32Array }
   /**
@@ -72,7 +72,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     position: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     side: { value: new Uint8Array(capacity) },
     speed: { value: new Float32Array(capacity) },
-    moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     steer: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     squad: { id: new Int32Array(capacity).fill(-1) },

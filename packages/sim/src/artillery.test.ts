@@ -270,6 +270,35 @@ describe("creeping barrage attack", () => {
   })
 })
 
+describe("protective barrage", () => {
+  it("lifts a full lift beyond the objective, then jumps to a protective line beyond it and holds", async () => {
+    const sim = await field()
+    enqueueCommand(sim, {
+      type: "barrage-attack",
+      side: Side.French,
+      fromX: 60,
+      toX: 140,
+      startZ: 60,
+      objectiveZ: 110,
+      roundsPerMinute: 30,
+      lift: 20,
+      interval: 10,
+      standoff: 40,
+      delay: 0
+    })
+    stepSimulation(sim)
+    const mission = sim.artillery.missions[0]
+    const linesSeen = new Set<number>()
+    for (let step = 0; step < 150 * TICK_RATE && !mission?.finished; step++) {
+      stepSimulation(sim)
+      linesSeen.add(Math.round(mission?.lineZ ?? 0))
+    }
+
+    expect([...linesSeen]).toEqual([60, 80, 100, 130, 260])
+    expect(mission?.finished).toBe(true)
+  })
+})
+
 describe("standing barrage", () => {
   it("holds on the objective while the creeping barrage approaches, and lifts as it arrives", async () => {
     const sim = await field()

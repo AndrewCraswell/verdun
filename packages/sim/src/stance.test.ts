@@ -1,4 +1,4 @@
-import { carveTrenches, createFlatMap, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, type Trench, Surface } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { Side, Stance } from "./components.ts"
@@ -24,7 +24,7 @@ afterEach(() => {
 
 /** A flat field with a north-facing fire trench along z = 100, and sight lines attached. */
 async function field(): Promise<Simulation> {
-  const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 400, rows: 400 }, 5)
+  const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
   const trench: Trench = {
     kind: "fire",
     points: [

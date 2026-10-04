@@ -3,6 +3,7 @@ import { applyCommand } from "./commands.ts"
 import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
+import { seesThroughSmoke, smokeBetween } from "./smoke.ts"
 import { isAlive } from "./squads.ts"
 import { isSheltering, soldierEye } from "./stance.ts"
 
@@ -121,6 +122,8 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   if (sim.soldiers.mask.state[shooter] === MaskState.On) {
     chance *= MASKED_SHOOTER_FACTOR
   }
+  // Smoke and dust between them blur the aim, even when the shape can still be made out.
+  chance *= Math.exp(-smokeBetween(sim, soldierEye(sim, shooter), soldierEye(sim, target)))
   const suppression = sim.soldiers.suppression.value[shooter]
   const morale = sim.soldiers.morale.value[shooter]
   return chance * (1 - 0.6 * suppression) * (0.5 + 0.5 * morale)
@@ -138,7 +141,9 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   if (dx * dx + dz * dz > stats.range * stats.range) {
     return false
   }
-  return sim.lineOfSight.isClear(soldierEye(sim, shooter), soldierEye(sim, target))
+  const eye = soldierEye(sim, shooter)
+  const head = soldierEye(sim, target)
+  return sim.lineOfSight.isClear(eye, head) && seesThroughSmoke(sim, eye, head)
 }
 
 /**

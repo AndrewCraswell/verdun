@@ -12,7 +12,7 @@ import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
-import { heightAt } from "@verdun/map"
+import { type BattlefieldMap, heightAt } from "@verdun/map"
 import { GAS_CELL, GAS_DETECTED, type GasField, type Simulation } from "@verdun/sim"
 
 /** Concentration, in mg/m³, drawn at full strength: around a lethal cloud's heart. */
@@ -21,8 +21,11 @@ const FULL_STRENGTH = 2000
 const GAS_COLOR = new Color3(0.78, 0.8, 0.45)
 /** At most this many cloud puffs are drawn, the densest first. */
 const MAX_PUFFS = 3000
-/** Puffs mark gas thick enough to hurt within minutes; the ground tint shows the fainter edges. */
+/** Gas puffs mark gas thick enough to hurt within minutes; the ground tint shows the fainter edges. */
 const PUFF_STRENGTH = 0.45
+/** Smoke and dust: drab grey-brown, drawn from a faint haze up to a cloud too thick to see through. */
+const SMOKE_COLOR = new Color3(0.55, 0.52, 0.47)
+const SMOKE_FULL = 400
 
 /** A fixed jitter in [-0.5, 0.5) per cell, so the cloud doesn't sit on a visible grid. */
 function jitter(cell: number, salt: number): number {
@@ -35,6 +38,11 @@ export function gasStrength(concentration: number): number {
     return 0
   }
   return Math.min(1, Math.log(concentration / (GAS_DETECTED / 2)) / Math.log(FULL_STRENGTH / (GAS_DETECTED / 2)))
+}
+
+/** How strongly to draw shell smoke, from 0 to 1. */
+export function smokeStrength(concentration: number): number {
+  return concentration < 2 ? 0 : Math.min(1, Math.log(concentration / 2) / Math.log(SMOKE_FULL / 2))
 }
 
 /** Tints the ground under gas toward the cloud's colour, in both GLSL (WebGL2) and WGSL (WebGPU). */
@@ -114,6 +122,81 @@ export class GasTintPlugin extends MaterialPluginBase {
   }
 }
 
+/** A low layer of translucent puffs over the thick parts of a cloud grid. */
+export interface CloudPuffs {
+  readonly mesh: Mesh
+  /** Redraws the puffs; returns each cell's drawing strength, or null when there was nothing to redraw. */
+  update(): Float32Array | null
+}
+
+interface CloudLook {
+  readonly name: string
+  readonly color: Color3
+  readonly alpha: number
+  /** Drawing strength, 0 to 1, of a concentration. */
+  readonly strength: (concentration: number) => number
+  /** Cells at or above this strength get a puff. */
+  readonly puffFrom: number
+  /** Puff height in metres at strength 0 and 1: gas hugs the ground, smoke billows up. */
+  readonly height: { readonly min: number; readonly max: number }
+}
+
+function createCloudPuffs(scene: Scene, map: BattlefieldMap, field: GasField, look: CloudLook): CloudPuffs {
+  const mesh = CreateSphere(look.name, { diameter: 2, segments: 6 }, scene)
+  const material = new StandardMaterial(look.name, scene)
+  material.diffuseColor = look.color
+  material.emissiveColor = look.color.scale(0.5)
+  material.specularColor = Color3.Black()
+  material.alpha = look.alpha
+  // Translucent layers drawn in any order: depth writes would cut holes in the puffs behind.
+  material.disableDepthWrite = true
+  mesh.material = material
+  mesh.isPickable = false
+  mesh.alwaysSelectAsActiveMesh = true
+  mesh.thinInstanceCount = 0
+  const matrices = new Float32Array(MAX_PUFFS * 16)
+  const strengths = new Float32Array(field.columns * field.rows)
+  let drawn = false
+
+  return {
+    mesh,
+    update() {
+      if (!field.active && !drawn) {
+        return null
+      }
+      const dense: { cell: number; strength: number }[] = []
+      field.concentration.forEach((value, cell) => {
+        const strength = look.strength(value)
+        strengths[cell] = strength
+        if (strength > 0 && strength >= look.puffFrom) {
+          dense.push({ cell, strength })
+        }
+      })
+      dense.sort((a, b) => b.strength - a.strength || a.cell - b.cell)
+      const shown = dense.slice(0, MAX_PUFFS)
+      shown.forEach(({ cell, strength }, index) => {
+        const x = ((cell % field.columns) + 0.5 + jitter(cell, 0x51) * 0.8) * GAS_CELL
+        const z = (Math.floor(cell / field.columns) + 0.5 + jitter(cell, 0xa3) * 0.8) * GAS_CELL
+        const radius = GAS_CELL * (0.55 + 0.35 * strength + jitter(cell, 0x7d) * 0.3)
+        const height = look.height.min + (look.height.max - look.height.min) * strength
+        const offset = index * 16
+        matrices.fill(0, offset, offset + 16)
+        matrices[offset] = radius
+        matrices[offset + 5] = height / 2
+        matrices[offset + 10] = radius
+        matrices[offset + 12] = x
+        matrices[offset + 13] = heightAt(map, x, z) + height / 4
+        matrices[offset + 14] = z
+        matrices[offset + 15] = 1
+      })
+      mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
+      mesh.thinInstanceCount = shown.length
+      drawn = field.active
+      return strengths
+    }
+  }
+}
+
 export interface GasCloud {
   readonly plugin: GasTintPlugin
   /** Low, translucent puffs over the densest gas. */
@@ -146,58 +229,42 @@ export function createGasCloud(scene: Scene, sim: Simulation, groundMaterial: Ma
     x: field.columns * GAS_CELL,
     z: field.rows * GAS_CELL
   })
-
-  const puffs = CreateSphere("gas-puffs", { diameter: 2, segments: 6 }, scene)
-  const material = new StandardMaterial("gas-puffs", scene)
-  material.diffuseColor = GAS_COLOR
-  material.emissiveColor = GAS_COLOR.scale(0.5)
-  material.specularColor = Color3.Black()
-  material.alpha = 0.18
-  // Translucent layers drawn in any order: depth writes would cut holes in the puffs behind.
-  material.disableDepthWrite = true
-  puffs.material = material
-  puffs.isPickable = false
-  puffs.alwaysSelectAsActiveMesh = true
-  puffs.thinInstanceCount = 0
-  const matrices = new Float32Array(MAX_PUFFS * 16)
-  let drawn = false
+  // Wide and flat: heavy gas lies in a layer a metre or two deep.
+  const puffs = createCloudPuffs(scene, sim.map, field, {
+    name: "gas-puffs",
+    color: GAS_COLOR,
+    alpha: 0.18,
+    strength: gasStrength,
+    puffFrom: PUFF_STRENGTH,
+    height: { min: 0.8, max: 2.4 }
+  })
 
   return {
     plugin,
-    puffs,
+    puffs: puffs.mesh,
     update() {
-      if (!field.active && !drawn) {
-        return
+      const strengths = puffs.update()
+      if (strengths) {
+        strengths.forEach((strength, cell) => {
+          pixels[cell] = Math.round(strength * 255)
+        })
+        texture.update(pixels)
       }
-      const dense: { cell: number; strength: number }[] = []
-      field.concentration.forEach((value, cell) => {
-        const strength = gasStrength(value)
-        pixels[cell] = Math.round(strength * 255)
-        if (strength > PUFF_STRENGTH) {
-          dense.push({ cell, strength })
-        }
-      })
-      texture.update(pixels)
-      dense.sort((a, b) => b.strength - a.strength || a.cell - b.cell)
-      const shown = dense.slice(0, MAX_PUFFS)
-      shown.forEach(({ cell, strength }, index) => {
-        const x = ((cell % field.columns) + 0.5 + jitter(cell, 0x51) * 0.8) * GAS_CELL
-        const z = (Math.floor(cell / field.columns) + 0.5 + jitter(cell, 0xa3) * 0.8) * GAS_CELL
-        // Wide and flat: heavy gas lies in a layer a metre or two deep.
-        const radius = GAS_CELL * (0.55 + 0.35 * strength + jitter(cell, 0x7d) * 0.3)
-        const offset = index * 16
-        matrices.fill(0, offset, offset + 16)
-        matrices[offset] = radius
-        matrices[offset + 5] = 0.4 + 0.8 * strength
-        matrices[offset + 10] = radius
-        matrices[offset + 12] = x
-        matrices[offset + 13] = heightAt(sim.map, x, z) + 0.3
-        matrices[offset + 14] = z
-        matrices[offset + 15] = 1
-      })
-      puffs.thinInstanceSetBuffer("matrix", matrices, 16, false)
-      puffs.thinInstanceCount = shown.length
-      drawn = field.active
     }
   }
+}
+
+/**
+ * Draws the smoke and dust of shell bursts as it drifts and thins: a barrage becomes a moving curtain, which is what
+ * hid the infantry following it.
+ */
+export function createSmokeCloud(scene: Scene, sim: Simulation): CloudPuffs {
+  return createCloudPuffs(scene, sim.map, sim.smoke, {
+    name: "smoke-puffs",
+    color: SMOKE_COLOR,
+    alpha: 0.14,
+    strength: smokeStrength,
+    puffFrom: 0.2,
+    height: { min: 2, max: 9 }
+  })
 }

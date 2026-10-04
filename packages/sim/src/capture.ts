@@ -38,6 +38,7 @@ export function surrender(sim: Simulation, soldier: EntityId): void {
   addComponent(sim.world, soldier, soldiers.moveOrder)
   soldiers.moveOrder.x[soldier] = soldiers.position.x[soldier]
   soldiers.moveOrder.z[soldier] = rearZ
+  soldiers.moveOrder.run[soldier] = 0
   shakeSquad(sim, soldier)
   sim.events.push({ type: "capture", soldier })
 }
