@@ -11,6 +11,8 @@ export interface FrameTimes {
   readonly worstMs: number
   /** Average time per frame in each measured part, in milliseconds. */
   part(name: string): number | null
+  /** The names of every part measured in the window, in the order first seen. */
+  readonly partNames: readonly string[]
 }
 
 /** Frames are averaged over this many seconds. */
@@ -35,6 +37,9 @@ export function createFrameTimes(): FrameTimes {
     },
     get worstMs() {
       return frames.reduce((worst, frame) => Math.max(worst, frame.ms), 0)
+    },
+    get partNames() {
+      return [...new Set(frames.flatMap((frame) => Object.keys(frame.parts)))]
     },
     part(name) {
       const measured = frames.filter((frame) => name in frame.parts)

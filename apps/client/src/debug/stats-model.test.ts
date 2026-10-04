@@ -16,6 +16,7 @@ describe("createFrameTimes", () => {
     expect(frames.averageMs).toBeCloseTo(1000 / frames.fps)
     expect(frames.part("simulation")).toBeCloseTo(2)
     expect(frames.part("pathfinding")).toBeNull()
+    expect(frames.partNames).toEqual(["simulation"])
   })
 
   it("reads zero before any frames", () => {

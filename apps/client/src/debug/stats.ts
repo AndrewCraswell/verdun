@@ -66,11 +66,11 @@ export function createDebugStats(
 
   function redraw(): void {
     const world = worldStats(sim)
-    const simulation = frames.part("simulation")
     const render = instrumentation?.renderTimeCounter.lastSecAverage ?? 0
+    const timed = frames.partNames.map((name) => `, ${name} ${(frames.part(name) ?? 0).toFixed(1)} ms`).join("")
     const lines = [
       `${frames.fps.toFixed(0)} fps   frame ${frames.averageMs.toFixed(1)} ms, worst ${frames.worstMs.toFixed(1)} ms`,
-      `render ${render.toFixed(1)} ms${simulation === null ? "" : `, simulation ${simulation.toFixed(1)} ms`}`,
+      `render ${render.toFixed(1)} ms${timed}`,
       `${instrumentation?.drawCallsCounter.current ?? 0} draw calls, ${scene.getActiveMeshes().length} active meshes`,
       `${engine.isWebGPU ? "WebGPU" : "WebGL2"}, ${engine.getRenderWidth()} x ${engine.getRenderHeight()}`,
       world.clock,
