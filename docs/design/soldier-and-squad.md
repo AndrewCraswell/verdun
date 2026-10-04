@@ -124,18 +124,34 @@ Planned:
 Orders need a fast interface: a radial menu on a held key, plus pings on the map. The squad must obey the way a player
 expects, every time; a squad that ignores orders feels worse than one that is weak.
 
-## Losing the squad and coming back (planned, stage 1, next)
+## Losing the squad and coming back
 
-Death already passes control along the squad. When the last man falls or is captured:
+Built: [reinforcements.ts](../../packages/sim/src/reinforcements.ts). Death passes control along the squad; when the
+last man falls or is captured, the squad is sent for from the sector's [manpower pool](sector-battle.md#manpower):
 
-1. The player sees the sector from above for a moment, then the deploy screen.
-2. A new squad is drawn from the sector's [manpower pool](sector-battle.md#manpower). If the pool is thin, the squad
-   arrives understrength; it never refuses a player outright.
-3. The squad arrives at a **deploy point**: the reserve line always, the support line when it is connected to the rear,
-   and an operation's jump-off trench for squads signed up to it. Arriving costs a delay (30 s to start, more when the
-   pool is low) and then the walk up the communication trenches. The walk is part of the cost: dying far forward means a
-   long way back.
-4. Survivors of a squad that withdraws to the reserve line refill to 8 there, at the pool's cost, without a delay.
+1. Its men leave the pool at once: 8, or fewer if the pool can't spare 8. A player's squad is always replaced; when the
+   pool is empty it comes back with 3 men scraped together from cooks, runners and the lightly wounded, so nobody is
+   ever refused a squad.
+2. The replacements reach the side's **rearmost fire trench**, behind the stretch of front the squad held, after a
+   delay: 30 s while the pool is full, growing to 90 s as it empties. Then they walk up the communication trenches. The
+   walk is part of the cost: dying far forward means a long way back.
+3. The squad keeps its slots and weapons (a machine-gun slot comes back with a machine gun). A player's squad arrives
+   holding, waiting for orders. A bot squad arrives on the _reserve_ order, below in the dugouts, where the
+   [commander AI](sector-battle.md#the-sector-commander) can send it into a counter-attack.
+4. Bot squads are replaced only while the pool is above a quarter of its allotment; the last quarter is kept for squads
+   players lead. The line thins as the reserves run out.
+
+The HUD shows the reserves left, counts down to the replacements while the squad is wiped out, and logs their arrival.
+In the skirmish each side holds 160 men back; in a headless barrage attack on the prototype sector the Germans bring up
+15 squads and keep their last 40 men, and the French still take the front line at the same moment.
+
+Still to come:
+
+- **Deploy points**: the support line when it is connected to the rear, and an operation's jump-off trench for squads
+  signed up to it, chosen on a deploy screen.
+- **Refilling survivors**: a squad that withdraws to the reserve line refills to 8 there, at the pool's cost, without a
+  delay. Today only a wiped squad is replaced.
+- **Daily allotments** from the war map, through `allotReinforcements`, in place of the skirmish's fixed pool.
 
 Logging off withdraws the squad to the reserve, or hands it to the AI if it is in contact, so the battle goes on.
 

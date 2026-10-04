@@ -4,7 +4,7 @@ Working title: **Verdun** (codename only; see [open questions](open-questions.md
 
 A massively multiplayer WW1 trench warfare game in the browser. Hundreds of players on each side fight continuous
 battles across sectors of the Verdun front. Each player commands a squad and fights as its soldiers. Front lines move
-slowly over a season of several weeks until one side breaks.
+slowly, one week of the war each real day, from August 1914 to the armistice; each year of the war is a season.
 
 How each mechanic works, and how it stays fun and balanced, is in the [game design](design/overview.md). How it's built
 is in the [architecture](architecture.md); what gets built when is in the [roadmap](roadmap.md).
@@ -30,7 +30,8 @@ is in the [architecture](architecture.md); what gets built when is in the [roadm
   hours can't be farmed.
 - Sectors report territory changes and casualties to the **war map**, which adjusts each sector's reinforcement pools
   and supply.
-- The front line is **published daily**. A season lasts weeks, until one side loses.
+- The front line is **published daily**. Each year of the war is a season of up to about 7½ weeks; the seasons add up to
+  who wins the war. See [war map and season](design/war-map-and-season.md#seasons-and-the-war).
 
 ## Warfare mechanics
 

@@ -5,9 +5,10 @@ model can be built and tuned headless earlier (see [next steps](overview.md#sugg
 
 ## The war map
 
-The war map is the Verdun front as a chain of sectors on the real ground, each one a [sector battle](sector-battle.md).
-The first season uses the right bank of the Meuse, where the 1916 battle was decided; the left bank (Le Mort-Homme,
-Hill 304) is a later expansion.
+The war map is the Western Front where French and German armies faced each other, as a chain of sectors on the real
+ground, each one a [sector battle](sector-battle.md). Each [season](#seasons-and-the-war) opens the sectors where that
+year's battles were fought. The first built is Verdun's right bank, where the 1916 battle was decided; the left bank (Le
+Mort-Homme, Hill 304) follows.
 
 | Sector (right bank)   | Key points                                    | Character                                            |
 | --------------------- | --------------------------------------------- | ---------------------------------------------------- |
@@ -50,7 +51,7 @@ assumption; stage 2 telemetry decides). At the cutoff the war has its "stand-to"
    [the day's line](sector-battle.md#the-days-line)).
 2. Each sector reports its held ground, key points, losses (killed, captured, wounded evacuated), prisoners taken and
    shells spent.
-3. The war map redraws the front, applies salients and key points, and moves the [Balance](#victory-the-balance).
+3. The war map redraws the front, applies salients and key points, and moves the [Balance](#the-balance-winning-a-year).
 4. **Overnight works** happen in every sector, paid for from the day's stores: cut wire is repaired and new belts laid
    in front of newly held ground, captured trenches are turned to face the enemy, guns move up behind an advance, and
    the battle window re-centres if needed.
@@ -102,42 +103,65 @@ This is Pétain's _noria_: the French rotated most of their army through Verdun 
 divisions stayed in the line far longer. The French get more divisions to rotate; the Germans start fresher and better
 supplied. It is flavour players see in the communiqué ("the 37th Division relieves the 14th"), and a lever on morale.
 
-## The season
+## Seasons and the war
 
-A season is one battle of the war, played out over about **six weeks** (see
-[open questions](../open-questions.md#product)). The first is Verdun, 1916.
+One game is the whole war on the Western Front, from 4 August 1914 to the armistice on 11 November 1918. **Each real day
+is one week of the war**, and **each year of the war is a season**, so four years and five months make five seasons. The
+front, the craters, the divisions and their fatigue all carry over from one season to the next; only the Balance starts
+again. Season lengths, the 117-minute day and night, and how the clocks are stored are in
+[time and weather](../time-and-weather.md#one-real-day-is-one-week-of-the-war).
 
 ### The calendar
 
-Each daily turn advances the calendar about a week, so 42 turns run from 21 February to mid-December 1916. The date sets
-the weather's climate (winter fog and snow, summer storms), the light, and the historical pressures below.
+The daily turn moves the date on one week. Players see it as the week being fought ("Week of 21 February 1916") on the
+communiqué and in the HUD, with the hour of the battle beside it; the date doesn't change during a turn. The date sets
+the weather's climate (winter fog and snow, summer storms), the light, the kit each side has, and the year's pressures
+below.
 
-### The arc
+### The years
 
-The season should have the shape of the real battle without its outcome being fixed:
+Each season has its own character, theatre and arc, taken from the real war, without its outcome being fixed. The
+sectors open in a season are where that year's battles were fought.
 
-| Turns | 1916             | Pressure                                                                                                                                             |
+| Season | Turns | Character                                                                                                                                                                                                                                                             | Sectors                                       |
+| ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 1914   | 22    | The war of movement ends in the first trenches. Shallow trenches, little wire, kepis and no gas masks; the French in red trousers until the year's end. By autumn both sides run short of shells                                                                      | The Marne, the Aisne, the Argonne, Verdun     |
+| 1915   | 52    | French offensives against German lines that dig deeper each month. Gas arrives in April, the Adrian helmet in the autumn. Mine warfare under Les Éparges and the Argonne                                                                                              | Artois, Champagne, the Argonne, Les Éparges   |
+| 1916   | 52    | Verdun: the German offensive from February, the forts and Fleury in June, the Somme drawing German guns away from July, the French counter-offensive in the autumn (see [the 1916 arc](#the-1916-arc))                                                                | Verdun's right bank, then the left; the Somme |
+| 1917   | 52    | The Germans fall back to the Hindenburg Line in March. The Nivelle offensive on the Chemin des Dames fails in April, and the French army's mutinies cut French allocations and morale through June. Limited French attacks at Verdun and Malmaison in the second half | The Chemin des Dames, Verdun, Malmaison       |
+| 1918   | 45    | German storm troops and the spring offensives break the line and reach the Marne; from July the French, with the Americans arriving, push back in the Hundred Days                                                                                                    | The Chemin des Dames, the Marne, the Argonne  |
+
+The years swing the initiative: the French attack in 1915, the Germans in early 1916 and early 1918, the French again in
+late 1916 and late 1918. Players on both sides get years to attack and years to hold, and a side that gained early in a
+year has to hold what it took when the pressure turns.
+
+### The 1916 arc
+
+Within a season the calendar shifts each side's allocations. 1916, the first season to be built:
+
+| Weeks | 1916             | Pressure                                                                                                                                             |
 | ----- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1–10  | February–April   | German offensive. Germans start with a huge shell stockpile and fresh divisions. French manpower ramps up as the Voie Sacrée and the noria get going |
-| 11–19 | May–June         | The battle for the forts and Fleury. Allocations near parity; phosgene arrives for the Germans                                                       |
-| 20–30 | July–September   | The Somme (from 1 July) and the Brusilov offensive in the east draw German guns and men away; their daily allocations fall                           |
-| 31–42 | October–December | French counter-offensive: French heavy artillery (the 400 mm railway guns that smashed Douaumont) and the best French allocation of the season       |
+| 1–7   | January–February | The quiet before Verdun: raids and wiring, the German build-up behind the lines                                                                      |
+| 8–17  | February–April   | German offensive. Germans start with a huge shell stockpile and fresh divisions. French manpower ramps up as the Voie Sacrée and the noria get going |
+| 18–26 | May–June         | The battle for the forts and Fleury. Allocations near parity; phosgene arrives for the Germans                                                       |
+| 27–39 | July–September   | The Somme (from 1 July) and the Brusilov offensive in the east draw German guns and men away; their daily allocations fall                           |
+| 40–52 | October–December | French counter-offensive: French heavy artillery (the 400 mm railway guns that smashed Douaumont) and the best French allocation of the year         |
 
-The arc gives each side a phase to attack and a phase to hold, so both sides' players get both kinds of game, and it
-creates comebacks: a German side that gains early must hold through autumn; a French side that loses ground early has
-its chance later.
+The other years get arcs of their own as their sectors are built.
 
 ### War events
 
-A deck of events, drawn on a schedule that varies from season to season, gives a side a temporary capability or
-pressure. Examples: _Green Cross_ (the Germans get phosgene shells for three days), _the Voie Sacrée closes_ (French
-manpower halved for two days, a sudden thaw), _the 400 mm guns_ (French super-heavy fire for one operation). Events
-appear in the communiqué a day before they take effect, so both sides can plan.
+A deck of events, drawn on a schedule that varies from war to war, gives a side a temporary capability or pressure.
+Examples: _Green Cross_ (the Germans get phosgene shells for three days), _the Voie Sacrée closes_ (French manpower
+halved for two days, a sudden thaw), _the 400 mm guns_ (French super-heavy fire for one operation). Events appear in the
+communiqué a day before they take effect, so both sides can plan.
 
-## Victory: the Balance
+## Victory
 
-The war is a tug of war on one bar, **the Balance**, from −100 (French collapse) to +100 (German collapse), starting
-at 0. Each daily turn moves it by:
+### The Balance: winning a year
+
+Each season is a tug of war on one bar, **the Balance**, from −100 (French collapse) to +100 (German collapse). Each
+daily turn moves it by:
 
 | Factor          | Moves the Balance toward the side that…                     |
 | --------------- | ----------------------------------------------------------- |
@@ -146,23 +170,37 @@ at 0. Each daily turn moves it by:
 | Losses          | Lost fewer men relative to its own daily reinforcement      |
 | Operations      | Achieved its operations' objectives                         |
 
-The losses term is the Germans' 1916 strategy made into a rule: Falkenhayn meant to bleed the French army white. A
-German side that trades well can win without taking Verdun, and a French side that holds ground but spends men
-recklessly can still lose.
+The losses term is attrition made into a rule. In 1916 it is Falkenhayn's strategy at Verdun, to bleed the French army
+white: a German side that trades well can win the year without taking Verdun, and a French side that holds ground but
+spends men recklessly can still lose it.
 
-**The season ends** when:
+The Balance starts each season at 0, or 10 points toward last year's winner. A good year helps the next one without
+deciding it, so every season is worth playing.
 
-- the Balance reaches ±100, a collapse; or
-- the Germans take Verdun itself (every fort of the inner ring, then the citadel), a decisive German victory; or
-- the calendar reaches December, and the Balance decides: beyond ±50 a decisive victory, beyond ±15 a victory, and in
-  between a stalemate, which is also what history recorded.
+**A season is decided** when:
 
-The Balance is public all season, so both sides always know how the war stands and what a good day is worth.
+- the Balance reaches ±100: a **collapse**. The losing side's line falls back one trench system in every open sector
+  overnight and the year is a decisive victory for the winner. The Balance returns to 0 and the year plays on to its
+  last week, its result already settled; or
+- a side takes the year's **strategic objective**, a decisive victory: Paris in 1914 and 1918, Verdun itself in 1916
+  (every fort of the inner ring, then the citadel); or
+- the year's last week ends and the Balance decides: beyond ±50 a decisive victory, beyond ±15 a victory, and in between
+  a stalemate, which is what history recorded for most years.
+
+The Balance is public all season, so both sides always know how the year stands and what a good day is worth.
+
+### Winning the war
+
+Each season's result scores for the war: 2 for a decisive victory, 1 for a victory, nothing for a stalemate. When the
+armistice comes on 11 November 1918, the side with more points wins the war. A tie goes to the side whose line stands
+further forward than at the end of 1914. History is a guide, not a script: a German side that wins 1916 and 1918
+decisively wins the war.
 
 ## Between seasons
 
-- A week off between seasons: the war memorial for the season (every regiment's record, the fallen), rewards, and the
-  next season's announcement.
-- **Seasons vary**: new war-event schedule, the weather's seed, which sectors are open, and later different battles (the
-  Somme 1916, the Chemin des Dames 1917, the spring offensives of 1918), each with its own arc and asymmetries. Players
-  keep their side, regiment and service record across seasons, and choose a side again for each.
+- A week off between seasons: the year's memorial (every regiment's record, the fallen), rewards, and the next year's
+  announcement, with its theatre and new kit.
+- Players keep their regiment and service record from year to year. They choose a side again for each season, with the
+  [smaller side's reward](balance.md#sides) on offer.
+- **Wars vary**: once the armistice is signed, a new war starts from August 1914 with a new war-event schedule and
+  weather seed. Nothing from one war carries into the next except the players' records.

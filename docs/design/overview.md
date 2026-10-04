@@ -37,12 +37,12 @@ Every mechanic should serve at least one of these and contradict none.
 
 ## The four loops
 
-| Loop        | Length        | The player's question                                    | Pays off in                                        |
-| ----------- | ------------- | -------------------------------------------------------- | -------------------------------------------------- |
-| **Moment**  | Seconds       | Who do I shoot, where is cover, which man do I take?     | Kills, survival, suppression, a grenade into a bay |
-| **Session** | 20–90 minutes | What does my squad do this tour: hold, raid, go over?    | A trench taken or held, prisoners, a citation      |
-| **Day**     | 24 real hours | Did our sector keep what it took? Where is the line now? | The daily communiqué and the redrawn front         |
-| **Season**  | About 6 weeks | Who breaks first?                                        | Victory, the regiment's record, rewards that last  |
+| Loop        | Length                       | The player's question                                    | Pays off in                                        |
+| ----------- | ---------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| **Moment**  | Seconds                      | Who do I shoot, where is cover, which man do I take?     | Kills, survival, suppression, a grenade into a bay |
+| **Session** | 20–90 minutes                | What does my squad do this tour: hold, raid, go over?    | A trench taken or held, prisoners, a citation      |
+| **Day**     | 24 real hours                | Did our sector keep what it took? Where is the line now? | The daily communiqué and the redrawn front         |
+| **Season**  | One war year, about 7½ weeks | Who wins the year, and then the war?                     | Victory, the regiment's record, rewards that last  |
 
 A player who drops in for twenty minutes should feel the moment and session loops fully and see their contribution in
 the next communiqué. A player who logs in every day should feel the day loop pull them back. A regiment that plays all
@@ -51,20 +51,20 @@ season should feel it shaped the war.
 ## Clocks
 
 The game runs several clocks at once. Keeping them separate is what lets a battle feel continuous while the war moves at
-a pace players can follow.
+a pace players can follow. The values, and why they were chosen, are in [time and weather](../time-and-weather.md).
 
-| Clock                | Rate                                                     | Drives                                                                  |
-| -------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Simulation tick      | 20 Hz                                                    | Movement, fire, shells, gas                                             |
-| Battle day and night | One cycle every 2 real hours (`DEFAULT_MINUTES_PER_DAY`) | Light, sight range, raids, flares, night wire work                      |
-| Campaign turn        | One real day, ending at the daily cutoff                 | Front update, resource allocation, division relief, communiqué          |
-| Campaign calendar    | One turn ≈ one week of 1916                              | Season's weather climate, historical events, the date on the communiqué |
-| Season               | About 42 turns                                           | The war, from 21 February to mid-December 1916                          |
+| Clock                | Rate                                       | Drives                                                         |
+| -------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| Simulation tick      | 20 Hz                                      | Movement, fire, shells, gas                                    |
+| Battle day and night | One cycle every 117 real minutes           | Light, sight range, raids, flares, night wire work             |
+| Daily turn           | One real day, ending at the daily cutoff   | Front update, resource allocation, division relief, communiqué |
+| Calendar             | One week of the war per turn               | Weather climate, kit, the year's pressures, the date shown     |
+| Season               | One year of the war: 22 to 52 turns        | Who wins the year                                              |
+| War                  | Five seasons, August 1914 to November 1918 | Who wins the war                                               |
 
-The 2-hour day puts night at a different real hour each day, so nobody always plays in the dark, and a long evening
-session sees dusk, night and dawn. The calendar date (summer or winter weather, the Somme drawing German guns away in
-July) comes from the campaign, not from the fast day-night cycle. Today `environment.ts` advances the date with the time
-of day; once the campaign exists, the date should come from the war map and only the hour from the fast clock.
+The 117-minute cycle slips about a third of a cycle against the real clock each day, so someone who always plays at 8 pm
+sees day, dusk and night over three evenings, and a long session sees all of them. The date shown stays fixed for a turn
+("Week of 21 February 1916"); only the hour moves.
 
 ## How the layers connect
 
@@ -81,7 +81,7 @@ of day; once the campaign exists, the date should come from the war map and only
 - The **sector battle** spends it. Every man killed or captured comes out of the pool; every shell fired comes out of
   the budget. Ground taken and consolidated moves the line.
 - At the **daily cutoff** each sector reports its consolidated line, losses and key points to the war map, which updates
-  the front, the season's [Balance](war-map-and-season.md#victory-the-balance) and tomorrow's allocations.
+  the front, the season's [Balance](war-map-and-season.md#the-balance-winning-a-year) and tomorrow's allocations.
 - **Players** carry their squad, rank and regiment through the season, and their service record beyond it.
 
 ## Events for sound and presentation
@@ -114,7 +114,7 @@ What the simulation already does, and where everything else lands. Stages are th
 | Objectives and sector control share                                                     | Built                                |
 | Reserves and the commander AI's counter-attack                                          | Built                                |
 | Weather, sun, moon and sight range                                                      | In progress (`weather.ts`, `sky.ts`) |
-| Squad wipe, redeploy from the manpower pool                                             | Stage 1, next                        |
+| Squad wipe, redeploy from the manpower pool                                             | Built                                |
 | Territory cells, consolidation, the day's line                                          | Stage 1, headless                    |
 | Operations and zero hour                                                                | Stage 1 (single player), stage 2     |
 | Wounded and stretcher bearers, resupply at dumps                                        | Stage 1–2                            |
@@ -129,8 +129,8 @@ What the simulation already does, and where everything else lands. Stages are th
 
 The war-level rules are pure logic and need no networking, so they can be proven before stage 2:
 
-1. **Redeploy and the manpower pool** in the skirmish: a wiped squad comes back from the reserve line after a delay,
-   paid for from a pool that can run dry. This is the first mechanic that makes losses cost something across a session.
+1. **Redeploy and the manpower pool**: done. A wiped squad comes back to the rear trench after a delay, paid for from a
+   pool that can run dry; see [losing the squad](soldier-and-squad.md#losing-the-squad-and-coming-back).
 2. **Territory cells and consolidation**, headless: run a bots-only sector for a compressed day and check that the line
    moves by plausible amounts and that counter-attacks matter.
 3. **A headless season**: a war map of three sectors, run turn by turn on bots alone at different population splits, to

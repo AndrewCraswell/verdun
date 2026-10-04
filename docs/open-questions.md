@@ -6,9 +6,6 @@ Decisions still to make. Move each to the relevant doc once decided.
 
 - **Name.** "Verdun" is the title of an existing commercial WW1 game (M2H/Blackmill, 2015). Check trademarks before
   using it publicly; treat it as a codename until then.
-- **Season length and win condition.** How many weeks; what "one side loses" means on the war map. Proposed in
-  [war map and season](design/war-map-and-season.md#victory-the-balance): six weeks, one daily turn per week of 1916,
-  won on a tug-of-war Balance fed by key points, ground, losses and operations, or by the Germans taking Verdun.
 - **The daily turn.** Proposed in [sector battle](design/sector-battle.md#consolidation): only ground held and
   consolidated for 30 minutes counts at the cutoff, the front moves at most one trench system per sector per day, and a
   10-minute stand-to at about 05:00 UTC applies the turn. Confirm the model and pick the hour from stage 2 telemetry.
@@ -25,8 +22,12 @@ Decisions still to make. Move each to the relevant doc once decided.
   1.5 + 20 per sector.
 - **War-map allocation.** Proposed: the AI allocates, players steer it with a daily main-effort vote. Alternative: a
   player staff of senior ranks.
-- **Prototype the day loop in stage 1?** Redeploy from a manpower pool, consolidation and a headless season harness need
-  no networking. See [suggested next steps](design/overview.md#suggested-next-steps).
+- **Prototype the day loop in stage 1?** Redeploy from a manpower pool is built; consolidation and a headless season
+  harness need no networking either. See [suggested next steps](design/overview.md#suggested-next-steps).
+- **Britain and the other Allies.** The war runs on the whole Western Front, but the sides are French and German. The
+  British held the line from Ypres to the Somme, and the Americans fought in 1918. Leave their sectors out, show them
+  only in the communiqué, or add them later as part of the Allied side? See
+  [the years](design/war-map-and-season.md#the-years).
 - **Business model.** One-off purchase, free with cosmetics, or subscription. Whatever it is, nothing sold may change a
   soldier's fighting strength ([progression](design/progression-and-community.md#rewards-that-last-beyond-a-season)).
 - **Squad size.** 6, 8 or 10 soldiers ([vision](vision.md#core-loop-the-squad) says 6–10; the prototype uses 8). Affects
