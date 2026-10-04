@@ -12,6 +12,17 @@ import { isAlive } from "./squads.ts"
 export const PRONE_EYE_HEIGHT = 0.45
 /** Walking speed while prone: crawling. */
 export const CRAWL_FACTOR = 0.25
+/**
+ * Eye height of a crouching soldier, in metres. On a fire step it keeps his head below the parapet; standing up there
+ * puts his head and shoulders over it, to watch and to shoot.
+ */
+export const CROUCH_EYE_HEIGHT = 1.1
+/** Walking speed while crouching, bent double. */
+export const CROUCH_FACTOR = 0.6
+/** How far round a soldier the parapet is looked for, in metres: the trench's spoil heaps either side. */
+const PARAPET_REACH = [1.5, 2.2, 3] as const
+/** Directions round a soldier the parapet is looked for in. */
+const PARAPET_BEARINGS = 16
 /** Soldiers within this distance of a trench's centre line are in it: on the floor or the fire step. */
 const IN_TRENCH_RADIUS = 1.3
 /** Stances are reconsidered this often, in steps. */
@@ -89,8 +100,36 @@ export function isInTrench(map: BattlefieldMap, x: number, z: number): boolean {
 export function soldierEye(sim: Simulation, soldier: EntityId): WorldPoint {
   const x = sim.soldiers.position.x[soldier]
   const z = sim.soldiers.position.z[soldier]
-  const height = sim.soldiers.stance.value[soldier] === Stance.Prone ? PRONE_EYE_HEIGHT : EYE_HEIGHT
-  return { x, y: heightAt(sim.map, x, z) + height, z }
+  return { x, y: heightAt(sim.map, x, z) + eyeHeight(sim.soldiers.stance.value[soldier]), z }
+}
+
+/** Eye height above the ground for a stance, in metres. */
+export function eyeHeight(stance: number): number {
+  if (stance === Stance.Prone) {
+    return PRONE_EYE_HEIGHT
+  }
+  return stance === Stance.Crouching ? CROUCH_EYE_HEIGHT : EYE_HEIGHT
+}
+
+/**
+ * Whether a soldier in a trench has his head over the parapet: up on the fire step and standing, he sees out, and can
+ * be seen. Crouched on the step, or down on the floor, he sees only the trench.
+ */
+export function seesOverParapet(sim: Simulation, soldier: EntityId): boolean {
+  const x = sim.soldiers.position.x[soldier]
+  const z = sim.soldiers.position.z[soldier]
+  if (!isInTrench(sim.map, x, z)) {
+    return false
+  }
+  const eye = soldierEye(sim, soldier).y
+  let highest = -Infinity
+  for (let bearing = 0; bearing < PARAPET_BEARINGS; bearing++) {
+    const angle = (bearing / PARAPET_BEARINGS) * 2 * Math.PI
+    for (const reach of PARAPET_REACH) {
+      highest = Math.max(highest, heightAt(sim.map, x + Math.cos(angle) * reach, z + Math.sin(angle) * reach))
+    }
+  }
+  return eye > highest + 0.1
 }
 
 export function isSheltering(sim: Simulation, soldier: EntityId): boolean {

@@ -4,8 +4,10 @@ import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.t
 
 /** Keys held to steer the soldier under control, by `KeyboardEvent.code`. */
 export const MOVEMENT_KEYS: ReadonlySet<string> = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
+/** Keys held to run rather than walk. */
+export const RUN_KEYS: ReadonlySet<string> = new Set(["ShiftLeft", "ShiftRight"])
 /** Keys that act on the ground under the pointer: a grenade, a call for fire, a gas shoot. */
-export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV", "KeyC"])
+export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV", "KeyX"])
 
 /** One-off keys, by `KeyboardEvent.code`. Digits 1-8 pick a squad slot. */
 export function actionForKey(code: string): PlayerAction | null {
@@ -33,6 +35,9 @@ export function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyZ") {
     return { kind: "toggle-prone" }
   }
+  if (code === "KeyC") {
+    return { kind: "toggle-crouch" }
+  }
   const digit = /^Digit([1-8])$/.exec(code)?.[1]
   return digit ? { kind: "switch-slot", slot: Number(digit) - 1 } : null
 }
@@ -53,7 +58,7 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
   }
 
   window.addEventListener("keydown", (event) => {
-    if (MOVEMENT_KEYS.has(event.code)) {
+    if (MOVEMENT_KEYS.has(event.code) || RUN_KEYS.has(event.code)) {
       held.add(event.code)
       return
     }
@@ -65,7 +70,7 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
       }
       return
     }
-    if (event.code === "KeyC" && !event.repeat) {
+    if (event.code === "KeyX" && !event.repeat) {
       // Call a gas shoot onto whatever is under the pointer.
       const point = pointerGround()
       if (point) {

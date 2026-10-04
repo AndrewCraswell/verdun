@@ -122,6 +122,31 @@ describe("createPlayerControl", () => {
     expect(sim.pendingCommands).toHaveLength(0)
   })
 
+  it("runs while Shift is held, getting up off his knees to do it, and crouches on C", () => {
+    const { sim, soldier, held, actions, control, frame } = setup()
+    actions.push({ kind: "toggle-crouch" })
+    frame()
+    expect(sim.soldiers.stance.value[soldier]).toBe(Stance.Crouching)
+
+    held.add("KeyW")
+    held.add("ShiftLeft")
+    control.update(0.05)
+    expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier, stance: "standing" })
+    expect(sim.pendingCommands).toContainEqual({ type: "steer", soldier, x: expect.closeTo(0), z: 1, run: true })
+    stepSimulation(sim)
+
+    held.delete("ShiftLeft")
+    control.update(0.05)
+    expect(sim.pendingCommands).toContainEqual({ type: "steer", soldier, x: expect.closeTo(0), z: 1, run: false })
+    expect(sim.soldiers.stance.value[soldier]).toBe(Stance.Standing)
+    actions.push({ kind: "toggle-crouch" })
+    frame()
+    expect(sim.soldiers.stance.value[soldier]).toBe(Stance.Crouching)
+    actions.push({ kind: "toggle-crouch" })
+    frame()
+    expect(sim.soldiers.stance.value[soldier]).toBe(Stance.Standing)
+  })
+
   it("only sends steering when it changes", () => {
     const { sim, held, control } = setup()
     held.add("KeyD")
@@ -240,7 +265,7 @@ describe("createPlayerControl", () => {
     control.update(0.05)
 
     expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
-    expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier: leader, prone: true })
+    expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier: leader, stance: "prone" })
     expect(sim.pendingCommands).toContainEqual({ type: "throw-grenade", soldier: leader, x: 50, z: 70 })
     expect(whistles).toEqual([0, -1, -2, -4, -3])
     stepSimulation(sim)

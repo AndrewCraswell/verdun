@@ -55,6 +55,7 @@ export {
   createSimulation,
   enqueueCommand,
   evacuatedIds,
+  FULL_STAMINA,
   fallenIds,
   GRENADES_CARRIED,
   type Simulation,
@@ -90,7 +91,16 @@ export {
 } from "./snapshot.ts"
 export { createFixedStepper, type FixedStepper } from "./stepper.ts"
 export { createLineOfSight, EYE_HEIGHT, eyeAt, type LineOfSight, type WorldPoint } from "./line-of-sight.ts"
-export { CRAWL_FACTOR, isInTrench, isSheltering, PRONE_EYE_HEIGHT, SHELTER_CALM, soldierEye } from "./stance.ts"
+export {
+  CRAWL_FACTOR,
+  isInTrench,
+  isSheltering,
+  PRONE_EYE_HEIGHT,
+  seesOverParapet,
+  SHELTER_CALM,
+  soldierEye
+} from "./stance.ts"
+export { canRun, WINDED } from "./systems/movement.ts"
 export {
   concentrationAt,
   GAS_CELL,

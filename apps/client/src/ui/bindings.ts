@@ -23,9 +23,11 @@ export const CONTROLS: readonly BindingGroup[] = [
     title: "Your soldier",
     bindings: [
       { keys: "W A S D", action: "Move, relative to the camera" },
+      { keys: "Shift", action: "Run, while you have the breath" },
       { keys: "Mouse", action: "Aim" },
       { keys: "Left-click", action: "Fire" },
       { keys: "Q", action: "Throw a grenade at the pointer" },
+      { keys: "C", action: "Crouch: below the parapet on a fire step, or get back up" },
       { keys: "Z", action: "Lie down and crawl, or get back up" }
     ]
   },
@@ -44,7 +46,7 @@ export const CONTROLS: readonly BindingGroup[] = [
     bindings: [
       { keys: "B", action: "Bombard the enemy line and cut its wire, for two minutes" },
       { keys: "V", action: "Call artillery onto the point under the pointer" },
-      { keys: "C", action: "Call a gas shoot onto the point under the pointer" },
+      { keys: "X", action: "Call a gas shoot onto the point under the pointer" },
       { keys: "G", action: "Whistle: every squad attacks behind a creeping barrage" }
     ]
   },

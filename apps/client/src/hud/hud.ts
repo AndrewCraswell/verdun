@@ -22,6 +22,18 @@ function line(text: string, className?: string): HTMLDivElement {
   return element
 }
 
+/** A thin bar of the soldier's breath, turning warm when he's too winded to run. */
+function staminaBar(share: number, winded: boolean): HTMLDivElement {
+  const bar = document.createElement("div")
+  bar.className = winded ? "hud-stamina hud-stamina-winded" : "hud-stamina"
+  bar.title = winded ? "Winded: can't run" : "Breath"
+  const fill = document.createElement("div")
+  fill.className = "hud-stamina-fill"
+  fill.style.width = `${Math.round(Math.min(1, Math.max(0, share)) * 100)}%`
+  bar.append(fill)
+  return bar
+}
+
 function panel(className: string): HTMLDivElement {
   const element = document.createElement("div")
   element.className = `hud-panel ${className}`
@@ -49,6 +61,8 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
     soldierPanel.replaceChildren(
       line(model.squad, "hud-title"),
       line(soldier.stance),
+      ...(soldier.parapet ? [line(soldier.parapet, "hud-muted")] : []),
+      ...(soldier.alive ? [staminaBar(soldier.stamina, soldier.winded)] : []),
       ...(soldier.mask ? [line(soldier.mask, "hud-alarm")] : []),
       ...(soldier.pinned ? [line("Pinned down", "hud-alarm")] : []),
       ...(soldier.wounded ? [line("Wounded", "hud-alarm")] : []),

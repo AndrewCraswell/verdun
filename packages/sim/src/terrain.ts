@@ -23,6 +23,16 @@ const DOWNHILL_COST = 0.8
 const EASY_DOWNHILL = 0.3
 /** Never slower than this fraction: even a sheer wall gets climbed eventually. */
 const SLOWEST = 0.08
+/**
+ * Grades steeper than this (45 degrees) aren't walked up but scrambled: hands on the sandbags or the crater lip, a knee
+ * up, kit and all. A scramble goes up at `CLIMB_RATE` however steep the wall, so what it costs is its height.
+ */
+const SCRAMBLE_GRADE = 1
+/**
+ * Metres a second a soldier with 30 kg of kit climbs a wall: a 1 m step onto the fire step in under two seconds, out
+ * over a parapet from the step in about two, and up from the floor of a trench in about four. Mud makes it slower.
+ */
+const CLIMB_RATE = 0.6
 
 /** The surface at a point: the nearest sample's. */
 export function surfaceAt(map: BattlefieldMap, x: number, z: number): Surface {
@@ -48,8 +58,19 @@ export function slopeCost(grade: number): number {
  */
 export function groundPace(map: BattlefieldMap, x: number, z: number, directionX: number, directionZ: number): number {
   const surface = surfacePace(map, x, z)
-  const grade =
-    (heightAt(map, x + directionX * SLOPE_PROBE, z + directionZ * SLOPE_PROBE) - heightAt(map, x, z)) / SLOPE_PROBE
-  const slope = 1 / slopeCost(grade)
+  const slope = 1 / slopeCost(Math.min(SCRAMBLE_GRADE, gradeAhead(map, x, z, directionX, directionZ)))
   return Math.max(SLOWEST, surface * slope)
+}
+
+function gradeAhead(map: BattlefieldMap, x: number, z: number, directionX: number, directionZ: number): number {
+  return (heightAt(map, x + directionX * SLOPE_PROBE, z + directionZ * SLOPE_PROBE) - heightAt(map, x, z)) / SLOPE_PROBE
+}
+
+/**
+ * The fastest a soldier can cross the ground ahead, in metres a second, when it rises as a wall: climbing, at
+ * `CLIMB_RATE` straight up, slower in mud. Running doesn't help. Infinity where the ground is gentle enough to walk.
+ */
+export function climbLimit(map: BattlefieldMap, x: number, z: number, directionX: number, directionZ: number): number {
+  const grade = gradeAhead(map, x, z, directionX, directionZ)
+  return grade > SCRAMBLE_GRADE ? (CLIMB_RATE * surfacePace(map, x, z)) / grade : Infinity
 }

@@ -57,3 +57,22 @@
 .hud-muted {
   opacity: 0.7;
 }
+
+.hud-stamina {
+  width: 140px;
+  height: 4px;
+  margin: 4px 0 6px;
+  background: rgb(255 255 255 / 15%);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-stamina-fill {
+  height: 100%;
+  background: #d9cfa8;
+  transition: width 0.25s linear;
+}
+
+.hud-stamina-winded .hud-stamina-fill {
+  background: #ffb27a;
+}

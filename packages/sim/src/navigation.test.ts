@@ -70,6 +70,31 @@ describe("navigation", () => {
     expect(sim.soldiers.position.x[soldier]).toBeCloseTo(120, 0)
   })
 
+  it("works out a route across an unbroken belt in a moment, not seconds", () => {
+    const sim = createSimulation({
+      map: {
+        ...field(),
+        wire: [
+          {
+            points: [
+              [20, 100],
+              [180, 100]
+            ]
+          }
+        ]
+      },
+      seed: 1
+    })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 100, z: 60 })
+    const started = performance.now()
+    const waypoint = nextWaypoint(sim, soldier, { x: 100, z: 160 }, { kind: "point", x: 100, z: 160, radius: 5 })
+
+    // Every way across is through the wire; the cheapest is straight at it.
+    expect(waypoint.z).toBeGreaterThan(60)
+    // A few milliseconds; it once took seconds, re-pushing cells over float rounding.
+    expect(performance.now() - started).toBeLessThan(500)
+  })
+
   it("goes round a ruin", () => {
     const ruin: Scenery = { kind: "ruin", x: 60, z: 130, heading: 0, variant: 0, scale: 1.5 }
     const sim = createSimulation({ map: field([ruin]), seed: 1 })

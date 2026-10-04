@@ -44,7 +44,11 @@ describe("hudModel", () => {
       mask: "Gas mask on",
       grenades: "Grenades 3 of 3",
       pinned: false,
-      wounded: true
+      wounded: true,
+      // The test map lists its trenches without carving them, so even lying down he sees out over flat ground.
+      parapet: "Head over the parapet: seeing out, and seen",
+      stamina: 1,
+      winded: false
     })
     expect(model.squad).toBe("Squad 2 of 3")
     expect(model.objectives).toEqual([{ name: "Crossroads", holder: "No one", contested: false }])
@@ -79,7 +83,10 @@ describe("hudModel", () => {
       mask: null,
       grenades: "",
       pinned: false,
-      wounded: false
+      wounded: false,
+      parapet: null,
+      stamina: 0,
+      winded: false
     })
   })
 

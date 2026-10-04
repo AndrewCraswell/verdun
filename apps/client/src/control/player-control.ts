@@ -41,6 +41,8 @@ export type PlayerAction =
   | { readonly kind: "toggle-fog" }
   /** Lie down (and crawl), or get back up. */
   | { readonly kind: "toggle-prone" }
+  /** Crouch, or stand back up. */
+  | { readonly kind: "toggle-crouch" }
   /** Throw a grenade toward a ground point. */
   | { readonly kind: "grenade"; readonly x: number; readonly z: number }
   /** Dev builds only: kill the controlled soldier. */
@@ -48,7 +50,7 @@ export type PlayerAction =
 
 /** What the player is doing right now, independent of where it comes from (keyboard, gamepad, a test). */
 export interface PlayerInput {
-  /** Movement keys held: `KeyW`, `KeyA`, `KeyS`, `KeyD` as `KeyboardEvent.code` values. */
+  /** Movement and run keys held: `KeyW`, `KeyA`, `KeyS`, `KeyD`, `ShiftLeft` as `KeyboardEvent.code` values. */
   readonly held: ReadonlySet<string>
   /** Ground point under the pointer, or null when it isn't over the battlefield. */
   pointerGround(): GroundVector | null
@@ -127,6 +129,7 @@ export function createPlayerControl(
 ): PlayerControl {
   let lastSoldier: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
+  let lastRun = false
   let lastAim: GroundVector | null = null
   let followedSoldier: EntityId = -1
   camera.panningSensibility = 0
@@ -185,11 +188,14 @@ export function createPlayerControl(
         return
       case "toggle-prone":
         if (squad.leader >= 0) {
-          enqueueCommand(sim, {
-            type: "stance",
-            soldier: squad.leader,
-            prone: sim.soldiers.stance.value[squad.leader] !== Stance.Prone
-          })
+          const prone = sim.soldiers.stance.value[squad.leader] === Stance.Prone
+          enqueueCommand(sim, { type: "stance", soldier: squad.leader, stance: prone ? "standing" : "prone" })
+        }
+        return
+      case "toggle-crouch":
+        if (squad.leader >= 0) {
+          const crouching = sim.soldiers.stance.value[squad.leader] === Stance.Crouching
+          enqueueCommand(sim, { type: "stance", soldier: squad.leader, stance: crouching ? "standing" : "crouching" })
         }
         return
       case "debug-kill":
@@ -217,13 +223,21 @@ export function createPlayerControl(
         // A new soldier starts standing still; resend steering and aim for them from scratch.
         lastSoldier = soldier
         lastSteer = { x: 0, z: 0 }
+        lastRun = false
         lastAim = null
       }
 
       const steer = steerFromKeys(input.held, camera.alpha)
-      if (steer.x !== lastSteer.x || steer.z !== lastSteer.z) {
-        enqueueCommand(sim, { type: "steer", soldier, ...steer })
+      const moving = steer.x !== 0 || steer.z !== 0
+      const run = moving && (input.held.has("ShiftLeft") || input.held.has("ShiftRight"))
+      if (run && !lastRun && sim.soldiers.stance.value[soldier] !== Stance.Standing) {
+        // Breaking into a run gets a man up off his knees or his belly.
+        enqueueCommand(sim, { type: "stance", soldier, stance: "standing" })
+      }
+      if (steer.x !== lastSteer.x || steer.z !== lastSteer.z || run !== lastRun) {
+        enqueueCommand(sim, { type: "steer", soldier, ...steer, run })
         lastSteer = steer
+        lastRun = run
       }
 
       const x = sim.soldiers.position.x[soldier]

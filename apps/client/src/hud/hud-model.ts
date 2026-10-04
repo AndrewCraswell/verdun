@@ -15,7 +15,11 @@ import {
   Shell,
   UNLIMITED,
   evacuatedIds,
-  woundedIds
+  woundedIds,
+  canRun,
+  FULL_STAMINA,
+  isInTrench,
+  seesOverParapet
 } from "@verdun/sim"
 import { battleHour, weekLabel } from "../environment/calendar.ts"
 
@@ -34,6 +38,11 @@ export interface SoldierStatus {
   readonly grenades: string
   readonly pinned: boolean
   readonly wounded: boolean
+  /** In a trench: whether his head is over the parapet, seeing out and seen, or below it. */
+  readonly parapet: string | null
+  /** Breath left, from 1 (rested) to 0, and whether he's too winded to run. */
+  readonly stamina: number
+  readonly winded: boolean
 }
 
 /** One line of the battle log. */
@@ -72,7 +81,21 @@ function stanceName(stance: number): string {
   if (stance === Stance.Prone) {
     return "Lying down"
   }
+  if (stance === Stance.Crouching) {
+    return "Crouching"
+  }
   return stance === Stance.Sheltering ? "In a dugout" : "Standing"
+}
+
+/** In a trench, whether the soldier is looking over the parapet or keeping his head down. */
+function parapetLine(sim: Simulation, soldier: EntityId): string | null {
+  if (!isInTrench(sim.map, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])) {
+    return null
+  }
+  if (sim.soldiers.stance.value[soldier] === Stance.Sheltering) {
+    return null
+  }
+  return seesOverParapet(sim, soldier) ? "Head over the parapet: seeing out, and seen" : "Below the parapet"
 }
 
 function maskName(state: number): string | null {
@@ -111,7 +134,10 @@ export function hudModel(sim: Simulation, squad: Squad, tickRate: number): HudMo
       mask: alive ? maskName(sim.soldiers.mask.state[soldier]) : null,
       grenades: alive ? `Grenades ${sim.soldiers.grenades.count[soldier]} of ${GRENADES_CARRIED}` : "",
       pinned: alive && sim.soldiers.suppression.value[soldier] >= PINNED,
-      wounded: alive && sim.soldiers.health.value[soldier] < 1
+      wounded: alive && sim.soldiers.health.value[soldier] < 1,
+      parapet: alive ? parapetLine(sim, soldier) : null,
+      stamina: alive ? sim.soldiers.stamina.value[soldier] / FULL_STAMINA : 0,
+      winded: alive && !canRun(sim, soldier)
     },
     squad: squadLine(sim, squad, fighting, tickRate),
     reserves:

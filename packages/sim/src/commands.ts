@@ -26,6 +26,8 @@ export interface SteerCommand {
   readonly soldier: EntityId
   readonly x: number
   readonly z: number
+  /** Run rather than walk, if he's standing and has the breath for it. */
+  readonly run?: boolean
 }
 
 /** Turns a soldier to face, and aim, along a direction on the ground plane. */
@@ -69,13 +71,14 @@ export interface FireCommand {
 }
 
 /**
- * Stands a soldier up or lays them down: for the soldier a player controls, whose stance their squad doesn't decide. Prone
- * soldiers crawl. A soldier can't be ordered down a dugout; that's their squad's call under shellfire.
+ * Stands a soldier up, crouches him or lays him down: for the soldier a player controls, whose stance their squad doesn't
+ * decide. Crouching men walk slowly and stay below a parapet; prone men crawl. A soldier can't be ordered down a dugout;
+ * that's their squad's call under shellfire.
  */
 export interface StanceCommand {
   readonly type: "stance"
   readonly soldier: EntityId
-  readonly prone: boolean
+  readonly stance: "standing" | "crouching" | "prone"
 }
 
 /** A player throws a grenade toward a ground point, as far as a throw reaches. */
@@ -186,6 +189,8 @@ export type Command =
   | FireMissionCommand
   | BarrageAttackCommand
 
+const STANCES = { standing: Stance.Standing, crouching: Stance.Crouching, prone: Stance.Prone } as const
+
 /** A soldier still in the fight: the fallen and prisoners ignore every order. */
 function isSoldier(sim: Simulation, entity: EntityId): boolean {
   return (
@@ -224,6 +229,7 @@ export function applyCommand(sim: Simulation, command: Command): void {
       addComponent(sim.world, command.soldier, sim.soldiers.steer)
       sim.soldiers.steer.x[command.soldier] = command.x * scale
       sim.soldiers.steer.z[command.soldier] = command.z * scale
+      sim.soldiers.steer.run[command.soldier] = command.run === true ? 1 : 0
       return
     }
     case "face": {
@@ -273,7 +279,7 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "stance": {
       if (isSoldier(sim, command.soldier)) {
-        sim.soldiers.stance.value[command.soldier] = command.prone ? Stance.Prone : Stance.Standing
+        sim.soldiers.stance.value[command.soldier] = STANCES[command.stance]
       }
       return
     }

@@ -151,6 +151,10 @@ function createHeap(initial: number) {
     get size() {
       return size
     },
+    /** The smallest key, of the cell `pop` returns next. */
+    get topKey() {
+      return keyAt(0)
+    },
     push(cell: number, key: number) {
       if (size === cells.length) {
         const grownCells = new Int32Array(cells.length * 2)
@@ -237,8 +241,13 @@ function flowField(state: NavState, goal: NavGoal): Float32Array {
     }
   }
   while (heap.size > 0) {
+    const key = heap.topKey
     const cell = heap.pop()
     const here = read(distance, cell)
+    if (key > here) {
+      // A stale entry: the cell was reached more cheaply since it was pushed.
+      continue
+    }
     const column = cell % columns
     const row = Math.floor(cell / columns)
     for (const [dc, dr, length] of NEIGHBOURS) {
@@ -255,7 +264,9 @@ function flowField(state: NavState, goal: NavGoal): Float32Array {
       // The field runs from the goal outward, so the walk is from `next` to `cell`: its slope is that way round.
       const run = length * NAV_CELL
       const grade = (read(height, cell) - read(height, next)) / run
-      const total = here + run * through * slopeCost(grade)
+      // Rounded to the field's own precision first: comparing an unrounded total against a rounded-up stored one
+      // would keep "improving" cells by nothing, and push them again and again.
+      const total = Math.fround(here + run * through * slopeCost(grade))
       if (total < read(distance, next)) {
         distance[next] = total
         heap.push(next, total)

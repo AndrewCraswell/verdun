@@ -143,6 +143,8 @@ const SHRAPNEL_SHORT = 15
  * burst), so the 50% radius roughly halves.
  */
 const PRONE_LETHAL_FACTOR = 0.5
+/** Crouching men are smaller targets for fragments, if not by much. */
+const CROUCH_LETHAL_FACTOR = 0.8
 /**
  * Deep dugouts, 6 to 9 m down, shrugged off all but a direct hit from a heavy shell on the entrance; a shaft can still
  * collapse and bury the men inside.
@@ -150,6 +152,16 @@ const PRONE_LETHAL_FACTOR = 0.5
 const DUGOUT_LETHAL_FACTOR = 0.2
 /** Shrapnel balls can't reach men lying flat as well as men standing: they come down at a shallow angle. */
 const SHRAPNEL_PRONE_FACTOR = 0.35
+const SHRAPNEL_CROUCH_FACTOR = 0.7
+/** How much of a burst's reach, or a shrapnel ball's chance, a stance leaves a man exposed to; standing is all of it. */
+const LETHAL_BY_STANCE: Readonly<Record<number, number>> = {
+  [Stance.Prone]: PRONE_LETHAL_FACTOR,
+  [Stance.Crouching]: CROUCH_LETHAL_FACTOR
+}
+const SHRAPNEL_BY_STANCE: Readonly<Record<number, number>> = {
+  [Stance.Prone]: SHRAPNEL_PRONE_FACTOR,
+  [Stance.Crouching]: SHRAPNEL_CROUCH_FACTOR
+}
 /** Batteries stand this far behind their own end of the map, out of sight. */
 const BATTERY_DISTANCE = 4000
 /** Terrain sight lines are rebuilt at most this often after craters, in steps (2 s): the rebuild costs about 14 ms. */
@@ -361,7 +373,7 @@ function halfLethalFor(sim: Simulation, stats: ShellStats, at: WorldPoint, soldi
   }
   // Sodden mud swallows a burst: the shell buries itself and the earth takes its fragments.
   const radius = (shielded(sim, at, soldier) ? stats.lethalCovered : stats.lethalExposed) * burstReach(sim, at.x, at.z)
-  return stance === Stance.Prone ? radius * PRONE_LETHAL_FACTOR : radius
+  return radius * (LETHAL_BY_STANCE[stance] ?? 1)
 }
 
 /** Whether earth shields a soldier from a burst. Without sight lines, everyone is treated as exposed. */
@@ -455,7 +467,7 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
       SHRAPNEL_HIT *
       (1 - along / SHRAPNEL_REACH) *
       (shielded(sim, at, soldier) ? 0.1 : 1) *
-      (stance === Stance.Prone ? SHRAPNEL_PRONE_FACTOR : 1)
+      (SHRAPNEL_BY_STANCE[stance] ?? 1)
     if (sim.rng.next() < chance) {
       wound(sim, soldier, 0.8)
     }

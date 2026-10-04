@@ -20,7 +20,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 18
+export const SIM_STATE_VERSION = 19
 
 export interface SoldierState {
   readonly id: number
@@ -30,7 +30,7 @@ export interface SoldierState {
   readonly speed: number
   readonly moveOrder: { readonly x: number; readonly z: number; readonly run: boolean } | null
   readonly facing: { readonly x: number; readonly z: number }
-  readonly steer: { readonly x: number; readonly z: number } | null
+  readonly steer: { readonly x: number; readonly z: number; readonly run: boolean } | null
   readonly health: number
   readonly dead: boolean
   readonly captured: boolean
@@ -38,6 +38,8 @@ export interface SoldierState {
   readonly wounded: boolean
   readonly evacuated: boolean
   readonly evacuateAt: number
+  readonly stamina: number
+  readonly spent: boolean
   readonly treatment: number
   readonly weapon: Weapon
   readonly cooldown: number
@@ -103,7 +105,7 @@ function toMask(value: number): MaskState {
 }
 
 function toStance(value: number): Stance {
-  const stances: readonly Stance[] = [Stance.Standing, Stance.Prone, Stance.Sheltering]
+  const stances: readonly Stance[] = [Stance.Standing, Stance.Prone, Stance.Sheltering, Stance.Crouching]
   return stances.find((stance) => stance === value) ?? Stance.Standing
 }
 
@@ -127,13 +129,15 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
         ? { x: moveOrder.x[id], z: moveOrder.z[id], run: moveOrder.run[id] === 1 }
         : null,
       facing: { x: facing.x[id], z: facing.z[id] },
-      steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id] } : null,
+      steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id], run: steer.run[id] === 1 } : null,
       health: health.value[id],
       dead: hasComponent(sim.world, id, dead),
       captured: hasComponent(sim.world, id, sim.soldiers.captured),
       wounded: hasComponent(sim.world, id, sim.soldiers.wounded),
       evacuated: hasComponent(sim.world, id, sim.soldiers.evacuated),
       evacuateAt: sim.soldiers.casualty.evacuateAt[id],
+      stamina: sim.soldiers.stamina.value[id],
+      spent: sim.soldiers.stamina.spent[id] === 1,
       treatment: sim.soldiers.casualty.treatment[id],
       weapon: weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle,
       cooldown: weapon.cooldown[id],
@@ -221,6 +225,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.steer)
       sim.soldiers.steer.x[id] = soldier.steer.x
       sim.soldiers.steer.z[id] = soldier.steer.z
+      sim.soldiers.steer.run[id] = soldier.steer.run ? 1 : 0
     }
     sim.soldiers.health.value[id] = soldier.health
     sim.soldiers.weapon.cooldown[id] = soldier.cooldown
@@ -249,6 +254,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.evacuated)
     }
     sim.soldiers.casualty.evacuateAt[id] = soldier.evacuateAt
+    sim.soldiers.stamina.value[id] = soldier.stamina
+    sim.soldiers.stamina.spent[id] = soldier.spent ? 1 : 0
     sim.soldiers.casualty.treatment[id] = soldier.treatment
   }
   for (const [squadId, squad] of snapshot.squads.entries()) {

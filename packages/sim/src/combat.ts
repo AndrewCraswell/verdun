@@ -67,6 +67,10 @@ const WAIST_DROP = 0.8
 const COVER_FACTOR = 0.35
 /** A prone soldier shows a third of a standing man's height, and less again of his width end-on. */
 const PRONE_FACTOR = 0.3
+/** A crouching soldier in the open shows about two thirds of a standing man. */
+const CROUCH_FACTOR = 0.6
+/** A crouching man's waist is this far below his eye. */
+const CROUCH_WAIST_DROP = 0.5
 /** At or above this suppression a soldier is pinned: hugging the bottom of the trench or a crater, not firing. */
 export const PINNED = 0.6
 /** Beyond this range, soldiers left to themselves don't waste shots on a head peeking over a parapet. */
@@ -130,11 +134,13 @@ function isExposed(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   if (!sim.lineOfSight) {
     return false
   }
-  if (sim.soldiers.stance.value[target] !== Stance.Standing) {
+  const stance = sim.soldiers.stance.value[target]
+  if (stance !== Stance.Standing && stance !== Stance.Crouching) {
     return false
   }
   const head = soldierEye(sim, target)
-  return sim.lineOfSight.isClear(soldierEye(sim, shooter), { ...head, y: head.y - WAIST_DROP })
+  const waist = head.y - (stance === Stance.Crouching ? CROUCH_WAIST_DROP : WAIST_DROP)
+  return sim.lineOfSight.isClear(soldierEye(sim, shooter), { ...head, y: waist })
 }
 
 /** Chance that a shot hits, given range, the target's cover and movement, and the shooter's state. */
@@ -148,6 +154,8 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   } else if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
     // A pinned target is flat in the bottom of a trench or crater: as good as covered.
     chance *= COVER_FACTOR
+  } else if (sim.soldiers.stance.value[target] === Stance.Crouching) {
+    chance *= CROUCH_FACTOR
   }
   if (isMoving(sim, target)) {
     chance *= MOVING_TARGET_FACTOR

@@ -5,7 +5,7 @@ export type Side = (typeof Side)[keyof typeof Side]
  * How a soldier holds themselves. Standing to walk or man a fire step; prone in the open, a third of the target and far
  * safer from shell fragments; sheltering down a dugout under bombardment, out of the fight but nearly safe.
  */
-export const Stance = { Standing: 0, Prone: 1, Sheltering: 2 } as const
+export const Stance = { Standing: 0, Prone: 1, Sheltering: 2, Crouching: 3 } as const
 export type Stance = (typeof Stance)[keyof typeof Stance]
 
 /** A soldier's gas mask: off, being pulled on, or on. */
@@ -32,9 +32,9 @@ export interface SoldierComponents {
   readonly facing: { readonly x: Float32Array; readonly z: Float32Array }
   /**
    * Present while a player steers the soldier directly: a direction with length up to 1, as a fraction of walking speed.
-   * Steering overrides any move order.
+   * Steering overrides any move order. `run` is 1 while the player holds the run key.
    */
-  readonly steer: { readonly x: Float32Array; readonly z: Float32Array }
+  readonly steer: { readonly x: Float32Array; readonly z: Float32Array; readonly run: Uint8Array }
   /** Index into `Simulation.squads`, or -1 for a soldier without a squad. */
   readonly squad: { readonly id: Int32Array }
   /** Remaining health, from 1 (unhurt) to 0. */
@@ -82,6 +82,11 @@ export interface SoldierComponents {
   readonly gasDose: { readonly value: Float32Array }
   /** Hand grenades still carried. */
   readonly grenades: { readonly count: Uint8Array }
+  /**
+   * Breath for running and climbing, from 100 down to 0, and whether the soldier is spent: he ran himself out and walks
+   * slowly until he has his breath back.
+   */
+  readonly stamina: { readonly value: Float32Array; readonly spent: Uint8Array }
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -91,7 +96,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     speed: { value: new Float32Array(capacity) },
     moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
-    steer: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    steer: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     squad: { id: new Int32Array(capacity).fill(-1) },
     health: { value: new Float32Array(capacity) },
     dead: {},
@@ -115,6 +120,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
       clearSince: new Int32Array(capacity).fill(-1)
     },
     gasDose: { value: new Float32Array(capacity) },
-    grenades: { count: new Uint8Array(capacity) }
+    grenades: { count: new Uint8Array(capacity) },
+    stamina: { value: new Float32Array(capacity), spent: new Uint8Array(capacity) }
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { actionForKey, MOVEMENT_KEYS, POINTER_KEYS } from "../control/browser-input.ts"
+import { actionForKey, MOVEMENT_KEYS, POINTER_KEYS, RUN_KEYS } from "../control/browser-input.ts"
 import { CAMERA_KEYS } from "../control/camera-rig.ts"
 import { allBindings, CONTROLS, registerBindings } from "./bindings.ts"
 
@@ -13,7 +13,9 @@ function keyLabel(code: string): string {
     ArrowDown: "Arrow keys",
     ArrowLeft: "Arrow keys",
     ArrowRight: "Arrow keys",
-    Backquote: "`"
+    Backquote: "`",
+    ShiftLeft: "Shift",
+    ShiftRight: "Shift"
   }
   return names[code] ?? code.replace(/^Key/, "").replace(/^Digit/, "")
 }
@@ -43,6 +45,7 @@ describe("the controls list", () => {
     const handled = [
       ...candidates.filter((code) => actionForKey(code) !== null),
       ...MOVEMENT_KEYS,
+      ...RUN_KEYS,
       ...POINTER_KEYS,
       ...CAMERA_KEYS,
       "Escape",

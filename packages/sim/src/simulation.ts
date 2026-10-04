@@ -39,6 +39,8 @@ const DEFAULT_CAPACITY = 8192
 export const GRENADES_CARRIED = 3
 /** Average marching pace with kit, in metres per second. */
 export const WALKING_SPEED = 1.4
+/** A rested soldier's stamina. */
+export const FULL_STAMINA = 100
 
 export interface Simulation {
   readonly map: BattlefieldMap
@@ -195,6 +197,8 @@ export function spawnSoldier(
   sim.soldiers.mask.clearSince[soldier] = -1
   sim.soldiers.gasDose.value[soldier] = 0
   sim.soldiers.grenades.count[soldier] = GRENADES_CARRIED
+  sim.soldiers.stamina.value[soldier] = FULL_STAMINA
+  sim.soldiers.stamina.spent[soldier] = 0
   const towardEnemy = side === Side.French ? 1 : -1
   facingStore.x[soldier] = facing?.x ?? 0
   facingStore.z[soldier] = facing?.z ?? towardEnemy
