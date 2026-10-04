@@ -28,6 +28,7 @@ const surface: WeatherSurface = {
   shadowDepth: 0.3,
   snow: 0.5,
   snowBrightness: 0.8,
+  groundFog: 0.4,
   waterMargin: 0.2,
   waterShown: 1,
   rain: 0.5,
@@ -73,6 +74,7 @@ describe("WeatherSurfacePlugin", () => {
       expect(code).toContain("vNormalW")
       expect(code).toContain("weatherBasinMap")
       expect(code).toContain("weatherTrodden")
+      expect(code).toContain("weatherPool")
       expect(code).toContain("viewDirectionW")
     }
     expect(plugin.getCustomCode("vertex")).toBeNull()
@@ -92,7 +94,7 @@ describe("WeatherSurfacePlugin", () => {
     plugin.bindForSubMesh(buffer as unknown as UniformBuffer)
 
     expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherClouds", 0.5, -0.1, 0.4, 0.3)
-    expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherSnow", 0.5, 0.8, 1 / CLOUD_SCALE, 0)
+    expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherSnow", 0.5, 0.8, 1 / CLOUD_SCALE, 0.4)
     expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherWater", 0.2, 1, 0.5, 3)
     expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherReflect", 0.4, 0.45, 0.5, 10)
     // Texel centres: ground x = 0 is the first texel's middle, half a texel in from the edge.

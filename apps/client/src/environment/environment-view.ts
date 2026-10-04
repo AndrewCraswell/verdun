@@ -10,7 +10,7 @@ import { Observable } from "@babylonjs/core/Misc/observable"
 import type { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { type Simulation, soldierIds, WeatherPattern } from "@verdun/sim"
+import { type Simulation, soldierIds, type Weather, WeatherPattern } from "@verdun/sim"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createGroundMarks } from "./ground-marks.ts"
 import { createPrecipitation, type Precipitation } from "./precipitation.ts"
@@ -70,6 +70,18 @@ const PUDDLES = { from: 0.2, full: 0.95, dry: 0.5, sodden: 0.05, heavy: 4 } as c
 const SWAY = { perMetre: 0.2, least: 0.15, most: 3 } as const
 /** Seconds between marking where men tread in snow, and between finding the hollows again after craters. */
 const MARKS = { tread: 0.5, reshape: 2 } as const
+
+/**
+ * How thick fog lies in the low ground, from 0 to 1. Fog in the forecast fills the ravines first; and on a clear, calm
+ * night over damp ground, the air cooling off the ground drains into the hollows as radiation fog even when the forecast
+ * is clear. Wind stirs both away.
+ */
+export function groundFogFor(weather: Weather, windSpeed: number, light: number): number {
+  const foggy = Math.min(1, Math.max(0, Math.log(20_000 / weather.visibility) / Math.log(100)))
+  const radiation = 0.6 * (1 - light) * (1 - weather.cloudCover) * smoothstep(0.2, 0.6, weather.wetness)
+  const calm = 1 - smoothstep(2, 7, windSpeed)
+  return Math.min(1, (0.8 * foggy + radiation) * (0.35 + 0.65 * calm))
+}
 
 const smoothstep = (from: number, to: number, value: number) => {
   const t = Math.min(1, Math.max(0, (value - from) / (to - from)))
@@ -141,6 +153,7 @@ export function createEnvironmentView(
     shadowDepth: 0,
     snow: 0,
     snowBrightness: 1,
+    groundFog: 0,
     waterMargin: PUDDLES.dry,
     waterShown: 0,
     rain: 0,
@@ -194,6 +207,8 @@ export function createEnvironmentView(
       surface.shadowDepth = CLOUD_SHADOW * sunUp * Math.sin(Math.PI * weather.cloudCover)
       surface.snow = Math.min(1, weather.snowCover / SNOW_COVERS)
       surface.snowBrightness = 0.15 + 0.85 * light
+
+      surface.groundFog = groundFogFor(weather, windSpeed, light)
 
       // Puddles rise in the hollows as the ground soaks, mirror the haze, and ripple in rain; frozen, they lie still.
       const soaking = smoothstep(PUDDLES.from, PUDDLES.full, weather.wetness)

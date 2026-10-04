@@ -36,6 +36,11 @@ describe("the ground's basins", () => {
     expect(at(20, 20)).toBeLessThanOrEqual(9.25 + 1e-6)
     // Level ground far from it holds none: the water line is the ground itself.
     expect(at(5, 5)).toBeCloseTo(10, 5)
+    // Fog pools below the lie of the land round about: in the crater's floor, not on the level field.
+    const pool = (x: number, z: number) => basins.pool[z * basins.width + x]!
+    expect(pool(20, 20)).toBeGreaterThan(9)
+    expect(pool(20, 20)).toBeLessThan(10)
+    expect(pool(5, 5)).toBeCloseTo(10, 1)
   })
 })
 

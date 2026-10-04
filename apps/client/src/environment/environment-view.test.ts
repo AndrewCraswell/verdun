@@ -18,7 +18,7 @@ import {
 } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
 import { fogDensityFor, lightDirection, lightingFor, lightLevel, sunColorAt, twilight } from "./daylight.ts"
-import { createEnvironmentView } from "./environment-view.ts"
+import { createEnvironmentView, groundFogFor } from "./environment-view.ts"
 import { dropsPerSecond } from "./precipitation.ts"
 
 const engines: NullEngine[] = []
@@ -197,6 +197,16 @@ describe("the environment view", () => {
     expect(view?.surface.shadowDepth).toBeLessThan(0.1)
     expect(view?.surface.cloudOffsetX).toBeLessThan(0)
     view?.dispose()
+  })
+
+  it("lays fog in the low ground in fog, and on clear, calm, damp nights, and lets the wind stir it away", () => {
+    const fair = { ...typicalWeather(WeatherPattern.Fair, { x: 1, z: 0 }), wetness: 0.15 }
+    const fog = typicalWeather(WeatherPattern.Fog, { x: 1, z: 0 })
+    expect(groundFogFor(fair, 1, 1)).toBeLessThan(0.15)
+    expect(groundFogFor(fog, 1, 0.6)).toBeGreaterThan(0.6)
+    const clearNight = { ...typicalWeather(WeatherPattern.Clear, { x: 1, z: 0 }), wetness: 0.7 }
+    expect(groundFogFor(clearNight, 1, 0)).toBeGreaterThan(0.4)
+    expect(groundFogFor(clearNight, 8, 0)).toBeLessThan(groundFogFor(clearNight, 1, 0) / 2)
   })
 
   it("lets snow fall when it is cold", () => {

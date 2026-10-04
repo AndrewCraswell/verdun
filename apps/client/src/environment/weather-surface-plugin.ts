@@ -21,6 +21,8 @@ export interface WeatherSurface {
   snow: number
   /** How bright snow looks by the light there is, from 0 (black night) to 1 (noon). */
   snowBrightness: number
+  /** How thick fog lies in the low ground, from 0 (none) to 1: drawn in the haze's colour (the `reflect` colour). */
+  groundFog: number
   /** How far below the brim of each hollow water stands, in metres: near it when the ground is sodden, deep when dry. */
   waterMargin: number
   /** How much standing water shows, from 0 (none: dry weather) to 1. */
@@ -102,7 +104,8 @@ export function createCloudTexture(scene: Scene, size = 128): RawTexture {
 /**
  * Marks the ground and everything on it with the weather, in both GLSL (WebGL2) and WGSL (WebGPU): cloud shadows
  * drifting across the field on a broken-cloud day; puddles standing in the hollows after rain, reflecting the sky and
- * rippled by rain; and snow lying on level ground and the tops of things, trodden through where men walked. Before the
+ * rippled by rain; snow lying on level ground and the tops of things, trodden through where men walked; and fog lying
+ * in the ravines and big craters, up to a few metres below the lie of the land round them. Before the
  * fog of war and the scene's distance fog, so unseen and far ground still darken and fade over it.
  *
  * Water stands on any level surface below its hollow's water line, so a plank lying in a flooded crater goes under and
@@ -161,7 +164,7 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
   }
 
   override bindForSubMesh(uniformBuffer: UniformBuffer): void {
-    const { cloudOffsetX, cloudOffsetZ, shadowedShare, shadowDepth, snow, snowBrightness } = this.surface
+    const { cloudOffsetX, cloudOffsetZ, shadowedShare, shadowDepth, snow, snowBrightness, groundFog } = this.surface
     uniformBuffer.updateFloat4(
       "weatherClouds",
       cloudOffsetX / CLOUD_SCALE,
@@ -169,7 +172,7 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
       shadowedShare,
       shadowDepth
     )
-    uniformBuffer.updateFloat4("weatherSnow", snow, snowBrightness, 1 / CLOUD_SCALE, 0)
+    uniformBuffer.updateFloat4("weatherSnow", snow, snowBrightness, 1 / CLOUD_SCALE, groundFog)
     const { waterMargin, waterShown, rain, time, reflectR, reflectG, reflectB } = this.surface
     uniformBuffer.updateFloat4("weatherWater", waterMargin, waterShown, rain, time)
     uniformBuffer.updateFloat4("weatherReflect", reflectR, reflectG, reflectB, this.marks.base)
@@ -202,7 +205,9 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
           weatherLevel = smoothstep(0.55, 0.85, normalize(fragmentInputs.vNormalW).y);
           #endif
           let weatherMarksAt: vec2f = fragmentInputs.vPositionW.xz * uniforms.weatherMarks.xy + uniforms.weatherMarks.zw;
-          let weatherBasin: f32 = textureSample(weatherBasinMap, weatherBasinMapSampler, weatherMarksAt).r + uniforms.weatherReflect.w;
+          let weatherBasins: vec2f = textureSample(weatherBasinMap, weatherBasinMapSampler, weatherMarksAt).rg + vec2f(uniforms.weatherReflect.w);
+          let weatherBasin: f32 = weatherBasins.x;
+          let weatherPool: f32 = smoothstep(1.0, 6.0, weatherBasins.y - fragmentInputs.vPositionW.y) * uniforms.weatherSnow.w;
           let weatherTrodden: f32 = textureSample(weatherTrackMap, weatherTrackMapSampler, weatherMarksAt).r;
           let weatherWet: f32 = clamp((weatherBasin - uniforms.weatherWater.x - fragmentInputs.vPositionW.y) * 25.0, 0.0, 1.0) * weatherLevel * uniforms.weatherWater.y;
           let weatherRipplesAt: vec2f = fragmentInputs.vPositionW.xz * 0.35;
@@ -215,6 +220,7 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
           weatherColor = mix(weatherColor, weatherPuddle, weatherWet);
           weatherColor = weatherColor * (1.0 - 0.3 * uniforms.weatherSnow.x * weatherTrodden * weatherLevel);
           weatherColor = mix(weatherColor, vec3f(0.72, 0.74, 0.78) * uniforms.weatherSnow.y, weatherSnowHere);
+          weatherColor = mix(weatherColor, uniforms.weatherReflect.rgb, weatherPool * 0.85);
           color = vec4f(weatherColor, color.a);
         `
       }
@@ -231,7 +237,9 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
         weatherLevel = smoothstep(0.55, 0.85, normalize(vNormalW).y);
         #endif
         vec2 weatherMarksAt = vPositionW.xz * weatherMarks.xy + weatherMarks.zw;
-        float weatherBasin = texture2D(weatherBasinMap, weatherMarksAt).r + weatherReflect.w;
+        vec2 weatherBasins = texture2D(weatherBasinMap, weatherMarksAt).rg + vec2(weatherReflect.w);
+        float weatherBasin = weatherBasins.x;
+        float weatherPool = smoothstep(1.0, 6.0, weatherBasins.y - vPositionW.y) * weatherSnow.w;
         float weatherTrodden = texture2D(weatherTrackMap, weatherMarksAt).r;
         float weatherWet = clamp((weatherBasin - weatherWater.x - vPositionW.y) * 25.0, 0.0, 1.0) * weatherLevel * weatherWater.y;
         vec2 weatherRipplesAt = vPositionW.xz * 0.35;
@@ -244,6 +252,7 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
         color.rgb = mix(color.rgb, weatherPuddle, weatherWet);
         color.rgb *= 1.0 - 0.3 * weatherSnow.x * weatherTrodden * weatherLevel;
         color.rgb = mix(color.rgb, vec3(0.72, 0.74, 0.78) * weatherSnow.y, weatherSnowHere);
+        color.rgb = mix(color.rgb, weatherReflect.rgb, weatherPool * 0.85);
       `
     }
   }

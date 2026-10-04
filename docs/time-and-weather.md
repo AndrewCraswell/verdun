@@ -387,6 +387,12 @@ In `apps/client/src/environment/`:
   it isn't. The water darkens the ground and mirrors the haze, more at a glancing angle (Fresnel), and rain ripples it;
   frozen, it lies still. Craters re-shape the hollows, at most every 2 s. The level's permanent crater ponds are their
   own meshes and stay whatever the weather.
+- **Fog in the low ground** (the same plugin): a second channel of the hollows texture holds the ground's mean height
+  over about 25 m (two box blurs at 1 m). Anything drawn 1 m or more below it starts to fade into the haze's colour,
+  fully by 6 m: ravines, valleys and the big craters fill while the ground round them stays clear, and tree tops stand
+  out of it. How thick it lies (`groundFogFor`) follows the fog in the forecast, and on clear, calm, damp nights the
+  cooling air drains into the hollows as radiation fog even when the forecast is clear; wind stirs both away. The
+  level's mist particles drift over it.
 - **Wind in the grass and trees** (`wind-sway-plugin.ts`): a vertex plugin on the kit's shared materials, in GLSL and
   WGSL. The level tags its plant batches with a stiffness (`metadata.sway`: grass 1, crowned dead trees 0.25, trunks
   stripped to poles 0.1), and only tagged meshes compile the swaying variant, one per stiffness band, so there is no

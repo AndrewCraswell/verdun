@@ -9,6 +9,8 @@ import { type BattlefieldMap, sampleIndex } from "@verdun/map"
 const STEP = 1
 /** Water gathers in hollows below the ground's mean height over about this radius, in metres: a shell crater's. */
 const BASIN_RADIUS = 3
+/** Ground fog pools below the ground's mean height over about this radius, in metres: ravines, valleys, the big craters. */
+const POOL_RADIUS = 25
 /** Standing water is never deeper than this over the ground beneath it, in metres: puddles, not ponds. */
 const DEEPEST = 0.25
 /** A boot print, by how trodden it leaves the snow: where the man stepped, and the texels beside it. */
@@ -23,6 +25,8 @@ export interface Basins {
   readonly step: number
   /** The highest water can stand at each point, in metres: the ground's mean height round it, but never far above it. */
   readonly level: Float32Array
+  /** The ground's mean height over a wide circle round each point, in metres: ground fog lies below it. */
+  readonly pool: Float32Array
 }
 
 /** Two box blurs in a row, each `radius` texels each way, along rows then columns: near enough a Gaussian. */
@@ -77,12 +81,15 @@ export function basinsOf(map: BattlefieldMap, step = STEP): Basins {
   for (let index = 0; index < level.length; index++) {
     level[index] = Math.min(mean[index]!, ground[index]! + DEEPEST)
   }
-  return { width, height, step: stride * map.cellSize, level }
+  const pool = blur(ground, width, height, Math.max(1, Math.round(POOL_RADIUS / (stride * map.cellSize) / 2)))
+  return { width, height, step: stride * map.cellSize, level, pool }
 }
 
 /** The ground's marks for the weather to draw on: its hollows for puddles, and trails trodden in the snow. */
 export interface GroundMarks {
-  /** The water level each hollow can hold, less `base`, in a half-float red channel. */
+  /**
+   * Half floats, less `base`: in red, the water level each hollow can hold; in green, the height ground fog pools up to.
+   */
   readonly basins: RawTexture
   /** How trodden the snow is, from 0 to 1, in a byte red channel. */
   readonly tracks: RawTexture
@@ -104,18 +111,19 @@ export function createGroundMarks(scene: Scene, map: BattlefieldMap): GroundMark
   let basins = basinsOf(map)
   const { width, height, step } = basins
   const base = basins.level.reduce((lowest, level) => Math.min(lowest, level), Number.POSITIVE_INFINITY)
-  const encode = (levels: Float32Array) => {
-    const half = new Uint16Array(levels.length)
-    for (let index = 0; index < levels.length; index++) {
-      half[index] = ToHalfFloat(levels[index]! - base)
+  const encode = ({ level, pool }: Basins) => {
+    const half = new Uint16Array(level.length * 2)
+    for (let index = 0; index < level.length; index++) {
+      half[index * 2] = ToHalfFloat(level[index]! - base)
+      half[index * 2 + 1] = ToHalfFloat(pool[index]! - base)
     }
     return half
   }
   const basinTexture = new RawTexture(
-    encode(basins.level),
+    encode(basins),
     width,
     height,
-    Constants.TEXTUREFORMAT_R,
+    Constants.TEXTUREFORMAT_RG,
     scene,
     false,
     false,
@@ -163,7 +171,7 @@ export function createGroundMarks(scene: Scene, map: BattlefieldMap): GroundMark
     trodden,
     reshape() {
       basins = basinsOf(map)
-      basinTexture.update(encode(basins.level))
+      basinTexture.update(encode(basins))
     },
     tread(points, snowCover) {
       // Gone with the snow: a fresh fall starts clean.
