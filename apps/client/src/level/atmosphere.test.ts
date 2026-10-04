@@ -3,12 +3,13 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
+import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { castsShadow, createAtmosphere } from "./atmosphere.ts"
+import { castsShadow, createAtmosphere, nightness } from "./atmosphere.ts"
 
 const engines: NullEngine[] = []
 
@@ -77,6 +78,32 @@ describe("createAtmosphere", () => {
     expect(atmosphere?.shadows).toBeNull()
     expect(atmosphere?.smoke.isStarted()).toBe(true)
     expect(atmosphere?.mist.isStarted()).toBe(true)
+    atmosphere?.dispose()
+  })
+
+  it("tints the picture blue at night, and leaves the day's and dusk's colours alone", () => {
+    const { map, scene, camera, sprites } = field()
+    const lights = [
+      new DirectionalLight("sun", new Vector3(0, -1, 0), scene),
+      new HemisphericLight("sky", Vector3.Up(), scene)
+    ]
+    const atmosphere = createAtmosphere(scene, map, camera, sprites)
+    const processing = scene.imageProcessingConfiguration
+    expect(lights).toHaveLength(2)
+
+    atmosphere?.update(new Color3(1, 1, 1))
+    expect(processing.colorCurves?.globalDensity).toBe(0)
+    expect(processing.exposure).toBeCloseTo(1.18)
+
+    atmosphere?.update(new Color3(0.08, 0.09, 0.13))
+    expect(processing.colorCurves?.globalHue).toBe(222)
+    expect(processing.colorCurves?.globalDensity).toBeCloseTo(65)
+    expect(processing.exposure).toBeGreaterThan(1.18)
+
+    // Dusk's light, about a third of midday's, keeps its own warm haze.
+    expect(nightness(new Color3(0.4, 0.35, 0.3))).toBe(0)
+    expect(nightness(new Color3(0.2, 0.2, 0.25))).toBeGreaterThan(0)
+    expect(nightness(new Color3(0.2, 0.2, 0.25))).toBeLessThan(1)
     atmosphere?.dispose()
   })
 })

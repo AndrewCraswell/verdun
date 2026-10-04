@@ -339,7 +339,9 @@ export async function dressLevel(
     dressing.aftermath.update(frameSeconds)
     bursts.update()
     life.update(frameSeconds)
-    particleLight.update(airLight(view.scene, light))
+    airLight(view.scene, light)
+    particleLight.update(light)
+    atmosphere?.update(light)
     dressing.postProcess?.update()
   })
   if (dressing.missing.size > 0) {

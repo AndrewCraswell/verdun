@@ -6,7 +6,7 @@ import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"
 import { CascadedShadowGenerator } from "@babylonjs/core/Lights/Shadows/cascadedShadowGenerator"
 import { ColorCurves } from "@babylonjs/core/Materials/colorCurves"
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
-import { Color4 } from "@babylonjs/core/Maths/math.color"
+import { type Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
@@ -27,6 +27,8 @@ export interface Atmosphere {
   readonly smoke: ParticleSystem
   /** Mist lying in the low ground. */
   readonly mist: ParticleSystem
+  /** Grades the picture for how the air is lit now (see particle-light.ts's airLight): blue at night. */
+  update(light: Color3): void
   dispose(): void
 }
 
@@ -50,11 +52,21 @@ const WIND = new Vector3(0.12, 0, 0.03)
 const isSun = (light: unknown): light is DirectionalLight => light instanceof DirectionalLight
 const isSky = (light: unknown): light is HemisphericLight => light instanceof HemisphericLight
 
+/** The grade's exposure by day. */
+const EXPOSURE = 1.18
+/**
+ * At night the picture goes blue, as the eye sees by moonlight and as films shot day for night show it: brown earth
+ * under a blue sky's light comes out grey, so the grade tints it, and lifts the exposure a little against the tint's
+ * darkening. It comes in as the air's light falls from `dusk` to `night` (luminance against midday's), so the warm
+ * haze of dawn and dusk is left alone.
+ */
+const NIGHT_GRADE = { hue: 222, density: 65, exposure: 0.15, dusk: 0.35, night: 0.12 } as const
+
 /** One colour grade over everything: desaturated, a touch of contrast, warm highlights and cool shadows. */
-function grade(scene: Scene): void {
+function grade(scene: Scene): ColorCurves {
   const processing = scene.imageProcessingConfiguration
   processing.contrast = 1.14
-  processing.exposure = 1.18
+  processing.exposure = EXPOSURE
   const curves = new ColorCurves()
   curves.globalSaturation = -18
   curves.highlightsHue = 38
@@ -66,6 +78,15 @@ function grade(scene: Scene): void {
   processing.vignetteEnabled = true
   processing.vignetteWeight = 0.7
   processing.vignetteColor = new Color4(0.05, 0.04, 0.03, 0)
+  curves.globalHue = NIGHT_GRADE.hue
+  return curves
+}
+
+/** How far into the night the air's light is: 0 by day and at dusk, 1 at night. */
+export function nightness(light: Color3): number {
+  const level = 0.2126 * light.r + 0.7152 * light.g + 0.0722 * light.b
+  const t = Math.min(1, Math.max(0, (NIGHT_GRADE.dusk - level) / (NIGHT_GRADE.dusk - NIGHT_GRADE.night)))
+  return t * t * (3 - 2 * t)
 }
 
 export function castsShadow(mesh: AbstractMesh): boolean {
@@ -221,6 +242,8 @@ function createMist(scene: Scene, texture: Texture, spots: readonly Vector3[]): 
   mist.particleTexture = texture
   mist.emitter = Vector3.Zero()
   emitFrom(mist, spots, 14, [0.6, 2])
+  // A colour at birth fading to one at death, not gradients: Babylon copies a gradient's colours into each particle, so
+  // only these reach the puffs already alive when the light changes (see particle-light.ts).
   mist.color1 = new Color4(0.78, 0.79, 0.78, 0.09)
   mist.color2 = new Color4(0.7, 0.71, 0.7, 0.06)
   mist.colorDead = new Color4(0.75, 0.76, 0.75, 0)
@@ -256,7 +279,9 @@ export function createAtmosphere(
   if (!sun || !sky) {
     return null
   }
-  grade(scene)
+  const curves = grade(scene)
+  const processing = scene.imageProcessingConfiguration
+  let night = 0
 
   const shadows = createShadows(scene, map, sun, camera)
   // The soft spot rather than Synty's faceted puff: drawn many times over, the puff's hard edges show as discs.
@@ -268,6 +293,15 @@ export function createAtmosphere(
     shadows,
     smoke,
     mist,
+    update(light) {
+      const now = nightness(light)
+      if (Math.abs(now - night) < 0.005) {
+        return
+      }
+      night = now
+      curves.globalDensity = NIGHT_GRADE.density * night
+      processing.exposure = EXPOSURE * (1 + NIGHT_GRADE.exposure * night)
+    },
     dispose() {
       smoke.dispose()
       mist.dispose()
