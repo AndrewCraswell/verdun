@@ -51,6 +51,17 @@ const HIPS = "Hips"
 const HANDS = { grip: "Hand_R", forend: "Hand_L" } as const
 /** Clips where the left hand leaves the rifle, falling or priming a grenade: it stays in the right hand as it began. */
 const ONE_HANDED = /^death_|^stengun_reload$/
+/**
+ * The palms hold a rifle between them only this far apart, in metres: 0.25 to 0.5 in every clip that grips one. Closer
+ * or further (a hand flung out when hit, hands meeting in front of the chest), the line between them is no rifle's,
+ * and the rifle stays in the right hand as it was last held.
+ */
+const GRIP_SPAN = { min: 0.2, max: 0.55 } as const
+/**
+ * The bones the crouch leaves alone: the crouch is laid over the walks from a stand and a crouch made for another
+ * weapon, and its arms closed the hands together in front of the chest.
+ */
+const ARMS = /Clavicle|Shoulder|Elbow|Hand|Finger|Thumb/
 /** Clips a man dies in. He lets the rifle go: from `from` of the way through, it falls to lie `height` up, clear of bumps. */
 const DEATH = /^death_/
 const DROP = { from: 0.5, height: 0.1 } as const
@@ -301,6 +312,11 @@ export function bakeClips(
   const stand = byName.get(CROUCH_LAYER.from)
   const crouch = byName.get(CROUCH_LAYER.to)
   const crouchLayer = stand && crouch ? layerBetween(stand, crouch) : undefined
+  for (const node of crouchLayer?.keys() ?? []) {
+    if (ARMS.test(node.name)) {
+      crouchLayer?.delete(node)
+    }
+  }
   for (const [index, name] of CROUCH_WALKS.entries()) {
     const walk = byName.get(WALKS[index] ?? "")
     if (crouchLayer && walk) {
@@ -328,6 +344,8 @@ export function bakeClips(
       .copyFrom(jointAt(hand.wrist, world, placed, joint))
       .addInPlace(jointAt(hand.finger, world, placed, joint))
       .scaleInPlace(0.5)
+  // The rifle in the right hand as last held between the palms, for frames where the hands let go of it.
+  let held = false
   let row = 0
   for (const { name, group, frames, layer } of rows) {
     const oneHanded = ONE_HANDED.test(name)
@@ -355,17 +373,22 @@ export function bakeClips(
         drift[row * 2 + 1] = hipsAt.z - hipsFrom.z
       }
       if (gripHand && forendHand) {
-        if (frame === 0 || !oneHanded) {
-          rifleBetween(palm(gripHand, grip), palm(forendHand, forend), rifle)
-        }
-        if (oneHanded) {
-          // Carried by the right hand alone, as the clip's first frame has it: rifle to hand, then hand to the world.
-          gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
-          if (frame === 0) {
-            placed.invertToRef(bone)
-            rifle.multiplyToRef(bone, heldBy)
-          }
+        palm(gripHand, grip)
+        palm(forendHand, forend)
+        const span = Vector3.Distance(grip, forend)
+        const gripped = span >= GRIP_SPAN.min && span <= GRIP_SPAN.max
+        // The right hand in the world: the rifle is carried by it whenever the left isn't on it.
+        gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
+        if (gripped && (!oneHanded || frame === 0)) {
+          rifleBetween(grip, forend, rifle)
+          placed.invertToRef(bone)
+          rifle.multiplyToRef(bone, heldBy)
+          held = true
+        } else if (held) {
+          // Rifle to hand, then hand to the world.
           heldBy.multiplyToRef(placed, rifle)
+        } else {
+          rifleBetween(grip, forend, rifle)
         }
       } else {
         rifle.copyFrom(Matrix.IdentityReadOnly)

@@ -217,8 +217,8 @@ describe("bakeClips", () => {
   it("holds the rifle between the palms in every frame, however the hands move", () => {
     const target = scene()
     const { skeleton, left } = hands(target)
-    // The left hand reaches further out and lower.
-    const idle = moves(target, "idle", [[left, new Vector3(0.6, 0.8, 0.4)]])
+    // The left hand reaches further out and lower, still a rifle's length from the right.
+    const idle = moves(target, "idle", [[left, new Vector3(0.5, 0.9, 0.4)]])
     const { data } = bakeClips(skeleton, [idle], Matrix.Identity())
 
     const first = rifleAt(data, 0)
@@ -231,7 +231,21 @@ describe("bakeClips", () => {
     ).toEqual([0.2, 1, 0.05])
     expect(Vector3.Dot(forwardOf(first), new Vector3(-0.3, 0.1, 0.4).normalize())).toBeCloseTo(1)
     const last = rifleAt(data, BAKE_FPS)
-    expect(Vector3.Dot(forwardOf(last), new Vector3(0.4, -0.2, 0.4).normalize())).toBeCloseTo(1)
+    expect(Vector3.Dot(forwardOf(last), new Vector3(0.3, -0.1, 0.4).normalize())).toBeCloseTo(1)
+  })
+
+  it("keeps the rifle in the right hand as it was last held when the left hand lets go of it, or closes up", () => {
+    const target = scene()
+    const { skeleton, left } = hands(target)
+    // The left hand flung out, as a man is hit: two metres off, nowhere near a rifle's length.
+    const hit = moves(target, "hit_ribs", [[left, new Vector3(1.5, 0.2, 1.4)]])
+    const { data } = bakeClips(skeleton, [hit], Matrix.Identity())
+
+    // Three quarters of the way, the hand is long gone from the rifle: it no longer swings after it.
+    const letGo = rifleAt(data, (BAKE_FPS * 3) / 4)
+    const last = rifleAt(data, BAKE_FPS)
+    expect(Vector3.Dot(forwardOf(last), forwardOf(letGo))).toBeCloseTo(1)
+    expect(Vector3.Distance(last.getTranslation(), letGo.getTranslation())).toBeCloseTo(0)
   })
 
   it("turns an aiming clip's soldier so the rifle points ahead, and no other", () => {
