@@ -89,4 +89,7 @@ In order, each verified in the browser and committed on its own:
   up with sandbag courses, breaches and the clutter of a lived-in line (6).
 - **Performance**: the 14,500 props are drawn as about 700 thin-instance batches instead of one mesh each, which cut the
   time Babylon spends choosing visible meshes from about 20 ms a frame to under 3 ms (see
-  [level design](level-design.md#level-kit)).
+  [level design](level-design.md#level-kit)). Then, with the game measured as GPU-bound: shadow casters culled to each
+  cascade and the backdrop kept out of the shadows (twelve million shadow triangles a frame to under three), and the
+  backdrop's woods thinned with distance and cut into cells (3.8 million of the frame's 6.3 million triangles to 0.87
+  million, the scene pass from about 35 ms to 17 ms at 1080p on an integrated GPU).
