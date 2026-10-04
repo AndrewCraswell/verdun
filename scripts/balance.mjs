@@ -16,6 +16,7 @@ import {
   capturedIds,
   createLineOfSight,
   createSimulation,
+  evacuatedIds,
   fallenIds,
   frontLineSpan,
   Side,
@@ -107,7 +108,11 @@ async function battle({ mapName, seed, scenario, attacker }) {
     }
   }
   const held = inFront[attacker] >= HELD_BY && inFront[attacker] >= inFront[defender] * HELD_RATIO
-  const lost = countSide(fallenIds(sim), sim, attacker) + countSide(capturedIds(sim), sim, attacker)
+  // Killed and wounded lying out, wounded carried off, and taken prisoner.
+  const lost = [fallenIds(sim), evacuatedIds(sim), capturedIds(sim)].reduce(
+    (sum, ids) => sum + countSide(ids, sim, attacker),
+    0
+  )
   return {
     held,
     losses: lost / started,
