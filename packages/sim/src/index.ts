@@ -133,7 +133,16 @@ export {
 } from "./environment.ts"
 export { FLEURY, type GeoLocation, type Sky, type SkyPosition } from "./sky.ts"
 export { type Forecast, type ForecastSpec, typicalWeather, type Weather, WeatherPattern } from "./weather.ts"
-export { DARK_LUX, FLARE, type Flare, type FlareEvent, flareLight, flarePosition, isDark } from "./flares.ts"
+export {
+  DARK_LUX,
+  FLARE,
+  type Flare,
+  flareBrightness,
+  type FlareEvent,
+  flareLight,
+  flarePosition,
+  isDark
+} from "./flares.ts"
 export { aimInLight, canMakeOut, FLASH_REACH, FLASH_SECONDS, isFlashing, lightAt, sightReach } from "./sight.ts"
 export {
   ARMISTICE,

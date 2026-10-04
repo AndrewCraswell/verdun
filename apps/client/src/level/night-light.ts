@@ -1,45 +1,8 @@
-import { Constants } from "@babylonjs/core/Engines/constants"
 import { PointLight } from "@babylonjs/core/Lights/pointLight"
 import type { Material } from "@babylonjs/core/Materials/material"
-import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
+import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Scene } from "@babylonjs/core/scene"
-import { Sprite } from "@babylonjs/core/Sprites/sprite"
-import { SpriteManager } from "@babylonjs/core/Sprites/spriteManager"
-import { type BattlefieldMap, heightAt } from "@verdun/map"
-import { FLARE as FLIGHT, type Flare, flarePosition } from "@verdun/sim"
-
-/** A flare burning in the air, as the simulation reports it. */
-export interface FlareView {
-  readonly x: number
-  /** Height above sea level of the map's base, metres. */
-  readonly y: number
-  readonly z: number
-  /** How brightly it burns now, 0 to 1: flaring up after launch, steady, then guttering out. */
-  readonly brightness: number
-}
-
-/** A flare flares up this long after it's fired and gutters out over its last this long, in seconds. */
-const FLARE_FADE = { up: 0.3, out: 1.2 } as const
-const TICKS_PER_SECOND = 20
-
-/**
- * The simulation's flares as drawn at a moment, `tick` fractional between steps for smooth motion: where each is above
- * the map and how brightly it burns.
- */
-export function flareViews(map: BattlefieldMap, flares: readonly Flare[], tick: number): FlareView[] {
-  return flares.map((flare) => {
-    const { x, y, z } = flarePosition(flare, tick)
-    const age = (tick - flare.firedAt) / TICKS_PER_SECOND
-    const left = (flare.burnsOutAt - tick) / TICKS_PER_SECOND
-    const brightness = Math.max(
-      0,
-      Math.min(1, 0.3 + (0.7 * age) / FLARE_FADE.up, left / FLARE_FADE.out, age < FLIGHT.burnSeconds ? 1 : 0)
-    )
-    return { x, y: heightAt(map, x, z) + y, z, brightness }
-  })
-}
 
 /** A muzzle flash: a shot fired from a point. */
 export interface FlashView {
@@ -56,15 +19,11 @@ export interface NightSources {
   focus(): Vector3
   /** Braziers and fires burning now. */
   fires(): readonly Vector3[]
-  /** Flares in the air now. */
-  flares(): readonly FlareView[]
 }
 
 export interface NightLight {
-  /** The pooled lights: flares first, then fires, then the muzzle flash. */
+  /** The pooled lights: the fires, then the muzzle flash. */
   readonly lights: readonly PointLight[]
-  /** Sprites drawing the flares themselves. */
-  readonly flareSprites: readonly Sprite[]
   /** Whether the lights are on: only after dark, so daylight shaders don't pay for them. */
   readonly lit: boolean
   /** Muzzle flashes from the last simulation steps; the nearest to where the camera looks lights the ground. */
@@ -74,17 +33,16 @@ export interface NightLight {
   dispose(): void
 }
 
+/** The flares' spot lights, drawn by effects/flare-view.ts, count against the same light limit. */
 const FLARE_LIGHTS = 3
 const FIRE_LIGHTS = 2
 /** Lights come on below this much darkness and go off above the lower figure, so dusk doesn't flicker them. */
 const DARK = { on: 0.45, off: 0.35 } as const
-/** A Very light: cold, greenish white, lighting ground about 60 m round. */
-const FLARE = { color: Color3.FromHexString("#dff2d0"), intensity: 14, range: 95, spriteSize: 2.2 } as const
 /** Firelight: warm, flickering, a few metres round. */
 const FIRE = { color: Color3.FromHexString("#ff8a3c"), intensity: 9, range: 12, lift: 0.6 } as const
 /** A rifle's flash lights its surroundings for an instant. */
 const FLASH = { color: Color3.FromHexString("#ffd58a"), intensity: 8, range: 16, seconds: 0.07, reach: 120 } as const
-/** Point lights per material once the night lights are on: the sun, the sky and these six. */
+/** Lights per material once the night lights are on: the sun, the sky, the flares' three and these three. */
 export const NIGHT_LIGHT_COUNT = 2 + FLARE_LIGHTS + FIRE_LIGHTS + 1
 
 function pointLight(scene: Scene, name: string, color: Color3, range: number): PointLight {
@@ -98,36 +56,23 @@ function pointLight(scene: Scene, name: string, color: Color3, range: number): P
 }
 
 /**
- * Light after dark: Very lights hanging over no man's land throwing hard, cold light, braziers and burning wrecks
- * glowing warm on the ground around them, and rifles flashing. The lights are a fixed pool, given to the flares and
- * fires nearest where the camera looks, so the number of lights, and with it the shaders, never changes while they
- * are on. `materials` are those that should take the light: their light limit is raised to fit.
+ * Light after dark: braziers and burning wrecks glowing warm on the ground around them, and rifles flashing. (Flares
+ * are drawn by effects/flare-view.ts.) The lights are a fixed pool, given to the fires nearest where the camera looks,
+ * so the number of lights, and with it the shaders, never changes while they are on. `materials` are those that should
+ * take the light: their light limit is raised to fit, flares' lights included.
  */
-export function createNightLight(
-  scene: Scene,
-  sources: NightSources,
-  sprite: Texture,
-  materials: readonly Material[]
-): NightLight {
-  const flareLights = Array.from({ length: FLARE_LIGHTS }, (_, index) =>
-    pointLight(scene, `flare-light-${index}`, FLARE.color, FLARE.range)
-  )
+export function createNightLight(scene: Scene, sources: NightSources, materials: readonly Material[]): NightLight {
   const fireLights = Array.from({ length: FIRE_LIGHTS }, (_, index) =>
     pointLight(scene, `fire-light-${index}`, FIRE.color, FIRE.range)
   )
   const flashLight = pointLight(scene, "muzzle-flash-light", FLASH.color, FLASH.range)
-  const lights = [...flareLights, ...fireLights, flashLight]
+  const lights = [...fireLights, flashLight]
   for (const material of materials) {
     if ("maxSimultaneousLights" in material && typeof material.maxSimultaneousLights === "number") {
       material.maxSimultaneousLights = Math.max(material.maxSimultaneousLights, NIGHT_LIGHT_COUNT)
     }
   }
 
-  const sheet = new SpriteManager("flares", "", 16, 128, scene)
-  sheet.texture = sprite
-  sheet.blendMode = Constants.ALPHA_ADD
-  sheet.isPickable = false
-  const flareSprites: Sprite[] = []
   let lit = false
   let flashLeft = 0
   let clock = 0
@@ -143,7 +88,6 @@ export function createNightLight(
 
   return {
     lights,
-    flareSprites,
     get lit() {
       return lit
     },
@@ -172,41 +116,12 @@ export function createNightLight(
       setLit(lit ? darkness > DARK.off : darkness > DARK.on)
       const focus = sources.focus()
 
-      // Every flare in the air gets a sprite, lit or not: they show at dusk too.
-      const flares = sources.flares()
-      while (flareSprites.length < flares.length) {
-        const flare = new Sprite("flare", sheet)
-        flare.isPickable = false
-        flareSprites.push(flare)
-      }
-      for (const [index, flareSprite] of flareSprites.entries()) {
-        const flare = flares[index]
-        flareSprite.isVisible = flare !== undefined
-        if (flare) {
-          const flicker = 0.85 + 0.15 * Math.sin(clock * 37 + index * 2.1)
-          flareSprite.position.set(flare.x, flare.y, flare.z)
-          flareSprite.size = FLARE.spriteSize * (0.6 + 0.4 * flare.brightness)
-          // Brighter than white, so the bloom catches it.
-          const glow = 2.5 * flare.brightness * flicker
-          flareSprite.color = new Color4(FLARE.color.r * glow, FLARE.color.g * glow, FLARE.color.b * glow, 1)
-        }
-      }
       if (!lit) {
         return
       }
       const byDistance = <T extends { readonly x: number; readonly z: number }>(items: readonly T[]) =>
         [...items].sort((a, b) => Math.hypot(a.x - focus.x, a.z - focus.z) - Math.hypot(b.x - focus.x, b.z - focus.z))
 
-      const nearFlares = byDistance(flares)
-      for (const [index, light] of flareLights.entries()) {
-        const flare = nearFlares[index]
-        light.intensity = flare
-          ? FLARE.intensity * flare.brightness * darkness * (0.9 + 0.1 * Math.sin(clock * 29 + index))
-          : 0
-        if (flare) {
-          light.position.set(flare.x, flare.y, flare.z)
-        }
-      }
       const nearFires = byDistance(sources.fires())
       for (const [index, light] of fireLights.entries()) {
         const fire = nearFires[index]
@@ -224,7 +139,6 @@ export function createNightLight(
       for (const light of lights) {
         light.dispose()
       }
-      sheet.dispose()
     }
   }
 }

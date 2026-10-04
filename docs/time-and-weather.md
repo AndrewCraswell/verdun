@@ -183,17 +183,53 @@ fog of war use the same rule (`canMakeOut`, `sightReach`):
 - **The player's view** (`apps/client/src/fog/fog-of-war.ts`) shows enemies by the same rule, and lights the ground only
   as far as the sight range, but never less than 30 m around the viewer.
 
-**Flares** (`packages/sim/src/flares.ts`) are Very lights. When it is dark (under 3 lux, past civil twilight), squad
-leaders standing in a trench act as sentries:
+### Flares
 
-- A sentry who hears an enemy moving in front of him (walking within 150 m, crawling within 40 m) sends a flare up over
-  him, unless a flare already lights the spot.
-- On a quiet night each sentry sends one up over the ground in front about every three minutes, 70–140 m out.
-- At most six of a side's flares are in the air at once.
-- A flare rises to 60 m in 1.5 s, then sinks at 3 m/s and drifts with the wind, burning 8 s in all. It lights the ground
-  within 70 m of the point beneath it, up to 2 lux at the centre (`FLARE`).
-- By day nothing happens and no random numbers are drawn, so daytime battles are unchanged.
-- The renderer draws flares from `sim.flares` with `flarePosition(flare, tick)`; a `flare` event marks each launch.
+Very lights were the light of the night war: both sides kept them going up over no man's land all night, and a man
+caught standing in one was seen and shot. They are central to making the night playable, so they are modelled as closely
+as the camera can show.
+
+**In the simulation** (`packages/sim/src/flares.ts`):
+
+- **Flight** (`flarePosition`): fired from a sentry's pistol toward a point 60–160 m out, the flare climbs to 90 m in 3
+  s, slowing all the way as gravity and drag take its speed. At the top a small parachute opens and it sinks at 3.6 m/s,
+  carried by the wind aloft (1.2 times the ground wind), until it burns out a few metres up, about 26 s after the shot.
+- **Burn** (`flareBrightness`): it catches over 0.3 s, burns steadily, and sputters out over its last 4.5 s.
+- **Light** (`flareLight`): a magnesium star of 25,000 candela, lighting the ground by the inverse-square law with the
+  cosine of the angle: `candela × height / distance³`. High up it lights a wide pool dimly (about 3 lux beneath it, 1
+  lux 100 m away); as it sinks the pool shrinks and brightens (28 lux beneath it at 30 m). Light under 0.01 lux is left
+  out. Sight and aim take it through `lightAt`, so a man in the pool can be seen from hundreds of metres.
+- **Who fires, and when** (`flareSystem`): when it is dark (under 3 lux, past civil twilight), squad leaders standing in
+  a trench are sentries.
+  - A sentry who hears an enemy moving in front of him (walking within 150 m, crawling within 40 m) sends a flare up
+    over him at once, unless flares already light the spot (1 lux).
+  - Between times each side keeps a flare going up at intervals from a sentry chosen at random: about every 40 s on a
+    quiet night, every 12 s when the line is nervous (men heard, or any of its men fired in the last 30 s), never two
+    within 8 s. Five of a side's flares in the air at most.
+  - By day nothing happens and no random numbers are drawn, so daytime battles are unchanged.
+
+**On screen** (`apps/client/src/effects/flare-view.ts`), each flare is drawn from the simulation's flight and burn, with
+what the eye adds:
+
+- **The launch**: a streak of sparks climbing from the trench (a stretched spark trail), the star small as it climbs.
+- **The star**: a small core drawn well above the bloom threshold (1.05), so the post-process blooms it into a glare; a
+  tighter glare card; and a wide halo of lit air, larger and brighter in mist, rain and snow (`hazeOf`).
+- **The parachute**: under its canopy the flare swings in a slow pendulum, 0.9 m each way every 2.8 s, opening out over
+  its first seconds of hanging. Its light and shadows swing with it.
+- **Flicker**: a fast shimmer and a slower waver, with brief dips at random; in the last 4.5 s it gutters hard, the dips
+  deepen and the flame warms from cold white to orange.
+- **Sparks and smoke**: burning magnesium drips and falls away, more as it gutters; a smoke trail drifts off on the
+  wind, glowing near the flare and grey further off, lingering for 7 s after the flare is out.
+- **Light on the ground**: three spot lights go to the flares that matter most (brightest, nearest where the camera
+  looks), pointing down from them. Babylon's standard lighting fades to a range rather than by the inverse square, so
+  range and intensity follow the flare's height: dim and wide high up, fierce and tight low down, cold blue-white.
+- **Shadows**: the leading flare's light casts them (a 1,024 shadow map, PCF filtering, deep), from the meshes that cast
+  the sun's, culled to those in its light and chosen again twice a second as it drifts. Swinging with the parachute.
+- **The night brightens round a flare**: the sky's fill light and the haze lift with the flare light where the camera
+  looks.
+- **Budget**: at most 12 flares drawn, their drawings pooled and reused; the lights switch on only after dark (below a
+  light level of 0.55, off again above 0.62), so day shaders never pay for them; the light count stays fixed while they
+  are on, so shaders don't recompile. Fires and muzzle flashes are lit by `apps/client/src/level/night-light.ts`.
 
 ## Weather
 

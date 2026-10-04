@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { hitChance, shotEvents } from "./combat.ts"
 import { Side } from "./components.ts"
 import { clockAt } from "./environment.ts"
-import { FLARE, type Flare, flareLight, flarePosition, isDark } from "./flares.ts"
+import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, isDark } from "./flares.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut, sightReach } from "./sight.ts"
 import {
@@ -66,43 +66,64 @@ function flareOver(sim: Simulation, x: number, z: number): Flare {
     z,
     vx: 0,
     vz: 0,
-    firedAt: sim.tick - 2 * TICK_RATE,
-    burnsOutAt: sim.tick + 5 * TICK_RATE
+    // Hanging under its parachute, burning steadily.
+    firedAt: sim.tick - 5 * TICK_RATE,
+    burnsOutAt: sim.tick + 15 * TICK_RATE
   }
   sim.flares.push(flare)
   return flare
 }
 
 describe("flares", () => {
-  it("rise in a second and a half, then sink and drift as they burn", () => {
-    const flare: Flare = {
-      side: Side.German,
-      fromX: 0,
-      fromZ: 0,
-      x: 0,
-      z: 100,
-      vx: 2,
-      vz: 0,
-      firedAt: 0,
-      burnsOutAt: 160
-    }
-    expect(flarePosition(flare, 0)).toEqual({ x: 0, y: 0, z: 0 })
-    expect(flarePosition(flare, 15).z).toBeCloseTo(50)
-    const up = flarePosition(flare, FLARE.riseSeconds * TICK_RATE)
-    expect(up.y).toBeCloseTo(FLARE.height)
-    expect(up.z).toBeCloseTo(100)
-    const later = flarePosition(flare, FLARE.riseSeconds * TICK_RATE + 2 * TICK_RATE)
-    expect(later.y).toBeCloseTo(FLARE.height - 2 * FLARE.sinkRate)
-    expect(later.x).toBeCloseTo(4)
+  const launch: Flare = {
+    side: Side.German,
+    fromX: 0,
+    fromZ: 0,
+    x: 0,
+    z: 100,
+    vx: 2,
+    vz: 0,
+    firedAt: 0,
+    burnsOutAt: FLARE.burnSeconds * TICK_RATE
+  }
+
+  it("climb from the pistol, slowing to the top of their arc, then sink on the parachute and drift", () => {
+    expect(flarePosition(launch, 0)).toEqual({ x: 0, y: 0, z: 0 })
+    const early = flarePosition(launch, 0.5 * TICK_RATE)
+    const late = flarePosition(launch, 2.5 * TICK_RATE)
+    // Faster at first: most of the height is gained in the first half of the climb.
+    expect(early.y).toBeGreaterThan(FLARE.height * 0.25)
+    expect(late.y - flarePosition(launch, 2 * TICK_RATE).y).toBeLessThan(early.y)
+    const top = flarePosition(launch, FLARE.riseSeconds * TICK_RATE)
+    expect(top.y).toBeCloseTo(FLARE.height)
+    expect(top.z).toBeCloseTo(100)
+    const hanging = flarePosition(launch, (FLARE.riseSeconds + 10) * TICK_RATE)
+    expect(hanging.y).toBeCloseTo(FLARE.height - 10 * FLARE.sinkRate)
+    expect(hanging.x).toBeCloseTo(20)
+    // Burns out a few metres up, still above the ground.
+    expect(flarePosition(launch, launch.burnsOutAt).y).toBeGreaterThan(0)
+    expect(flarePosition(launch, launch.burnsOutAt).y).toBeLessThan(10)
   })
 
-  it("light the ground beneath them and nowhere else", async () => {
+  it("catch as they leave the pistol, burn steadily, then sputter out", () => {
+    expect(flareBrightness(launch, -1)).toBe(0)
+    expect(flareBrightness(launch, 0)).toBeCloseTo(0.4)
+    expect(flareBrightness(launch, 10 * TICK_RATE)).toBe(1)
+    const sputtering = flareBrightness(launch, launch.burnsOutAt - 2 * TICK_RATE)
+    expect(sputtering).toBeGreaterThan(0.2)
+    expect(sputtering).toBeLessThan(0.7)
+    expect(flareBrightness(launch, launch.burnsOutAt)).toBe(0)
+  })
+
+  it("light the ground by the inverse-square law: a wide dim pool, brightest beneath", async () => {
     const sim = await field(MOONLESS)
     expect(flareLight(sim, 100, 200)).toBe(0)
-    flareOver(sim, 100, 200)
-    expect(flareLight(sim, 100, 200)).toBeCloseTo(FLARE.peakLux)
-    expect(flareLight(sim, 100, 200 + FLARE.radius / 2)).toBeGreaterThan(0)
-    expect(flareLight(sim, 100, 200 + FLARE.radius + 1)).toBe(0)
+    const flare = flareOver(sim, 100, 200)
+    const height = flarePosition(flare, sim.tick).y
+    expect(flareLight(sim, 100, 200)).toBeCloseTo(FLARE.candela / height ** 2)
+    expect(flareLight(sim, 100, 300)).toBeGreaterThan(0.2)
+    expect(flareLight(sim, 100, 300)).toBeLessThan(flareLight(sim, 100, 200) / 3)
+    expect(flareLight(sim, 100, 1200)).toBe(0)
   })
 
   it("go up over men heard moving in front of the wire, and burn out", async () => {
@@ -122,20 +143,35 @@ describe("flares", () => {
     expect(sim.flares.every((each) => each.firedAt > flare.firedAt)).toBe(true)
   })
 
-  it("go up now and then over a quiet line at night, and never by day", async () => {
-    const quiet = async (utc: number) => {
+  it("go up at intervals through the night, more often when the line is nervous, and never by day", async () => {
+    const night = async (utc: number, nervous: boolean) => {
       const sim = await field(utc)
       const sentries = [60, 100, 140].map((x) => spawnSoldier(sim, { side: Side.French, x, z: FIRE_STEP_Z }))
       sentries.forEach((sentry) => createSquad(sim, Side.French, [sentry]))
       const rngBefore = sim.rng.state
-      let fired = 0
-      run(sim, 600, () => (fired += sim.events.filter((event) => event.type === "flare").length))
-      return { fired, drew: sim.rng.state !== rngBefore, dark: isDark(sim) }
+      const launches: number[] = []
+      run(sim, 600, () => {
+        if (nervous) {
+          sim.soldiers.weapon.firedAt[sentries[0]!] = sim.tick
+        }
+        launches.push(...sim.events.filter((event) => event.type === "flare").map(() => sim.tick))
+      })
+      const gaps = launches.slice(1).map((tick, index) => (tick - launches[index]!) / TICK_RATE)
+      return {
+        fired: launches.length,
+        closest: Math.min(...gaps),
+        drew: sim.rng.state !== rngBefore,
+        dark: isDark(sim)
+      }
     }
-    const night = await quiet(MOONLESS)
-    expect(night.dark).toBe(true)
-    expect(night.fired).toBeGreaterThan(2)
-    const day = await quiet(NOON)
+    const quiet = await night(MOONLESS, false)
+    expect(quiet.dark).toBe(true)
+    expect(quiet.fired).toBeGreaterThan(8)
+    expect(quiet.fired).toBeLessThan(30)
+    expect(quiet.closest).toBeGreaterThanOrEqual(8)
+    const nervous = await night(MOONLESS, true)
+    expect(nervous.fired).toBeGreaterThan(quiet.fired * 1.8)
+    const day = await night(NOON, false)
     expect(day.fired).toBe(0)
     expect(day.drew).toBe(false)
   })

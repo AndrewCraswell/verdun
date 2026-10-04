@@ -1,12 +1,9 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
-import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap } from "@verdun/map"
-import { type Flare, Side } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
-import { createNightLight, type FlareView, flareViews, NIGHT_LIGHT_COUNT } from "./night-light.ts"
+import { createNightLight, NIGHT_LIGHT_COUNT } from "./night-light.ts"
 
 const engines: NullEngine[] = []
 
@@ -22,8 +19,7 @@ function setup() {
   const scene = new Scene(engine)
   const state = {
     darkness: 0,
-    fires: [new Vector3(10, 1, 10), new Vector3(200, 1, 200), new Vector3(12, 1, 11)],
-    flares: [] as FlareView[]
+    fires: [new Vector3(10, 1, 10), new Vector3(200, 1, 200), new Vector3(12, 1, 11)]
   }
   const material = new StandardMaterial("ground", scene)
   const night = createNightLight(
@@ -31,10 +27,8 @@ function setup() {
     {
       darkness: () => state.darkness,
       focus: () => new Vector3(0, 0, 0),
-      fires: () => state.fires,
-      flares: () => state.flares
+      fires: () => state.fires
     },
-    new Texture(null, scene),
     [material]
   )
   return { night, state, material }
@@ -58,7 +52,7 @@ describe("createNightLight", () => {
     night.update(0.016)
 
     expect(night.lit).toBe(true)
-    const [, , , nearest, next] = night.lights
+    const [nearest, next] = night.lights
     expect(nearest?.position.x).toBe(10)
     expect(next?.position.x).toBe(12)
     expect(nearest?.intensity).toBeGreaterThan(0)
@@ -69,26 +63,6 @@ describe("createNightLight", () => {
     state.darkness = 0.1
     night.update(0.016)
     expect(night.lit).toBe(false)
-  })
-
-  it("draws every flare in the air and lights the ground under the nearest", () => {
-    const { night, state } = setup()
-    state.darkness = 1
-    state.flares = [
-      { x: 5, y: 60, z: 5, brightness: 1 },
-      { x: 300, y: 50, z: 300, brightness: 0.5 }
-    ]
-
-    night.update(0.016)
-
-    expect(night.flareSprites.filter((sprite) => sprite.isVisible)).toHaveLength(2)
-    expect(night.lights[0]?.position.y).toBe(60)
-    expect(night.lights[0]?.intensity).toBeGreaterThan(night.lights[1]?.intensity ?? 0)
-    // Burnt out: the sprites hide, the lights go dark.
-    state.flares = []
-    night.update(0.016)
-    expect(night.flareSprites.some((sprite) => sprite.isVisible)).toBe(false)
-    expect(night.lights[0]?.intensity).toBe(0)
   })
 
   it("flashes for a moment where a rifle fires near the camera, and only at night", () => {
@@ -111,29 +85,5 @@ describe("createNightLight", () => {
     night.update(0.2)
     expect(flash()?.intensity).toBe(0)
     night.dispose()
-  })
-})
-
-describe("flareViews", () => {
-  it("places each flare over the ground, flaring up, burning steady and guttering out", () => {
-    const map = createFlatMap({ name: "field", cellSize: 1, columns: 100, rows: 100 }, 5)
-    const flare: Flare = {
-      side: Side.French,
-      fromX: 10,
-      fromZ: 10,
-      x: 50,
-      z: 50,
-      vx: 1,
-      vz: 0,
-      firedAt: 100,
-      burnsOutAt: 260
-    }
-    const at = (tick: number) => flareViews(map, [flare], tick)[0]
-
-    expect(at(100)?.brightness).toBeCloseTo(0.3)
-    const hanging = at(160)
-    expect(hanging?.brightness).toBe(1)
-    expect(hanging?.y).toBeGreaterThan(5 + 40)
-    expect(at(255)?.brightness).toBeLessThan(0.5)
   })
 })

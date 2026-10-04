@@ -22,16 +22,18 @@ import { createPlayerControl } from "./control/player-control.ts"
 import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createDebugStats } from "./debug/stats.ts"
 import { createExplosions } from "./effects/explosions.ts"
+import { createFlareView } from "./effects/flare-view.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
 import { createWarClock } from "./environment/war-clock.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
+import { castsShadow } from "./level/atmosphere.ts"
 import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
 import { openKitFiles } from "./level/kit-files.ts"
-import { createNightLight, flareViews } from "./level/night-light.ts"
+import { createNightLight } from "./level/night-light.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
@@ -97,10 +99,8 @@ async function start(): Promise<void> {
             const camera = view.scene.activeCamera
             return camera instanceof TargetCamera ? camera.getTarget() : view.camera.getTarget()
           },
-          fires: () => [...level.life.braziers, ...level.aftermath.fires].map((fire) => fire.position),
-          flares: () => flareViews(map, sim.flares, sim.tick + stepper.alpha)
+          fires: () => [...level.life.braziers, ...level.aftermath.fires].map((fire) => fire.position)
         },
-        level.fx.ember,
         [view.groundMaterial, ...level.materials, ...(soldierKit?.materials ?? [])]
       )
     : null
@@ -112,6 +112,20 @@ async function start(): Promise<void> {
     materials: [view.groundMaterial, ...(level?.materials ?? [])],
     air: level?.atmosphere
   })
+  // Very lights over no man's land at night, drawn from the simulation's flares; shadows from what throws the sun's.
+  const flares = createFlareView(
+    view.scene,
+    {
+      sim,
+      tick: () => sim.tick + stepper.alpha,
+      light: () => lightLevel(sim.environment.illuminance),
+      focus: () => {
+        const camera = view.scene.activeCamera
+        return camera instanceof TargetCamera ? camera.getTarget() : view.camera.getTarget()
+      }
+    },
+    castsShadow
+  )
 
   // The player commands the squad in the middle of the French front line.
   const control = createPlayerControl(sim, playerSquad, view.camera, createBrowserInput(view.scene, sim.map), {
@@ -167,6 +181,7 @@ async function start(): Promise<void> {
         sounds,
         night,
         war,
+        flares,
         trace: stats.tracer
       }
     })
@@ -226,6 +241,7 @@ async function start(): Promise<void> {
     trace("markers", () => markers.update())
     trace("night", () => night?.update(frameSeconds))
     trace("environment", () => environment?.update(frameSeconds))
+    trace("flares", () => flares.update(frameSeconds))
     trace("sound", () => sounds?.update())
     trace("render", () => view.scene.render())
     stats.update()
