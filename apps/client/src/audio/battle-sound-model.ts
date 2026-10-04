@@ -19,6 +19,8 @@ export const SOUND_CUES = [
   "rifle-fr-far",
   "rifle-de-near",
   "rifle-de-far",
+  "bolt-fr",
+  "bolt-de",
   "mg-near",
   "mg-far",
   "crack",
@@ -78,6 +80,8 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "rifle-fr-far": { volume: 0.6, reference: 60 },
   "rifle-de-near": { volume: 0.7, reference: 20 },
   "rifle-de-far": { volume: 0.6, reference: 60 },
+  "bolt-fr": { volume: 0.4, reference: 6 },
+  "bolt-de": { volume: 0.4, reference: 6 },
   "mg-near": { volume: 0.55, reference: 25 },
   "mg-far": { volume: 0.6, reference: 80 },
   crack: { volume: 0.45, reference: 10 },
@@ -109,6 +113,9 @@ const MG_FAR_INTERVAL = 1.5
 /** Rounds landing this close to the listener crack past, if fired from further than CRACK_MIN_RANGE. */
 const CRACK_RADIUS = 12
 const CRACK_MIN_RANGE = 40
+/** Riflemen this close are heard working the bolt this many seconds after each shot. */
+const BOLT_RANGE = 30
+const BOLT_DELAY = 0.7
 /** At most one crack this often, in seconds: a burst of cracks blurs into noise. */
 const CRACK_INTERVAL = 0.1
 /** Rounds striking the ground this close to the listener are heard thudding in, at most one this often (seconds). */
@@ -191,7 +198,7 @@ export interface BattleSoundOptions {
 
 /**
  * Turns the simulation's events and changes into sounds: every shot by weapon and side (machine guns round by round up
- * close, in whole bursts from afar), rounds cracking past and striking the ground nearby, grenades thrown, every shell
+ * close, in whole bursts from afar, and riflemen nearby working the bolt), rounds cracking past and striking the ground nearby, grenades thrown, every shell
  * and grenade burst by type with the rush of heavy shells coming in and earth raining down after near ones, the
  * batteries firing far behind the lines, men falling nearby, the ringing of a near miss, and the shell-case gong when
  * men nearby start pulling on gas masks.
@@ -229,6 +236,9 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         const side = sim.soldiers.side.value[shooter] === Side.French ? "fr" : "de"
         const range = distance < NEAR.rifle ? "near" : "far"
         push(calls, placeSound(listener, `rifle-${side}-${range}`, from.x, from.z))
+        if (distance < BOLT_RANGE) {
+          push(calls, placeSound(listener, `bolt-${side}`, from.x, from.z, BOLT_DELAY))
+        }
       }
       if (crackPast(listener, from, to) && now - lastCrack >= CRACK_INTERVAL) {
         lastCrack = now

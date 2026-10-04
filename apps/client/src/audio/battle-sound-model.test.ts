@@ -63,7 +63,7 @@ describe("placeSound", () => {
 })
 
 describe("createBattleSoundModel", () => {
-  it("plays each side's rifle, near or far by distance", () => {
+  it("plays each side's rifle, near or far by distance, and the bolt worked after a shot nearby", () => {
     const { sim, french, german } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })
     happen(
@@ -71,7 +71,7 @@ describe("createBattleSoundModel", () => {
       shot(french, { x: 100, z: 30 }, { x: 100, z: 190 }),
       shot(german, { x: 100, z: 190 }, { x: 100, z: 70 })
     )
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "rifle-de-far"])
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "bolt-fr", "rifle-de-far"])
   })
 
   it("plays a nearby machine gun round by round, a distant one a burst at a time", () => {
@@ -99,7 +99,13 @@ describe("createBattleSoundModel", () => {
     expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-de-far", "crack", "bullet-impact"])
     sim.tick += TICK_RATE
     happen(sim, shot(french, { x: 100, z: 30 }, { x: 101, z: 41 }), shot(french, { x: 100, z: 30 }, { x: 100, z: 120 }))
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "bullet-impact", "rifle-fr-near"])
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual([
+      "rifle-fr-near",
+      "bolt-fr",
+      "bullet-impact",
+      "rifle-fr-near",
+      "bolt-fr"
+    ])
   })
 
   it("hears grenades thrown nearby", () => {

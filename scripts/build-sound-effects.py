@@ -59,6 +59,13 @@ CUES = {
     "rifle-fr-far": dict(sources=[boom_rifle("Mosin Nagant 1891", 100)], gap=1.5, length=3.0, take=6),
     "rifle-de-near": dict(sources=[boom_rifle("M1917 Enfield", 5)], gap=1.5, length=2.5, take=6),
     "rifle-de-far": dict(sources=[boom_rifle("M1917 Enfield", 100)], gap=1.5, length=3.0, take=6),
+    # The bolt worked after a shot: the Mosin's for the Lebel, the Springfield's Mauser action for the Gewehr 98.
+    "bolt-fr": dict(
+        sources=[(BOOM, "GUNMech_Foley-Mosin Nagant M1891 Reload Fast_B00M_WW1FC_MS.wav")], gap=0.8, length=1.6, take=6
+    ),
+    "bolt-de": dict(
+        sources=[(BOOM, "GUNMech_Foley-Springfield M1903 Reload Fast_B00M_WW1FC_MS.wav")], gap=0.8, length=1.6, take=6
+    ),
     # One round each: the game fires a machine gun round by round.
     "mg-near": dict(
         sources=[(SUPERTHUMP, "STDSGN_WoWW2_Wep_MG_M1919_Machinegun_Single_Shot_X10.wav")], gap=0.3, length=0.9, take=8
