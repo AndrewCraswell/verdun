@@ -264,9 +264,10 @@ FX = [
     ("ember", "PolygonParticles_Sparkle_01", 128),
     ("scorch", "PolygonParticles_Circle_Dark_01", 256),
     ("grunge", "Generic_Decal_Grunge_01", 512),
-    # A soft disc filling its frame: the body of smoke, dust and the column of earth a shell throws up.
-    ("puff", "Generic_Circle_Soft_01", 256),
 ]
+# The body of smoke, dust and the column of earth a shell throws up: a billow made here rather than taken from the pack,
+# whose soft disc has a flat top and a rim, so that dozens of puffs twenty metres across overlapping read as discs.
+PUFF = {"size": 256, "falloff": 0.36, "seed": 1916}
 
 # What the build can be limited to, naming them after the output directory; all of them by default.
 SECTIONS = ["kit", "ground", "fx", "audio", "soldier"]
@@ -459,6 +460,51 @@ def build_fx(vendor, output):
         else:
             shutil.copyfile(path, fx_dir / f"{name}.png")
         print(f"[level-kit] fx {name} <- {source}", flush=True)
+    write_puff(fx_dir / "puff.png")
+
+
+def cloud_noise(rng, size, octaves=(4, 8, 16, 32)):
+    """Smooth value noise from 0 to 1: random grids, coarse to fine, each blown up bilinearly and summed."""
+    total = np.zeros((size, size))
+    weight = 1.0
+    weights = 0.0
+    for cells in octaves:
+        grid = rng.random((cells + 1, cells + 1))
+        at = np.linspace(0, cells, size, endpoint=False)
+        low = at.astype(int)
+        t = at - low
+        rows = grid[low] * (1 - t)[:, None] + grid[low + 1] * t[:, None]
+        layer = rows[:, low] * (1 - t)[None, :] + rows[:, low + 1] * t[None, :]
+        total += layer * weight
+        weights += weight
+        weight *= 0.55
+    total /= weights
+    return (total - total.min()) / (total.max() - total.min())
+
+
+def write_puff(path):
+    """
+    A billow of smoke, white for the particle's colour to tint: thickest in the middle and thinning smoothly to nothing,
+    with no flat top or rim, its edge ragged and its body cloudy so overlapping puffs don't line up into discs.
+    """
+    size = PUFF["size"]
+    rng = np.random.default_rng(PUFF["seed"])
+    at = (np.arange(size) + 0.5) / size * 2 - 1
+    x, y = np.meshgrid(at, at)
+    # A ragged edge: the distance from the middle stretched and shrunk by one noise, the body thinned by another.
+    ragged = cloud_noise(rng, size)
+    body = cloud_noise(rng, size)
+    r = np.hypot(x, y) * (0.85 + 0.3 * ragged)
+    alpha = np.exp(-(r**2) / (2 * PUFF["falloff"] ** 2)) * (0.65 + 0.35 * body)
+    alpha *= np.clip((1 - np.hypot(x, y)) / 0.15, 0, 1)
+    shade = 0.84 + 0.16 * cloud_noise(rng, size)
+    pixels = np.dstack([shade, shade, shade, np.clip(alpha, 0, 1)])
+    image = bpy.data.images.new("puff", size, size, alpha=True)
+    image.pixels.foreach_set(pixels[::-1].astype(np.float32).ravel())
+    image.filepath_raw = str(path)
+    image.file_format = "PNG"
+    image.save()
+    print("[level-kit] fx puff <- made here", flush=True)
 
 
 def build_audio(vendor, output):
