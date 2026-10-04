@@ -63,6 +63,20 @@ least. Fleury had a church, but the kit has none, and a barn and chimney read be
 from house ruins. The village is all in no man's land, as it was in July 1916; the crossroads is an objective. No house
 stands within 14 m of the map's edge.
 
+### The woods and no man's land
+
+The art for the map's trees, stumps and logs ([scenery-dressing.ts](../apps/client/src/level/scenery-dressing.ts))
+follows how hard the shelling hit the ground, measured by the distance to the nearest fire trench: within a few dozen
+metres of the lines most trees are trunks stripped to poles, their branches shot away, leaning up to 16 degrees where
+the blasts left them; far behind the lines most keep a crown of bare branches and lean a little. A log is a limb or a
+length of trunk brought down, or a whole trunk felled with its shattered top. Deadwood (fallen limbs, splinters and
+twigs) lies round the trees, stumps and logs, thickest near the lines, and never in a trench or a pool.
+
+No man's land is strewn with the litter of battle: helmets of both sides, rifles, planks and sheets of iron, burst
+sandbags, packs, canteens, duds and now and then a stretcher, on the churned ground only, thickest a few dozen metres
+out from the trenches, where the attacks broke on the wire. The small kit is drawn half as large again so it reads from
+the game's camera. None of it blocks sight or movement.
+
 ### Ground work
 
 The ground is worked for what stands on it ([sculpt.ts](../packages/map/src/sculpt.ts), `GROUND_WORK`). It changes the
@@ -137,15 +151,17 @@ end caps, fire steps. Two things make it fit:
 The client lines every trench in [trench-dressing.ts](../apps/client/src/level/trench-dressing.ts): straight sections
 scaled to fit each run, corners at turns, T junctions where a trench ends on another, end caps, fire steps along the
 front wall of bays, duckboards, dugout entrances in the rear lines, ladders in the front line, a course of sandbags
-along about half the bays' parapets (kept below the eye line of a man on the fire step, so the art matches line of
-sight), stores and tools against the walls, and telephone poles beside the communication trenches. The lines are lived
-in: rainwater stands on the floor under the duckboards wherever the floor dips and in about a third of the rest, every
-dugout's doorway has a gas curtain (a damp blanket, made in code since the kit has none), braziers made from oil drums
-burn beside about half the dugouts with sparks rising from them, and a signboard stands where each communication trench
-joins a fire trench. A 0.5 m height grid can't follow vertical revetments, so once the kit is placed the terrain is
-drawn slightly differently from the simulation's heights
-([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's walls, floor and lips,
-and darkened on the spoil so the seams between pieces read as shadow.
+along nearly every bay's parapet in the front line and most behind it (kept below the eye of a man on the fire step, so
+the art matches line of sight), broken here and there where a shell blew a stretch in and left a heap of burst bags,
+stores and tools against the walls, and telephone poles beside the communication trenches. Burst bags, planks, sheets of
+iron, ammunition boxes, spare duckboards, spades and duds lie on the lips of spoil, behind a bay and either side of a
+sap, so the kit's smooth lips don't read as pillows. The lines are lived in: rainwater stands on the floor under the
+duckboards wherever the floor dips and in about a third of the rest, every dugout's doorway has a gas curtain (a damp
+blanket, made in code since the kit has none), braziers made from oil drums burn beside about half the dugouts with
+sparks rising from them, and a signboard stands where each communication trench joins a fire trench. A 0.5 m height grid
+can't follow vertical revetments, so once the kit is placed the terrain is drawn slightly differently from the
+simulation's heights ([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's
+walls, floor and lips, and darkened on the spoil so the seams between pieces read as shadow.
 
 **Shellfire wrecks the props** ([battle-damage.ts](../apps/client/src/level/battle-damage.ts)). Every burst that makes a
 crater reaches a little past the crater's bowl: wire, duckboards, ladders, stores, poles and parapet sandbags within it
@@ -241,7 +257,10 @@ The colour grade runs in the pipeline's image processing pass.
   the cost at about 5 ms of CPU a frame at gameplay zoom. Engines without cascaded shadow maps go without.
 - **One colour grade**: desaturated, a touch of contrast, warm highlights, cool shadows, a light vignette.
 - **Smoke** drifting east on the wind from about one ruin in four and every wreck, in Synty's faceted smoke sprite, and
-  **mist** lying in the hollows.
+  **mist** lying in the hollows. Smoke, dust and mist are drawn unlit, so they're lit by hand
+  ([particle-light.ts](../apps/client/src/level/particle-light.ts)): each takes its midday colour times the fog's colour
+  against midday's, so it darkens at night instead of glowing, and warms at sunset. Flames, flashes and sparks give off
+  their own light and are left alone.
 
 Screen-space ambient occlusion was tried in planning and left out: the shadows already take the frame budget it would
 need, and the darkened spoil and wet hollows give much of the same grounding.
@@ -334,12 +353,15 @@ In the game, placements are drawn in batches ([scenery-batches.ts](../apps/clien
 placement of a kit piece within a 128 m cell of the map is a thin instance of one mesh, or within the whole map for a
 piece placed fewer than about fifty times. Each batch has a Geometry of its own over the piece's vertex and index
 buffers, which aren't copied: Babylon keeps thin instances in the Geometry, so batches sharing one would draw each
-other's. The sector's 14,500 props make about 525 batches, so Babylon, which tests every mesh against the view every
+other's. The sector's 15,500 props make about 700 batches, so Babylon, which tests every mesh against the view every
 frame (again for each shadow cascade and for the depth of field's depth pass), tests a few hundred meshes instead of
-14,500. Heavy pieces switch to their far copy beyond 110 m and small clutter such as duckboards and splinters stops
+15,500. Heavy pieces switch to their far copy beyond 110 m and small clutter such as duckboards and splinters stops
 drawing beyond 50–220 m, both measured to the nearest point of the batch, so pieces near the camera always draw. Grass,
-litter, planks and the like cast no shadows and stay out of the depth of field's depth map, which is drawn at half the
-screen's size. Zoomed fully out the sector draws about 1.6 M triangles.
+litter, planks and the like cast no shadows. The depth of field's depth map is drawn at half the screen's size and holds
+only the ground: looking down on the battlefield, what stands on it is near enough the ground's depth, and every prop
+drawn again would cost a draw call. Batches of grass and trees carry `metadata.sway`, how freely they bend in the wind
+(1 for grass, 0.25 for a crowned tree, 0.1 for a pole), for the wind's sway on the kit's materials. Zoomed fully out the
+sector draws about 1.6 M triangles.
 
 ### Asset pack
 
