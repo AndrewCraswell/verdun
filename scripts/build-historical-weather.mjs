@@ -65,6 +65,8 @@ const STATIONS_URL = "https://meteofrance.s3.sbg.io.cloud.ovh.net/data/synchro_f
  * - `fogs`, visibility in metres;
  * - `snows` and `rains`, millimetres of water an hour at least;
  * - `clears`, dry and mostly clear (the value unused).
+ * A region may also have a day-by-day record from a published source (`daily`, a tab-separated file in
+ * scripts/weather-records/), whose days override the stations: see `dailyRecord`.
  * Each is sourced in docs/research/notes/weather/historical_weather_1916.md.
  */
 const REGIONS = {
@@ -122,6 +124,8 @@ const REGIONS = {
     departments: ["80", "60", "62", "59", "02", "27", "95", "75"],
     // Inland stations for the day's heat: Dunkirk's sea air would cool the Somme's summer.
     stations: { temperature: ["27284001", "75114001"] }, // Gisors, Paris-Montsouris
+    // The battle's own record, 23 June to 18 November 1916, from Gliddon's When the Barrage Lifts.
+    daily: "somme-1916-gliddon.tsv",
     fogs: [],
     snows: [],
     rains: [],
@@ -370,6 +374,35 @@ async function stations(region) {
   return { daily, snow, chosen }
 }
 
+/**
+ * A region's day-by-day record from a published source, by day (UTC ms): its low and high in °C, its rain in mm, and the
+ * day's outlook in a word or two. The file has a line a day: `date, rain in mm, high °F, low °F, outlook, source`,
+ * separated by tabs, any value blank where the source gives none; lines starting with # are comments.
+ */
+async function dailyRecord(region) {
+  const days = new Map()
+  if (!region.daily) {
+    return days
+  }
+  const text = await readFile(new URL(`weather-records/${region.daily}`, import.meta.url), "utf8")
+  const number = (value) => (value === undefined || value.trim() === "" ? NaN : Number(value))
+  const celsius = (value) => ((number(value) - 32) * 5) / 9
+  for (const line of text.split("\n")) {
+    if (line.trim() === "" || line.startsWith("#")) {
+      continue
+    }
+    const [date, rain, high, low, outlook = ""] = line.split("\t")
+    days.set(Date.parse(`${date.trim()}T00:00:00Z`), {
+      rain: number(rain),
+      high: celsius(high),
+      low: celsius(low),
+      outlook: outlook.trim().toLowerCase()
+    })
+  }
+  print(`  daily record: ${days.size} days from ${region.daily}`)
+  return days
+}
+
 function mean(values) {
   const known = values.filter((value) => Number.isFinite(value))
   return known.length > 0 ? known.reduce((sum, value) => sum + value, 0) / known.length : NaN
@@ -378,6 +411,7 @@ function mean(values) {
 async function buildRegion(name, region, grids) {
   print(`${name}:`)
   const { daily, snow, chosen } = await stations(region)
+  const record = await dailyRecord(region)
   const at = interpolator(grids.box, region.place)
   const times = []
   for (let time = START; time < END; time += STEP_HOURS * HOUR) {
@@ -403,8 +437,10 @@ async function buildRegion(name, region, grids) {
         highs.push(row.TX - lapse)
       }
     }
-    const low = mean(lows)
-    const high = mean(highs)
+    // The battle's own record, where there is one, is better than stations a hundred kilometres off.
+    const recorded = record.get(day)
+    const low = Number.isFinite(recorded?.low) ? recorded.low : mean(lows)
+    const high = Number.isFinite(recorded?.high) ? recorded.high : mean(highs)
     const steps = times.flatMap((time, index) => (time >= day && time < day + DAY ? [index] : []))
     const values = steps.map((index) => temperature[index])
     const min = Math.min(...values)
@@ -421,7 +457,10 @@ async function buildRegion(name, region, grids) {
   // dry, and the stations' totals on days they didn't.
   let corrected = 0
   for (let day = START; day < END; day += DAY) {
-    const total = mean(chosen.rain.map((station) => daily.get(`${station} ${day}`)?.RR))
+    const recorded = record.get(day)?.rain
+    const total = Number.isFinite(recorded)
+      ? recorded
+      : mean(chosen.rain.map((station) => daily.get(`${station} ${day}`)?.RR))
     if (!Number.isFinite(total)) {
       continue
     }
@@ -451,6 +490,27 @@ async function buildRegion(name, region, grids) {
 
   // History's own snowfalls, rain and fair spells, where the sources missed them.
   const cloud = times.map((time) => field("tcdc", time))
+  // The daily record's outlook: a fine day's sky mostly clear, a dull one's overcast, mist or fog in the morning, haze
+  // all day.
+  const fogs = [...region.fogs]
+  for (const [day, { outlook }] of record) {
+    const daylight = times.flatMap((time, index) => (time >= day + 5 * HOUR && time <= day + 19 * HOUR ? [index] : []))
+    if (/\b(fine|sun|clear|bright)\b/.test(outlook)) {
+      daylight.forEach((index) => (cloud[index] = Math.min(cloud[index], 35)))
+    }
+    if (/\b(dull|overcast|cloud)\b/.test(outlook)) {
+      daylight.forEach((index) => (cloud[index] = Math.max(cloud[index], 85)))
+    }
+    if (/\bmist/.test(outlook)) {
+      fogs.push([day + 2 * HOUR, day + 8 * HOUR, 600])
+    }
+    if (/\bfog\b/.test(outlook)) {
+      fogs.push([day, day + 10 * HOUR, 150])
+    }
+    if (/\bhaz/.test(outlook)) {
+      fogs.push([day + 6 * HOUR, day + 18 * HOUR, 4000])
+    }
+  }
   const within = (time, [from, to]) => time >= from && time <= to
   times.forEach((time, index) => {
     for (const span of region.snows) {
@@ -489,7 +549,7 @@ async function buildRegion(name, region, grids) {
     windX: times.map((time) => round(field("uwnd", time) * NEAR_GROUND, 10)),
     windZ: times.map((time) => round(field("vwnd", time) * NEAR_GROUND, 10)),
     humidity: times.map((time) => round(field("rhum", time), 1)),
-    fogs: region.fogs
+    fogs
   }
   const output = new URL(`${name}-weather-1914-1918.json`, DATA)
   await writeFile(output, `${JSON.stringify(table)}\n`)

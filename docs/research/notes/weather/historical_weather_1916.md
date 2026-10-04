@@ -95,11 +95,20 @@ The same checks for the other regions (`scripts/build-historical-weather.mjs`, `
 | 13–14 Sep 1914 | aisne | Dense fog by night, burned off by a bright morning sun | [Wikipedia](https://en.wikipedia.org/wiki/First_Battle_of_the_Aisne) | — | Fog written in, to 07:00 UTC |
 | 9 May 1915 | artois | Bright, dry weather at the attack | [Wikipedia](https://en.wikipedia.org/wiki/Second_Battle_of_Artois) | Heavy rain (its one rain station is 75 km off) | Written in as dry and mostly clear |
 | 25 Sep 1915 | champagne | Heavy rain from the night until noon | [Wikipedia](https://en.wikipedia.org/wiki/Second_Battle_of_Champagne), [wwitoday](https://wwitoday.com/wwiScQuotationDetail.php?id=523) | Rain all morning | Matches |
-| 1 Jul 1916 | somme | Fine and hot, 26 °C, no rain | Gliddon via [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Albert_(1916)) | Dry, 21 °C at most | Close: the nearest inland stations, Gisors and Paris, are over 100 km off |
+| 1 Jul 1916 | somme | Fine and hot, 26 °C, no rain | Gliddon via [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Albert_(1916)) | Dry, 21 °C at most from stations over 100 km off | Gliddon's whole record written in (below) |
 | 15 Sep 1916 | somme | Cool haze, 15/6 °C, dry | Gliddon via [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Flers%E2%80%93Courcelette) | Dry, 14 °C at 13:00 | Matches |
 | 9 Apr 1917 | artois | Snow and sleet squalls as the attack went in | [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_Arras_(1917)), [Mental Floss](https://mentalfloss.com/article/94211/wwi-centennial-brits-attack-arras) | Rain, 4 °C | Snow written in, 03:00 to 12:00 UTC |
 | 16 Apr 1917 | aisne | Dawned misty and overcast | [Wikipedia](https://en.wikipedia.org/wiki/Second_Battle_of_the_Aisne) | 8 km visibility | Mist written in, 800 m |
 | 23 Oct 1917 | aisne | Rain from 06:00 at Malmaison | [Wikipedia](https://en.wikipedia.org/wiki/Battle_of_La_Malmaison) | Light rain | Close; no change |
+
+**The Somme's daily record.** Jack Gliddon's *When the Barrage Lifts* (1987) gives the Somme's weather every day from 23
+June to 18 November 1916: rain in mm, the high and low in °F, and the outlook in a word or two. The English Wikipedia
+articles on the battle's actions reproduce it, and all 149 days were read from them (October 2026) into
+`scripts/weather-records/somme-1916-gliddon.tsv`, with each day's article. Where articles word a day's outlook
+differently the first is kept, and on 1 July, where the Battle of Albert article gives two readings, the 79/52 °F "fine"
+of its own day's table. The build takes the record's temperatures and rain over the stations' for those days, and its
+outlook for the sky: "fine" or "sun" a mostly clear sky by daylight, "dull" or "cloud" an overcast one, "mist" or "fog"
+the morning's visibility down to 600 m or 150 m, "haze" the day's to 4 km.
 
 Unconfirmed claims found only in search snippets (−20 °C on 15 December 1916, a clearing after snow on 21 February)
 were not used. The same search found well-sourced days on other fronts (the Somme's daily record in Gliddon's *When

@@ -121,10 +121,19 @@ describe("history's weather elsewhere on the front", () => {
     for (const region of WEATHER_REGIONS) {
       await loadWeatherRegion(region)
     }
-    // The first day of the Somme, 1 July 1916: fine and hot, 26 °C, no rain (Gliddon). The nearest stations that kept
-    // records through the war are over 100 km off, at Gisors and Paris, and make it a warm day of about 21 °C.
+    // The first day of the Somme, 1 July 1916: fine and hot, 79 °F (26 °C) and 52 °F (11 °C), no rain (Gliddon).
     const somme = day("somme", Date.UTC(1916, 6, 1))
-    expect(Math.max(...somme.map((weather) => weather.temperature))).toBeGreaterThan(20)
+    expect(Math.max(...somme.map((weather) => weather.temperature))).toBeCloseTo(26.1, 0)
+    expect(Math.min(...somme.map((weather) => weather.temperature))).toBeCloseTo(11.1, 0)
+    // A fine day: the sky mostly clear by daylight, 06:00 to 18:00.
+    expect(Math.max(...somme.slice(2, 7).map((weather) => weather.cloudCover))).toBeLessThanOrEqual(0.35)
+    // 4 September: 25 mm of rain; 13 November, the Ancre: fog; 2 August, the hottest day, 88 °F (31 °C).
+    const wettest = day("somme", Date.UTC(1916, 8, 4))
+    expect(wettest.reduce((sum, weather) => sum + weather.precipitation * 3, 0)).toBeGreaterThan(15)
+    expect(
+      createForecast({ kind: "records", seed: 1916, region: "somme" }).at(Date.UTC(1916, 10, 13, 6)).visibility
+    ).toBe(150)
+    expect(Math.max(...day("somme", Date.UTC(1916, 7, 2)).map((weather) => weather.temperature))).toBeCloseTo(31.1, 0)
     expect(somme.every((weather) => weather.precipitation === 0)).toBe(true)
     // Arras, 9 April 1917: snow and sleet squalls as the attack went in at 05:30.
     const arras = createForecast({ kind: "records", seed: 1916, region: "artois" }).at(Date.UTC(1917, 3, 9, 5))

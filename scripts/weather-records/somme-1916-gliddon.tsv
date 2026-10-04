@@ -1,0 +1,155 @@
+# The Somme's daily weather, 23 June to 18 November 1916: rain in mm, the day's high and low in °F, and the outlook.
+# From Jack Gliddon, When the Barrage Lifts (1987), as the English Wikipedia articles on the battle's actions reproduce it
+# (the source column), read October 2026. Where articles word a day's outlook differently the first is kept; on 1 July
+# the Battle of Albert article gives both 79/52 "fine" and 75/54 "fine, hazy", and the first is kept. Blank where the
+# table gives none. Read by scripts/build-historical-weather.mjs (dailyRecord).
+# date	rain	high	low	outlook	source
+1916-06-23	2.0	79	55	wind	Battle of Albert (1916)
+1916-06-24	1.0	72	52	dull	Battle of Albert (1916)
+1916-06-25	1.0	71	54	wind	Battle of Albert (1916)
+1916-06-26	6.0	72	52	cloud	Battle of Albert (1916)
+1916-06-27	8.0	68	54	cloud	Battle of Albert (1916)
+1916-06-28	2.0	68	50	dull	Battle of Albert (1916)
+1916-06-29	0.1	66	52	cloud, wind	Battle of Albert (1916)
+1916-06-30	0.0	72	48	dull, high wind	Battle of Albert (1916)
+1916-07-01	0.0	79	52	fine	Battle of Albert (1916)
+1916-07-02	0.0	75	54	fine	Battle of Albert (1916)
+1916-07-03	2.0	68	55	fine	Battle of Albert (1916)
+1916-07-04	17.0	70	55	storm	Battle of Albert (1916)
+1916-07-05	0.0	72	52	dull	Battle of Delville Wood
+1916-07-06	2.0	70	54	rain	Battle of Albert (1916)
+1916-07-07	13.0	70	59	rain	Battle of Albert (1916)
+1916-07-08	8.0	73	52	rain	Battle of Albert (1916)
+1916-07-09	0.0	70	53	dull	Battle of Albert (1916)
+1916-07-10	0.0	82	48		Battle of Albert (1916)
+1916-07-11	0.0	68	52	dull	Battle of Albert (1916)
+1916-07-12	0.1	68		dull	Battle of Albert (1916)
+1916-07-13	0.1	70	54	dull	Battle of Albert (1916)
+1916-07-14	0.0	70		dull	Battle of Albert (1916)
+1916-07-15	0.0	72	47	sun	Battle of Bazentin Ridge
+1916-07-16	4.0	73	55	dull	Battle of Bazentin Ridge
+1916-07-17	0.0	70	59	mist	Battle of Bazentin Ridge
+1916-07-18	0.0	72	52	dull	Battle of Delville Wood
+1916-07-19	0.0	70	50	dull	Battle of Delville Wood
+1916-07-20	0.0	75	52	fine	Battle of Delville Wood
+1916-07-21	0.0	72	52	fine	Battle of Delville Wood
+1916-07-22	0.1	77	55	dull	Battle of Delville Wood
+1916-07-23	0.0	68	54	dull	Battle of Delville Wood
+1916-07-24	0.0	70	55	dull, hot	Battle of Delville Wood
+1916-07-25	0.0	66	50	dull	Battle of Delville Wood
+1916-07-26	0.0	66	50	dull	Battle of Delville Wood
+1916-07-27	8.0	81	61	hazy	Battle of Guillemont
+1916-07-28	0.0	77	59	dull, hot	Battle of Delville Wood
+1916-07-29	0.0	81	57	dull	Battle of Delville Wood
+1916-07-30	0.0	82	57	fine	Battle of Delville Wood
+1916-07-31	0.0	82	59	hot	Battle of Delville Wood
+1916-08-01	0.0	82	59	hot, hazy	Battle of Guillemont
+1916-08-02	0.0	88	57	hot	Battle of Delville Wood
+1916-08-03	0.0	84	57	hot	Battle of Delville Wood
+1916-08-04	0.0	79	52		Battle of Delville Wood
+1916-08-05	0.0	68	48	fine	Battle of Delville Wood
+1916-08-06	0.0	75	52		Battle of Delville Wood
+1916-08-07	0.0	73	50		Battle of Delville Wood
+1916-08-08	0.0	77	52		Battle of Delville Wood
+1916-08-09	0.0	84	54		Battle of Delville Wood
+1916-08-10	4.0	70	55	dull	Battle of Delville Wood
+1916-08-11	0.0	77	59	rain	Battle of Delville Wood
+1916-08-12	1.0	82	63		Battle of Delville Wood
+1916-08-13	0.0	81	59	wind	Battle of Delville Wood
+1916-08-14	2.0	77	59	rain	Battle of Delville Wood
+1916-08-15	0.0	75	55	rain	Battle of Delville Wood
+1916-08-16	2.0	75	55		Battle of Delville Wood
+1916-08-17	4.0	72	54	rain	Battle of Delville Wood
+1916-08-18	1.0	70	55	dull	Battle of Delville Wood
+1916-08-19	2.0	70	50	dull	Battle of Delville Wood
+1916-08-20	0.0	72	54	dull	Battle of Delville Wood
+1916-08-21	0.0	72	48		Battle of Delville Wood
+1916-08-22	0.0	72	52		Battle of Delville Wood
+1916-08-23	0.0	72	54		Battle of Delville Wood
+1916-08-24	0.0	78	55		Battle of Delville Wood
+1916-08-25	8.0	81	61	dull	Battle of Delville Wood
+1916-08-26	7.0	75	59		Battle of Delville Wood
+1916-08-27	4.0	73	59		Battle of Delville Wood
+1916-08-28	0.1	73	59	rain	Battle of Delville Wood
+1916-08-29		82	59	rain	Battle of Delville Wood
+1916-08-30	8.0	63	48	mud	Battle of Delville Wood
+1916-08-31	0.0	70	52	fine	Battle of Delville Wood
+1916-09-01	0.0	72	52		Battle of Delville Wood
+1916-09-02	0.0	75	52	wind	Battle of Delville Wood
+1916-09-03	4	72	50		Battle of Delville Wood
+1916-09-04	25	66	52	rain	Battle of Delville Wood
+1916-09-05	0.0	63	54	dull	Battle of Delville Wood
+1916-09-06	0.0	70	52	dull	Battle of Delville Wood
+1916-09-07	0.0	70	54	fine	Battle of Ginchy
+1916-09-08	0.0	70	55	fine, dull	Battle of Ginchy
+1916-09-09	5	75	57		Battle of Ginchy
+1916-09-10	1	68	57	dull	Battle of Ginchy
+1916-09-11	0.1	66	54	dull	Battle of Ginchy
+1916-09-12	0.0	72	55	fine, dull	Attacks on High Wood
+1916-09-13	0.0	72	52	dull	Attacks on High Wood
+1916-09-14	0.0	61	41	wind	Attacks on High Wood
+1916-09-15	0	59	43	cool, haze	Battle of Flers–Courcelette
+1916-09-16	0	66	41	fine, sun	Battle of Flers–Courcelette
+1916-09-17	2	63	45		Battle of Flers–Courcelette
+1916-09-18	13	63	46	rain	Battle of Flers–Courcelette
+1916-09-19	3	55	43	wet, wind	Battle of Flers–Courcelette
+1916-09-20	1	61	48	rain	Battle of Flers–Courcelette
+1916-09-21	0.1	59	48	dull, rain	Battle of Flers–Courcelette
+1916-09-22	0	64	41	mist	Battle of Flers–Courcelette
+1916-09-23	0	66	43	fine	Battle of Morval
+1916-09-24	0	72	45	mist, sun	Battle of Morval
+1916-09-25	0	73	50	fine	Battle of Morval
+1916-09-26	0.1	75	54	fine	Battle of Morval
+1916-09-27	0.1	72	52	dull, rain	Battle of Morval
+1916-09-28	1	73	54	fine, rain	Battle of Morval
+1916-09-29	17	61	54	rain	Battle of Thiepval Ridge
+1916-09-30	0	63	41	dull	Battle of Thiepval Ridge
+1916-10-01	0	63	41	fine, dull	Battle of Le Transloy
+1916-10-02	3	57	45	wet, mist	Battle of Le Transloy
+1916-10-03	0.1	70	50	rain, mist	Battle of Le Transloy
+1916-10-04	4	66	52	dull, wet	Battle of Le Transloy
+1916-10-05	6	66	54	dull, rain	Battle of Le Transloy
+1916-10-06	2	70	57	sun, rain	Battle of Le Transloy
+1916-10-07	0.1	66	52	wind, rain	Battle of Le Transloy
+1916-10-08	0.1	64	54	rain	Battle of Le Transloy
+1916-10-09	0	64	50	fine	Battle of Le Transloy
+1916-10-10	0	68	46	fine, sun	Battle of Le Transloy
+1916-10-11	0.1	66	50	dull	Battle of Le Transloy
+1916-10-12	0	61	55	dull	Battle of Le Transloy
+1916-10-13	0	61	50	dull	Battle of Le Transloy
+1916-10-14	0	61	50	dull	Battle of Le Transloy
+1916-10-15	3	57	41	rain	Battle of the Ancre Heights
+1916-10-16	0.1	54	36	sun, cold	Battle of Le Transloy
+1916-10-17	3	55	43	fine	Battle of Le Transloy
+1916-10-18	4	57	48	rain	Battle of the Ancre Heights
+1916-10-19	4	57	37	rain	Battle of Le Transloy
+1916-10-20	0	48	28	fine, cold	Battle of Le Transloy
+1916-10-21	0	45	28	fine, cold	Battle of Le Transloy
+1916-10-22	0			fine, cold	Battle of Le Transloy
+1916-10-23	3	55	43	dull	Battle of Le Transloy
+1916-10-24	3	54	45	dull, rain	Battle of Le Transloy
+1916-10-25	2	52	45	rain	Battle of Le Transloy
+1916-10-26	1	55	39	rain	Battle of Le Transloy
+1916-10-27	1	55	43	rain, cold	Battle of Le Transloy
+1916-10-28	8	55	41	wet, cold	Battle of Le Transloy
+1916-10-29	7	53	45	wet	Battle of Le Transloy
+1916-10-30	7	61	48	wet, cold	Battle of Le Transloy
+1916-10-31	0	63	46		Battle of Le Transloy
+1916-11-01	3	59	46		Battle of Le Transloy
+1916-11-02	3	59	48		Battle of Le Transloy
+1916-11-03	1	59	48		Battle of Le Transloy
+1916-11-04	2	64	52	wet, dull	Battle of the Ancre Heights
+1916-11-05	0	59	48	fine	Battle of the Ancre Heights
+1916-11-06	0	57	45	dull	Battle of the Ancre Heights
+1916-11-07	12	55	45		Battle of Le Transloy
+1916-11-08	2	57	43		Battle of Le Transloy
+1916-11-09	0	54	30	fine	Battle of the Ancre Heights
+1916-11-10	0	50	30		Battle of Le Transloy
+1916-11-11	0.1	55	32	mist, cold	Battle of the Ancre Heights
+1916-11-12	0.1	50	48	dull	Battle of the Ancre
+1916-11-13	0	54	46	fog	Battle of the Ancre
+1916-11-14	0	55	36	dull	Battle of the Ancre
+1916-11-15	0	46	36		Battle of the Ancre
+1916-11-16	0	46	37	fine, cold	Battle of the Ancre
+1916-11-17	2	37	25	fine	Battle of the Ancre
+1916-11-18	8	54	36		Battle of the Ancre

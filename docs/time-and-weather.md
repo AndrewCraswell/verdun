@@ -467,13 +467,13 @@ days the data is checked against are listed in the
 **Regions.** Each region of the front has its own table (`packages/sim/data/<region>-weather-1914-1918.json`), and a
 records forecast names its region (`{ kind: "records", seed, region }`):
 
-| Region      | Place                     | Serves                                                          | Stations                                                  |
-| ----------- | ------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
-| `fleury`    | Fleury, 49.19° N 5.43° E  | All of Verdun, the Argonne, Les Éparges                         | Chosen by hand: Metz, Nancy; Sainte-Menehould, Bar-le-Duc |
-| `champagne` | Souain, 49.18° N 4.55° E  | The Champagne offensives of 1915                                | Châlons (28 km); Sainte-Menehould, Givry                  |
-| `aisne`     | Craonne, 49.44° N 3.79° E | The Chemin des Dames, Malmaison, the Aisne 1914, the Marne 1918 | Châlons, Paris; Montmort, Étreux, Montmirail              |
-| `somme`     | Albert, 50.03° N 2.70° E  | The Somme, 1916                                                 | Gisors, Paris (by hand, inland); Étreux, Gisors, Pontoise |
-| `artois`    | Vimy, 50.37° N 2.78° E    | Artois 1915, Arras and Vimy 1917                                | Dunkirk, Gisors; Étreux                                   |
+| Region      | Place                     | Serves                                                          | Stations                                                                                              |
+| ----------- | ------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `fleury`    | Fleury, 49.19° N 5.43° E  | All of Verdun, the Argonne, Les Éparges                         | Chosen by hand: Metz, Nancy; Sainte-Menehould, Bar-le-Duc                                             |
+| `champagne` | Souain, 49.18° N 4.55° E  | The Champagne offensives of 1915                                | Châlons (28 km); Sainte-Menehould, Givry                                                              |
+| `aisne`     | Craonne, 49.44° N 3.79° E | The Chemin des Dames, Malmaison, the Aisne 1914, the Marne 1918 | Châlons, Paris; Montmort, Étreux, Montmirail                                                          |
+| `somme`     | Albert, 50.03° N 2.70° E  | The Somme, 1916                                                 | Gisors, Paris (by hand, inland); Étreux, Gisors, Pontoise; Gliddon's daily record, 23 Jun–18 Nov 1916 |
+| `artois`    | Vimy, 50.37° N 2.78° E    | Artois 1915, Arras and Vimy 1917                                | Dunkirk, Gisors; Étreux                                                                               |
 
 A map names its region (`weatherRegion`, added in map format version 5; the Fleury sector says `"fleury"`), and the
 client loads it before creating the battle (`main.ts`), falling back to Fleury's for a map that names none or one the
