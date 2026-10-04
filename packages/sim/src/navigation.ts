@@ -60,6 +60,11 @@ interface NavState {
 
 const states = new WeakMap<Simulation, NavState>()
 
+/** A cell's value in a grid; past the grid's end counts as unwalkable. */
+function read(grid: Float32Array, cell: number): number {
+  return grid[cell] ?? Infinity
+}
+
 function goalKey(goal: NavGoal): string {
   return goal.kind === "line"
     ? `line ${goal.direction > 0 ? 1 : -1} ${Math.round(goal.z / NAV_CELL)}`
@@ -84,7 +89,7 @@ function layObstacles(map: BattlefieldMap, columns: number, rows: number): Float
         const dz = (row + 0.5) * NAV_CELL - scenery.z
         if (dx * dx + dz * dz <= radius * radius) {
           const cell = row * columns + column
-          obstacles[cell] = Math.max(obstacles[cell] ?? 1, obstacle.cost)
+          obstacles[cell] = Math.max(read(obstacles, cell), obstacle.cost)
         }
       }
     }
@@ -109,7 +114,7 @@ function rebuild(sim: Simulation, state: NavState): void {
           wirePace(sim.wire, x - quarter, z + quarter) +
           wirePace(sim.wire, x + quarter, z + quarter)) /
         4
-      state.cost[cell] = (state.obstacles[cell] ?? 1) / (surfacePace(map, x, z) * wire)
+      state.cost[cell] = read(state.obstacles, cell) / (surfacePace(map, x, z) * wire)
       state.wired[cell] =
         wireAt(sim.wire, x - quarter, z - quarter) +
           wireAt(sim.wire, x + quarter, z - quarter) +
@@ -151,59 +156,66 @@ function navState(sim: Simulation): NavState {
   return state
 }
 
-/** A binary min-heap of cells by distance, for Dijkstra. */
-function createHeap() {
-  const cells: number[] = []
-  const keys: number[] = []
+/** A binary min-heap of cells by distance, for Dijkstra, on typed arrays that grow as needed. */
+function createHeap(initial: number) {
+  let cells = new Int32Array(Math.max(16, initial))
+  let keys = new Float64Array(cells.length)
+  let size = 0
+  const cellAt = (index: number) => cells[index] ?? 0
+  const keyAt = (index: number) => keys[index] ?? Infinity
   return {
     get size() {
-      return cells.length
+      return size
     },
     push(cell: number, key: number) {
-      let index = cells.length
-      cells.push(cell)
-      keys.push(key)
+      if (size === cells.length) {
+        const grownCells = new Int32Array(cells.length * 2)
+        grownCells.set(cells)
+        cells = grownCells
+        const grownKeys = new Float64Array(keys.length * 2)
+        grownKeys.set(keys)
+        keys = grownKeys
+      }
+      let index = size++
       while (index > 0) {
         const parent = (index - 1) >> 1
-        if ((keys[parent] ?? 0) <= key) {
+        if (keyAt(parent) <= key) {
           break
         }
-        cells[index] = cells[parent] ?? 0
-        keys[index] = keys[parent] ?? 0
+        cells[index] = cellAt(parent)
+        keys[index] = keyAt(parent)
         index = parent
       }
       cells[index] = cell
       keys[index] = key
     },
     pop(): number {
-      const top = cells[0] ?? -1
-      const lastCell = cells.pop() ?? 0
-      const lastKey = keys.pop() ?? 0
-      if (cells.length > 0) {
-        let index = 0
-        for (;;) {
-          const left = index * 2 + 1
-          const right = left + 1
-          let smallest = index
-          let smallestKey = lastKey
-          if (left < cells.length && (keys[left] ?? 0) < smallestKey) {
-            smallest = left
-            smallestKey = keys[left] ?? 0
-          }
-          if (right < cells.length && (keys[right] ?? 0) < smallestKey) {
-            smallest = right
-            smallestKey = keys[right] ?? 0
-          }
-          if (smallest === index) {
-            break
-          }
-          cells[index] = cells[smallest] ?? 0
-          keys[index] = keys[smallest] ?? 0
-          index = smallest
+      const top = cellAt(0)
+      size--
+      const lastCell = cellAt(size)
+      const lastKey = keyAt(size)
+      let index = 0
+      for (;;) {
+        const left = index * 2 + 1
+        const right = left + 1
+        let smallest = index
+        let smallestKey = lastKey
+        if (left < size && keyAt(left) < smallestKey) {
+          smallest = left
+          smallestKey = keyAt(left)
         }
-        cells[index] = lastCell
-        keys[index] = lastKey
+        if (right < size && keyAt(right) < smallestKey) {
+          smallest = right
+        }
+        if (smallest === index) {
+          break
+        }
+        cells[index] = cellAt(smallest)
+        keys[index] = keyAt(smallest)
+        index = smallest
       }
+      cells[index] = lastCell
+      keys[index] = lastKey
       return top
     }
   }
@@ -224,7 +236,7 @@ const NEIGHBOURS = [
 function flowField(state: NavState, goal: NavGoal): Float32Array {
   const { columns, rows, cost, height } = state
   const distance = new Float32Array(columns * rows).fill(Infinity)
-  const heap = createHeap()
+  const heap = createHeap(columns * rows)
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
       const x = (column + 0.5) * NAV_CELL
@@ -234,7 +246,7 @@ function flowField(state: NavState, goal: NavGoal): Float32Array {
           ? (z - goal.z) * goal.direction >= 0
           : (x - goal.x) ** 2 + (z - goal.z) ** 2 <= goal.radius ** 2
       const cell = row * columns + column
-      if (reached && Number.isFinite(cost[cell] ?? Infinity)) {
+      if (reached && Number.isFinite(read(cost, cell))) {
         distance[cell] = 0
         heap.push(cell, 0)
       }
@@ -242,7 +254,7 @@ function flowField(state: NavState, goal: NavGoal): Float32Array {
   }
   while (heap.size > 0) {
     const cell = heap.pop()
-    const here = distance[cell] ?? Infinity
+    const here = read(distance, cell)
     const column = cell % columns
     const row = Math.floor(cell / columns)
     for (const [dc, dr, length] of NEIGHBOURS) {
@@ -252,15 +264,15 @@ function flowField(state: NavState, goal: NavGoal): Float32Array {
         continue
       }
       const next = r * columns + c
-      const through = ((cost[cell] ?? Infinity) + (cost[next] ?? Infinity)) / 2
+      const through = (read(cost, cell) + read(cost, next)) / 2
       if (!Number.isFinite(through)) {
         continue
       }
       // The field runs from the goal outward, so the walk is from `next` to `cell`: its slope is that way round.
       const run = length * NAV_CELL
-      const grade = ((height[cell] ?? 0) - (height[next] ?? 0)) / run
+      const grade = (read(height, cell) - read(height, next)) / run
       const total = here + run * through * slopeCost(grade)
-      if (total < (distance[next] ?? Infinity)) {
+      if (total < read(distance, next)) {
         distance[next] = total
         heap.push(next, total)
       }
@@ -311,7 +323,7 @@ function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: numbe
     const x = fromX + dx * along
     const z = fromZ + dz * along
     const cell = cellAt(state, x, z)
-    if (!((state.obstacles[cell] ?? Infinity) < CLEAR_COST)) {
+    if (!(read(state.obstacles, cell) < CLEAR_COST)) {
       return false
     }
     if (state.wired[cell] === 1 && wirePace(sim.wire, x, z) < WIRE_SNAG) {
@@ -340,7 +352,7 @@ export function nextWaypoint(
   }
   const distance = field(state, goal)
   let cell = cellAt(state, x, z)
-  if (!Number.isFinite(distance[cell] ?? Infinity)) {
+  if (!Number.isFinite(read(distance, cell))) {
     // Nowhere to go from here (inside a ruin's footprint, say): head straight for it and let the ground sort it out.
     return { x: target.x, z: target.z }
   }
@@ -362,7 +374,7 @@ export function nextWaypoint(
         continue
       }
       const candidate = r * state.columns + c
-      if ((distance[candidate] ?? Infinity) < (distance[next] ?? Infinity)) {
+      if (read(distance, candidate) < read(distance, next)) {
         next = candidate
       }
     }
