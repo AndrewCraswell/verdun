@@ -400,7 +400,8 @@ describe("createSoldierCrowd", () => {
   it("turns an aiming man into his stance, rifle on target, but keeps a machine gun square to the front", () => {
     const sim = createSimulation({ map, seed: 1 })
     const rifleman = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
-    const gunner = spawnSoldier(sim, { side: Side.French, x: 20, z: 10, weapon: Weapon.MachineGun })
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 10, z: 30, weapon: Weapon.MachineGun })
+    // His mark lies due north, the way he faces.
     sim.soldiers.target.id[rifleman] = gunner
     const { crowd, kit, tick, matrices } = harness(sim)
     crowd.sync()
@@ -417,6 +418,23 @@ describe("createSoldierCrowd", () => {
     expect(headingOf(kneeling)).toBeCloseTo(AIM_TURN)
     expect(headingOf(matrices(kit.rifle)[0])).toBeCloseTo(AIM_TURN)
     expect(headingOf(matrices(kit.guns[Side.French])[0])).toBeCloseTo(0)
+  })
+
+  it("draws a man facing the enemy in his sights, not the way he walks, so he never fires over his shoulder", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const walker = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const enemy = spawnSoldier(sim, { side: Side.German, x: 10, z: -20 })
+    // Facing north, the way he walks, with his mark due south behind him.
+    sim.soldiers.target.id[walker] = enemy
+    const { crowd, kit, tick, matrices } = harness(sim)
+    crowd.sync()
+    tick(3)
+    crowd.update()
+    const [drawn] = matrices(kit.bodies[Side.French])
+    const forward = drawn ? Vector3.TransformNormal(Vector3.Forward(), drawn) : Vector3.Zero()
+
+    // Turned round to the south, give or take his aiming clip's turn.
+    expect(forward.z).toBeLessThan(-0.5)
   })
 
   it("runs on a run order through ground that holds him to a walking pace, but not on a flag an old order left", () => {

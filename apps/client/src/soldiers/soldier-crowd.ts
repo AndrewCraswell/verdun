@@ -362,6 +362,28 @@ export function createSoldierCrowd(
     return track.parapet.sees
   }
 
+  /**
+   * The way a fighting man is drawn facing: at the man in his sights, if he has one, or else the way the simulation has
+   * him face, which on the move is where he walks. Without it a man advancing past an enemy fired over his shoulder,
+   * straight back the way he'd come, rifle pointing ahead.
+   */
+  const faced = { x: 0, z: 0 }
+  function faceOf(id: EntityId, x: number, z: number): { x: number; z: number } {
+    faced.x = soldiers.facing.x[id]
+    faced.z = soldiers.facing.z[id]
+    const aimed = soldiers.target.id[id]
+    if (aimed >= 0) {
+      const dx = soldiers.position.x[aimed] - x
+      const dz = soldiers.position.z[aimed] - z
+      const length = Math.sqrt(dx * dx + dz * dz)
+      if (length > 0.1) {
+        faced.x = dx / length
+        faced.z = dz / length
+      }
+    }
+    return faced
+  }
+
   function visit(
     id: EntityId,
     status: Track["status"],
@@ -390,8 +412,7 @@ export function createSoldierCrowd(
       track.speed = jumped ? 0 : track.speed + (measured - track.speed) * SPEED_SMOOTHING
       if (!jumped && measured >= MOVING_SPEED) {
         // Clockwise from facing: ahead is along facing, right is facing turned a quarter clockwise seen from above.
-        const fx = soldiers.facing.x[id]
-        const fz = soldiers.facing.z[id]
+        const { x: fx, z: fz } = faceOf(id, x, z)
         track.heading = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz)
         track.running = runs(id, dx, dz, track)
       } else {
@@ -420,7 +441,8 @@ export function createSoldierCrowd(
     const climbing = status === "fighting" && now < track.climbUntil
     if (status === "fighting") {
       // A man scrambles up a wall facing it, whichever way he was looking.
-      track.targetYaw = climbing ? track.climbYaw : Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
+      const face = faceOf(id, x, z)
+      track.targetYaw = climbing ? track.climbYaw : Math.atan2(face.x, face.z)
       track.stance = drawnStance(stance)
       if (soldiers.grenades.count[id] < track.grenades) {
         startAction(track, "throw", now)
