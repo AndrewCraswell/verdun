@@ -1,5 +1,5 @@
-import type { SimEvent, Simulation, Squad } from "@verdun/sim"
-import { type BattleLog, createBattleLog, hudModel } from "./hud-model.ts"
+import type { SimEvent, Simulation, Squad, WarDay } from "@verdun/sim"
+import { type BattleLog, createBattleLog, hudModel, warStatus } from "./hud-model.ts"
 import "./hud.css"
 
 export interface Hud {
@@ -44,13 +44,27 @@ function panel(className: string): HTMLDivElement {
  * The heads-up display, laid over the battlefield: the player's soldier and squad bottom left, the sector's objectives
  * and both sides' losses top right, and the battle log at the top.
  */
-export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, tickRate: number): Hud {
+export interface HudOptions {
+  /** The war's calendar, when the battle runs on it: the turn and the next communiqué, and a banner while it waits. */
+  readonly war?: { readonly day: WarDay; readonly paused: boolean }
+  /** The real time, for the countdown to the next communiqué. */
+  readonly now?: () => number
+}
+
+export function createHud(
+  parent: HTMLElement,
+  sim: Simulation,
+  squad: Squad,
+  tickRate: number,
+  { war, now = Date.now }: HudOptions = {}
+): Hud {
   const root = document.createElement("div")
   root.className = "hud"
   const soldierPanel = panel("hud-soldier")
   const sectorPanel = panel("hud-sector")
   const logPanel = panel("hud-log")
-  root.append(soldierPanel, sectorPanel, logPanel)
+  const banner = panel("hud-banner")
+  root.append(soldierPanel, sectorPanel, logPanel, banner)
   parent.append(root)
   const log: BattleLog = createBattleLog(sim, squad, tickRate)
   let sinceRedraw = Infinity
@@ -69,7 +83,11 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
       ...(soldier.grenades ? [line(soldier.grenades, "hud-muted")] : []),
       ...(model.reserves ? [line(model.reserves, "hud-muted")] : [])
     )
+    const calendar = war ? warStatus(war.day, war.paused, now()) : null
+    banner.hidden = !calendar?.banner
+    banner.textContent = calendar?.banner ?? ""
     sectorPanel.replaceChildren(
+      ...(calendar ? [line(calendar.turn, "hud-title"), line(calendar.countdown, "hud-muted")] : []),
       line(model.week, "hud-title"),
       line(model.hour, "hud-clock"),
       line("Sector", "hud-title"),

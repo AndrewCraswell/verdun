@@ -64,8 +64,13 @@ const ART: Partial<Record<Scenery["kind"], readonly (readonly Part[])[]>> = {
       { across: 0.8, along: 2, height: 10.9, right: -8.5, forward: -4 }
     ]
   ],
-  // Stone walls run across their heading; the art picks one of four lengths, so this is a middling one.
-  wall: [[{ across: 3, along: 0.65, height: 1 }]],
+  // Stone walls run across their heading, one of four pieces by `variant % 4`.
+  wall: [
+    [{ across: 4.3, along: 0.6, height: 1 }],
+    [{ across: 1.3, along: 0.5, height: 1, right: -0.55, forward: -0.05 }],
+    [{ across: 4.1, along: 0.8, height: 0.6, right: 0.1 }],
+    [{ across: 2.1, along: 0.6, height: 0.3, right: 0.05 }]
+  ],
   bunker: [[{ across: 6, along: 7.6, height: 2.5 }]],
   stores: [
     [

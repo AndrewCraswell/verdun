@@ -68,7 +68,7 @@ async function start(): Promise<void> {
   const war = createWarClock(sim, scheduleForWeek(sim.environment.clock.week, Date.now()))
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
-  const hud = createHud(document.body, sim, playerSquad, TICK_RATE)
+  const hud = createHud(document.body, sim, playerSquad, TICK_RATE, { war })
   const stats = createDebugStats(document.body, engine, view.scene, sim)
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.

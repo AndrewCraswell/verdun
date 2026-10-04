@@ -58,6 +58,19 @@
   opacity: 0.7;
 }
 
+.hud-banner {
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  padding: 10px 18px;
+  font-size: 1.15em;
+  text-align: center;
+}
+
+.hud-banner[hidden] {
+  display: none;
+}
+
 .hud-stamina {
   width: 140px;
   height: 4px;
