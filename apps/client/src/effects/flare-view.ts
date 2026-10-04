@@ -474,8 +474,8 @@ export function createFlareView(
         visual.smoke.emitter = visual.position.clone()
         visual.smoke.emitRate = rising ? 40 : 14
         visual.smoke.gravity = new Vector3(wind.x * 0.25, 0.05, wind.z * 0.25)
-        // Fresh smoke round the flare glows with its light; older smoke, drifted off, is grey in the dark.
-        const shine = 0.35 + 1.1 * visual.brightness * (1 - light * 0.7)
+        // Fresh smoke round the flare glows with its light; smoke it no longer lights is as dark as the night.
+        const shine = 0.06 + 0.29 * light + 1.1 * visual.brightness * (1 - light * 0.7)
         visual.smoke.color1 = new Color4(shine, shine, shine * 0.97, 0.3)
         visual.smoke.color2 = new Color4(shine * 0.75, shine * 0.75, shine * 0.78, 0.22)
         visual.smoke.colorDead = new Color4(0.1, 0.1, 0.11, 0)
