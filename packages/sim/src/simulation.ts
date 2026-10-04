@@ -1,5 +1,6 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
+import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryState } from "./artillery.ts"
 import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, Side, type SoldierComponents } from "./components.ts"
@@ -31,10 +32,15 @@ export interface Simulation {
    * after the simulation is made; until then nobody can see anyone, so nobody fires.
    */
   lineOfSight: LineOfSight | null
-  /** What happened during the last step, for renderers: shots fired. Replaced every step. */
-  readonly events: ShotEvent[]
+  /** Batteries' fire missions and shells in flight. */
+  readonly artillery: ArtilleryState
+  /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
+  readonly events: SimEvent[]
   tick: number
 }
+
+/** Something that happened during a step that a renderer may want to show. */
+export type SimEvent = ShotEvent | BurstEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -53,6 +59,7 @@ export function createSimulation({ map, seed, capacity = DEFAULT_CAPACITY }: Sim
     pendingCommands: [],
     squads: [],
     lineOfSight: null,
+    artillery: createArtilleryState(),
     events: [],
     tick: 0
   }
@@ -130,6 +137,7 @@ export function stepSimulation(sim: Simulation): void {
   }
   squadSystem(sim)
   combatSystem(sim)
+  artillerySystem(sim)
   movementSystem(sim, STEP_SECONDS)
   sim.tick += 1
 }

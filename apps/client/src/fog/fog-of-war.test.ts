@@ -128,6 +128,10 @@ describe("FogOfWarPlugin", () => {
 
     expect(buffer.updateFloat4).toHaveBeenCalledWith("fogOfWarParams", 0.005, 0.01, 0.3, 0)
     expect(buffer.setTexture).toHaveBeenCalledWith("fogOfWar", texture)
+
+    plugin.darkenUnseen = false
+    plugin.bindForSubMesh(buffer as unknown as UniformBuffer)
+    expect(buffer.updateFloat4).toHaveBeenLastCalledWith("fogOfWarParams", 0.005, 0.01, 1, 0)
   })
 })
 
@@ -204,6 +208,33 @@ describe("createFogOfWar", () => {
     sim.soldiers.position.z[lookout] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
     fog.update(0)
 
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+  })
+
+  it("lights everything and shows every soldier while turned off, and recomputes when turned back on", async () => {
+    const { enemyInOpen, fog } = await trenchSetup()
+    fog.update(0)
+    fog.enabled = false
+
+    expect(fog.plugin.darkenUnseen).toBe(false)
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+
+    fog.enabled = true
+    expect(fog.update(0)).toBe(true)
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+  })
+
+  it("can start turned off", async () => {
+    const { sim, squad, enemyInOpen } = await trenchSetup()
+    const lineOfSight = await createLineOfSight(sim.map)
+    sightLines.push(lineOfSight)
+    const fog = createFogOfWar(scene(), sim, lineOfSight, {
+      squad,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      enabled: false
+    })
+
+    expect(fog.enabled).toBe(false)
     expect(fog.isShown(enemyInOpen)).toBe(true)
   })
 

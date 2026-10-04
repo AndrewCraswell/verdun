@@ -20,6 +20,8 @@ export interface FogOfWarOptions {
   readonly range?: number
   /** How often sight is recomputed, per second. */
   readonly updatesPerSecond?: number
+  /** Whether fog starts on. When off, all ground is lit and every soldier is shown. */
+  readonly enabled?: boolean
 }
 
 export interface FogOfWar {
@@ -31,6 +33,8 @@ export interface FogOfWar {
   readonly visibleEnemies: ReadonlySet<EntityId>
   /** The plugin darkening the ground material. */
   readonly plugin: FogOfWarPlugin
+  /** Whether fog is on. Turning it off lights all ground and shows every soldier. */
+  enabled: boolean
 }
 
 /**
@@ -41,7 +45,7 @@ export function createFogOfWar(
   scene: Scene,
   sim: Simulation,
   lineOfSight: LineOfSight,
-  { squad, groundMaterial, range = 300, updatesPerSecond = 4 }: FogOfWarOptions
+  { squad, groundMaterial, range = 300, updatesPerSecond = 4, enabled = true }: FogOfWarOptions
 ): FogOfWar {
   const grid = createFogGrid(sim.map)
   const texture = new RawTexture(
@@ -63,6 +67,7 @@ export function createFogOfWar(
     mapDepth: mapDepth(sim.map)
   })
 
+  plugin.darkenUnseen = enabled
   const visibleEnemies = new Set<EntityId>()
   const interval = 1 / updatesPerSecond
   let sinceUpdate = interval
@@ -104,6 +109,14 @@ export function createFogOfWar(
   return {
     visibleEnemies,
     plugin,
+    get enabled() {
+      return plugin.darkenUnseen
+    },
+    set enabled(value) {
+      plugin.darkenUnseen = value
+      // Redraw soldiers on the next update either way.
+      sinceUpdate = interval
+    },
     update(frameSeconds) {
       sinceUpdate += frameSeconds
       if (sinceUpdate < interval) {
@@ -114,7 +127,7 @@ export function createFogOfWar(
       return true
     },
     isShown(soldier) {
-      return sim.soldiers.side.value[soldier] === squad.side || visibleEnemies.has(soldier)
+      return !plugin.darkenUnseen || sim.soldiers.side.value[soldier] === squad.side || visibleEnemies.has(soldier)
     }
   }
 }

@@ -1,4 +1,5 @@
 import { type EntityId, hasComponent } from "bitecs"
+import { barrageLine } from "./artillery.ts"
 import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
@@ -12,6 +13,17 @@ export type SquadOrder =
   | { readonly kind: "hold" }
   /** Move to a point and spread out in a line there. */
   | { readonly kind: "advance"; readonly x: number; readonly z: number }
+  /**
+   * Follow a creeping barrage: keep `standoff` metres behind its line, centred on `x`, never falling back. When the
+   * barrage lifts beyond the objective, rush the objective line.
+   */
+  | {
+      readonly kind: "creep"
+      readonly mission: number
+      readonly x: number
+      readonly standoff: number
+      readonly objectiveZ: number
+    }
 
 export interface Squad {
   readonly id: number
@@ -103,6 +115,25 @@ function advanceSlot(
 }
 
 /**
+ * Where a member should be while following a creeping barrage: in a line `standoff` metres behind the barrage, or on the
+ * objective once the barrage has lifted past it.
+ */
+function creepSlot(
+  sim: Simulation,
+  order: { mission: number; x: number; standoff: number; objectiveZ: number },
+  slot: number,
+  count: number
+): { x: number; z: number } {
+  const line = barrageLine(sim, order.mission)
+  const start = sim.artillery.missions[order.mission]?.z ?? order.objectiveZ
+  const direction = Math.sign(order.objectiveZ - start) || 1
+  const behindBarrage = line === null ? order.objectiveZ : line - direction * order.standoff
+  // Don't run past the objective while the barrage is still falling beyond it.
+  const z = direction > 0 ? Math.min(behindBarrage, order.objectiveZ) : Math.max(behindBarrage, order.objectiveZ)
+  return advanceSlot(sim, { x: order.x, z }, slot, count)
+}
+
+/**
  * Sends a soldier to a point unless they're already close. Applied directly rather than queued: commands are for input
  * from outside the simulation, and squad decisions are made inside it.
  */
@@ -134,13 +165,22 @@ export function squadSystem(sim: Simulation): void {
     }
     const order = squad.order
     // In an advance an AI squad's leader goes too; a player's leader goes where the player steers.
-    const leaderMoves = order.kind === "advance" && squad.controller === "ai"
+    const leaderMoves = order.kind !== "follow" && squad.controller === "ai"
     const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
     followers.forEach((member, slot) => {
       if (sim.soldiers.morale.value[member] < BROKEN_MORALE) {
         // Broken soldiers go to ground where they are.
         const { x, z } = sim.soldiers.position
         applyCommand(sim, { type: "move-to", soldier: member, x: x[member], z: z[member] })
+        return
+      }
+      if (order.kind === "creep") {
+        const target = creepSlot(sim, order, slot, followers.length)
+        const direction = Math.sign(order.objectiveZ - sim.soldiers.position.z[member])
+        // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on.
+        if ((target.z - sim.soldiers.position.z[member]) * direction >= 0) {
+          orderMoveTo(sim, member, target)
+        }
         return
       }
       orderMoveTo(

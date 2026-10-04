@@ -1,12 +1,13 @@
 import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
+import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 4
+export const SIM_STATE_VERSION = 5
 
 export interface SoldierState {
   readonly id: number
@@ -42,6 +43,8 @@ export interface SimulationSnapshot {
   readonly soldiers: readonly SoldierState[]
   /** In squad id order. */
   readonly squads: readonly SquadState[]
+  /** Fire missions and shells in flight. Craters already dug are in the map, which saves separately. */
+  readonly artillery: ArtilleryState
 }
 
 function toSide(value: number): Side {
@@ -77,7 +80,14 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     order: squad.order,
     controller: squad.controller
   }))
-  return { version: SIM_STATE_VERSION, tick: sim.tick, rngState: sim.rng.state, soldiers, squads }
+  return {
+    version: SIM_STATE_VERSION,
+    tick: sim.tick,
+    rngState: sim.rng.state,
+    soldiers,
+    squads,
+    artillery: copyArtilleryState(sim.artillery)
+  }
 }
 
 /**
@@ -132,5 +142,10 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       sim.soldiers.squad.id[member] = squadId
     }
   }
+  const artillery = copyArtilleryState(snapshot.artillery)
+  sim.artillery.missions.push(...artillery.missions)
+  sim.artillery.shells.push(...artillery.shells)
+  sim.artillery.pendingSightRebuild = artillery.pendingSightRebuild
+  Object.assign(sim.artillery.sosCalledAt, artillery.sosCalledAt)
   return sim
 }

@@ -1,7 +1,7 @@
 import { createFlatMap, layOutFront, mapDepth } from "@verdun/map"
-import { createSimulation, Side, soldierIds, stepSimulation, Weapon } from "@verdun/sim"
+import { createSimulation, Shell, Side, soldierIds, stepSimulation, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { goOverTheTop, setupSkirmish } from "./skirmish.ts"
+import { attackBehindBarrage, bombardEnemyLine, CREEPING_BARRAGE, callForFire, setupSkirmish } from "./skirmish.ts"
 
 const flat = createFlatMap({ name: "test", cellSize: 1, columns: 300, rows: 200 })
 const map = { ...flat, trenches: layOutFront(flat) }
@@ -54,19 +54,59 @@ describe("setupSkirmish", () => {
     expect(gunners).toHaveLength(4)
   })
 
-  it("sends a whole side over the top toward the enemy line opposite each squad", () => {
+  it("sends a whole side over the top behind a creeping barrage that opens just beyond its wire", () => {
     const sim = createSimulation({ map, seed: 1 })
     setupSkirmish(sim, 48)
-    goOverTheTop(sim, Side.French)
+    attackBehindBarrage(sim, Side.French)
     stepSimulation(sim)
-    const french = sim.squads.filter((squad) => squad.side === Side.French)
-    const german = sim.squads.filter((squad) => squad.side === Side.German)
+    const [barrage] = sim.artillery.missions
+    const depth = mapDepth(map)
 
-    for (const squad of french) {
-      expect(squad.order.kind).toBe("advance")
-      expect(squad.order.kind === "advance" && Math.abs(squad.order.z - mapDepth(map) * 0.75) <= 3).toBe(true)
+    expect(barrage?.shell).toBe(Shell.FieldHighExplosive)
+    // The front line averages bays and traverses, which sit a little behind it.
+    expect(Math.abs((barrage?.z ?? 0) - (depth * 0.25 + CREEPING_BARRAGE.openAhead))).toBeLessThanOrEqual(3)
+    expect(barrage?.creep?.lift).toBe(CREEPING_BARRAGE.lift)
+    for (const squad of sim.squads.filter((squad) => squad.side === Side.French)) {
+      expect(squad.order.kind).toBe("creep")
+      expect(squad.order.kind === "creep" && Math.abs(squad.order.objectiveZ - depth * 0.75) <= 3).toBe(true)
     }
-    expect(german.every((squad) => squad.order.kind === "hold")).toBe(true)
+    expect(sim.squads.filter((squad) => squad.side === Side.German).every((squad) => squad.order.kind === "hold")).toBe(
+      true
+    )
+  })
+
+  it("bombards the enemy front line with heavy and field guns", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    setupSkirmish(sim, 16)
+    bombardEnemyLine(sim, Side.French)
+    stepSimulation(sim)
+
+    expect(sim.artillery.missions.map((mission) => mission.shell)).toEqual([
+      Shell.HeavyHighExplosive,
+      Shell.FieldHighExplosive
+    ])
+    expect(sim.artillery.missions.every((mission) => Math.abs(mission.z - mapDepth(map) * 0.75) <= 3)).toBe(true)
+  })
+
+  it("calls fire on a point, arriving after the communications delay", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    setupSkirmish(sim, 16)
+    callForFire(sim, Side.French, 120, 140)
+    stepSimulation(sim)
+    const [mission] = sim.artillery.missions
+
+    expect(mission?.fromX).toBe(90)
+    expect(mission?.toX).toBe(150)
+    expect(mission?.z).toBe(140)
+    expect(mission?.delay).toBe(30)
+  })
+
+  it("does nothing without front lines to work from", () => {
+    const sim = createSimulation({ map: flat, seed: 1 })
+    attackBehindBarrage(sim, Side.French)
+    bombardEnemyLine(sim, Side.French)
+
+    expect(sim.pendingCommands).toHaveLength(0)
   })
 
   it("refuses a map with no trenches to man", () => {

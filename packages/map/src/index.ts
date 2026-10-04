@@ -23,3 +23,4 @@ export {
   TRENCH_PROFILE,
   type TrenchSystemOptions
 } from "./trenches.ts"
+export { type ChangedArea, type Crater, mergeAreas, stampCrater } from "./craters.ts"

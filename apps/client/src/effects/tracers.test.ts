@@ -18,6 +18,7 @@ function scene(): Scene {
 }
 
 const shot = (fromZ: number, toZ: number, y = 1.5): ShotEvent => ({
+  type: "shot",
   shooter: 1,
   target: 2,
   hit: false,

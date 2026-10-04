@@ -1,7 +1,7 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { applyCommand } from "./commands.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
-import { STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
+import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { isAlive } from "./squads.ts"
 
 export const Weapon = { Rifle: 0, MachineGun: 1 } as const
@@ -32,12 +32,17 @@ const CANDIDATES = 6
 /** How far below the eye a target's waist is: hidden waists mean the target is behind cover. */
 const WAIST_DROP = 0.8
 const COVER_FACTOR = 0.35
+/** At or above this suppression a soldier is pinned: hugging the bottom of the trench or a crater, not firing. */
+export const PINNED = 0.6
 /** Beyond this range, soldiers left to themselves don't waste shots on a head peeking over a parapet. */
 const COVERED_TARGET_RANGE = 100
 const MOVING_TARGET_FACTOR = 0.75
 const MOVING_SHOOTER_FACTOR = 0.5
-/** Suppression lost per second; morale regained per second. */
-const SUPPRESSION_DECAY = 0.3
+/**
+ * Suppression lost per second. Slow enough that defenders stay down for a while after a barrage lifts: the race to
+ * the parapet that decided so many WW1 attacks.
+ */
+const SUPPRESSION_DECAY = 0.12
 const MORALE_RECOVERY = 0.02
 /** Morale lost by each member of a squad when one of them falls. */
 const CASUALTY_SHOCK = 0.15
@@ -46,12 +51,18 @@ export const BROKEN_MORALE = 0.25
 
 /** A shot fired this step, for the renderer to draw. */
 export interface ShotEvent {
+  readonly type: "shot"
   readonly shooter: EntityId
   /** The soldier aimed at, or -1 for a shot at nothing in particular. */
   readonly target: EntityId
   readonly hit: boolean
   readonly from: WorldPoint
   readonly to: WorldPoint
+}
+
+/** Just the shots among a step's events. */
+export function shotEvents(events: readonly SimEvent[]): ShotEvent[] {
+  return events.filter((event): event is ShotEvent => event.type === "shot")
 }
 
 function chest(sim: Simulation, soldier: EntityId): WorldPoint {
@@ -87,7 +98,8 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   let chance = stats.accuracy * Math.exp(-Math.sqrt(dx * dx + dz * dz) / stats.falloff)
-  if (!isExposed(sim, shooter, target)) {
+  // A pinned target is flat in the bottom of a trench or crater: as good as covered.
+  if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
     chance *= COVER_FACTOR
   }
   if (isMoving(sim, target)) {
@@ -155,6 +167,7 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
   }
   sim.soldiers.weapon.cooldown[shooter] = stats.interval * (0.85 + sim.rng.next() * 0.3)
   sim.events.push({
+    type: "shot",
     shooter,
     target,
     hit,
@@ -203,7 +216,14 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
   sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
   const from = eyeAt(sim.map, x, z)
-  sim.events.push({ shooter, target: -1, hit: false, from, to: eyeAt(sim.map, x + facingX * 80, z + facingZ * 80) })
+  sim.events.push({
+    type: "shot",
+    shooter,
+    target: -1,
+    hit: false,
+    from,
+    to: eyeAt(sim.map, x + facingX * 80, z + facingZ * 80)
+  })
   return true
 }
 
@@ -235,7 +255,7 @@ export function combatSystem(sim: Simulation): void {
     suppression.value[soldier] = Math.max(0, suppression.value[soldier] - SUPPRESSION_DECAY * STEP_SECONDS)
     morale.value[soldier] = Math.min(1, morale.value[soldier] + MORALE_RECOVERY * STEP_SECONDS)
     weapon.cooldown[soldier] = Math.max(0, weapon.cooldown[soldier] - STEP_SECONDS)
-    if (!firesOnTheirOwn(sim, soldier)) {
+    if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED) {
       continue
     }
     if ((sim.tick + soldier) % THINK_INTERVAL === 0) {

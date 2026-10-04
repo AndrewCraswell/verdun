@@ -1,7 +1,7 @@
 import { carveTrenches, createFlatMap, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { afterEach, describe, expect, it } from "vitest"
-import { BROKEN_MORALE, hitChance, Weapon, WEAPONS } from "./combat.ts"
+import { BROKEN_MORALE, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
 import { Side } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
@@ -59,7 +59,7 @@ describe("combat", () => {
     const french = spawnSoldier(sim, { side: Side.French, x: 50, z: 20 })
     spawnSoldier(sim, { side: Side.German, x: 50, z: 80 })
     let shots = 0
-    stepFor(sim, 10, () => (shots += sim.events.length))
+    stepFor(sim, 10, () => (shots += shotEvents(sim.events).length))
 
     expect(shots).toBe(0)
     expect(sim.soldiers.target.id[french]).toBe(-1)
@@ -72,8 +72,8 @@ describe("combat", () => {
     let shots = 0
     let hits = 0
     stepFor(sim, 120, () => {
-      shots += sim.events.length
-      hits += sim.events.filter((event) => event.hit).length
+      shots += shotEvents(sim.events).length
+      hits += shotEvents(sim.events).filter((event) => event.hit).length
     })
 
     expect(shots).toBeGreaterThan(5)
@@ -115,22 +115,36 @@ describe("combat", () => {
     expect(hitChance(sim, shooter, near)).toBeLessThan(moving)
   })
 
-  it("suppresses whoever is shot at, and lets it fade", async () => {
+  it("suppresses whoever is shot at", async () => {
     const sim = await field()
     const target = spawnSoldier(sim, { side: Side.French, x: 100, z: 20 })
     spawnSoldier(sim, { side: Side.German, x: 100, z: 190 })
     let peak = 0
     stepFor(sim, 8, () => (peak = Math.max(peak, sim.soldiers.suppression.value[target])))
-    expect(peak).toBeGreaterThan(0.2)
 
-    const suppressed = sim.soldiers.suppression.value[target]
-    sim.soldiers.suppression.value[target] = 0.9
-    // Moving the shooter out of sight lets the suppression fade.
-    sim.soldiers.position.z[1] = 20
-    sim.soldiers.position.x[1] = 0
+    expect(peak).toBeGreaterThan(0.2)
+  })
+
+  it("lets suppression fade slowly once the firing stops, keeping men down a while", async () => {
+    const sim = await field()
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 100, z: 20 })
+    sim.soldiers.suppression.value[soldier] = 0.9
     stepFor(sim, 2)
-    expect(suppressed).toBeGreaterThanOrEqual(0)
-    expect(sim.soldiers.suppression.value[target]).toBeLessThan(0.9)
+
+    expect(sim.soldiers.suppression.value[soldier]).toBeCloseTo(0.66, 2)
+  })
+
+  it("pins heavily suppressed soldiers: they hold their fire", async () => {
+    const sim = await field()
+    const pinned = spawnSoldier(sim, { side: Side.French, x: 100, z: 60 })
+    spawnSoldier(sim, { side: Side.German, x: 100, z: 120 })
+    let pinnedShots = 0
+    stepFor(sim, 2, () => {
+      sim.soldiers.suppression.value[pinned] = 1
+      pinnedShots += shotEvents(sim.events).filter((event) => event.shooter === pinned).length
+    })
+
+    expect(pinnedShots).toBe(0)
   })
 
   it("shakes a squad's morale when one of them falls, and broken soldiers stop advancing", async () => {
@@ -162,8 +176,8 @@ describe("combat", () => {
     let gunnerShots = 0
     let rifleShots = 0
     stepFor(sim, 3, () => {
-      gunnerShots += sim.events.filter((event) => event.shooter === gunner).length
-      rifleShots += sim.events.filter((event) => event.shooter === rifleman).length
+      gunnerShots += shotEvents(sim.events).filter((event) => event.shooter === gunner).length
+      rifleShots += shotEvents(sim.events).filter((event) => event.shooter === rifleman).length
     })
 
     expect(gunnerShots).toBeGreaterThan(rifleShots * 5)
@@ -183,7 +197,7 @@ describe("the player's soldier", () => {
   it("doesn't fire on their own", async () => {
     const { sim, player } = await playerDuel()
     let own = 0
-    stepFor(sim, 5, () => (own += sim.events.filter((event) => event.shooter === player).length))
+    stepFor(sim, 5, () => (own += shotEvents(sim.events).filter((event) => event.shooter === player).length))
 
     expect(own).toBe(0)
   })
@@ -193,7 +207,7 @@ describe("the player's soldier", () => {
     enqueueCommand(sim, { type: "fire", soldier: player })
     enqueueCommand(sim, { type: "fire", soldier: player })
     stepSimulation(sim)
-    const shots = sim.events.filter((event) => event.shooter === player)
+    const shots = shotEvents(sim.events).filter((event) => event.shooter === player)
 
     expect(shots).toHaveLength(1)
     expect(shots[0]?.target).toBe(enemy)
@@ -204,7 +218,7 @@ describe("the player's soldier", () => {
     enqueueCommand(sim, { type: "face", soldier: player, x: 1, z: 0 })
     enqueueCommand(sim, { type: "fire", soldier: player })
     stepSimulation(sim)
-    const shot = sim.events.find((event) => event.shooter === player)
+    const shot = shotEvents(sim.events).find((event) => event.shooter === player)
 
     expect(shot?.target).toBe(-1)
     expect(shot?.to.x).toBeGreaterThan(150)
@@ -216,7 +230,7 @@ describe("the player's soldier", () => {
     enqueueCommand(sim, { type: "fire", soldier: player })
     stepSimulation(sim)
 
-    expect(sim.events.filter((event) => event.shooter === player)).toHaveLength(0)
+    expect(shotEvents(sim.events).filter((event) => event.shooter === player)).toHaveLength(0)
     expect(hasComponent(sim.world, player, sim.soldiers.dead)).toBe(true)
   })
 })

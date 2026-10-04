@@ -36,18 +36,21 @@ with coverage, and the production build.
 
 ### Controls (prototype)
 
-| Input                    | Action                                               |
-| ------------------------ | ---------------------------------------------------- |
-| W A S D                  | Move the soldier you control, relative to the camera |
-| Mouse                    | Aim                                                  |
-| Left-click               | Fire                                                 |
-| Mouse wheel, middle-drag | Zoom, rotate the camera                              |
-| Tab, 1–8                 | Switch to the next soldier, or to a squad slot       |
-| F, H                     | Squad order: follow me, hold                         |
-| Right-click              | Squad order: advance to that point                   |
-| G                        | Whistle: every French squad goes over the top        |
-| K                        | Dev builds only: kill the soldier you control        |
-| \`                       | Dev builds only: open Babylon's Inspector            |
+| Input                    | Action                                                        |
+| ------------------------ | ------------------------------------------------------------- |
+| W A S D                  | Move the soldier you control, relative to the camera          |
+| Mouse                    | Aim                                                           |
+| Left-click               | Fire                                                          |
+| Mouse wheel, middle-drag | Zoom, rotate the camera                                       |
+| Tab, 1–8                 | Switch to the next soldier, or to a squad slot                |
+| F, H                     | Squad order: follow me, hold                                  |
+| Right-click              | Squad order: advance to that point                            |
+| G                        | Whistle: every French squad attacks behind a creeping barrage |
+| B                        | Bombard the German front line for two minutes                 |
+| V                        | Call artillery onto the point under the pointer               |
+| O                        | Turn fog of war on or off (off for now)                       |
+| K                        | Dev builds only: kill the soldier you control                 |
+| \`                       | Dev builds only: open Babylon's Inspector                     |
 
 ## Documentation
 

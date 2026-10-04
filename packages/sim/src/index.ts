@@ -1,8 +1,22 @@
+export {
+  type ArtilleryState,
+  type BurstEvent,
+  type Creep,
+  DEFENSIVE_BARRAGE_DELAY,
+  type FireMission,
+  type FireMissionPlan,
+  frontLineZ,
+  Shell,
+  SHELLS,
+  type ShellInFlight
+} from "./artillery.ts"
 export type { EntityId } from "bitecs"
-export { BROKEN_MORALE, fireAimed, hitChance, type ShotEvent, Weapon, WEAPONS } from "./combat.ts"
+export { BROKEN_MORALE, fireAimed, hitChance, PINNED, type ShotEvent, shotEvents, Weapon, WEAPONS } from "./combat.ts"
 export type {
   Command,
+  BarrageAttackCommand,
   FireCommand,
+  FireMissionCommand,
   FaceCommand,
   KillCommand,
   MoveToCommand,
@@ -16,6 +30,7 @@ export {
   enqueueCommand,
   fallenIds,
   type Simulation,
+  type SimEvent,
   type SimulationOptions,
   soldierIds,
   type SoldierSpawn,

@@ -19,6 +19,8 @@ export interface FogOfWarSettings {
  */
 export class FogOfWarPlugin extends MaterialPluginBase {
   private readonly settings: Required<FogOfWarSettings>
+  /** When false, unseen ground is drawn at full brightness. */
+  darkenUnseen = true
 
   constructor(material: Material, settings: FogOfWarSettings) {
     super(material, "FogOfWar", 210, undefined, true, true)
@@ -57,7 +59,13 @@ export class FogOfWarPlugin extends MaterialPluginBase {
 
   override bindForSubMesh(uniformBuffer: UniformBuffer): void {
     const { mapWidth, mapDepth, unseenBrightness, texture } = this.settings
-    uniformBuffer.updateFloat4("fogOfWarParams", 1 / mapWidth, 1 / mapDepth, unseenBrightness, 0)
+    uniformBuffer.updateFloat4(
+      "fogOfWarParams",
+      1 / mapWidth,
+      1 / mapDepth,
+      this.darkenUnseen ? unseenBrightness : 1,
+      0
+    )
     uniformBuffer.setTexture("fogOfWar", texture)
   }
 

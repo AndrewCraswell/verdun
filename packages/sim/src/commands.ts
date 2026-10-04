@@ -1,5 +1,7 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
+import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad } from "./combat.ts"
+import type { Side } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
@@ -62,6 +64,32 @@ export interface FireCommand {
   readonly soldier: EntityId
 }
 
+/** Orders a side's batteries to fire on a target: a bombardment, a call for fire, or any other barrage. */
+export interface FireMissionCommand {
+  readonly type: "fire-mission"
+  readonly plan: FireMissionPlan
+}
+
+/**
+ * An attack behind a creeping barrage: field guns lay a line of fire `startZ`, lifting `lift` metres every `interval`
+ * seconds toward the objective and beyond it, and every squad on the side follows `standoff` metres behind it, then
+ * rushes the objective when the barrage lifts past.
+ */
+export interface BarrageAttackCommand {
+  readonly type: "barrage-attack"
+  readonly side: Side
+  readonly fromX: number
+  readonly toX: number
+  readonly startZ: number
+  readonly objectiveZ: number
+  readonly roundsPerMinute: number
+  readonly lift: number
+  readonly interval: number
+  readonly standoff: number
+  /** Seconds before the barrage opens. */
+  readonly delay: number
+}
+
 /** Everything that can change the simulation from outside. Grows as mechanics land. */
 export type Command =
   | MoveToCommand
@@ -71,6 +99,8 @@ export type Command =
   | TakeCommandCommand
   | KillCommand
   | FireCommand
+  | FireMissionCommand
+  | BarrageAttackCommand
 
 /** A living soldier: fallen soldiers ignore every order. */
 function isSoldier(sim: Simulation, entity: EntityId): boolean {
@@ -152,6 +182,39 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "fire": {
       if (isSoldier(sim, command.soldier)) {
         fireAimed(sim, command.soldier)
+      }
+      return
+    }
+    case "fire-mission": {
+      orderFireMission(sim, command.plan)
+      return
+    }
+    case "barrage-attack": {
+      const direction = Math.sign(command.objectiveZ - command.startZ) || 1
+      const mission = orderFireMission(sim, {
+        side: command.side,
+        shell: Shell.FieldHighExplosive,
+        fromX: command.fromX,
+        toX: command.toX,
+        z: command.startZ,
+        band: 25,
+        roundsPerMinute: command.roundsPerMinute,
+        delay: command.delay,
+        // Creeping barrages end when they reach their stop line; the duration is only a backstop. JSON has no Infinity.
+        duration: 3600,
+        // Lift on past the objective onto the support lines, so the attackers can take it.
+        creep: { lift: command.lift, interval: command.interval, stopZ: command.objectiveZ + direction * 80 }
+      })
+      for (const squad of sim.squads) {
+        if (squad.side === command.side && squad.leader >= 0) {
+          squad.order = {
+            kind: "creep",
+            mission,
+            x: sim.soldiers.position.x[squad.leader],
+            standoff: command.standoff,
+            objectiveZ: command.objectiveZ
+          }
+        }
       }
       return
     }

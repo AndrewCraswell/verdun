@@ -3,7 +3,7 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
-import { createSimulation, createSquad, isAlive, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
+import { createSimulation, createSquad, isAlive, shotEvents, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   aimToward,
@@ -199,20 +199,33 @@ describe("createPlayerControl", () => {
     const leader = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
     const squad = createSquad(sim, Side.French, [leader], "player")
     const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))
-    const actions: PlayerAction[] = [{ kind: "fire" }, { kind: "whistle" }]
+    const actions: PlayerAction[] = [
+      { kind: "fire" },
+      { kind: "whistle" },
+      { kind: "bombard" },
+      { kind: "call-fire", x: 1, z: 2 },
+      { kind: "toggle-fog" }
+    ]
     const control = createPlayerControl(
       sim,
       squad,
       camera,
       { held: new Set(), pointerGround: () => null, takeActions: () => actions.splice(0) },
-      { onWhistle: () => whistles.push(sim.tick) }
+      {
+        commands: {
+          whistle: () => whistles.push(sim.tick),
+          bombard: () => whistles.push(-1),
+          callFire: () => whistles.push(-2)
+        },
+        toggleFog: () => whistles.push(-3)
+      }
     )
     control.update(0.05)
 
     expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
-    expect(whistles).toEqual([0])
+    expect(whistles).toEqual([0, -1, -2, -3])
     stepSimulation(sim)
-    expect(sim.events.filter((event) => event.shooter === leader)).toHaveLength(1)
+    expect(shotEvents(sim.events).filter((event) => event.shooter === leader)).toHaveLength(1)
   })
 
   it("passes control on when the controlled soldier dies, and kills only in dev builds", () => {

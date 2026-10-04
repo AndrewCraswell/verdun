@@ -21,6 +21,12 @@ function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyG") {
     return { kind: "whistle" }
   }
+  if (code === "KeyB") {
+    return { kind: "bombard" }
+  }
+  if (code === "KeyO") {
+    return { kind: "toggle-fog" }
+  }
   const digit = /^Digit([1-8])$/.exec(code)?.[1]
   return digit ? { kind: "switch-slot", slot: Number(digit) - 1 } : null
 }
@@ -43,6 +49,14 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
   window.addEventListener("keydown", (event) => {
     if (MOVEMENT_KEYS.has(event.code)) {
       held.add(event.code)
+      return
+    }
+    if (event.code === "KeyV" && !event.repeat) {
+      // Call for fire on whatever is under the pointer.
+      const point = pointerGround()
+      if (point) {
+        actions.push({ kind: "call-fire", x: point.x, z: point.z })
+      }
       return
     }
     const action = event.repeat ? null : actionForKey(event.code)

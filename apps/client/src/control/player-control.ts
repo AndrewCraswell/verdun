@@ -22,6 +22,12 @@ export type PlayerAction =
   | { readonly kind: "fire" }
   /** Blow the whistle: the whole side goes over the top. */
   | { readonly kind: "whistle" }
+  /** Order a preparatory bombardment of the enemy line. */
+  | { readonly kind: "bombard" }
+  /** Call for artillery on a ground point. */
+  | { readonly kind: "call-fire"; readonly x: number; readonly z: number }
+  /** Turn fog of war on or off. */
+  | { readonly kind: "toggle-fog" }
   /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
 
@@ -72,8 +78,14 @@ const FOLLOW_HEIGHT = 1.2
 export interface PlayerControlOptions {
   /** Allow dev-only actions such as killing the controlled soldier. */
   readonly debugActions?: boolean
-  /** What the whistle does: the scenario decides where the attack goes. */
-  readonly onWhistle?: () => void
+  /** What the scenario does for the side's big orders: the whistle, a bombardment, a call for fire. */
+  readonly commands?: {
+    readonly whistle: () => void
+    readonly bombard: () => void
+    readonly callFire: (x: number, z: number) => void
+  }
+  /** Turns fog of war on or off. */
+  readonly toggleFog?: () => void
 }
 
 export interface PlayerControl {
@@ -94,7 +106,7 @@ export function createPlayerControl(
   squad: Squad,
   camera: ArcRotateCamera,
   input: PlayerInput,
-  { debugActions = false, onWhistle }: PlayerControlOptions = {}
+  { debugActions = false, commands, toggleFog }: PlayerControlOptions = {}
 ): PlayerControl {
   let lastSoldier: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
@@ -134,7 +146,16 @@ export function createPlayerControl(
         }
         return
       case "whistle":
-        onWhistle?.()
+        commands?.whistle()
+        return
+      case "bombard":
+        commands?.bombard()
+        return
+      case "call-fire":
+        commands?.callFire(action.x, action.z)
+        return
+      case "toggle-fog":
+        toggleFog?.()
         return
       case "debug-kill":
         if (debugActions && squad.leader >= 0) {

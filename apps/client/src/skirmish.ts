@@ -1,8 +1,10 @@
-import { pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
+import { mapWidth, pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
 import {
   createSquad,
   enqueueCommand,
   type EntityId,
+  frontLineZ,
+  Shell,
   Side,
   type Simulation,
   type Squad,
@@ -95,32 +97,84 @@ export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish 
   }
 }
 
-/** Where a trench line crosses a given x, or the nearest end of it. */
-function trenchZAt(trench: Trench, x: number): number {
-  for (let index = 1; index < trench.points.length; index++) {
-    const [ax, az] = trench.points[index - 1] ?? [0, 0]
-    const [bx, bz] = trench.points[index] ?? [0, 0]
-    if (x >= Math.min(ax, bx) && x <= Math.max(ax, bx) && ax !== bx) {
-      return az + ((bz - az) * (x - ax)) / (bx - ax)
-    }
-  }
-  const [first] = trench.points
-  const last = trench.points.at(-1)
-  return Math.abs((first?.[0] ?? 0) - x) < Math.abs((last?.[0] ?? 0) - x) ? (first?.[1] ?? 0) : (last?.[1] ?? 0)
+/**
+ * Creeping barrage timing, after French practice at Verdun in late 1916: the barrage opens just beyond the wire as the
+ * infantry go over, then lifts 50 m every 90 s; the infantry keep about 60 m behind it.
+ */
+export const CREEPING_BARRAGE = {
+  openAhead: 40,
+  lift: 50,
+  interval: 90,
+  standoff: 60,
+  // About one field gun per 15-20 m of front, firing 3-4 rounds a minute.
+  roundsPerMinute: 150
+} as const
+
+function lines(sim: Simulation, side: Side): { own: number; enemy: number } | null {
+  const own = frontLineZ(sim.map.trenches, side)
+  const enemy = frontLineZ(sim.map.trenches, side === Side.French ? Side.German : Side.French)
+  return own === null || enemy === null ? null : { own, enemy }
 }
 
-/** The whistle: every squad on a side goes over the top toward the enemy front line straight ahead of it. */
-export function goOverTheTop(sim: Simulation, side: Side): void {
-  const enemyLine = frontLine(sim.map.trenches, side === Side.French ? "south" : "north")
-  for (const squad of sim.squads) {
-    if (squad.side !== side || squad.leader < 0) {
-      continue
-    }
-    const x = sim.soldiers.position.x[squad.leader]
-    enqueueCommand(sim, {
-      type: "squad-order",
-      squad: squad.id,
-      order: { kind: "advance", x, z: trenchZAt(enemyLine, x) }
-    })
+/** The whistle: the whole side goes over the top behind a creeping barrage, which opens at once. */
+export function attackBehindBarrage(sim: Simulation, side: Side): void {
+  const front = lines(sim, side)
+  if (!front) {
+    return
   }
+  const direction = Math.sign(front.enemy - front.own)
+  enqueueCommand(sim, {
+    type: "barrage-attack",
+    side,
+    fromX: 0,
+    toX: mapWidth(sim.map),
+    startZ: front.own + direction * CREEPING_BARRAGE.openAhead,
+    objectiveZ: front.enemy,
+    roundsPerMinute: CREEPING_BARRAGE.roundsPerMinute,
+    lift: CREEPING_BARRAGE.lift,
+    interval: CREEPING_BARRAGE.interval,
+    standoff: CREEPING_BARRAGE.standoff,
+    delay: 0
+  })
+}
+
+/**
+ * A preparatory bombardment of the enemy front line: heavy howitzers to smash the trench and field guns to keep the
+ * defenders down, for two minutes. Real bombardments lasted days; this is the last, most intense stretch.
+ */
+export function bombardEnemyLine(sim: Simulation, side: Side): void {
+  const front = lines(sim, side)
+  if (!front) {
+    return
+  }
+  const target = { side, fromX: 0, toX: mapWidth(sim.map), z: front.enemy, band: 20, delay: 5, duration: 120 }
+  enqueueCommand(sim, {
+    type: "fire-mission",
+    plan: { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: 30 }
+  })
+  enqueueCommand(sim, {
+    type: "fire-mission",
+    plan: { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: 120 }
+  })
+}
+
+/**
+ * A call for fire on a point, from the front line by runner or field telephone. It takes about 30 seconds to arrive
+ * and lay the guns, then a battery fires for 45 seconds on a 60 m front.
+ */
+export function callForFire(sim: Simulation, side: Side, x: number, z: number): void {
+  enqueueCommand(sim, {
+    type: "fire-mission",
+    plan: {
+      side,
+      shell: Shell.FieldHighExplosive,
+      fromX: x - 30,
+      toX: x + 30,
+      z,
+      band: 20,
+      roundsPerMinute: 24,
+      delay: 30,
+      duration: 45
+    }
+  })
 }
