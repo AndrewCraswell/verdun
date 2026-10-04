@@ -1,38 +1,33 @@
-import {
-  type AudioEngineV2,
-  CreateAudioBusAsync,
-  CreateSoundAsync,
-  CreateSoundBufferAsync,
-  LastCreatedAudioEngine
-} from "@babylonjs/core/AudioV2/abstractAudio/audioEngineV2"
-import type { StaticSound } from "@babylonjs/core/AudioV2/abstractAudio/staticSound"
-import { CreateAudioEngineAsync } from "@babylonjs/core/AudioV2/webAudio/webAudioEngine"
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Simulation } from "@verdun/sim"
+import { ambienceZones } from "../level/ambience.ts"
 import type { KitFiles } from "../level/kit-files.ts"
 import {
   createBattleSoundModel,
   type BattleSoundOptions,
   type Listener,
+  listenerSpace,
   SOUND_CUES,
   type SoundCue
 } from "./battle-sound-model.ts"
+import { getMixer } from "./mixer.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
 export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
 
-/** Copies of each variation that can sound at once, each panned on its own. */
-const VOICES_PER_VARIATION = 2
 /** Random detune per play, in cents either way, so repeats don't sound identical. */
 const DETUNE = 80
-/**
- * After a near miss the battle drops by up to this share of its volume (the nearer, the more), stays down this many
- * seconds while the ears ring, then comes back over MUFFLE_RECOVERY seconds.
- */
+/** After a near miss the battle drops by up to this share of its volume, the nearer the more (see Mixer.shock). */
 const MUFFLE = 0.8
-const MUFFLE_HOLD = 0.4
-const MUFFLE_RECOVERY = 3
+/** Share of each battle sound sent to the reverb of the listener's space. */
+const REVERB_SEND = 0.35
+/** Sounds heard inside the head, past the reverb and the muffling of a near miss. */
+const EARS: ReadonlySet<SoundCue> = new Set(["ear-ring", "mask-breath"])
+/** The listener's surroundings are looked up this often, in steps. */
+const SPACE_INTERVAL = 10
+/** Breathing in the mask, as loud as. */
+const BREATHING_VOLUME = 0.3
 
 function isManifest(value: unknown): value is Record<string, { variations: number }> {
   return typeof value === "object" && value !== null
@@ -83,8 +78,9 @@ function listenerOf(camera: TargetCamera): Listener {
 }
 
 /**
- * The battle's sound effects, heard from the camera: shots, shells, cracks, the batteries, the fallen and the gas
- * alarm, from scripts/build-sound-effects.py. Shares the ambience's audio engine when there is one.
+ * The battle's sound effects, heard from the camera through the game's mixer: shots, shells, cracks, the batteries,
+ * the fallen and the gas alarm, from scripts/build-sound-effects.py, each filtered for distance and anything in the
+ * way, and coloured by the trench, dugout or ruins the listener is in.
  */
 export async function createBattleSounds(
   files: BattleSoundFiles,
@@ -92,86 +88,69 @@ export async function createBattleSounds(
   camera: TargetCamera,
   options: BattleSoundOptions
 ): Promise<BattleSounds> {
-  const engine: AudioEngineV2 =
-    LastCreatedAudioEngine() ?? (await CreateAudioEngineAsync({ resumeOnInteraction: true }))
-  // Everything but the ringing in the ears goes through one bus, so a near miss can muffle the battle.
-  const battle = await CreateAudioBusAsync("battle", {}, engine)
-  const voices = new Map<SoundCue, StaticSound[][]>()
+  const mixer = getMixer()
+  const decoded = new Map<SoundCue, AudioBuffer[]>()
   await Promise.all(
     [...files].map(async ([cue, variations]) => {
-      const out = cue === "ear-ring" ? {} : { outBus: battle }
-      const sounds = await Promise.all(
-        variations.map(async (data, index) => {
-          const buffer = await CreateSoundBufferAsync(data, {}, engine)
-          return Promise.all(
-            Array.from({ length: VOICES_PER_VARIATION }, (_, copy) =>
-              CreateSoundAsync(
-                `${cue}-${index}-${copy}`,
-                buffer,
-                { maxInstances: 1, stereoEnabled: true, ...out },
-                engine
-              )
-            )
-          )
-        })
-      )
-      voices.set(cue, sounds)
+      // decodeAudioData detaches the buffer it's given, so decode copies and keep the kit's files intact.
+      decoded.set(cue, await Promise.all(variations.map((data) => mixer.context.decodeAudioData(data.slice(0)))))
     })
   )
-  const turn = new Map<StaticSound[], number>()
   const model = createBattleSoundModel(sim, options)
-  const breathing = voices.get("mask-breath")?.[0]?.[0] ?? null
-  let breathingOn = false
-  /** When the muffled battle starts coming back, in milliseconds (performance.now), or null when it isn't muffled. */
-  let recoverAt: number | null = null
+  const ruins = ambienceZones(sim.map).ruins
+  let breathing: AudioBufferSourceNode | null = null
 
   return {
     step() {
-      const calls = model.step(listenerOf(camera))
+      const listener = listenerOf(camera)
+      if (sim.tick % SPACE_INTERVAL === 0) {
+        mixer.setSpace(listenerSpace(sim, listener, options.soldier(), ruins))
+      }
+      const calls = model.step(listener)
       const shock = model.takeShock()
       if (shock > 0) {
-        battle.setVolume(1 - MUFFLE * shock, { duration: 0.03 })
-        recoverAt = performance.now() + MUFFLE_HOLD * 1000
+        mixer.shock(MUFFLE * shock)
       }
       for (const call of calls) {
-        const variations = voices.get(call.cue)
-        const copies = variations?.[Math.floor(Math.random() * variations.length)]
-        if (!copies || copies.length === 0) {
-          continue
-        }
-        const next = turn.get(copies) ?? 0
-        turn.set(copies, (next + 1) % copies.length)
-        const voice = copies[next]
-        if (voice) {
-          voice.stereo.pan = call.pan
-          voice.pitch = (Math.random() * 2 - 1) * DETUNE
-          voice.play({ volume: call.volume, waitTime: call.delay })
+        const variations = decoded.get(call.cue)
+        const buffer = variations?.[Math.floor(Math.random() * variations.length)]
+        if (buffer) {
+          const ears = EARS.has(call.cue)
+          mixer.play({
+            buffer,
+            volume: call.volume,
+            pan: call.pan,
+            delay: call.delay,
+            cutoff: call.cutoff,
+            reverb: ears ? 0 : REVERB_SEND,
+            detune: ears ? 0 : (Math.random() * 2 - 1) * DETUNE,
+            bus: ears ? "ears" : "battle"
+          })
         }
       }
     },
     update() {
-      if (recoverAt !== null && performance.now() >= recoverAt) {
-        recoverAt = null
-        battle.setVolume(1, { duration: MUFFLE_RECOVERY })
-      }
       const masked = model.breathingInMask()
-      if (breathing && masked !== breathingOn) {
-        breathingOn = masked
-        if (masked) {
-          breathing.play({ loop: true, volume: 0.3 })
-        } else {
-          breathing.stop()
-        }
+      const buffer = decoded.get("mask-breath")?.[0]
+      if (masked && !breathing && buffer) {
+        breathing = mixer.play({
+          buffer,
+          volume: BREATHING_VOLUME,
+          pan: 0,
+          delay: 0,
+          cutoff: 20000,
+          reverb: 0,
+          detune: 0,
+          bus: "ears",
+          loop: true
+        })
+      } else if (!masked && breathing) {
+        breathing.stop()
+        breathing = null
       }
     },
     dispose() {
-      for (const variations of voices.values()) {
-        for (const copies of variations) {
-          for (const voice of copies) {
-            voice.dispose()
-          }
-        }
-      }
+      breathing?.stop()
     }
   }
 }

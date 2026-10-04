@@ -1,7 +1,10 @@
-import { mapDepth } from "@verdun/map"
+import { heightAt, mapDepth } from "@verdun/map"
 import {
   type EntityId,
+  eyeAt,
   fallenIds,
+  isInTrench,
+  isSheltering,
   MaskState,
   Shell,
   type ShellInFlight,
@@ -57,12 +60,23 @@ export interface Listener {
   readonly rightZ: number
 }
 
-/** One sound to play: which cue, how loud (0 to 1), where in the stereo field (-1 to 1), and after how many seconds. */
+/**
+ * One sound to play: which cue, how loud (0 to 1), where in the stereo field (-1 to 1), after how many seconds, and
+ * the low-pass cutoff (hertz) that air and anything in the way leave it.
+ */
 export interface SoundCall {
   readonly cue: SoundCue
   readonly volume: number
   readonly pan: number
   readonly delay: number
+  readonly cutoff: number
+}
+
+/** How the listener's surroundings colour what they hear, each from 0 (not there) to 1: see mixer.ts. */
+export interface ListenerSpace {
+  readonly trench: number
+  readonly dugout: number
+  readonly ruins: number
 }
 
 /** Metres per second: distant bursts and guns are heard after they are seen. */
@@ -73,6 +87,32 @@ const HEIGHT_WEIGHT = 0.5
 const INAUDIBLE = 0.02
 /** Pan never goes fully to one side, which sounds like one ear blocked. */
 const PAN_WIDTH = 0.8
+/** Unfiltered, in hertz. Air takes the highs off with distance: AIR_CUTOFF / (1 + distance / AIR_DISTANCE). */
+export const FULL_BAND = 20000
+const AIR_CUTOFF = 18000
+const AIR_DISTANCE = 150
+const LOWEST_CUTOFF = 400
+/**
+ * Sounds with the ground in the way (behind a rise, beyond the trench wall when the listener is down in the trench)
+ * lose their highs and some level. Checked only when the camera is close, within OCCLUSION_RANGE, and for at most
+ * OCCLUSION_CHECKS sounds a step: each is a ray through the terrain.
+ */
+const OCCLUDED_CUTOFF = 1400
+const OCCLUDED_GAIN = 0.65
+const OCCLUSION_HEIGHT = 140
+const OCCLUSION_RANGE = 400
+/** Closer than this, sound bends round whatever is in the way. */
+const OCCLUSION_MIN = 25
+/** Where a burst's sound comes from, metres above the ground: its blast and column of earth rise above the trench. */
+const BURST_HEIGHT = 4
+/** An incoming shell is heard up in the air. */
+const INCOMING_HEIGHT = 15
+const OCCLUSION_CHECKS = 16
+/** Spaces colour the sound fully with the camera this low, and not at all from SPACE_HEIGHT up. */
+const SPACE_FULL = 40
+const SPACE_HEIGHT = 140
+/** The listener counts as in the controlled soldier's dugout within this many metres of him. */
+const DUGOUT_RANGE = 15
 
 /** Loudness at the reference distance, and the distance inside which it doesn't get any louder. */
 const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly reference: number }>> = {
@@ -158,6 +198,11 @@ const BURST_CUES: Readonly<Record<Shell, readonly [SoundCue, SoundCue]>> = {
   [Shell.Grenade]: ["grenade-near", "grenade-far"]
 }
 
+/** Low-pass cutoff the air leaves a sound heard from `distance` metres. */
+export function airCutoff(distance: number): number {
+  return Math.max(LOWEST_CUTOFF, Math.min(FULL_BAND, AIR_CUTOFF / (1 + distance / AIR_DISTANCE)))
+}
+
 /** Ground distance from the listener, counting part of the camera's height. */
 export function hearingDistance(listener: Listener, x: number, z: number): number {
   return Math.hypot(x - listener.x, z - listener.z, listener.height * HEIGHT_WEIGHT)
@@ -175,7 +220,41 @@ export function placeSound(listener: Listener, cue: SoundCue, x: number, z: numb
     return null
   }
   const across = ((x - listener.x) * listener.rightX + (z - listener.z) * listener.rightZ) / distance
-  return { cue, volume, pan: Math.max(-1, Math.min(1, across)) * PAN_WIDTH, delay: after + distance / SPEED_OF_SOUND }
+  return {
+    cue,
+    volume,
+    pan: Math.max(-1, Math.min(1, across)) * PAN_WIDTH,
+    delay: after + distance / SPEED_OF_SOUND,
+    cutoff: airCutoff(distance)
+  }
+}
+
+/**
+ * The listener's surroundings: down in a trench where the camera looks, in the controlled soldier's dugout when he is
+ * sheltering close by, among ruins as dense as `ruins` says. All fade out as the camera climbs: from up high the
+ * battle is heard as if from the open.
+ */
+export function listenerSpace(
+  sim: Simulation,
+  listener: Listener,
+  soldier: EntityId | null,
+  ruins: (x: number, z: number) => number
+): ListenerSpace {
+  const close = Math.max(0, Math.min(1, (SPACE_HEIGHT - listener.height) / (SPACE_HEIGHT - SPACE_FULL)))
+  if (close === 0) {
+    return { trench: 0, dugout: 0, ruins: 0 }
+  }
+  const x = sim.soldiers.position.x[soldier ?? -1] ?? Infinity
+  const z = sim.soldiers.position.z[soldier ?? -1] ?? Infinity
+  const sheltering = soldier !== null && isSheltering(sim, soldier)
+  if (sheltering && Math.hypot(x - listener.x, z - listener.z) < DUGOUT_RANGE) {
+    return { trench: 0, dugout: close, ruins: 0 }
+  }
+  return {
+    trench: isInTrench(sim.map, listener.x, listener.z) ? close : 0,
+    dugout: 0,
+    ruins: ruins(listener.x, listener.z) * close
+  }
 }
 
 /** What the battle sounds like, one simulation step at a time. */
@@ -216,6 +295,33 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   let lastImpact = -Infinity
   let shock = 0
   const seconds = (ticks: number) => ticks / TICK_RATE
+  let occlusionChecks = 0
+
+  /**
+   * A sound placed for the listener, muffled when the ground lies between them. `above` is how high above the ground
+   * the sound comes from; a man's eye height unless given.
+   */
+  function place(listener: Listener, cue: SoundCue, x: number, z: number, after = 0, above?: number): SoundCall | null {
+    const call = placeSound(listener, cue, x, z, after)
+    const sight = sim.lineOfSight
+    const range = Math.hypot(x - listener.x, z - listener.z)
+    if (
+      !call ||
+      !sight ||
+      listener.height > OCCLUSION_HEIGHT ||
+      occlusionChecks >= OCCLUSION_CHECKS ||
+      range < OCCLUSION_MIN ||
+      range > OCCLUSION_RANGE
+    ) {
+      return call
+    }
+    occlusionChecks++
+    const source = above === undefined ? eyeAt(sim.map, x, z) : { x, y: heightAt(sim.map, x, z) + above, z }
+    if (sight.isClear(eyeAt(sim.map, listener.x, listener.z), source)) {
+      return call
+    }
+    return { ...call, volume: call.volume * OCCLUDED_GAIN, cutoff: Math.min(call.cutoff, OCCLUDED_CUTOFF) }
+  }
 
   function shotSounds(listener: Listener, calls: SoundCall[]): void {
     const now = seconds(sim.tick)
@@ -227,28 +333,28 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       const distance = hearingDistance(listener, from.x, from.z)
       if (sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun) {
         if (distance < NEAR.machineGun) {
-          push(calls, placeSound(listener, "mg-near", from.x, from.z))
+          push(calls, place(listener, "mg-near", from.x, from.z))
         } else if (now - (lastFarBurst.get(shooter) ?? -Infinity) >= MG_FAR_INTERVAL) {
           lastFarBurst.set(shooter, now)
-          push(calls, placeSound(listener, "mg-far", from.x, from.z))
+          push(calls, place(listener, "mg-far", from.x, from.z))
         }
       } else {
         const side = sim.soldiers.side.value[shooter] === Side.French ? "fr" : "de"
         const range = distance < NEAR.rifle ? "near" : "far"
-        push(calls, placeSound(listener, `rifle-${side}-${range}`, from.x, from.z))
+        push(calls, place(listener, `rifle-${side}-${range}`, from.x, from.z))
         if (distance < BOLT_RANGE) {
-          push(calls, placeSound(listener, `bolt-${side}`, from.x, from.z, BOLT_DELAY))
+          push(calls, place(listener, `bolt-${side}`, from.x, from.z, BOLT_DELAY))
         }
       }
       if (crackPast(listener, from, to) && now - lastCrack >= CRACK_INTERVAL) {
         lastCrack = now
         // The round outruns the report: its crack comes first.
-        push(calls, placeSound(listener, "crack", to.x, to.z))
+        push(calls, place(listener, "crack", to.x, to.z))
       }
       const struck = Math.hypot(to.x - listener.x, to.z - listener.z) < IMPACT_RADIUS
       if (!event.hit && struck && now - lastImpact >= IMPACT_INTERVAL) {
         lastImpact = now
-        push(calls, placeSound(listener, "bullet-impact", to.x, to.z))
+        push(calls, place(listener, "bullet-impact", to.x, to.z))
       }
     }
   }
@@ -262,18 +368,24 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       const { x, z } = event.at
       const [near, far] = BURST_CUES[event.shell]
       const limit = event.shell === Shell.Grenade ? NEAR.grenade : NEAR.shell
-      push(calls, placeSound(listener, hearingDistance(listener, x, z) < limit ? near : far, x, z))
+      push(calls, place(listener, hearingDistance(listener, x, z) < limit ? near : far, x, z, 0, BURST_HEIGHT))
       if (event.shell === Shell.FieldGas) {
         continue
       }
       if (event.crater && Math.hypot(x - listener.x, z - listener.z) < DEBRIS_RANGE) {
-        push(calls, placeSound(listener, "debris", x, z, DEBRIS_DELAY))
+        push(calls, place(listener, "debris", x, z, DEBRIS_DELAY))
       }
       if (me !== null && !fallen.has(me)) {
         const close = Math.hypot(x - (sim.soldiers.position.x[me] ?? 0), z - (sim.soldiers.position.z[me] ?? 0))
         if (close < SHOCK_RANGE) {
           shock = Math.max(shock, 1 - close / SHOCK_RANGE)
-          push(calls, { cue: "ear-ring", volume: LEVELS["ear-ring"].volume * shock, pan: 0, delay: 0 })
+          push(calls, {
+            cue: "ear-ring",
+            volume: LEVELS["ear-ring"].volume * shock,
+            pan: 0,
+            delay: 0,
+            cutoff: FULL_BAND
+          })
         }
       }
     }
@@ -288,7 +400,8 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       if (remaining <= INCOMING_LEAD && Math.hypot(shell.x - listener.x, shell.z - listener.z) < INCOMING_RANGE) {
         rushing.add(shell)
         // Ends as the burst is heard: both travel to the listener from where the shell lands.
-        push(calls, placeSound(listener, "incoming-heavy", shell.x, shell.z, Math.max(0, remaining - INCOMING_LEAD)))
+        const after = Math.max(0, remaining - INCOMING_LEAD)
+        push(calls, place(listener, "incoming-heavy", shell.x, shell.z, after, INCOMING_HEIGHT))
       }
     }
   }
@@ -299,7 +412,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         const x = sim.soldiers.position.x[event.soldier] ?? 0
         const z = sim.soldiers.position.z[event.soldier] ?? 0
         if (Math.hypot(x - listener.x, z - listener.z) < THROW_RANGE) {
-          push(calls, placeSound(listener, "throw", x, z))
+          push(calls, place(listener, "throw", x, z))
         }
       }
     }
@@ -318,7 +431,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       lastBattery = now
       const z = shell.side === Side.French ? -BATTERY_DISTANCE : mapDepth(sim.map) + BATTERY_DISTANCE
       const cue = shell.shell === Shell.HeavyHighExplosive ? "battery-heavy" : "battery-field"
-      push(calls, placeSound(listener, cue, shell.x, z))
+      push(calls, place(listener, cue, shell.x, z))
     }
   }
 
@@ -337,7 +450,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         now - lastDeath >= DEATH_INTERVAL
       ) {
         lastDeath = now
-        push(calls, placeSound(listener, "death", x, z))
+        push(calls, place(listener, "death", x, z))
       }
     }
     fallen = new Set(current)
@@ -361,7 +474,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
     if (masked > 0 && masksNear === 0 && now - lastGasAlarm >= GAS_ALARM_REPEAT) {
       lastGasAlarm = now
       for (let stroke = 0; stroke < GONG_STROKES; stroke++) {
-        push(calls, placeSound(listener, "gas-gong", listener.x, listener.z, stroke * GONG_SPACING))
+        push(calls, place(listener, "gas-gong", listener.x, listener.z, stroke * GONG_SPACING))
       }
     }
     masksNear = masked
@@ -369,6 +482,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
 
   return {
     step(listener) {
+      occlusionChecks = 0
       const calls: SoundCall[] = []
       shotSounds(listener, calls)
       throwSounds(listener, calls)

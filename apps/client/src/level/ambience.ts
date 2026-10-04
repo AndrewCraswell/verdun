@@ -1,7 +1,5 @@
-import { type AudioEngineV2, CreateSoundAsync } from "@babylonjs/core/AudioV2/abstractAudio/audioEngineV2"
-import type { StaticSound } from "@babylonjs/core/AudioV2/abstractAudio/staticSound"
-import { CreateAudioEngineAsync } from "@babylonjs/core/AudioV2/webAudio/webAudioEngine"
 import type { BattlefieldMap, SceneryKind, Trench } from "@verdun/map"
+import { getMixer } from "../audio/mixer.ts"
 
 /** The ambience in the level kit, under audio/<name>.ogg. */
 export const AMBIENCE_FILES = ["no-mans-land", "wood", "rear", "ruins", "guns-far-1", "guns-far-2"] as const
@@ -72,7 +70,7 @@ export interface Ambience {
 }
 
 interface Bed {
-  readonly sound: StaticSound
+  readonly gain: GainNode
   readonly level: number
   readonly weight: (x: number, z: number) => number
 }
@@ -80,28 +78,36 @@ interface Bed {
 /**
  * The sector's sound: wind over no man's land with the rumble of the guns in it, creaking shattered trees in the woods,
  * crows over Fleury's ruins and birdsong behind the lines, crossfaded by where the listener stands, and now and then a
- * gun firing somewhere far off. Audio starts on the player's first click or key press, as browsers require.
+ * gun firing somewhere far off. Plays through the mixer's ambience bus, which ducks after a near miss; audio starts on
+ * the player's first click or key press, as browsers require.
  */
 export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio): Promise<Ambience> {
-  const engine: AudioEngineV2 = await CreateAudioEngineAsync({ resumeOnInteraction: true })
+  const mixer = getMixer()
+  const { context } = mixer
   const zones = ambienceZones(map)
-  const loop = (name: keyof typeof BED_LEVELS) =>
-    CreateSoundAsync(name, audio[name], { loop: true, volume: 0, autoplay: true }, engine)
-  const [noMansLand, wood, rear, ruins, gun1, gun2] = await Promise.all([
-    loop("no-mans-land"),
-    loop("wood"),
-    loop("rear"),
-    loop("ruins"),
-    CreateSoundAsync("guns-far-1", audio["guns-far-1"], {}, engine),
-    CreateSoundAsync("guns-far-2", audio["guns-far-2"], {}, engine)
-  ])
+  // decodeAudioData detaches what it's given: decode copies.
+  const decode = (name: (typeof AMBIENCE_FILES)[number]) => context.decodeAudioData(audio[name].slice(0))
+  const [noMansLand, wood, rear, ruins, gun1, gun2] = await Promise.all(AMBIENCE_FILES.map(decode))
+  const loop = (buffer: AudioBuffer | undefined): GainNode => {
+    const gain = context.createGain()
+    gain.gain.value = 0
+    gain.connect(mixer.ambience)
+    if (buffer) {
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.loop = true
+      source.connect(gain)
+      source.start()
+    }
+    return gain
+  }
   const beds: Bed[] = [
-    { sound: noMansLand, level: BED_LEVELS["no-mans-land"], weight: zones.noMansLand },
-    { sound: wood, level: BED_LEVELS.wood, weight: zones.wood },
-    { sound: rear, level: BED_LEVELS.rear, weight: (x, z) => 1 - zones.noMansLand(x, z) },
-    { sound: ruins, level: BED_LEVELS.ruins, weight: zones.ruins }
+    { gain: loop(noMansLand), level: BED_LEVELS["no-mans-land"], weight: zones.noMansLand },
+    { gain: loop(wood), level: BED_LEVELS.wood, weight: zones.wood },
+    { gain: loop(rear), level: BED_LEVELS.rear, weight: (x, z) => 1 - zones.noMansLand(x, z) },
+    { gain: loop(ruins), level: BED_LEVELS.ruins, weight: zones.ruins }
   ]
-  const guns = [gun1, gun2]
+  const guns = [gun1, gun2].filter((gun): gun is AudioBuffer => gun !== undefined)
   let untilGun = GUNS.minGap
 
   return {
@@ -109,20 +115,27 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
       const fade = Math.min(1, frameSeconds * FADE_RATE)
       for (const bed of beds) {
         const target = bed.level * bed.weight(x, z)
-        bed.sound.volume += (target - bed.sound.volume) * fade
+        bed.gain.gain.value += (target - bed.gain.gain.value) * fade
       }
       untilGun -= frameSeconds
-      if (untilGun <= 0) {
+      const gun = guns[Math.floor(Math.random() * guns.length)]
+      if (untilGun <= 0 && gun) {
         untilGun = GUNS.minGap + Math.random() * (GUNS.maxGap - GUNS.minGap)
-        const gun = guns[Math.floor(Math.random() * guns.length)]
-        gun?.play({ volume: GUNS.minVolume + Math.random() * (GUNS.maxVolume - GUNS.minVolume) })
-        if (gun) {
-          gun.stereo.pan = Math.random() * 1.6 - 0.8
-        }
+        const source = context.createBufferSource()
+        source.buffer = gun
+        const pan = context.createStereoPanner()
+        pan.pan.value = Math.random() * 1.6 - 0.8
+        const gain = context.createGain()
+        gain.gain.value = GUNS.minVolume + Math.random() * (GUNS.maxVolume - GUNS.minVolume)
+        source.connect(pan).connect(gain).connect(mixer.ambience)
+        source.onended = () => source.disconnect()
+        source.start()
       }
     },
     dispose() {
-      engine.dispose()
+      for (const bed of beds) {
+        bed.gain.disconnect()
+      }
     }
   }
 }

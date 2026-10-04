@@ -1,20 +1,26 @@
 import { createFlatMap, layOutFront, mapDepth, Surface } from "@verdun/map"
 import {
   createSimulation,
+  isInTrench,
+  type LineOfSight,
   MaskState,
   Shell,
   type SimEvent,
   Side,
   type Simulation,
   spawnSoldier,
+  Stance,
   stepSimulation,
   TICK_RATE,
   Weapon
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import {
+  airCutoff,
   createBattleSoundModel,
+  FULL_BAND,
   hearingDistance,
+  listenerSpace,
   type Listener,
   placeSound,
   SPEED_OF_SOUND
@@ -221,5 +227,71 @@ describe("createBattleSoundModel", () => {
   it("breathes in no mask when there's no soldier to control", () => {
     const { sim } = battle()
     expect(createBattleSoundModel(sim, { soldier: () => null }).breathingInMask()).toBe(false)
+  })
+})
+
+/** Sight lines that are always blocked, or always clear. */
+function sightLines(clear: boolean): LineOfSight {
+  return { isClear: () => clear, rebuildRegion: () => 0, setSightHeight: () => undefined, dispose: () => undefined }
+}
+
+describe("airCutoff", () => {
+  it("takes more of the highs off the further a sound comes", () => {
+    expect(airCutoff(0)).toBeLessThanOrEqual(FULL_BAND)
+    expect(airCutoff(150)).toBeLessThan(airCutoff(20))
+    expect(airCutoff(4000)).toBeGreaterThanOrEqual(400)
+    expect(placeSound(LISTENER, "heavy-far", 100, 900)?.cutoff).toBeCloseTo(
+      airCutoff(hearingDistance(LISTENER, 100, 900))
+    )
+  })
+})
+
+describe("occlusion", () => {
+  it("muffles sounds with the ground in the way when the camera is close, and not when it's high", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    const fire = () => shot(german, { x: 100, z: 190 }, { x: 100, z: 120 })
+    happen(sim, fire())
+    const open = model.step(LISTENER)[0]
+    sim.lineOfSight = sightLines(false)
+    happen(sim, fire())
+    const blocked = model.step(LISTENER)[0]
+    expect(blocked?.volume).toBeLessThan(open?.volume ?? 0)
+    expect(blocked?.cutoff).toBeLessThanOrEqual(1400)
+    happen(sim, fire())
+    expect(model.step({ ...LISTENER, height: 300 })[0]?.cutoff).toBeGreaterThan(1400)
+    sim.lineOfSight = sightLines(true)
+    happen(sim, fire())
+    expect(model.step(LISTENER)[0]?.cutoff).toBeCloseTo(open?.cutoff ?? 0)
+  })
+})
+
+describe("listenerSpace", () => {
+  const none = () => 0
+
+  it("is a trench where the camera looks down into one, fading as the camera climbs", () => {
+    const { sim } = battle()
+    let inside: { x: number; z: number } | null = null
+    for (let z = 0; z < 200 && !inside; z += 0.5) {
+      for (let x = 0; x < 300 && !inside; x += 0.5) {
+        if (isInTrench(sim.map, x, z)) {
+          inside = { x, z }
+        }
+      }
+    }
+    expect(inside).not.toBeNull()
+    const listener = { ...LISTENER, ...inside, height: 30 }
+    expect(listenerSpace(sim, listener, null, none)).toEqual({ trench: 1, dugout: 0, ruins: 0 })
+    expect(listenerSpace(sim, { ...listener, height: 90 }, null, none).trench).toBeCloseTo(0.5)
+    expect(listenerSpace(sim, { ...listener, height: 200 }, null, none)).toEqual({ trench: 0, dugout: 0, ruins: 0 })
+  })
+
+  it("is the dugout when the controlled soldier shelters close by, and ruins where they stand thick", () => {
+    const { sim, french } = battle()
+    const close = { ...LISTENER, height: 30 }
+    expect(listenerSpace(sim, close, french, () => 0.5).ruins).toBeCloseTo(0.5)
+    sim.soldiers.stance.value[french] = Stance.Sheltering
+    expect(listenerSpace(sim, close, french, () => 0.5)).toEqual({ trench: 0, dugout: 1, ruins: 0 })
+    expect(listenerSpace(sim, { ...close, z: 150 }, french, none).dugout).toBe(0)
   })
 })
