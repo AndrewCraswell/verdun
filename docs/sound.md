@@ -12,22 +12,22 @@ pass comes before anything below is tuned.
 
 No library sells these at the quality the rest of the game uses. "Proxy" says what stands in today.
 
-| Missing                                                                            | Proxy today                                                 | How to get it                                                                                     |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Lebel, Berthier, Gewehr 98 firing                                                  | Mosin-Nagant 1891, M1917 Enfield, Springfield bolt (BOOM)   | Commission a recording session, or keep the proxies (close at RTS distance)                       |
-| Hotchkiss M1914, St. Étienne, MG 08, Chauchat, Lewis firing                        | Browning M1919 (Super Thump, GDC samples)                   | The Recordist's Vickers ($89) for the MG 08; commission the rest                                  |
-| French 75 and German 77 firing; 210 and 420 mm                                     | 105 mm, 155 mm and 70 mm (Pole Position Warfare Library)    | No source exists; pitch down the heavy recordings for 210/420 mm                                  |
-| Incoming heavy shell rush (real)                                                   | Run-up of two designed Bluezone sounds                      | Pole Position Bandkanon or a whistle designed from the Warfare Library's whizzes                  |
-| Trench whistle (Acme Thunderer, French whistle)                                    | None: the attack goes in silently                           | Record: a reproduction whistle costs a few dollars                                                |
-| French and German voices: orders, battle cries, "Gas!", wounded, stretcher bearers | Wordless death cries, grunts and battle cries (GDC samples) | Native voice actors, 6–8 non-union, about $2k–4k ([report](research/ww1-sound-effects-report.md)) |
-| Charge walla, war cries, crowd pain                                                | None                                                        | BOOM Crowds: War & Battle ($329, planned)                                                         |
-| Gas alarm rattle and a real brass shell-case gong                                  | Struck iron and a spade (Pole Position sweeteners)          | Record a football rattle and an empty brass case                                                  |
-| Gas-mask breathing through a period mask                                           | A modern breathing-mask loop (Gamemaster)                   | Record through a rubber mask with a cloth pad                                                     |
-| Very lights and signal rockets                                                     | A firework launch (GDC sampler), for Very lights            | Record a blank flare-pistol pop and a road-flare fizz                                             |
-| Footsteps on duckboards, mud squelch, ladders, gear rattle                         | None                                                        | GDC samples exist (mud footsteps, gear foley); a home foley session for duckboards                |
-| Digging, sandbags, wire cutting, wire rattling in the wind                         | None                                                        | Home foley session; GDC has wind on a wire fence                                                  |
-| Field telephone, French bugle calls, rats, flies, dugout room tone                 | None                                                        | Record, or the GDC fly and bunker samples                                                         |
-| Horses and limbers, WW1 trucks, aircraft                                           | GDC horse samples, unused                                   | BOOM Horses; Pole Position Fokker Dr.I ($449) once aircraft fly                                   |
+| Missing                                                                            | Proxy today                                                         | How to get it                                                                                     |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Lebel, Berthier, Gewehr 98 firing                                                  | Mosin-Nagant 1891, M1917 Enfield, Springfield bolt (BOOM)           | Commission a recording session, or keep the proxies (close at RTS distance)                       |
+| Hotchkiss M1914, St. Étienne, MG 08, Chauchat, Lewis firing                        | Browning M1919 (Super Thump, GDC samples)                           | The Recordist's Vickers ($89) for the MG 08; commission the rest                                  |
+| French 75 and German 77 firing; 210 and 420 mm                                     | 105 mm, 155 mm and 70 mm (Pole Position Warfare Library)            | No source exists; pitch down the heavy recordings for 210/420 mm                                  |
+| Incoming heavy shell rush (real)                                                   | None: designed stand-ins were taken out, the shells land unheralded | Pole Position Bandkanon or a whistle designed from the Warfare Library's whizzes                  |
+| Trench whistle (Acme Thunderer, French whistle)                                    | None: the attack goes in silently                                   | Record: a reproduction whistle costs a few dollars                                                |
+| French and German voices: orders, battle cries, "Gas!", wounded, stretcher bearers | Wordless death cries, grunts and battle cries (GDC samples)         | Native voice actors, 6–8 non-union, about $2k–4k ([report](research/ww1-sound-effects-report.md)) |
+| Charge walla, war cries, crowd pain                                                | None                                                                | BOOM Crowds: War & Battle ($329, planned)                                                         |
+| Gas alarm rattle and a real brass shell-case gong                                  | Struck iron and a spade (Pole Position sweeteners)                  | Record a football rattle and an empty brass case                                                  |
+| Gas-mask breathing through a period mask                                           | Real breathing (UberDuo), low-passed to sound muffled               | Record through a rubber mask with a cloth pad                                                     |
+| Very lights and signal rockets                                                     | None: a firework launch was taken out                               | Record a blank flare-pistol pop and a road-flare fizz                                             |
+| Boots on duckboards, mud squelch, ladders                                          | Bare earth (PMSFX): the samplers' wood and mud steps are too weak   | GDC samples exist (mud footsteps, gear foley); a home foley session for duckboards                |
+| Digging, sandbags, wire cutting, wire rattling in the wind                         | None                                                                | Home foley session; GDC has wind on a wire fence                                                  |
+| Field telephone, French bugle calls, rats, flies, dugout room tone                 | None                                                                | Record, or the GDC fly and bunker samples                                                         |
+| Horses and limbers, WW1 trucks, aircraft                                           | GDC horse samples, unused                                           | BOOM Horses; Pole Position Fokker Dr.I ($449) once aircraft fly                                   |
 
 ## Things the game doesn't tell the sound about
 
@@ -43,16 +43,15 @@ happen in the game but have no event or hook yet, or a hook that only plays a st
   nobody calls out under fire or prays.
 - **Wire**: the `wire-cut` event duplicates a burst, so it stays silent; wire rattle and twang up close need foley.
 - **Props wrecked** by `level.damage.blast()`: planks splintering and wire snapping go unheard.
-- **Night**: the same ambience plays by day and night; crickets and quieter birds after dark want
-  `lightLevel(sim.environment.illuminance)` from apps/client/src/environment/daylight.ts.
 - **Planned mechanics**: signal rockets for the SOS barrage, mines, the stand-to at the daily turn. The design docs ask
   them to emit events.
 
 ## Sound design not done yet
 
-- **Footsteps**: duckboard clatter in trenches and mud squelch in the open, for the controlled soldier and men close by.
-- **Rain on things**: rain on helmets, iron sheets and standing water in the trenches; the packs only have rain on
-  leaves, plastic and metal.
+- **Rain on helmets and standing water**: rain drips on corrugated iron in the trenches, but there is no recording of
+  rain on steel helmets or on the water lying in the trench.
 - **3D**: sounds are panned in stereo, not placed with HRTF, so there is no above or behind.
-- **Mix**: nobody has listened yet. Levels were set by measurement, and battery reports under a heavy bombardment may be
-  too dense. Each sound plays one variation at random, with no priority between kinds of sound beyond loudness.
+- **Mix**: nobody has listened yet. Levels were set by measurement; the sound mixer panel (M, dev builds) is for setting
+  them by ear, and its Copy button gives the values to ship in audio/tuning.ts. Battery reports under a heavy
+  bombardment may be too dense, and the voice limit has no priority between kinds of sound beyond loudness.
+- **Variety**: bullet impacts have one recording (PMSFX) and the flare, incoming rush and trench whistle none.

@@ -263,7 +263,8 @@ than stopping the game.
   - At most 48 battle sounds play at once; the quietest gives way.
 - **Ambience** ([ambience.ts](../apps/client/src/level/ambience.ts)) crossfades four looping beds by where the camera
   looks: wind over no man's land with the guns rumbling in it, creaking shattered trees in the woods, crows over
-  Fleury's ruins and birdsong behind the lines. A distant gun fires every few seconds from a random side.
+  Fleury's ruins and birdsong behind the lines. A distant gun fires every few seconds from a random side. After dark the
+  birdsong, crows and creaking trees fade.
 - **The battle** ([battle-sound-model.ts](../apps/client/src/audio/battle-sound-model.ts)) turns each simulation step
   into sounds:
   - **Rifles** by side, the bolt worked after each shot nearby. The Mosin-Nagant 1891 stands in for the Lebel, and the
@@ -271,26 +272,31 @@ than stopping the game.
   - **Machine guns** round by round up close (Browning M1919, the Hotchkiss and MG 08's rate of fire), a recorded burst
     every 1.5 s from afar. Rounds from more than 40 m **crack** past the listener and thud into the ground nearby.
   - **Shells** by type, each with a near and a far recording. Field shells' crack and burst come together, as
-    whizz-bangs gave no warning. Heavy 155 mm shells **rush in** for the last 2 s before landing within 150 m. There are
-    shrapnel airbursts, the quiet pop and hiss of gas shells, and grenades thrown and bursting. Earth **rains down**
-    after a cratering burst within 35 m. **The batteries** fire 4 km behind each line, heard about 12 s late.
+    whizz-bangs gave no warning. Heavy 155 mm shells are ready to **rush in** for the last 2 s before landing within 150
+    m, once a real recording of that rush is found (none is, so far). There are shrapnel airbursts, the quiet pop and
+    hiss of gas shells, and grenades thrown and bursting. Earth **rains down** after a cratering burst within 35 m.
+    **The batteries** fire 4 km behind each line, heard about 12 s late.
   - **Shell shock**: a burst within 15 m of the controlled soldier sets his ears ringing and muffles the battle and the
     ambience by up to 80%, coming back over 3 s.
   - **Men** cry out when hit and fall within reach. Squads cheer as they go over the top, and the enemy's counter-attack
-    is heard from its front line. The gas alarm (a struck shell case) sounds when men nearby start masking, and the
-    controlled soldier breathes through his mask.
+    is heard from its front line. The gas alarm (a struck shell case) sounds when men nearby start masking. The
+    controlled soldier breathes through his mask, and short and hard while pinned down.
+  - **Footsteps** ([footstep-model.ts](../apps/client/src/audio/footstep-model.ts)): with the camera low, men standing
+    within 18 m step once a stride on snow, the stones of the ruins or bare earth, and running men's kit rattles.
 - **Weather and the front** ([atmosphere-model.ts](../apps/client/src/audio/atmosphere-model.ts)):
-  - Rain falls as hard as the weather says (snow is silent), and the wind gusts once it blows harder than a breeze.
+  - Rain falls as hard as the weather says (snow is silent), dripping on corrugated iron down in a trench, and the wind
+    gusts once it blows harder than a breeze, the wire's belts singing in it close by.
+  - At night, crickets and owls when it's warm and dry, the wind through dark woods when it's cold.
   - Thunder follows each lightning flash at about 3 s a kilometre.
   - As the camera climbs, the detail gives way to the whole front's guns from far off, louder the heavier the recent
     fighting.
 - **The level's own sounds** ([level-sound-model.ts](../apps/client/src/audio/level-sound-model.ts)): braziers and
-  burning wrecks crackle as the camera nears them, crows caw as a flock lifts off the wire, and Very lights go up with a
-  pop and a fizz.
+  burning wrecks crackle as the camera nears them, and crows caw as a flock lifts off the wire.
 
 The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms, Super Thump's Weapons of World War II
-and the Sonniss GDC bundles. The incoming rush is the run-up of two designed Bluezone sounds (no designed explosion is
-used); the ringing and the reverbs are generated. `scripts/build-sound-effects.py` cuts them:
+and the Sonniss GDC bundles, recorded by professionals: designed stand-ins and weak sampler sounds were taken out, and
+sounds with no good recording stay silent ([sound](sound.md) lists them). The ringing and the reverbs are generated.
+`scripts/build-sound-effects.py` cuts them:
 
 - It finds each take in the long source recordings and cuts it until it dies away.
 - It loops beds with a crossfade, and cuts the loudest stretches of recordings that never fall quiet.
@@ -300,9 +306,10 @@ used); the ringing and the reverbs are generated. `scripts/build-sound-effects.p
 blender -b --factory-startup -P scripts/build-sound-effects.py -- vendor/audio .asset-cache/level
 ```
 
-It writes mono Opus files and a manifest to `.asset-cache/level/sfx/`, about 4 MB, swapping them in file by file. The
-asset pack encrypts them with the rest of the kit. The ambience beds come from the kit build's `audio` section. What's
-still missing (recordings, game hooks and sound design) is listed in [sound](sound.md).
+It writes mono Opus files and a manifest to `.asset-cache/level/sfx/`, about 5.5 MB (long loops at a lower bitrate),
+swapping them in file by file. The asset pack encrypts them with the rest of the kit. The ambience beds come from the
+kit build's `audio` section. What's still missing (recordings, game hooks and sound design) is listed in
+[sound](sound.md).
 
 ## Level kit
 

@@ -24,6 +24,8 @@ import numpy as np
 
 RATE = 48000
 BITRATE = 64000
+# Long, steady loops (rain, wind, night, the front) lose nothing heard at a lower rate, and they are most of the size.
+BED_BITRATE = 40000
 # Envelope frames of 10 ms.
 HOP = RATE // 100
 # No variation peaks above -1 dBFS.
@@ -509,7 +511,7 @@ def ear_ring():
     return clip * (PEAK / float(np.abs(clip).max()))
 
 
-def write(path, clip):
+def write(path, clip, bitrate=BITRATE):
     aud.Sound.buffer(clip.reshape(-1, 1), RATE).write(
         str(path),
         rate=RATE,
@@ -517,7 +519,7 @@ def write(path, clip):
         format=aud.FORMAT_FLOAT32,
         container=aud.CONTAINER_OGG,
         codec=aud.CODEC_OPUS,
-        bitrate=BITRATE,
+        bitrate=bitrate,
     )
 
 
@@ -543,7 +545,7 @@ def build(vendor, output):
     for name, cue in CUES.items():
         clips = cue_clips(vendor, cue)
         for index, clip in enumerate(clips):
-            write(sfx / f"{name}-{index}.ogg", clip)
+            write(sfx / f"{name}-{index}.ogg", clip, BED_BITRATE if "bed" in cue else BITRATE)
         manifest[name] = {"variations": len(clips), "loop": cue.get("loop", False) or "bed" in cue}
         lengths = ", ".join(f"{len(clip) / RATE:.1f}" for clip in clips)
         print(f"[sound-effects] {name}: {len(clips)} variations ({lengths} s)", flush=True)
