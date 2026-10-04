@@ -2,10 +2,13 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.ts"
 
-const MOVEMENT_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
+/** Keys held to steer the soldier under control, by `KeyboardEvent.code`. */
+export const MOVEMENT_KEYS: ReadonlySet<string> = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
+/** Keys that act on the ground under the pointer: a grenade, a call for fire. */
+export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyV"])
 
 /** One-off keys, by `KeyboardEvent.code`. Digits 1-8 pick a squad slot. */
-function actionForKey(code: string): PlayerAction | null {
+export function actionForKey(code: string): PlayerAction | null {
   if (code === "Tab") {
     return { kind: "switch-next" }
   }

@@ -1,4 +1,8 @@
-/* Heads-up display: plain, period-neutral type over the battlefield, out of the way of the action. */
+/*
+ * Heads-up display: plain, period-neutral type over the battlefield, out of the way of the action. The screen is shared
+ * out by corner: the soldier bottom left, the sector top right, the battle log top centre, the debug dock top left and
+ * the menu hint bottom right.
+ */
 .hud {
   position: fixed;
   inset: 0;

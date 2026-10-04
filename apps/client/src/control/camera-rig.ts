@@ -24,6 +24,8 @@ const LINES_PER_NOTCH = 3
 /** At most this many notches from one wheel event. */
 const MAX_NOTCHES = 3
 
+/** The camera's keys, by `KeyboardEvent.code`: the arrows pan (or with Shift, turn), Space recentres. */
+export const CAMERA_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"])
 const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"])
 
 const rigs = new WeakMap<ArcRotateCamera, CameraRig>()

@@ -1,8 +1,23 @@
-/* Debug statistics: small monospaced text in the bottom right corner, readable over any ground. */
-.debug-stats {
+/* The debug dock: a column of debug panels in the top left, clear of the HUD's corners and the battle log. */
+.debug-dock {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 160px);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.debug-dock[hidden] {
+  display: none;
+}
+
+/* Debug statistics: small monospaced text, readable over any ground. */
+.debug-stats {
   margin: 0;
   padding: 8px 10px;
   font:
@@ -11,10 +26,5 @@
   color: #d8f0d0;
   background: rgb(0 0 0 / 65%);
   border-radius: 4px;
-  pointer-events: none;
   white-space: pre;
-}
-
-.debug-stats[hidden] {
-  display: none;
 }

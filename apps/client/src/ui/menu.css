@@ -1,0 +1,112 @@
+/* The menu: a dark panel over a dimmed battlefield, in the same plain type as the HUD. */
+.menu-hint {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 8px;
+  font:
+    12px/1.4 system-ui,
+    sans-serif;
+  color: #f2ede0;
+  background: rgb(20 18 14 / 45%);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.menu-hint[hidden],
+.menu-backdrop[hidden] {
+  display: none;
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgb(10 9 7 / 55%);
+}
+
+.menu-panel {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 20px 24px;
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+  color: #f2ede0;
+  background: #24211b;
+  border: 1px solid #4a4436;
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.menu-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.menu-resume {
+  padding: 6px 14px;
+  font: inherit;
+  color: #24211b;
+  background: #e8dfc8;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.menu-resume:hover,
+.menu-resume:focus-visible {
+  background: #fff6de;
+  outline: 2px solid #c9a96a;
+  outline-offset: 2px;
+}
+
+.menu-controls {
+  columns: 2 300px;
+  column-gap: 32px;
+}
+
+.menu-group {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+.menu-group-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c9a96a;
+}
+
+.menu-bindings {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.menu-keys {
+  width: 42%;
+  padding: 3px 12px 3px 0;
+  font-weight: 600;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.menu-action {
+  padding: 3px 0;
+  color: #d9d1bd;
+}

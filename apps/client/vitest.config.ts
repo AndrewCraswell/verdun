@@ -16,6 +16,8 @@ export default defineConfig({
         "src/control/browser-input.ts",
         "src/hud/hud.ts",
         "src/control/camera-rig.ts",
+        "src/ui/menu.ts",
+        "src/debug/dock.ts",
         "src/debug/stats.ts"
       ],
       thresholds: { lines: 90, statements: 90, functions: 90, branches: 85 }

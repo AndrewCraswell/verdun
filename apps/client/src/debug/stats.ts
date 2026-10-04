@@ -2,6 +2,7 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { SceneInstrumentation } from "@babylonjs/core/Instrumentation/sceneInstrumentation"
 import type { Scene } from "@babylonjs/core/scene"
 import type { Simulation } from "@verdun/sim"
+import { debugDock } from "./dock.ts"
 import { createFrameTimes, worldStats } from "./stats-model.ts"
 import "./stats.css"
 
@@ -10,7 +11,7 @@ export interface DebugStats {
   time<T>(part: string, work: () => T): T
   /** Records the frame and redraws the overlay when due. Call once a frame, after rendering. */
   update(): void
-  /** Shows or hides the overlay. F3 does the same. */
+  /** Shows or hides the debug dock it lives in. F3 does the same. */
   toggle(): void
   readonly visible: boolean
   dispose(): void
@@ -33,19 +34,20 @@ function heapMegabytes(): string | null {
 }
 
 /**
- * A debug overlay in the corner of the screen: frame rate and frame times, where the time goes, draw calls, and what's
- * on the battlefield. F3 shows and hides it. Babylon's instrumentation only runs while it's shown.
+ * A debug panel in the debug dock: frame rate and frame times, where the time goes, draw calls, and what's on the
+ * battlefield. F3 shows and hides the dock. Babylon's instrumentation only runs while it's shown.
  */
 export function createDebugStats(
-  parent: HTMLElement,
+  _parent: HTMLElement,
   engine: AbstractEngine,
   scene: Scene,
   sim: Simulation,
   { visible = false }: { readonly visible?: boolean } = {}
 ): DebugStats {
+  const dock = debugDock()
   const root = document.createElement("pre")
   root.className = "debug-stats"
-  parent.append(root)
+  dock.element.append(root)
   const frames = createFrameTimes()
   let parts: Record<string, number> = {}
   let instrumentation: SceneInstrumentation | null = null
@@ -54,7 +56,6 @@ export function createDebugStats(
 
   function show(on: boolean): void {
     shown = on
-    root.hidden = !on
     if (on && !instrumentation) {
       instrumentation = new SceneInstrumentation(scene)
       instrumentation.captureRenderTime = true
@@ -85,14 +86,12 @@ export function createDebugStats(
     root.textContent = lines.join("\n")
   }
 
-  const onKey = (event: KeyboardEvent) => {
-    if (event.code === "F3" && !event.repeat) {
-      event.preventDefault()
-      show(!shown)
-    }
+  const unsubscribe = dock.onToggle(show)
+  if (visible) {
+    dock.show(true)
+  } else {
+    show(dock.visible)
   }
-  window.addEventListener("keydown", onKey)
-  show(visible)
 
   return {
     time(part, work) {
@@ -116,13 +115,13 @@ export function createDebugStats(
       }
     },
     toggle() {
-      show(!shown)
+      dock.show(!dock.visible)
     },
     get visible() {
       return shown
     },
     dispose() {
-      window.removeEventListener("keydown", onKey)
+      unsubscribe()
       instrumentation?.dispose()
       root.remove()
     }

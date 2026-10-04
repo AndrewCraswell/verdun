@@ -273,3 +273,18 @@ inputs:
   below the ground behind it (it tips toward overhead to clear a ridge), and the view stays on the map. The ground under
   the focus is averaged over a few metres, so the view glides over craters instead of bobbing.
 - Anything else that sets the camera's radius, such as `main.ts` framing the start, is taken as the player's zoom.
+
+## Screen layout, debug dock and the menu (asked for by the developer)
+
+- **Layout**: each corner has an owner. The soldier and squad are bottom left, the sector top right, the battle log top
+  centre, debug panels top left, and the menu hint bottom right.
+- **Debug dock** (`apps/client/src/debug/dock.ts`): one column in the top left that every debug panel appends to. F3
+  shows or hides the whole dock, and the debug statistics now live in it. The weather agent's panel sat on top of the
+  HUD's soldier panel; they've been asked to move it into the dock.
+- **Controls registry** (`apps/client/src/ui/bindings.ts`): the single list of keys and what they do, grouped. A test
+  checks that every key the input handlers act on is listed. Modules outside the game's own input (the weather keys, the
+  death map) add theirs with `registerBindings`.
+- **Menu** (`apps/client/src/ui/menu.ts`): Esc opens it over a dimmed battlefield, listing the controls in two columns
+  with a "Back to the battle" button. The battle carries on behind it, as it will online. While open it takes key
+  presses away from the game (key releases still get through, so held keys don't stick). It needs
+  `createMenu(document.body, { development: import.meta.env.DEV })` in `main.ts`; the level-design agent has been asked.
