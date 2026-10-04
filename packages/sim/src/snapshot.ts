@@ -7,12 +7,20 @@ import { MaskState, Side, Stance } from "./components.ts"
 import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
 import type { Flare } from "./flares.ts"
 import type { ReinforcementState } from "./reinforcements.ts"
-import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
+import {
+  capturedIds,
+  createSimulation,
+  evacuatedIds,
+  fallenIds,
+  type Simulation,
+  soldierIds,
+  spawnSoldier
+} from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 17
+export const SIM_STATE_VERSION = 18
 
 export interface SoldierState {
   readonly id: number
@@ -26,6 +34,11 @@ export interface SoldierState {
   readonly health: number
   readonly dead: boolean
   readonly captured: boolean
+  /** Fallen but alive, waiting for the stretcher-bearers; or carried off the field. */
+  readonly wounded: boolean
+  readonly evacuated: boolean
+  readonly evacuateAt: number
+  readonly treatment: number
   readonly weapon: Weapon
   readonly cooldown: number
   readonly target: number
@@ -97,7 +110,12 @@ function toStance(value: number): Stance {
 export function takeSnapshot(sim: Simulation): SimulationSnapshot {
   const { position, side, speed, moveOrder, facing, steer, health, dead, weapon, target, suppression, morale } =
     sim.soldiers
-  const soldiers = [...Array.from(soldierIds(sim)), ...Array.from(fallenIds(sim)), ...Array.from(capturedIds(sim))]
+  const soldiers = [
+    ...Array.from(soldierIds(sim)),
+    ...Array.from(fallenIds(sim)),
+    ...Array.from(capturedIds(sim)),
+    ...Array.from(evacuatedIds(sim))
+  ]
     .sort((a, b) => a - b)
     .map((id): SoldierState => ({
       id,
@@ -113,6 +131,10 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       health: health.value[id],
       dead: hasComponent(sim.world, id, dead),
       captured: hasComponent(sim.world, id, sim.soldiers.captured),
+      wounded: hasComponent(sim.world, id, sim.soldiers.wounded),
+      evacuated: hasComponent(sim.world, id, sim.soldiers.evacuated),
+      evacuateAt: sim.soldiers.casualty.evacuateAt[id],
+      treatment: sim.soldiers.casualty.treatment[id],
       weapon: weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle,
       cooldown: weapon.cooldown[id],
       target: target.id[id],
@@ -220,6 +242,14 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     if (soldier.captured) {
       addComponent(sim.world, id, sim.soldiers.captured)
     }
+    if (soldier.wounded) {
+      addComponent(sim.world, id, sim.soldiers.wounded)
+    }
+    if (soldier.evacuated) {
+      addComponent(sim.world, id, sim.soldiers.evacuated)
+    }
+    sim.soldiers.casualty.evacuateAt[id] = soldier.evacuateAt
+    sim.soldiers.casualty.treatment[id] = soldier.treatment
   }
   for (const [squadId, squad] of snapshot.squads.entries()) {
     sim.squads.push({

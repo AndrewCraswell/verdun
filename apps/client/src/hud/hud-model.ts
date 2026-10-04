@@ -13,7 +13,9 @@ import {
   type Squad,
   Stance,
   Shell,
-  UNLIMITED
+  UNLIMITED,
+  evacuatedIds,
+  woundedIds
 } from "@verdun/sim"
 import { battleHour, weekLabel } from "../environment/calendar.ts"
 
@@ -50,8 +52,13 @@ export interface HudModel {
   readonly squad: string
   /** Men the side still holds back to replace wiped-out squads, or nothing if it has no reserves to draw on. */
   readonly reserves: string | null
-  /** Each side's losses: killed and taken prisoner. */
-  readonly losses: readonly { readonly side: string; readonly killed: number; readonly captured: number }[]
+  /** Each side's losses: killed, wounded (lying out or carried back) and taken prisoner. */
+  readonly losses: readonly {
+    readonly side: string
+    readonly killed: number
+    readonly wounded: number
+    readonly captured: number
+  }[]
   /** The sector's objectives and who holds each. */
   readonly objectives: readonly { readonly name: string; readonly holder: string; readonly contested: boolean }[]
   /** Shells the side's batteries have left, or nothing when the scenario sets no limit. */
@@ -91,7 +98,9 @@ export function hudModel(sim: Simulation, squad: Squad, tickRate: number): HudMo
   const soldier: EntityId = squad.leader
   const alive = soldier >= 0 && isAlive(sim, soldier)
   const fighting = squad.members.filter((member) => isAlive(sim, member)).length
-  const fallen = fallenIds(sim)
+  const lying = new Set(woundedIds(sim))
+  const killed = fallenIds(sim).filter((id) => !lying.has(id))
+  const wounded = [...lying, ...evacuatedIds(sim)]
   const captured = capturedIds(sim)
   const count = (ids: readonly EntityId[], side: Side) =>
     ids.filter((id) => sim.soldiers.side.value[id] === side).length
@@ -111,7 +120,8 @@ export function hudModel(sim: Simulation, squad: Squad, tickRate: number): HudMo
         : null,
     losses: [Side.French, Side.German].map((side) => ({
       side: SIDE_NAMES[side],
-      killed: count(fallen, side),
+      killed: count(killed, side),
+      wounded: count(wounded, side),
       captured: count(captured, side)
     })),
     objectives: sim.objectives.map((objective) => ({

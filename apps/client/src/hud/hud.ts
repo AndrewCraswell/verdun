@@ -66,7 +66,7 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
         )
       ),
       ...model.losses.map((loss) =>
-        line(`${loss.side}: ${loss.killed} killed, ${loss.captured} captured`, "hud-muted")
+        line(`${loss.side}: ${loss.killed} killed, ${loss.wounded} wounded, ${loss.captured} captured`, "hud-muted")
       ),
       ...(model.shells ? [line(model.shells, "hud-muted")] : [])
     )

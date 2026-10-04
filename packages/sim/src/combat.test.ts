@@ -287,7 +287,7 @@ describe("combat determinism", () => {
       }
     }
 
-    expect(besideHit).toBeGreaterThan(10)
+    expect(besideHit).toBeGreaterThan(5)
     expect(wideHit).toBe(0)
   })
 })

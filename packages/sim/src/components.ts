@@ -44,6 +44,18 @@ export interface SoldierComponents {
   /** Tag: present once a soldier has surrendered. Prisoners walk to their captors' rear and take no part. */
   readonly captured: Record<string, never>
   /**
+   * Tag: present with `dead` while a fallen soldier is only wounded, lying where he fell until the stretcher-bearers
+   * reach him, the enemy picks him up, or his wound kills him.
+   */
+  readonly wounded: Record<string, never>
+  /** Tag: present with `dead` once a wounded soldier has been carried off the field. */
+  readonly evacuated: Record<string, never>
+  /**
+   * The step the stretcher-bearers sent for a wounded soldier get him to the aid post (-1 while none are on their way),
+   * and the seconds of care he's had there since triage sent him back to duty (-1 when he isn't being patched up).
+   */
+  readonly casualty: { readonly evacuateAt: Int32Array; readonly treatment: Float32Array }
+  /**
    * The soldier's weapon (a `Weapon`), seconds until it can fire again, and the step it last fired: at night the muzzle
    * flash gives the shooter away for a moment.
    */
@@ -84,6 +96,9 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     health: { value: new Float32Array(capacity) },
     dead: {},
     captured: {},
+    wounded: {},
+    evacuated: {},
+    casualty: { evacuateAt: new Int32Array(capacity).fill(-1), treatment: new Float32Array(capacity).fill(-1) },
     weapon: {
       kind: new Uint8Array(capacity),
       cooldown: new Float32Array(capacity),

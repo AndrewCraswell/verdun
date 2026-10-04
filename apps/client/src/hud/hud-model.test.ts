@@ -1,6 +1,7 @@
 import { createFlatMap, layOutFront, Surface } from "@verdun/map"
 import {
   allotReinforcements,
+  casualty,
   createSimulation,
   createSquad,
   MaskState,
@@ -48,9 +49,17 @@ describe("hudModel", () => {
     expect(model.squad).toBe("Squad 2 of 3")
     expect(model.objectives).toEqual([{ name: "Crossroads", holder: "No one", contested: false }])
     expect(model.losses).toEqual([
-      { side: "French", killed: 1, captured: 0 },
-      { side: "Germans", killed: 0, captured: 1 }
+      { side: "French", killed: 1, wounded: 0, captured: 0 },
+      { side: "Germans", killed: 0, wounded: 0, captured: 1 }
     ])
+  })
+
+  it("counts the wounded apart from the killed", () => {
+    const { sim, squad, members } = battle()
+    casualty(sim, members[1] ?? -1, 0)
+    casualty(sim, members[2] ?? -1, 1)
+
+    expect(hudModel(sim, squad, TICK_RATE).losses[0]).toEqual({ side: "French", killed: 1, wounded: 1, captured: 0 })
   })
 
   it("says so when the soldier in control has fallen, or is down a dugout or pulling on a mask", () => {

@@ -54,6 +54,7 @@ export {
   capturedIds,
   createSimulation,
   enqueueCommand,
+  evacuatedIds,
   fallenIds,
   GRENADES_CARRIED,
   type Simulation,
@@ -65,8 +66,18 @@ export {
   STEP_SECONDS,
   stepSimulation,
   TICK_RATE,
-  WALKING_SPEED
+  WALKING_SPEED,
+  woundedIds
 } from "./simulation.ts"
+export {
+  AID_POST_PLACES,
+  aidPost,
+  BEARER_TEAMS,
+  casualty,
+  type CasualtyEvent,
+  KILLED_OUTRIGHT,
+  type WoundedEvent
+} from "./wounds.ts"
 export { allotReinforcements, arrivalOf, type ReinforcementEvent, type ReinforcementState } from "./reinforcements.ts"
 export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
 export {

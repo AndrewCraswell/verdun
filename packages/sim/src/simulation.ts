@@ -28,6 +28,7 @@ import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
 import { movementSystem } from "./systems/movement.ts"
 import { createWireField, type WireCutEvent, type WireField } from "./wire.ts"
+import { type CasualtyEvent, type WoundedEvent, woundSystem } from "./wounds.ts"
 
 /** Simulation steps per second. */
 export const TICK_RATE = 20
@@ -91,6 +92,8 @@ export type SimEvent =
   | ReinforcementEvent
   | FlareEvent
   | OutOfShellsEvent
+  | WoundedEvent
+  | CasualtyEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -217,9 +220,19 @@ export function capturedIds(sim: Simulation): readonly EntityId[] {
   return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.captured]))
 }
 
-/** Every fallen soldier, still lying where they fell, in id order. */
+/** Every fallen soldier, killed or wounded, still lying where they fell, in id order. */
 export function fallenIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.dead]))
+  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.dead, Not(sim.soldiers.evacuated)]))
+}
+
+/** Every wounded soldier still lying where he fell, in id order. */
+export function woundedIds(sim: Simulation): readonly EntityId[] {
+  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.wounded]))
+}
+
+/** Every wounded soldier carried off the field, in id order. */
+export function evacuatedIds(sim: Simulation): readonly EntityId[] {
+  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.evacuated]))
 }
 
 /** Queues a command for the next step. Input, AI and (later) the network all enter the simulation here. */
@@ -243,6 +256,7 @@ export function stepSimulation(sim: Simulation): void {
   combatSystem(sim)
   artillerySystem(sim)
   gasSystem(sim)
+  woundSystem(sim)
   movementSystem(sim, STEP_SECONDS)
   objectiveSystem(sim)
   sim.tick += 1

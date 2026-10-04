@@ -10,6 +10,7 @@ import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 import { cutWire } from "./wire.ts"
+import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
@@ -342,7 +343,7 @@ function casualtyChance(distance: number, halfLethal: number): number {
 function wound(sim: Simulation, soldier: EntityId, severity: number): void {
   sim.soldiers.health.value[soldier] -= severity * (0.6 + sim.rng.next() * 0.8)
   if (sim.soldiers.health.value[soldier] <= 0) {
-    applyCommand(sim, { type: "kill", soldier })
+    casualty(sim, soldier, KILLED_OUTRIGHT.shell)
   }
 }
 

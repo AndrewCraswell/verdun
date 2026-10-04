@@ -1,6 +1,5 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { Shell } from "./artillery.ts"
-import { applyCommand } from "./commands.ts"
 import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut } from "./sight.ts"
@@ -9,6 +8,7 @@ import { smokeBetween } from "./smoke.ts"
 import { nearestSoldiers, soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
+import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
 export const Weapon = { Rifle: 0, MachineGun: 1 } as const
 export type Weapon = (typeof Weapon)[keyof typeof Weapon]
@@ -229,11 +229,11 @@ function weaponOf(sim: Simulation, soldier: EntityId): WeaponStats {
   return WEAPONS[sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
 }
 
-/** A bullet strikes a soldier: a wound, often a mortal one. */
+/** A bullet strikes a soldier: a wound he may fight on with, or one that puts him out of the fight. */
 function strike(sim: Simulation, soldier: EntityId): void {
   sim.soldiers.health.value[soldier] -= 0.5 + sim.rng.next() * 0.6
   if (sim.soldiers.health.value[soldier] <= 0) {
-    applyCommand(sim, { type: "kill", soldier })
+    casualty(sim, soldier, KILLED_OUTRIGHT.bullet)
   }
 }
 

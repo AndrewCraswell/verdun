@@ -1,8 +1,8 @@
 import { type BattlefieldMap, type ChangedArea, mapDepth, mapWidth, sampleIndex } from "@verdun/map"
 import type { EntityId } from "bitecs"
-import { applyCommand } from "./commands.ts"
 import { MaskState, Stance } from "./components.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
+import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
 /** Gas grid cell size, in metres. Coarse: gas clouds are tens of metres across. */
 export const GAS_CELL = 4
@@ -320,7 +320,7 @@ function breathe(sim: Simulation, seconds: number): void {
     if (gasDose.value[soldier] >= gasTolerance(soldier)) {
       health.value[soldier] -= seconds / GAS_DECLINE_SECONDS
       if (health.value[soldier] <= 0) {
-        applyCommand(sim, { type: "kill", soldier })
+        casualty(sim, soldier, KILLED_OUTRIGHT.gas)
       }
     }
   }
