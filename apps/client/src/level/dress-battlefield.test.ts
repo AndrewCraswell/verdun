@@ -10,7 +10,7 @@ import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { surfaceColors } from "../palette.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
-import { dressBattlefield, dressLevel, placementMatrix } from "./dress-battlefield.ts"
+import { dressBattlefield, dressLevel, placementMatrix, woodsStanding } from "./dress-battlefield.ts"
 import { type LevelKit, loadLevelKit } from "./level-kit.ts"
 import { TRENCH_PIECES } from "./trench-dressing.ts"
 
@@ -93,6 +93,19 @@ describe("placementMatrix", () => {
     const matrix = placementMatrix({ piece: "p", x: 0, y: 0, z: 0, yaw: Math.PI }, new Vector3(1, 0, 0))
 
     expect(Vector3.TransformCoordinates(new Vector3(1, 0, 0), matrix).x).toBeCloseTo(0)
+  })
+})
+
+describe("woodsStanding", () => {
+  it("leaves every backdrop tree standing near the sector, thinning them to three in ten a kilometre and a half out", () => {
+    const shares = [0, 500, 800, 1000, 1500, 2500].map(woodsStanding)
+
+    expect(shares[0]).toBe(1)
+    expect(shares[1]).toBe(1)
+    expect(shares[3]).toBeCloseTo(0.65)
+    expect(shares[4]).toBeCloseTo(0.3)
+    expect(shares[5]).toBeCloseTo(0.3)
+    expect(shares.every((share, index) => index === 0 || share <= (shares[index - 1] ?? 1))).toBe(true)
   })
 })
 

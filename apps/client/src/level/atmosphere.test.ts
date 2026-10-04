@@ -9,7 +9,7 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { castersInCascade, castsShadow, createAtmosphere, nightness } from "./atmosphere.ts"
+import { castersInCascade, castsShadow, createAtmosphere, nightness, receivesShadow } from "./atmosphere.ts"
 
 const engines: NullEngine[] = []
 
@@ -57,6 +57,16 @@ describe("castsShadow", () => {
     expect(castsShadow(CreateBox("backdrop", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("backdrop-far-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("backdrop-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(true)
+  })
+})
+
+describe("receivesShadow", () => {
+  it("lets shadows fall on everything but the far woods, beyond where they reach", () => {
+    const { scene } = field()
+
+    expect(receivesShadow(CreateBox("terrain-0-0", { size: 1 }, scene))).toBe(true)
+    expect(receivesShadow(CreateBox("backdrop-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(true)
+    expect(receivesShadow(CreateBox("backdrop-far-Gen_Env_Tree_Dead_01@2,3", { size: 1 }, scene))).toBe(false)
   })
 })
 

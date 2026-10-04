@@ -190,23 +190,42 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
 
 /** Dead trees for the backdrop's woods and its scattered survivors along the front. */
 const BACKDROP_TREES = ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"]
+/** The plainer of them, for the farthest woods: Gen_Env_Tree_Dead_03's far copy is 524 triangles, these 150 to 216. */
+const PLAIN_TREES = ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02"]
 
 /**
- * Backdrop trees this near the sector, in metres beyond its edge, throw shadows: the camera can look on them from the
- * sector's edge. Further off they're beyond where shadows reach (see atmosphere.ts), and don't.
+ * The backdrop's woods by distance, in metres beyond the sector's edge. Within `shadowed` they throw shadows: the camera
+ * can look on them from the sector's edge, and further off they're beyond where shadows reach (see atmosphere.ts).
+ * Every tree stands up to `full` metres out; beyond, the woods thin to `least` of their trees by `thinned`, those left
+ * standing larger so the woods still cover the hills, and past `plain` only the plainer trees grow. A tree a kilometre
+ * off is a few pixels, and all fourteen thousand had been three fifths of every frame's triangles. The far woods are cut
+ * into cells `cell` metres across, so the camera draws only the cells it looks toward.
  */
-const SHADOWED_WOODS = 200
+const WOODS = { shadowed: 200, full: 500, thinned: 1500, least: 0.3, plain: 800, cell: 750 } as const
+
+/** The share of the backdrop's trees left standing this many metres beyond the sector's edge (see WOODS). */
+export function woodsStanding(beyond: number): number {
+  const thinning = Math.min(1, Math.max(0, (beyond - WOODS.full) / (WOODS.thinned - WOODS.full)))
+  return 1 - (1 - WOODS.least) * thinning
+}
 
 /**
  * Trees on the ground beyond the sector (see backdropTrees). There are thousands and all of them far off, so each kind
- * is one mesh of its decimated far copy drawn as thin instances: one draw, no per-tree culling. The few hundred near
+ * is a mesh of its decimated far copy drawn as thin instances, a mesh for each cell of the woods. The few hundred near
  * the sector are a mesh of their own for each kind, which throws shadows; the rest, `backdrop-far-`, don't.
  */
 function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: ReadonlyMap<string, Mesh>): Mesh[] {
   const byName = new Map<string, { piece: string; matrices: number[] }>()
   for (const { x, y, z } of backdropTrees(map, surroundings)) {
-    const piece = BACKDROP_TREES[Math.floor(hashOf(x, z, 40) * BACKDROP_TREES.length)] ?? ""
-    const size = 0.8 + hashOf(x, z, 41) * 0.8
+    const beyond = Math.hypot(Math.max(0, -x, x - mapWidth(map)), Math.max(0, -z, z - mapDepth(map)))
+    const standing = woodsStanding(beyond)
+    if (hashOf(x, z, 43) > standing) {
+      continue
+    }
+    const kinds = beyond > WOODS.plain ? PLAIN_TREES : BACKDROP_TREES
+    const piece = kinds[Math.floor(hashOf(x, z, 40) * kinds.length)] ?? ""
+    // Fewer trees, each spreading over the ground of those gone.
+    const size = (0.8 + hashOf(x, z, 41) * 0.8) / Math.sqrt(standing)
     const matrix = placementMatrix({
       piece,
       x,
@@ -215,8 +234,10 @@ function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: 
       yaw: hashOf(x, z, 42) * Math.PI * 2,
       scale: [size, size, size]
     })
-    const beyond = Math.hypot(Math.max(0, -x, x - mapWidth(map)), Math.max(0, -z, z - mapDepth(map)))
-    const name = beyond <= SHADOWED_WOODS ? `backdrop-${piece}` : `backdrop-far-${piece}`
+    const name =
+      beyond <= WOODS.shadowed
+        ? `backdrop-${piece}`
+        : `backdrop-far-${piece}@${Math.floor(x / WOODS.cell)},${Math.floor(z / WOODS.cell)}`
     const wood = byName.get(name) ?? { piece, matrices: [] }
     wood.matrices.push(...matrix.asArray())
     byName.set(name, wood)

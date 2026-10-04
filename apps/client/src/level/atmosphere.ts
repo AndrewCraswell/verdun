@@ -98,6 +98,17 @@ export function castsShadow(mesh: AbstractMesh): boolean {
   return mesh.isEnabled() && !NO_SHADOW.test(mesh.name)
 }
 
+/**
+ * The backdrop's far woods (see dress-battlefield.ts) stand further off than shadows reach, so none ever falls on them:
+ * receiving, their thousands of tiny triangles each carried the shadow cascades' work through the shader for nothing.
+ */
+const BEYOND_SHADOWS = /^backdrop-far-/
+
+/** Whether shadows can fall on a mesh. */
+export function receivesShadow(mesh: AbstractMesh): boolean {
+  return !BEYOND_SHADOWS.test(mesh.name)
+}
+
 /** What culling to a cascade needs of the shadow generator: each cascade's view and projection from the sun. */
 interface Cascades {
   getCascadeTransformMatrix(cascade: number): Nullable<Matrix>
@@ -170,13 +181,13 @@ function createShadows(
   // The ground casts too: craters, the ravine and trench walls shade themselves.
   const casters = scene.meshes.filter(castsShadow)
   const onNewMesh = (mesh: AbstractMesh) => {
-    mesh.receiveShadows = true
+    mesh.receiveShadows = receivesShadow(mesh)
     if (castsShadow(mesh)) {
       casters.push(mesh)
     }
   }
   scene.meshes.forEach((mesh) => {
-    mesh.receiveShadows = true
+    mesh.receiveShadows = receivesShadow(mesh)
   })
   scene.onNewMeshAddedObservable.add(onNewMesh)
   scene.onMeshRemovedObservable.add((mesh) => {

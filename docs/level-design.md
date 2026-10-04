@@ -207,9 +207,16 @@ square of IGN's survey centred on the sector, every 5 m in
 (`node scripts/fetch-elevation.mjs surroundings`), drawn every 10 m with the sector's own ground material. Within 60 m
 of the sector it eases from the sector's edge heights into the survey, so the two meet without a step, and under the
 sector it sinks out of sight. Shelled earth runs along the front's line east and west of the sector, and grass comes
-back behind the lines, where woods of dead trees stand (thin instances of the kit's far tree models: one draw per kind
-of tree, none culled one by one). Fog does the rest. The ravines that cut the plateau east and west of Fleury, and Fort
-de Souville's outline to the south-east, are the survey's own.
+back behind the lines, where woods of dead trees stand (thin instances of the kit's far tree models, a mesh for each
+kind in each 750 m cell, so the camera draws only the cells it looks toward). Fog does the rest. The ravines that cut
+the plateau east and west of Fleury, and Fort de Souville's outline to the south-east, are the survey's own.
+
+All fourteen thousand trees had been three fifths of every frame's triangles, drawn whether the camera looked their way
+or not, mostly as specks of a pixel or less. Now every tree stands within 500 m of the sector; beyond, the woods thin to
+three in ten by 1.5 km, those left standing larger so the woods still cover the hills, and past 800 m only the plainer
+tree models grow. Shadows reach none of the woods beyond 200 m, so those neither cast nor receive one. About 9,750 trees
+are left, and the frame draws under a million of their triangles where it had drawn 3.8 million. Toward the horizon the
+woods look the same.
 
 ## Shellfire
 
