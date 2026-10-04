@@ -138,6 +138,13 @@ simulation while `war.paused`. It only acts when the turn changes, so the dev ke
 - **The hour**, as a small clock in the HUD: "07:12" (`battleHour`).
 - **The turn** within the season, "Day 23 of 52, 1916" (`turnLabel`), and a countdown, "Next communiqué in 5 h 12 min",
   or "Stand-to" just after the cutoff (`countdownLabel`). Between seasons: "1917 begins in 6 days".
+- **The weather to come**, for the communiqué: a line a day, "Tue 27 Jun: rain, 11–17 °C, fog at times, wind W 4 m/s"
+  (`outlookLabel`, from the simulation's `dayOutlook` and `weekOutlook` in `packages/sim/src/outlook.ts`). The day's
+  weather is what most of its daylight hours (06:00–18:00 UTC) were; the temperatures are its lowest and highest; fog is
+  noted if visibility fell under 1 km at any hour; snow replaces rain when most of the water fell as snow; the wind is
+  the afternoon's, by the compass point it blows from. It reads the forecast the battle will use, so with historical
+  weather it is the real weather to come, a perfect forecast the staff of 1916 never had. Whether to blur it is a design
+  question in [open questions](open-questions.md). The dev panel shows the next week's first three days.
 - **Never a speed ratio** such as "12× time". "One real day is one week of the war" and the hour are all anyone needs.
 
 The hour is French civil time, read through the browser's time-zone data for Europe/Paris, which has the history:
@@ -334,6 +341,8 @@ In `apps/client/src/environment/`:
 - **Night** is drawn dim and blue on a log scale of lux, not physically dark: the renderer can't show a range of ten
   million to one, and players must still read the ground.
 - **Fill light, fog and shadows** follow the light level and the cloud: overcast softens shadows away.
+- **Dawn and dusk** warm the haze toward a dusty rose (`twilight`): most at sunrise and sunset, fading out by 6° below
+  the horizon and 8° above it, and muted under cloud.
 - **Fog density** comes from the visibility (Koschmieder: exp2 fog reaches 5% contrast at 1.73 / density), thinned for
   the camera's distance so at least 35% of the ground where it looks still shows. Babylon's fog is by distance from the
   camera, but real fog lies near the ground, and the camera looks down through it from 50–260 m.

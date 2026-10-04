@@ -58,6 +58,18 @@ export function fogDensityFor(lighting: Lighting, cameraDistance: number): numbe
   const limit = Math.sqrt(-Math.log(GROUND_SHOWING)) / Math.max(1, cameraDistance)
   return Math.max(Math.min(lighting.fogDensity, limit), Math.min(HAZE_DENSITY, limit))
 }
+
+/** The haze at sunrise and sunset, catching the low sun: a muted rose-amber, not a postcard. */
+const TWILIGHT_HAZE = Color3.FromHexString("#b88f72")
+
+/**
+ * How much the haze takes the low sun's colour, from 0 to 1: most with the sun just at the horizon, fading by the time
+ * it is 8° up, and gone once it is 6° below. Overcast mutes it.
+ */
+export function twilight(altitude: number): number {
+  return altitude < 0 ? smoothstep(-6, 0, altitude) : 1 - smoothstep(1, 8, altitude)
+}
+
 /** The light settings a fair midday had before the day cycled. */
 const FULL = { sunIntensity: 1.15, skyIntensity: 0.75, shadowDarkness: 0.42 } as const
 
@@ -114,7 +126,11 @@ export function lightingFor(environment: Environment): Lighting {
     skyColor: Color3.Lerp(DAY_SKY, NIGHT_SKY, night),
     groundColor: Color3.Lerp(DAY_GROUND, NIGHT_GROUND, night),
     skyIntensity: FULL.skyIntensity * (0.45 + 0.55 * level ** 0.8) * (1 + 0.25 * weather.cloudCover),
-    fogColor: Color3.Lerp(DAY_FOG, NIGHT_FOG, night).scale(0.35 + 0.65 * level),
+    fogColor: Color3.Lerp(
+      Color3.Lerp(DAY_FOG, NIGHT_FOG, night),
+      TWILIGHT_HAZE,
+      twilight(sky.sun.altitude) * (1 - 0.6 * weather.cloudCover)
+    ).scale(0.35 + 0.65 * level),
     fogDensity,
     shadowDarkness: 1 - (1 - FULL.shadowDarkness) * Math.min(1, keyStrength * 1.2)
   }

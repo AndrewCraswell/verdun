@@ -16,7 +16,7 @@ import {
   WeatherPattern
 } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
-import { fogDensityFor, lightDirection, lightingFor, lightLevel, sunColorAt } from "./daylight.ts"
+import { fogDensityFor, lightDirection, lightingFor, lightLevel, sunColorAt, twilight } from "./daylight.ts"
 import { createEnvironmentView } from "./environment-view.ts"
 import { dropsPerSecond } from "./precipitation.ts"
 
@@ -88,6 +88,18 @@ describe("daylight", () => {
     })
     const overcast = lightingFor(at(sim, Date.UTC(1916, 5, 23, 11, 30)).environment)
     expect(overcast.shadowDarkness).toBeGreaterThan(0.85)
+  })
+
+  it("warms the haze at dawn and dusk, most at sunrise, not at noon or deep night", () => {
+    expect(twilight(0)).toBe(1)
+    expect(twilight(-3)).toBeGreaterThan(0.3)
+    expect(twilight(-8)).toBe(0)
+    expect(twilight(30)).toBe(0)
+    const sim = createSimulation({ map, seed: 1 })
+    // 23 June 1916 at Fleury: the sun rises about 03:50 UTC.
+    const dawn = lightingFor(at(sim, Date.UTC(1916, 5, 23, 3, 50)).environment)
+    const noon = lightingFor(at(sim, Date.UTC(1916, 5, 23, 11, 30)).environment)
+    expect(dawn.fogColor.r / dawn.fogColor.b).toBeGreaterThan(noon.fogColor.r / noon.fogColor.b)
   })
 
   it("makes the full moon the key light on a clear winter night", () => {

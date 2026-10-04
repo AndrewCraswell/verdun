@@ -1,5 +1,6 @@
+import { WeatherPattern } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { battleHour, weekLabel } from "./calendar.ts"
+import { battleHour, outlookLabel, weekLabel } from "./calendar.ts"
 
 const HOUR = 3_600_000
 
@@ -25,5 +26,23 @@ describe("the calendar players see", () => {
   it("tells the hour of the day of battle, however many days into the week", () => {
     const week = Date.UTC(1916, 1, 21)
     expect(battleHour({ week, elapsed: 9 * 24 * HOUR + 7.5 * HOUR, minutesPerDay: 117 })).toBe("07:30")
+  })
+
+  it("gives a day's weather as a communiqué would", () => {
+    const day = {
+      day: Date.UTC(1916, 5, 27),
+      pattern: WeatherPattern.Rain,
+      low: 10.6,
+      high: 17.2,
+      precipitation: 6,
+      snow: false,
+      fog: true,
+      windFrom: 265,
+      windSpeed: 4.2
+    }
+    expect(outlookLabel(day)).toBe("Tue 27 Jun: rain, 11–17 °C, fog at times, wind W 4 m/s")
+    expect(outlookLabel({ ...day, snow: true, fog: false, windFrom: 350 })).toBe(
+      "Tue 27 Jun: snow, 11–17 °C, wind N 4 m/s"
+    )
   })
 })

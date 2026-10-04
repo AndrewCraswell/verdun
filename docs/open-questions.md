@@ -46,6 +46,10 @@ Decisions still to make. Move each to the relevant doc once decided.
   soldier's fighting strength ([progression](design/progression-and-community.md#rewards-that-last-beyond-a-season)).
 - **Squad size.** 6, 8 or 10 soldiers ([vision](vision.md#core-loop-the-squad) says 6–10; the prototype uses 8). Affects
   bot count and server budget.
+- **How good is the weather forecast?** The communiqué's outlook reads the very forecast the battle will use, so with
+  historical weather it is exact. Staffs in 1916 had weather stations and forecasts, but they were often wrong. Keep it
+  exact (players plan attacks around fog and rain), or blur it the further ahead it looks? See
+  [what players see](time-and-weather.md#what-players-see).
 
 ## Technical
 

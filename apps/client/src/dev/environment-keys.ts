@@ -5,10 +5,11 @@ import {
   type Simulation,
   typicalWeather,
   WEEK,
-  WeatherPattern
+  WeatherPattern,
+  weekOutlook
 } from "@verdun/sim"
 import { debugDock } from "../debug/dock.ts"
-import { battleHour, countdownLabel, turnLabel, weekLabel } from "../environment/calendar.ts"
+import { battleHour, countdownLabel, outlookLabel, turnLabel, weekLabel } from "../environment/calendar.ts"
 import type { WarClock } from "../environment/war-clock.ts"
 import { registerBindings } from "../ui/bindings.ts"
 
@@ -68,6 +69,8 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
     }
   })
 
+  let outlookWeek = Number.NaN
+  let outlook = ""
   window.setInterval(() => {
     if (!dock.visible) {
       return
@@ -76,6 +79,13 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
     const skyDate = new Date(clockMoment(clock)).toISOString().slice(0, 10)
     const source = sim.environment.forecast.spec.kind === "steady" ? "held" : sim.environment.forecast.spec.kind
     const turn = war ? `${turnLabel(war.day)}  ·  ${countdownLabel(war.day, Date.now())}\n` : ""
+    // The weather to come: the first days of the week the next turn will fight in.
+    if (clock.week !== outlookWeek) {
+      outlookWeek = clock.week
+      outlook = weekOutlook(sim.environment.forecast, clock.week + WEEK, 3)
+        .map(outlookLabel)
+        .join("\n  ")
+    }
     readout.textContent =
       turn +
       `${weekLabel(clock.week)}, ${battleHour(clock)}  (sky ${skyDate}, ${clock.minutesPerDay} min/day)\n` +
@@ -84,6 +94,7 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
       `wet ${(weather.wetness * 100).toFixed(0)}%\n` +
       `sun ${sky.sun.altitude.toFixed(0)}°  moon ${sky.moon.altitude.toFixed(0)}° ${(sky.moon.phase * 100).toFixed(0)}%  ` +
       `sight ${sightRange >= 1000 ? `${(sightRange / 1000).toFixed(1)} km` : `${sightRange.toFixed(0)} m`}  ` +
-      `wind ${Math.sqrt(sim.wind.x ** 2 + sim.wind.z ** 2).toFixed(1)} m/s`
+      `wind ${Math.sqrt(sim.wind.x ** 2 + sim.wind.z ** 2).toFixed(1)} m/s\n` +
+      `Next week:\n  ${outlook}`
   }, 250)
 }

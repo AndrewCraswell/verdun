@@ -159,3 +159,4 @@ export {
   warWeekOf,
   type WarSchedule
 } from "./war-calendar.ts"
+export { type DayOutlook, dayOutlook, weekOutlook, windFrom } from "./outlook.ts"
