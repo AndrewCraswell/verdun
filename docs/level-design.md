@@ -164,10 +164,14 @@ simulation's heights ([render-heights.ts](../apps/client/src/terrain/render-heig
 walls, floor and lips, and darkened on the spoil so the seams between pieces read as shadow.
 
 **Shellfire wrecks the props** ([battle-damage.ts](../apps/client/src/level/battle-damage.ts)). Every burst that makes a
-crater reaches a little past the crater's bowl: wire, duckboards, ladders, stores, poles and parapet sandbags within it
-are destroyed, standing trees are shot down to stumps, and trench sections fill with blown-in earth and broken planks.
-The ground itself is cratered by the simulation. Wire is visual only so far; when the simulation tracks cut wire, the
-art will follow it.
+crater reaches a little past the crater's bowl: duckboards, ladders, stores, poles and parapet sandbags within it are
+destroyed, standing trees are shot down to stumps, and trench sections fill with blown-in earth and broken planks. The
+ground itself is cratered by the simulation. The wire's art follows the simulation's wire
+([wire-art.ts](../apps/client/src/level/wire-art.ts)): a fence piece is drawn while less than half the ground it covers
+is cut through, a tangle while its own spot isn't, so the gaps an attack can go through show where the simulation has
+them, and close again when wiring parties mend the wire by night. Debris is thrown down into spare slots its batches
+keep, and batches switch to their far copies with a margin, so what's drawn changes rarely and a recorded frame
+(snapshot rendering) replays for longer.
 
 ## Ground
 
