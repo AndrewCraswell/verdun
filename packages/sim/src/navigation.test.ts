@@ -1,10 +1,11 @@
-import { createFlatMap, type Scenery, Surface, type WireBelt } from "@verdun/map"
+import { createFlatMap, sampleIndex, type Scenery, Surface, type WireBelt } from "@verdun/map"
 import { describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
 import { nextWaypoint } from "./navigation.ts"
 import {
   createSimulation,
+  enqueueCommand,
   type Simulation,
   spawnSoldier,
   stepSimulation,
@@ -12,6 +13,7 @@ import {
   WALKING_SPEED
 } from "./simulation.ts"
 import { createSquad } from "./squads.ts"
+import { typicalWeather, WeatherPattern } from "./weather.ts"
 
 /** A field with a belt of wire along z = 100 from x = 20 to 180, broken by a 6 m gap at x = 140, and a ruin. */
 function field(scenery: readonly Scenery[] = []) {
@@ -116,6 +118,37 @@ describe("navigation", () => {
 
     // On into the wire, not back to where he already stands.
     expect(waypoint.z).toBeGreaterThan(98)
+  })
+
+  it("keeps to firm going when the ground is sodden, going round by a longer way through the wire", () => {
+    /** Wire along z = 100 with gaps at x = 60 and x = 140, and the ground round the first gap trodden to mud. */
+    const muddy = () => {
+      const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
+      for (let row = 180; row <= 220; row++) {
+        for (let column = 80; column <= 160; column++) {
+          map.surfaces[sampleIndex(map, column, row)] = Surface.Mud
+        }
+      }
+      const belt = (from: number, to: number): WireBelt => ({
+        points: [
+          [from, 100],
+          [to, 100]
+        ]
+      })
+      return { ...map, wire: [belt(20, 57), belt(63, 137), belt(143, 180)] }
+    }
+    const route = (wetness: number) => {
+      const sim = createSimulation({ map: muddy(), seed: 1 })
+      const weather = { ...typicalWeather(WeatherPattern.Overcast, sim.wind), temperature: 12, wetness }
+      enqueueCommand(sim, { type: "forecast", forecast: { kind: "steady", weather } })
+      stepSimulation(sim)
+      const soldier = spawnSoldier(sim, { side: Side.French, x: 85, z: 80 })
+      return nextWaypoint(sim, soldier, { x: 85, z: 120 }, ahead)
+    }
+
+    // Dry, the muddy gap is the shorter way; sodden, its mud costs more than the walk round to the firm one.
+    expect(route(0.3).x).toBeLessThan(85)
+    expect(route(1).x).toBeGreaterThan(85)
   })
 
   it("goes round a ruin", () => {

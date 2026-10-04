@@ -30,13 +30,18 @@ export function sodden(sim: Simulation): number {
   return temperature < FROZEN ? 0 : Math.max(0, (wetness - WET_GROUND) / (1 - WET_GROUND))
 }
 
+/** How deep snow lies, from 0 (none) to 1 (deep enough to slow men most). */
+export function snowDepth(sim: Simulation): number {
+  return Math.min(1, sim.environment.weather.snowCover / DEEP_SNOW)
+}
+
 /**
  * Pace on the ground at a point in this weather, as a fraction of its usual going: mud after rain, a flooded trench,
  * snow lying. 1 in fair weather.
  */
 export function weatherPace(sim: Simulation, x: number, z: number): number {
   const wet = sodden(sim)
-  const snow = 1 - 0.25 * Math.min(1, sim.environment.weather.snowCover / DEEP_SNOW)
+  const snow = 1 - 0.25 * snowDepth(sim)
   if (wet === 0) {
     return snow
   }

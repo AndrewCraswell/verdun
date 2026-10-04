@@ -1,13 +1,19 @@
 import { type BattlefieldMap, footprintRadius, heightAt, mapDepth, mapWidth, SCENERY_FOOTPRINTS } from "@verdun/map"
 import type { EntityId } from "bitecs"
+import { snowDepth, sodden, weatherPace } from "./ground.ts"
 import type { Simulation } from "./simulation.ts"
 import { slopeCost, surfacePace } from "./terrain.ts"
 import { wireAt, wirePace } from "./wire.ts"
 
 /** Navigation grid cell size, in metres: fine enough for gaps in the wire and lanes between ruins. */
 export const NAV_CELL = 2
-/** At most this often, in seconds, the costs are rebuilt after shells have cut wire. */
+/** At most this often, in seconds, the costs are rebuilt after shells have cut wire or the ground has changed. */
 const REFRESH_SECONDS = 10
+/**
+ * The costs follow the mud and snow once they have changed by this much (0 to 1): a rebuild drops every flow field, so
+ * not for each hour's drizzle.
+ */
+const GROUND_CHANGE = 0.1
 /** A straight line is walked as is unless some cell on it costs this many times firm ground: wire, ruins, a pool. */
 const CLEAR_COST = 3
 /** How far along the field a soldier looks for the furthest point he can walk to straight, in cells. */
@@ -34,6 +40,9 @@ interface NavState {
   builtAt: number
   /** The wire's cut count when the costs were last built. */
   builtForCuts: number
+  /** How sodden the ground was, and how deep the snow, when the costs were last built. */
+  builtForMud: number
+  builtForSnow: number
   readonly fields: Map<string, Float32Array>
 }
 
@@ -81,7 +90,10 @@ function layObstacles(map: BattlefieldMap, columns: number, rows: number): Float
   return obstacles
 }
 
-/** Rebuilds every cell's cost from the ground as it is now: surface, duckboards, obstacles and the wire. */
+/**
+ * Rebuilds every cell's cost from the ground as it is now: surface, duckboards, obstacles, the wire, and the weather's
+ * mud and snow, so routes keep to firmer going when the ground is sodden and flooded trenches are worth climbing out of.
+ */
 function rebuild(sim: Simulation, state: NavState): void {
   const { map } = sim
   const quarter = NAV_CELL / 4
@@ -98,7 +110,7 @@ function rebuild(sim: Simulation, state: NavState): void {
           wirePace(sim.wire, x - quarter, z + quarter) +
           wirePace(sim.wire, x + quarter, z + quarter)) /
         4
-      state.cost[cell] = read(state.obstacles, cell) / (surfacePace(map, x, z) * wire)
+      state.cost[cell] = read(state.obstacles, cell) / (surfacePace(map, x, z) * weatherPace(sim, x, z) * wire)
       state.wired[cell] =
         wireAt(sim.wire, x - quarter, z - quarter) +
           wireAt(sim.wire, x + quarter, z - quarter) +
@@ -112,6 +124,8 @@ function rebuild(sim: Simulation, state: NavState): void {
   }
   state.builtAt = sim.tick
   state.builtForCuts = sim.wire.cuts
+  state.builtForMud = sodden(sim)
+  state.builtForSnow = snowDepth(sim)
   state.fields.clear()
 }
 
@@ -129,11 +143,18 @@ function navState(sim: Simulation): NavState {
       wired: new Uint8Array(columns * rows),
       builtAt: 0,
       builtForCuts: 0,
+      builtForMud: 0,
+      builtForSnow: 0,
       fields: new Map()
     }
     states.set(sim, state)
     rebuild(sim, state)
-  } else if (sim.wire.cuts !== state.builtForCuts && sim.tick - state.builtAt >= REFRESH_SECONDS * 20) {
+  } else if (
+    (sim.wire.cuts !== state.builtForCuts ||
+      Math.abs(sodden(sim) - state.builtForMud) >= GROUND_CHANGE ||
+      Math.abs(snowDepth(sim) - state.builtForSnow) >= GROUND_CHANGE) &&
+    sim.tick - state.builtAt >= REFRESH_SECONDS * 20
+  ) {
     // Twenty steps a second; a literal, since importing TICK_RATE here would be circular at load time.
     rebuild(sim, state)
   }
