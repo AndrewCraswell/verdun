@@ -78,10 +78,11 @@ with coverage, and the production build.
 
 Background for the docs above. Decisions live in the docs above, not here.
 
-| Doc                                                             | Contents                                    |
-| --------------------------------------------------------------- | ------------------------------------------- |
-| [Research report](docs/research/realistic-ww1-assets-report.md) | Full realistic-assets research with sources |
-| [Research notes](docs/research/notes/)                          | Raw research notes with sources, by topic   |
+| Doc                                                               | Contents                                             |
+| ----------------------------------------------------------------- | ---------------------------------------------------- |
+| [Research report](docs/research/realistic-ww1-assets-report.md)   | Full realistic-assets research with sources          |
+| [Sound effects report](docs/research/ww1-sound-effects-report.md) | WW1 sound libraries, gaps and licensing with sources |
+| [Research notes](docs/research/notes/)                            | Raw research notes with sources, by topic            |
 
 ## Stack at a glance
 

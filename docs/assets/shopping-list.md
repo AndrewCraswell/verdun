@@ -97,3 +97,105 @@ Reasons for the store bans are in [licensing](licensing.md).
 - French 155 mm Rimailho and German 15 cm sFH 13.
 - Verdun's concrete forts (custom model needed).
 - WW1-specific animations: bolt-action reloads in third person, going over the top, MG crew actions.
+
+## Audio
+
+Prices checked 2026-10-03. Sonniss and A Sound Effect run frequent sales, so wait for one where possible. Sources and
+reasoning are in the [sound effects report](../research/ww1-sound-effects-report.md). Buy perpetual one-time licenses
+only, and ship all paid audio inside the encrypted pack, like models. Single-user licenses (BOOM, Sonniss) cover one
+person: a contract sound designer working from these libraries needs their own seat. Never cut convolution-reverb
+impulse responses from BOOM content; its EULA bans it.
+
+### Audio: buy now, prototype starter (about $165)
+
+- [ ] [The Recordist Vickers Gun HD Pro](https://therecordist.com/product/vickers-gun/) ($89). Real Maxim-family gun,
+      the MG08 source and the base for a re-sequenced Hotchkiss. Mics from inches to 150 m.
+- [ ] [Superthump Weapons of WWII](https://www.asoundeffect.com/product-tag/mg42/) ($40 on A Sound Effect,
+      [$55 on
+      Sonniss](https://sonniss.com/sound-effects/weapons-world-war-ii-designed/)). 14 guns including Kar98, Springfield,
+      M1919 and BAR: placeholder rifles and the Hotchkiss and Chauchat proxies.
+- [ ] [Krampfstadt Distant Gunshots and Explosions](https://sonniss.com/category/sound-libraries/guns/) ($35, find it on
+      the category page). 40 files of distant reports and terrain tails for the battle bed.
+
+### Audio: buy after the prototype, core (about $1,140)
+
+- [ ] [BOOM World War I Firearms](https://www.boomlibrary.com/sound-effects/world-war-i-firearms/) ($139–$259; buy the
+      Construction Kit or Bundle, not Designed). The only library recorded from real WW1 guns, three mic distances. No
+      Lebel, Gewehr 98 or machine guns. BOOM says it sells only to commercial customers; check at checkout.
+- [ ] [Pole Position Kar98k](https://sonniss.com/sound-effects/mauser-karabiner-98-kurz-k98k-bolt-action-rifle/) ($149).
+      Gewehr 98 stand-in: same action and round, 24 perspectives, long and short tails.
+- [ ] [Pole Position Warfare Library 1–3 bundle](https://sonniss.com/sound-effects-tag/howitzer/)
+      ($399), or
+      [Vol. 3 Heavy Bombardment](https://sonniss.com/sound-effects/the-warfare-library-3-heavy-bombardment/) alone
+      ($199).
+      Real 70/105/155 mm artillery recorded at gun and impact, incoming whines; the bundle adds mines and a bunker
+      interior ([Vol. 2](https://sonniss.com/sound-effects/the-warfare-2-library/)).
+- [ ] [BOOM Crowds: War & Battle](https://www.boomlibrary.com/sound-effects/crowds-war-battle/) ($329). Charge walla,
+      war cries, pain and death, in several group sizes and distances.
+
+### Audio: upgrades (about $750)
+
+- [ ] [BOOM Cannons](https://www.boomlibrary.com/sound-effects/cannons/) (from $139). Black-powder mortars for the
+      Minenwerfer thump, flybys, impacts on six materials.
+- [ ] [Krotos Explosions](https://www.krotosaudio.com/?p=1020473) ($199). Real charges miked from 20 m to 300 m.
+- [ ] [GCRadix Firearm Foley & Mechanics: WW2](https://sonniss.com/sound-effects/firearm-foley-mechanics-ww2/)
+      ($199,
+      often $109–119 on sale). Mauser and Luger bolt handling, cloth foley.
+- [ ] [The Recordist Gunfire HD Pro](https://therecordist.com/product/gunfire-hd-pro/) ($249). Massed distant fire from
+      25 m to a mile.
+- [ ] [Thomas Rex Beverly High Desert Thunderstorms](https://asoundeffect.com/sounddesigner/thomas-rex-beverly) ($45).
+      Thunder under drumfire, and rain. Recorded in the US: check the birds before using it over the Meuse.
+
+### Audio: free
+
+- [ ] [Sonniss GDC Game Audio Bundles](https://rekkerd.org/sonniss-releases-gdc-2026-game-audio-bundle/): royalty-free,
+      no attribution, a new one every year (2026 is 7.47 GB+). Not yet checked for war material.
+- [ ] [Freesound](https://freesound.org) CC0 sounds only. CC-BY ships raw with credit; never CC BY-NC.
+- [ ] Will Gaisberg, "Gas Shell Bombardment" (HMV 09308, 1918): the only authentic WW1 battle recording. Public domain;
+      transfer an original 78 ourselves. Gramophone or menu flavour only.
+
+### Audio: hold for later
+
+| Item                                                                                                                  | When                                                   | Cost         |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------ |
+| [Pole Position Fokker Dr.I 1917](https://sonniss.com/sound-effects/fokker-dr-1-1917/)                                 | When aircraft fly over (Le Rhône rotary)               | $449         |
+| [Watson Wu Rifles & Pistols of the World Wars](https://www.watsonwu.com/weapons/rifles-pistols-of-the-world-wars)     | If rifles need more far layers or passing-round cracks | $189         |
+| [Pole Position Bandkanon 1C](https://sonniss.com/sound-effects-tag/artillery/)                                        | Designing 155–420 mm heavy-gun reports                 | From $99     |
+| [BOOM Armageddon](https://www.boomlibrary.com/sound-effects/armageddon/)                                              | Fort collapses, 420 mm impacts, rumble                 | From $139    |
+| [BOOM Horses](https://sound-ideas.com/Product/178/Horses-Sound-Effects)                                               | When horses and limbers appear                         | Not captured |
+| [344 SFX British Soldier Voices](https://sonniss.com/?p=25416)                                                        | If Crowds lacks enough grunts and efforts              | $64          |
+| [Dramatic Cat Ammo Belts](https://www.asoundeffect.com/24-great-new-sound-libraries-wwii-firearms-uk-ambiences-more/) | Close-up MG belt handling                              | $59          |
+| [glowb Historical Firearms](https://sonniss.com/sound-effects/historical-firearms/)                                   | If British troops appear (SMLE, Webley)                | $49.99       |
+| HISS and a ROAR _Pressure_                                                                                            | Gas-shell hiss                                         | Not captured |
+| Tonsturm _Indoor Explosions_                                                                                          | Fort Douaumont and Vaux interiors                      | Not captured |
+| Home foley session (see below)                                                                                        | Before the vertical slice                              | Props only   |
+| Native French and German voice actors (6–8, non-union)                                                                | Once the squad order set is fixed                      | $2k–4k       |
+| Custom weapon recording (Lebel, Hotchkiss, MG08, Chauchat)                                                            | If the proxies don't convince                          | Get quotes   |
+
+The home foley session covers what no store sells: Acme Thunderer and trench whistles, a ratchet rattle and struck brass
+shell case for gas alarms, a Very pistol (blank pop plus road-flare fizz), barbed wire, duckboards (pallets over wet
+soil), digging, sandbags, ladders, canteens and webbing, crawling in mud, gas-mask breathing through cloth, Lebel tube
+loading, stripper clips and bayonet fixing.
+
+### Audio: do not buy
+
+- Pro Sound Effects, including _Detonate_ and BBC Complete, without written clearance for games: sync-only license, 15×
+  damages.
+- Soundly, Epidemic Sound and Envato Elements subscriptions: rights lapse or are unclear for a live game.
+- The free BBC Sound Effects archive (non-commercial) and the IWM "Armistice" audio (a 2018 re-creation, licensed).
+- Sound Ideas _Guns_ (2005, 48 kHz, no named WW1 models).
+- Bluezone _Artillery_ and €5–10 Unity Asset Store artillery packs: designed with electronic elements, below the bar.
+- Unity's _WWII Weapons Sound System_ ($99.99 per part): unproven, almost no WW1 weapons.
+- Fab "151 World War Sound Effects", Pixabay "WW1" uploads and MP3-only itch.io packs: unknown provenance or low
+  quality.
+- ElevenLabs "World War" sound effects and other AI-generated sounds.
+
+### Audio: known gaps (no product found)
+
+- Recordings of the Lebel, Berthier, Chauchat, Hotchkiss M1914, St. Étienne, MG08 and Lewis gun. Use proxies: Vickers
+  for the MG08, Kar98k for the Gewehr 98, Springfield or Mosin for the Lebel.
+- Any WW1 artillery firing live, including the French 75 and German 77. Field-gun shells should arrive with almost no
+  warning; howitzer shells get the long incoming rush.
+- A gas-attack library, field telephones and French bugle calls.
+- French soldier voices of any kind; German is limited to drill shouts.
+- WW1 trucks, field kitchens, horse-drawn limbers and Verdun's church bells.
