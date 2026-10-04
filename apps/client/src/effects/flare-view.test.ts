@@ -137,6 +137,22 @@ describe("the flare view", () => {
     expect(scene.fogColor.r).toBeGreaterThan(fogBefore.r)
   })
 
+  it("makes do with one light and no flare shadows on the low setting", () => {
+    const engine = new NullEngine()
+    engines.push(engine)
+    const world = new Scene(engine)
+    const sim = createSimulation({ map: createFlatMap({ name: "f", cellSize: 1, columns: 50, rows: 50 }), seed: 1 })
+    const view = createFlareView(
+      world,
+      { sim, tick: () => 0, light: () => 0, focus: () => Vector3.Zero() },
+      () => true,
+      { quality: "low" }
+    )
+    expect(view.lights).toHaveLength(1)
+    expect(view.shadows).toBeNull()
+    view.dispose()
+  })
+
   it("keeps the lights off by day, though the flare is still drawn", () => {
     const { view, launch, state } = setup(1)
     launch(100, 100)

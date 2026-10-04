@@ -11,6 +11,7 @@ import type { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { type Simulation, soldierIds, type Weather, WeatherPattern } from "@verdun/sim"
+import type { GraphicsQuality } from "../settings/graphics.ts"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createGroundMarks } from "./ground-marks.ts"
 import { createHeightFog, type HeightFog, heightFogFor } from "./height-fog.ts"
@@ -28,7 +29,16 @@ export interface LevelAir {
 export interface EnvironmentViewOptions {
   /** Materials that darken when the ground is wet: the ground's first, then the props'. */
   readonly materials?: readonly Material[]
+  /** Materials that take the fog but not the ground's weather: the soldiers'. */
+  readonly fogOnlyMaterials?: readonly Material[]
   readonly air?: LevelAir | null
+  /**
+   * Draw the low-lying fog (height-fog.ts) on the ground, props and soldiers in place of Babylon's distance fog. Off
+   * until the particles take it too (level/particle-fog.ts), so smoke and ground are fogged alike.
+   */
+  readonly heightFog?: boolean
+  /** The graphics setting: "low" drops puddles, trails, the fog in the hollows, swaying plants and rain splashes. */
+  readonly quality?: GraphicsQuality
 }
 
 export interface EnvironmentView {
@@ -139,7 +149,13 @@ export function createEnvironmentView(
   scene: Scene,
   sim: Simulation,
   camera: TargetCamera,
-  { materials = [], air = null }: EnvironmentViewOptions = {}
+  {
+    materials = [],
+    fogOnlyMaterials = [],
+    air = null,
+    heightFog: lowFog = false,
+    quality = "high"
+  }: EnvironmentViewOptions = {}
 ): EnvironmentView | null {
   const key = scene.lights.find(isSun)
   const sky = scene.lights.find(isSky)
@@ -147,7 +163,8 @@ export function createEnvironmentView(
     return null
   }
   const daylight = createDaylight(scene, sim.environment, key, sky)
-  const precipitation = createPrecipitation(scene, (x, z) => heightAt(sim.map, x, z))
+  const low = quality === "low"
+  const precipitation = createPrecipitation(scene, (x, z) => heightAt(sim.map, x, z), { splashes: !low })
   const wetness = createWetness(materials)
   const surface: WeatherSurface = {
     cloudOffsetX: 0,
@@ -170,9 +187,22 @@ export function createEnvironmentView(
   // The fog lies on the low ground: the height a tenth of the map lies below.
   const heights = Float32Array.from(sim.map.heights).sort()
   const heightFog = createHeightFog(heights[Math.floor(heights.length * 0.1)] ?? 0)
-  const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, marks, surface))
+  // With the low-lying fog on, these materials draw it themselves, and Babylon's distance fog would fog them twice.
+  const fog = lowFog ? heightFog : null
+  const surfaced = [
+    ...materials.map((material) => new WeatherSurfacePlugin(material, clouds, marks, surface, { heightFog: fog, low })),
+    ...fogOnlyMaterials.map(
+      (material) => new WeatherSurfacePlugin(material, clouds, marks, surface, { heightFog: fog, low, fogOnly: true })
+    )
+  ]
+  if (lowFog) {
+    for (const material of [...materials, ...fogOnlyMaterials]) {
+      material.fogEnabled = false
+    }
+  }
   const wind: Wind = { towardX: 1, towardZ: 0, strength: SWAY.least, time: 0 }
-  const swaying = materials.map((material) => new WindSwayPlugin(material, wind))
+  // Swaying plants recompile the kit's shaders for every plant mesh: worth it only on the high setting.
+  const swaying = low ? [] : materials.map((material) => new WindSwayPlugin(material, wind))
   let untilTread = 0
   let untilReshape = 0
   let reshaped = false
@@ -234,7 +264,8 @@ export function createEnvironmentView(
 
       // Men tread trails through lying snow; fresh snow fills them.
       untilTread -= frameSeconds
-      if (untilTread <= 0) {
+      // On the low setting trails aren't drawn, so there's nothing to mark.
+      if (untilTread <= 0 && !low) {
         untilTread = MARKS.tread
         const { x, z } = sim.soldiers.position
         const standing = weather.snowCover > 0.05 ? soldierIds(sim) : []

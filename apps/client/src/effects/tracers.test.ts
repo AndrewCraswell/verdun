@@ -16,7 +16,7 @@ afterEach(() => {
 })
 
 /** A level field at 0 m with a rifleman and a machine gunner at the south end, the camera looking on. */
-function setup(light = 1) {
+function setup(light = 1, quality: "low" | "high" = "high") {
   const engine = new NullEngine()
   engines.push(engine)
   const scene = new Scene(engine)
@@ -25,7 +25,7 @@ function setup(light = 1) {
   const rifleman = spawnSoldier(sim, { side: Side.French, x: 50, z: 10 })
   const gunner = spawnSoldier(sim, { side: Side.French, x: 60, z: 10, weapon: Weapon.MachineGun })
   const state = { light }
-  const tracers = createTracers(scene, { sim, camera, light: () => state.light })
+  const tracers = createTracers(scene, { sim, camera, light: () => state.light, quality })
   return { scene, sim, tracers, rifleman, gunner, state }
 }
 
@@ -80,6 +80,17 @@ describe("gunfire", () => {
     expect(tracers.flashes.thinInstanceCount).toBeGreaterThanOrEqual(8)
     const flashMaterial = scene.getMaterialByName("muzzle-flashes")
     expect(flashMaterial instanceof StandardMaterial).toBe(true)
+  })
+
+  it("kicks up no muzzle smoke and less dirt on the low setting", () => {
+    const { tracers, rifleman } = setup(1, "low")
+    tracers.add(Array.from({ length: 10 }, () => shot(rifleman, false, 60)))
+    for (let frame = 0; frame < 30; frame++) {
+      tracers.update(1 / 60)
+    }
+    expect(tracers.smoke.manualEmitCount).toBe(0)
+    expect(tracers.dirt.manualEmitCount % 2).toBe(0)
+    expect(tracers.dirt.manualEmitCount).toBeGreaterThan(0)
   })
 
   it("burns brighter at night, bright enough to bloom", () => {

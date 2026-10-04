@@ -14,6 +14,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { type ShotEvent, type Simulation, Weapon } from "@verdun/sim"
 import { airLight, lightParticles, setInFog } from "../level/particle-light.ts"
+import type { GraphicsQuality } from "../settings/graphics.ts"
 import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 
 /** A rifle or machine-gun bullet's speed, in m/s: fast, but slow enough to watch cross a few hundred metres. */
@@ -97,6 +98,8 @@ export interface GunfireSources {
   readonly camera: TargetCamera
   /** How light it is, from 0 (black night) to 1 (noon). */
   light(): number
+  /** The graphics setting: "low" kicks up no muzzle smoke and less dirt. */
+  readonly quality?: GraphicsQuality
 }
 
 /** A small, fixed hash to 0..1, so the same shot always scatters the same way without touching the simulation's dice. */
@@ -209,6 +212,7 @@ function puffTexture(scene: Scene): RawTexture {
  * simulation's dice. Streaks and flashes face the camera and keep at least a pixel or two wide.
  */
 export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
+  const low = sources.quality === "low"
   const streakMap = streakTexture(scene)
   const flashMap = flashTexture(scene)
   const puffMap = puffTexture(scene)
@@ -394,7 +398,9 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
           age: 0
         })
         if ((!machineGun || count % SMOKE_EVERY === 0) && near(muzzle)) {
-          emit(smoke, smokeAt, muzzle, 2)
+          if (!low) {
+            emit(smoke, smokeAt, muzzle, 2)
+          }
         }
       }
       // A gun fires again long before old rounds land; keep the list from growing without bound under heavy fire.
@@ -433,7 +439,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
         if (before < round.range && round.flown >= round.range && round.strikes) {
           const at = round.from.add(round.along.scale(round.range))
           if (near(at)) {
-            emit(dirt, dirtAt, at, 5)
+            emit(dirt, dirtAt, at, low ? 2 : 5)
           }
           onStrike.notifyObservers({ at, time: clock })
         }

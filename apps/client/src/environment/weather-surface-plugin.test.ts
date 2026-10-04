@@ -1,7 +1,10 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import { MaterialDefines } from "@babylonjs/core/Materials/materialDefines"
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer"
+import { Color3 } from "@babylonjs/core/Maths/math.color"
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -50,6 +53,49 @@ describe("the cloud texture", () => {
 })
 
 describe("WeatherSurfacePlugin", () => {
+  it("compiles the low-lying fog, fog alone for soldiers, and the low setting as shader switches", () => {
+    const world = scene()
+    const marks = marksFor(world)
+    const fog = { density: 0.01, falloff: 0.025, base: 12, color: new Color3(0.5, 0.5, 0.5) }
+    const switches = (options: ConstructorParameters<typeof WeatherSurfacePlugin>[4]) => {
+      const plugin = new WeatherSurfacePlugin(
+        new StandardMaterial("m", world),
+        createCloudTexture(world, 8),
+        marks,
+        surface,
+        options
+      )
+      const defines = new MaterialDefines()
+      plugin.prepareDefines(defines, world, CreateBox("b", { size: 1 }, world))
+      return [defines["WEATHER_HEIGHT_FOG"], defines["WEATHER_FOG_ONLY"], defines["WEATHER_LOW"]]
+    }
+    expect(switches({})).toEqual([false, false, false])
+    expect(switches({ heightFog: fog, fogOnly: true })).toEqual([true, true, false])
+    expect(switches({ low: true })).toEqual([false, false, true])
+    const plugin = new WeatherSurfacePlugin(
+      new StandardMaterial("f", world),
+      createCloudTexture(world, 8),
+      marks,
+      surface,
+      {
+        heightFog: fog
+      }
+    )
+    const buffer = {
+      updateFloat4: vi.fn<UniformBuffer["updateFloat4"]>(),
+      setTexture: vi.fn<UniformBuffer["setTexture"]>()
+    }
+    plugin.bindForSubMesh(buffer as unknown as UniformBuffer)
+    expect(buffer.updateFloat4).toHaveBeenCalledWith("weatherHeightFog", 0.01, 0.025, 12, 0)
+    for (const language of [ShaderLanguage.GLSL, ShaderLanguage.WGSL]) {
+      const code = plugin.getCustomCode("fragment", language)
+      expect(code?.CUSTOM_FRAGMENT_DEFINITIONS).toContain("heightFogTransmittance")
+      expect(code?.CUSTOM_FRAGMENT_BEFORE_FOG).toContain("#ifdef WEATHER_HEIGHT_FOG")
+      expect(code?.CUSTOM_FRAGMENT_BEFORE_FOG).toContain("#ifndef WEATHER_FOG_ONLY")
+      expect(code?.CUSTOM_FRAGMENT_BEFORE_FOG).toContain("#ifndef WEATHER_LOW")
+    }
+  })
+
   it("draws cloud shadows, puddles and lying snow in both shader languages, before the fog", () => {
     const world = scene()
     const texture = createCloudTexture(world, 16)

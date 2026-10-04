@@ -84,7 +84,11 @@ export interface Precipitation {
 }
 
 /** Rain and snow falling around the camera, so the player always stands in the weather, and rain splashing round it. */
-export function createPrecipitation(scene: Scene, groundAt: GroundHeight = () => 0): Precipitation {
+export function createPrecipitation(
+  scene: Scene,
+  groundAt: GroundHeight = () => 0,
+  { splashes: splashing = true }: { readonly splashes?: boolean } = {}
+): Precipitation {
   const rain = createFall(scene, "rain", RAIN.capacity, sprite(scene, 4, 64, "raindrop"))
   rain.billboardMode = ParticleSystem.BILLBOARDMODE_STRETCHED
   // Drawn wider than a real drop, which would be a fraction of a pixel from the camera's height.
@@ -149,8 +153,9 @@ export function createPrecipitation(scene: Scene, groundAt: GroundHeight = () =>
       // Splashes: the share of drops falling in the box round the camera's target, fading as they spread.
       splashCentre = around
       const rainfall = weather.precipitation * (1 - snowing)
-      splashes.emitRate =
-        dropsPerSecond(rainfall, RAIN.perMillimetre) * SPLASH.share * (SPLASH.halfWidth / FALL.halfWidth) ** 2
+      splashes.emitRate = splashing
+        ? dropsPerSecond(rainfall, RAIN.perMillimetre) * SPLASH.share * (SPLASH.halfWidth / FALL.halfWidth) ** 2
+        : 0
       const shade = 0.3 + 0.7 * light
       splashes.color1 = new Color4(shade, shade, shade * 1.03, 0.55)
       splashes.color2 = new Color4(shade * 0.9, shade * 0.92, shade, 0.4)

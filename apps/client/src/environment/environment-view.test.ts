@@ -212,6 +212,34 @@ describe("the environment view", () => {
     expect(groundFogFor(clearNight, 8, 0)).toBeLessThan(groundFogFor(clearNight, 1, 0) / 2)
   })
 
+  it("draws the low-lying fog on ground and soldiers in place of Babylon's, and drops costly effects when set low", () => {
+    const { scene: battlefield, camera } = scene()
+    const sim = createSimulation({ map, seed: 1 })
+    const ground = new StandardMaterial("ground", battlefield)
+    const soldier = new StandardMaterial("soldier", battlefield)
+    const foggy = createEnvironmentView(battlefield, sim, camera, {
+      materials: [ground],
+      fogOnlyMaterials: [soldier],
+      heightFog: true
+    })
+    expect(ground.fogEnabled).toBe(false)
+    expect(soldier.fogEnabled).toBe(false)
+    expect(soldier.pluginManager?.getPlugin("WeatherSurface")).toBeTruthy()
+    foggy?.dispose()
+
+    const plain = new StandardMaterial("plain", battlefield)
+    const low = createEnvironmentView(battlefield, sim, camera, { materials: [plain], quality: "low" })
+    expect(plain.fogEnabled).toBe(true)
+    expect(plain.pluginManager?.getPlugin("WindSway")).toBeFalsy()
+    const storm = { ...typicalWeather(WeatherPattern.Storm, { x: 4, z: 0 }), wetness: 1 }
+    enqueueCommand(sim, { type: "forecast", forecast: { kind: "steady", weather: storm } })
+    stepSimulation(sim)
+    low?.update(0.016)
+    expect(low?.precipitation.rain.emitRate).toBeGreaterThan(0)
+    expect(low?.precipitation.splashes.emitRate).toBe(0)
+    low?.dispose()
+  })
+
   it("lets snow fall when it is cold", () => {
     const { scene: battlefield, camera } = scene()
     const sim = createSimulation({ map, seed: 1 })

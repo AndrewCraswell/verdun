@@ -18,6 +18,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, type Simulation } from "@verdun/sim"
 import { setInFog } from "../level/particle-light.ts"
+import type { GraphicsQuality } from "../settings/graphics.ts"
 
 /**
  * Very lights as the eye saw them over no man's land at night: a streak of sparks climbing from the trench, a pop as
@@ -273,8 +274,11 @@ function createShadows(light: SpotLight): ShadowGenerator | null {
 export function createFlareView(
   scene: Scene,
   sources: FlareSources,
-  casters: (mesh: AbstractMesh) => boolean = () => true
+  casters: (mesh: AbstractMesh) => boolean = () => true,
+  { quality = "high" }: { readonly quality?: GraphicsQuality } = {}
 ): FlareView {
+  // The low graphics setting: one light, for the brightest flare, and no flare shadows, the costliest part of the night.
+  const low = quality === "low"
   const textures = {
     core: radialTexture(scene, "flare-core", 64, 2.2),
     halo: radialTexture(scene, "flare-halo", 64, 1.6),
@@ -283,7 +287,7 @@ export function createFlareView(
   }
   // The whole pool from the start, so the draw list never grows mid-battle.
   const visuals: Visual[] = Array.from({ length: POOL }, (_, index) => createVisual(scene, index, textures))
-  const lights = Array.from({ length: LIGHT.count }, (_, index) => {
+  const lights = Array.from({ length: low ? 1 : LIGHT.count }, (_, index) => {
     const light = new SpotLight(
       `flare-light-${index}`,
       Vector3.Zero(),
@@ -298,7 +302,7 @@ export function createFlareView(
     light.setEnabled(false)
     return light
   })
-  const shadows = createShadows(lights[0]!)
+  const shadows = low ? null : createShadows(lights[0]!)
   if (shadows) {
     shadows.usePercentageCloserFiltering = true
     shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM
