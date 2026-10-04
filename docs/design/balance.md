@@ -115,22 +115,51 @@ from the simulation; the rest are starting values in these docs.
 
 Balance is tested, not argued. Two harnesses, both headless and deterministic (seeded) because the simulation is pure.
 
-### Battle matrix (exists informally, stage 1)
+### Battle matrix (built)
 
-The [overnight work log](../worklog/2026-10-04-overnight.md) already balances by running 10-minute headless battles on
-several maps and seeds and attributing every casualty to its cause. That becomes a script and a set of **acceptance
-bands** that a balance change must stay inside:
+[scripts/balance.mjs](../../scripts/balance.mjs) runs headless barrage attacks on the Fleury sector (or the prototype
+sector) across seeds, from both sides, each battle in its own process, and checks each scenario against its **acceptance
+band**. It exits non-zero when a band fails, so it can gate CI.
 
-| Scenario (Fleury, French attacking)                      | Band                                                       |
-| -------------------------------------------------------- | ---------------------------------------------------------- |
-| No artillery                                             | Fails on every seed                                        |
-| One wire-cutting bombardment, then a creeping barrage    | Fails on most seeds                                        |
-| Three bombardments, then a creeping barrage              | Succeeds on 60–90% of seeds, at 35–60% attacker casualties |
-| Own-shell casualties in a barrage attack                 | 5–15% of the attackers' losses                             |
-| Counter-attack without preparation                       | Fails on most seeds                                        |
-| The same scenarios with sides swapped (German attacking) | Within 15 points of the French result                      |
+```bash
+pnpm balance
+```
 
-Runs nightly in CI once it is fast enough; a change that moves a scenario out of its band needs a reason in its commit.
+Options: `--map prototype`, `--seeds 1916,7,42`, `--scenario "three bombardments"`, `--side french`, `--jobs 2`. A
+battle takes about 20 s for six minutes of fighting; the full matrix (three scenarios, two sides, five seeds) about two
+minutes on a 16-core machine. Keep `--jobs` low while anyone is measuring frame rates on the same machine.
+
+An attack **holds** the enemy front line when, at the end, at least 8 attackers are in it (its span plus 15 m) and they
+outnumber what's left of its garrison 3 to 1, the commander AI's own test for a lost line. Losses count the attackers
+killed, wounded and captured as a share of the men they started with.
+
+| Scenario (Fleury)                                        | Band                                                | Built                                     |
+| -------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------- |
+| No artillery, then the whistle                           | Holds on no seed                                    | Yes                                       |
+| One bombardment, then a creeping barrage                 | Holds on at most 40% of seeds                       | Yes                                       |
+| Three bombardments, then a creeping barrage              | Holds on 60–90% of seeds, at 35–60% attacker losses | Yes                                       |
+| The same scenarios with sides swapped (German attacking) | Within 20 points of the French result               | Yes                                       |
+| Own-shell casualties in a barrage attack                 | 5–15% of the attackers' losses                      | Needs casualty causes from the simulation |
+| Counter-attack without preparation                       | Fails on most seeds                                 | To add                                    |
+
+A change that moves a scenario out of its band needs a reason in its commit. To run it in CI it needs a nightly job, not
+the verify loop: two minutes of battles is too long for every push.
+
+**Results, 4 October 2026** (`f92e458`): no artillery and one bombardment pass; **three bombardments fail their band**:
+the attack holds the German line on no seed from either side (French losses 58%, German 41%). Bisected on Fleury, French
+attacking, seeds 1916 and 7:
+
+| Commit                             | Attackers vs defenders in the German line at the end | Germans captured |
+| ---------------------------------- | ---------------------------------------------------- | ---------------- |
+| `0e2554d`, before pathfinding      | 130 v 1, 141 v 3                                     | 102, 72          |
+| `706bedc`, flow-field pathfinding  | 35 v 27                                              | 30               |
+| `f81681f`, before wounds           | 12 v 42, 29 v 9                                      | 55, 65           |
+| `9fba1e0`, most casualties wounded | 46 v 63, 7 v 81                                      | 48, 15           |
+
+Pathfinding is the bigger fall: the attackers reach the enemy trench too slowly or too spread out to win the race to the
+parapet. Wounds then leave more of the garrison standing. Restoring the band is a balance task for whoever owns movement
+and combat: either the attack is now too weak, or the band was set for a simulation that no longer exists and should
+move.
 
 ### Season harness (stage 1–3)
 
