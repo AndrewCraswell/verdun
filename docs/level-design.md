@@ -339,8 +339,12 @@ than stopping the game.
   - **Shouts**, in each man's own language, within 90 m: a squad's leader cries "En avant !" or "Sprung auf!" before the
     cheer, the nearest man masking cries the gas alarm, men near a shell landing shout to take cover (as a heavy shell
     is heard coming, just after a field shell), a thrower shouts his grenade, every second man hit calls out for a
-    stretcher-bearer, and a man shouts as he is pinned down. One at a time, at most one every 1.5 s, and the same line
-    at most once in 6 s.
+    stretcher-bearer, and a man shouts as he is pinned down or cries out as his nerve breaks. A squad's leader shouts
+    "follow me" or "hold" as he gives the order, men give themselves up with "Je me rends !" or "Kamerad!", and a man of
+    the side taking an objective cheers it. One at a time, at most one every 1.5 s, and the same line at most once in 6
+    s.
+  - **Zero hour**: as squads are sent after a creeping barrage, up to three officers blow their whistles, and the cry to
+    go and the cheer follow 1.2 s later (silent until a whistle is recorded). Raids go out without a sound.
   - **Footsteps** ([footstep-model.ts](../apps/client/src/audio/footstep-model.ts)): with the camera low, men standing
     within 18 m step once a stride on snow, the stones of the ruins or bare earth, and running men's kit rattles.
 - **Weather and the front** ([atmosphere-model.ts](../apps/client/src/audio/atmosphere-model.ts)):

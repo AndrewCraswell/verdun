@@ -1,14 +1,15 @@
 // Generates the soldiers' shouted lines with ElevenLabs, then transcribes every take so the sound build can tell which
 // say the right words.
 //
-//   ELEVENLABS_API_KEY=... pnpm sound:voices
+//   ELEVENLABS_API_KEY=... pnpm sound:voices [line ...]
 //
 // Writes vendor/audio/elevenlabs/<line>-<voice>-<take>.mp3 and vendor/audio/elevenlabs/takes.json (each take's line,
 // cue, script and transcript). Takes already generated or transcribed are skipped, so a run only pays for what's new:
 // every slot (line, voice, take number) that has no file is generated afresh, so deleting rejected takes and running
-// again fills their places. Then `build-sound-effects.py -- --shortlist vendor/audio` lists the new takes worth
-// hearing, and those chosen by ear go under "keep" in voice-lines.json, the only takes the game uses. The key comes
-// from the environment and is never written anywhere.
+// again fills their places. Name lines (their ids, or the start of them: fr-follow, de-) to generate only those.
+// Then `build-sound-effects.py -- --shortlist vendor/audio` lists the new takes worth hearing, and those chosen by ear
+// go under "keep" in voice-lines.json, the only takes the game uses. The key comes from the environment and is never
+// written anywhere.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -17,9 +18,9 @@ const TAKES = join(OUTPUT, "takes.json")
 const API = "https://api.elevenlabs.io/v1"
 
 const key = process.env.ELEVENLABS_API_KEY
-const [linesFile] = process.argv.slice(2)
+const [linesFile, ...only] = process.argv.slice(2)
 if (!key || !linesFile) {
-  console.error("usage: ELEVENLABS_API_KEY=... node scripts/generate-voices.mjs <lines.json>")
+  console.error("usage: ELEVENLABS_API_KEY=... node scripts/generate-voices.mjs <lines.json> [line ...]")
   process.exit(1)
 }
 
@@ -62,7 +63,7 @@ async function transcribe(path) {
   return { transcript: result.text ?? "", language: result.language_code ?? "" }
 }
 
-for (const line of script.lines) {
+for (const line of script.lines.filter(({ id }) => only.length === 0 || only.some((start) => id.startsWith(start)))) {
   for (const voice of line.voices) {
     for (let take = 1; take <= script.takes; take++) {
       const name = `${line.id}-${voice}-${take}`

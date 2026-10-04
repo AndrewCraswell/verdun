@@ -165,9 +165,154 @@
       "cue": "voice-pinned-de",
       "voices": ["de-clemens", "de-ben"],
       "text": "[screaming] SIE KOMMEN! SIE KOMMEN!"
+    },
+    {
+      "id": "fr-follow-1",
+      "cue": "voice-follow-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[yelling] SUIVEZ-MOI !"
+    },
+    {
+      "id": "fr-follow-2",
+      "cue": "voice-follow-fr",
+      "voices": ["fr-tristan", "fr-tenko"],
+      "text": "[yelling] AVEC MOI, LES GARS !"
+    },
+    {
+      "id": "fr-hold-1",
+      "cue": "voice-hold-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[yelling] HALTE ! ON TIENT ICI !"
+    },
+    {
+      "id": "fr-hold-2",
+      "cue": "voice-hold-fr",
+      "voices": ["fr-guillaume", "fr-tenko"],
+      "text": "[yelling] RESTEZ EN POSITION !"
+    },
+    {
+      "id": "fr-surrender-1",
+      "cue": "voice-surrender-fr",
+      "voices": ["fr-tristan", "fr-tenko"],
+      "text": "[panicked] JE ME RENDS ! NE TIREZ PAS !",
+      "shouted": false
+    },
+    {
+      "id": "fr-surrender-2",
+      "cue": "voice-surrender-fr",
+      "voices": ["fr-guillaume", "fr-tenko"],
+      "text": "[desperate] PITIÉ ! JE ME RENDS !",
+      "shouted": false
+    },
+    {
+      "id": "fr-taken-1",
+      "cue": "voice-taken-fr",
+      "voices": ["fr-guillaume", "fr-tristan"],
+      "text": "[triumphant shouting] LA TRANCHÉE EST À NOUS !"
+    },
+    {
+      "id": "fr-taken-2",
+      "cue": "voice-taken-fr",
+      "voices": ["fr-tristan", "fr-tenko"],
+      "text": "[triumphant shouting] ON LES A EUS !"
+    },
+    {
+      "id": "fr-broken-1",
+      "cue": "voice-broken-fr",
+      "voices": ["fr-tenko", "fr-tristan"],
+      "text": "[sobbing] MON DIEU... MON DIEU !",
+      "shouted": false
+    },
+    {
+      "id": "fr-broken-2",
+      "cue": "voice-broken-fr",
+      "voices": ["fr-tenko", "fr-guillaume"],
+      "text": "[crying out in despair] MAMAN !",
+      "shouted": false
+    },
+    {
+      "id": "fr-broken-3",
+      "cue": "voice-broken-fr",
+      "voices": ["fr-tristan", "fr-guillaume"],
+      "text": "[breaking down] JE N'EN PEUX PLUS !",
+      "shouted": false
+    },
+    {
+      "id": "de-follow-1",
+      "cue": "voice-follow-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[yelling] FOLGT MIR!"
+    },
+    {
+      "id": "de-follow-2",
+      "cue": "voice-follow-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[yelling] ZU MIR, LEUTE!"
+    },
+    {
+      "id": "de-hold-1",
+      "cue": "voice-hold-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[yelling] HALT! STELLUNG HALTEN!"
+    },
+    {
+      "id": "de-hold-2",
+      "cue": "voice-hold-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[yelling] HIER BLEIBEN!"
+    },
+    {
+      "id": "de-surrender-1",
+      "cue": "voice-surrender-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[panicked] KAMERAD! KAMERAD!",
+      "shouted": false
+    },
+    {
+      "id": "de-surrender-2",
+      "cue": "voice-surrender-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[desperate] NICHT SCHIESSEN! KAMERAD!",
+      "shouted": false
+    },
+    {
+      "id": "de-taken-1",
+      "cue": "voice-taken-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[triumphant shouting] DER GRABEN IST UNSER!"
+    },
+    {
+      "id": "de-taken-2",
+      "cue": "voice-taken-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[triumphant shouting] WIR HABEN SIE!"
+    },
+    {
+      "id": "de-broken-1",
+      "cue": "voice-broken-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[sobbing] MEIN GOTT... MEIN GOTT!",
+      "shouted": false
+    },
+    {
+      "id": "de-broken-2",
+      "cue": "voice-broken-de",
+      "voices": ["de-clemens", "de-ben"],
+      "text": "[crying out in despair] MUTTER!",
+      "shouted": false
+    },
+    {
+      "id": "de-broken-3",
+      "cue": "voice-broken-de",
+      "voices": ["de-ben", "de-clemens"],
+      "text": "[breaking down] ICH KANN NICHT MEHR!",
+      "shouted": false
     }
   ],
   "keep": [
+    "fr-broken-1-fr-tenko-3",
+    "fr-broken-2-fr-guillaume-3",
+    "fr-broken-2-fr-tenko-1",
     "fr-charge-1-fr-tristan-3",
     "fr-charge-2-fr-guillaume-1",
     "fr-charge-2-fr-guillaume-3",
@@ -179,6 +324,8 @@
     "fr-cover-4-fr-guillaume-2",
     "fr-cover-4-fr-guillaume-3",
     "fr-cover-5-fr-tristan-2",
+    "fr-follow-1-fr-tristan-2",
+    "fr-follow-2-fr-tristan-2",
     "fr-gas-1-fr-guillaume-3",
     "fr-gas-1-fr-tenko-1",
     "fr-gas-2-fr-guillaume-1",
@@ -192,10 +339,17 @@
     "fr-hit-1-fr-tenko-2",
     "fr-hit-3-fr-guillaume-2",
     "fr-hit-3-fr-guillaume-3",
+    "fr-hold-1-fr-tristan-3",
+    "fr-hold-2-fr-guillaume-3",
     "fr-mg-1-fr-tristan-1",
     "fr-mg-1-fr-tristan-2",
     "fr-mg-3-fr-tristan-1",
     "fr-mg-3-fr-tristan-2",
+    "fr-surrender-1-fr-tristan-3",
+    "fr-surrender-2-fr-tenko-2",
+    "fr-taken-2-fr-tristan-2",
+    "de-broken-1-de-ben-1",
+    "de-broken-2-de-clemens-1",
     "de-charge-1-de-ben-2",
     "de-charge-1-de-clemens-2",
     "de-charge-3-de-clemens-1",
@@ -204,6 +358,8 @@
     "de-cover-4-de-ben-1",
     "de-cover-4-de-ben-2",
     "de-cover-4-de-ben-3",
+    "de-follow-1-de-clemens-1",
+    "de-follow-2-de-clemens-1",
     "de-gas-1-de-ben-1",
     "de-gas-3-de-ben-1",
     "de-gas-3-de-ben-3",
@@ -216,10 +372,16 @@
     "de-hit-1-de-ben-2",
     "de-hit-1-de-clemens-2",
     "de-hit-3-de-ben-2",
+    "de-hold-1-de-ben-1",
+    "de-hold-2-de-ben-1",
+    "de-hold-2-de-clemens-2",
     "de-mg-1-de-ben-2",
     "de-mg-1-de-clemens-1",
     "de-mg-1-de-clemens-2",
     "de-mg-3-de-ben-1",
-    "de-mg-3-de-ben-3"
+    "de-mg-3-de-ben-3",
+    "de-surrender-1-de-ben-2",
+    "de-surrender-2-de-clemens-2",
+    "de-taken-1-de-clemens-1"
   ]
 }

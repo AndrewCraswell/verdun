@@ -1,5 +1,6 @@
 import { heightAt, mapDepth } from "@verdun/map"
 import {
+  BROKEN_MORALE,
   type EntityId,
   eyeAt,
   fallenIds,
@@ -77,11 +78,33 @@ export const SOUND_CUES = [
   "voice-hit-fr",
   "voice-hit-de",
   "voice-pinned-fr",
-  "voice-pinned-de"
+  "voice-pinned-de",
+  "voice-follow-fr",
+  "voice-follow-de",
+  "voice-hold-fr",
+  "voice-hold-de",
+  "voice-taken-fr",
+  "voice-taken-de",
+  "voice-surrender-fr",
+  "voice-surrender-de",
+  "voice-broken-fr",
+  "voice-broken-de",
+  "whistle"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 /** What a soldier shouts: each a cue per side's language, from scripts/voice-lines.json. */
-type Shout = "charge" | "cover" | "gas" | "grenade" | "hit" | "pinned"
+type Shout =
+  | "charge"
+  | "cover"
+  | "gas"
+  | "grenade"
+  | "hit"
+  | "pinned"
+  | "follow"
+  | "hold"
+  | "taken"
+  | "surrender"
+  | "broken"
 
 /** A shout as each side gives it: in French or German. */
 function shoutCue(shout: Shout, side: Side): SoundCue {
@@ -214,7 +237,19 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "voice-hit-fr": { volume: 0.45, reference: 15 },
   "voice-hit-de": { volume: 0.45, reference: 15 },
   "voice-pinned-fr": { volume: 0.45, reference: 15 },
-  "voice-pinned-de": { volume: 0.45, reference: 15 }
+  "voice-pinned-de": { volume: 0.45, reference: 15 },
+  "voice-follow-fr": { volume: 0.45, reference: 15 },
+  "voice-follow-de": { volume: 0.45, reference: 15 },
+  "voice-hold-fr": { volume: 0.45, reference: 15 },
+  "voice-hold-de": { volume: 0.45, reference: 15 },
+  "voice-taken-fr": { volume: 0.45, reference: 15 },
+  "voice-taken-de": { volume: 0.45, reference: 15 },
+  "voice-surrender-fr": { volume: 0.4, reference: 12 },
+  "voice-surrender-de": { volume: 0.4, reference: 12 },
+  "voice-broken-fr": { volume: 0.3, reference: 10 },
+  "voice-broken-de": { volume: 0.3, reference: 10 },
+  // An officer's whistle carries over the guns.
+  whistle: { volume: 0.6, reference: 30 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */
@@ -264,7 +299,8 @@ const WOUND_CHECK_INTERVAL = 4
  */
 const CHARGE_RANGE = 250
 const CHARGE_REPEAT = 5
-const ATTACKS: ReadonlySet<string> = new Set(["advance", "creep", "raid"])
+// Not raids: raiders crawled out to the enemy's wire in silence.
+const ATTACKS: ReadonlySet<string> = new Set(["advance", "creep"])
 /** The gas alarm sounds when men within this range of the listener start masking, at most once in this many seconds. */
 const GAS_ALARM_RANGE = 150
 const GAS_ALARM_REPEAT = 30
@@ -288,6 +324,15 @@ const COVER_DELAY = 0.4
 /** Every HIT_EVERY-th man heard crying out when hit then calls out that he's hit, HIT_DELAY seconds after. */
 const HIT_EVERY = 2
 const HIT_DELAY = 0.9
+/** A squad's leader shouts these orders to his men as he gives them: to follow him, or to hold where they are. */
+const ORDER_SHOUTS: Readonly<Partial<Record<string, Shout>>> = { follow: "follow", hold: "hold" }
+/**
+ * At zero hour, as squads are sent after a creeping barrage, their officers blow their whistles: up to WHISTLES of
+ * them, WHISTLE_SPACING seconds apart, and the cry to go and the cheer follow WHISTLE_LEAD seconds later.
+ */
+const WHISTLES = 3
+const WHISTLE_SPACING = 0.35
+const WHISTLE_LEAD = 1.2
 /** Batteries stand this far behind their end of the map (the simulation's BATTERY_DISTANCE). */
 const BATTERY_DISTANCE = 4000
 
@@ -390,7 +435,8 @@ export interface BattleSoundOptions {
  * batteries firing far behind the lines, men hit or falling nearby, squads going over the top and counter-attacks
  * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks. Men
  * nearby shout in their own language: the charge, the gas alarm, to take cover from shells, a grenade thrown, that
- * they're hit, and as they're pinned down.
+ * they're hit, as they're pinned down, and as they break; leaders shout their orders and blow their whistles at
+ * zero hour; men give themselves up, and a side cheers as it takes ground.
  */
 export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
@@ -409,6 +455,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   const orders = new Map(sim.squads.map((squad) => [squad.id, squad.order.kind]))
   const lastCharge = new Map<Side, number>()
   const suppression = Float32Array.from(sim.soldiers.suppression.value)
+  const morale = Float32Array.from(sim.soldiers.morale.value)
   let lastShout = -Infinity
   const lastLine = new Map<SoundCue, number>()
   let cries = 0
@@ -667,38 +714,77 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       if (!wasPinned && pressed >= PINNED && after > 0) {
         shout(listener, calls, "pinned", id)
       }
+      const wasBroken = (morale[id] ?? 1) < BROKEN_MORALE
+      const spirit = sim.soldiers.morale.value[id] ?? 1
+      morale[id] = spirit
+      if (!wasBroken && spirit < BROKEN_MORALE && after > 0) {
+        shout(listener, calls, "broken", id)
+      }
     }
   }
 
   function chargeSounds(listener: Listener, calls: SoundCall[]): void {
     const now = seconds(sim.tick)
-    /** The cheer of men going over the top, after the cry to go from `leader`, or else the man nearest. */
-    const cheer = (side: Side, x: number, z: number, leader: EntityId | null) => {
+    /**
+     * The cheer of men going over the top, after the cry to go from `leader`, or else the man nearest; both `lead`
+     * seconds late, after the whistles.
+     */
+    const cheer = (side: Side, x: number, z: number, leader: EntityId | null, lead = 0) => {
       if (now - (lastCharge.get(side) ?? -Infinity) >= CHARGE_REPEAT) {
         lastCharge.set(side, now)
         const crier = leader ?? (shoutable(listener, x, z, COVER_RANGE) ? nearest(x, z, COVER_RANGE, side) : null)
-        const cried = crier !== null && shout(listener, calls, "charge", crier)
-        push(calls, place(listener, "charge", x, z, cried ? CHARGE_CRY : 0))
+        const cried = crier !== null && shout(listener, calls, "charge", crier, lead)
+        push(calls, place(listener, "charge", x, z, lead + (cried ? CHARGE_CRY : 0)))
       }
     }
+    let whistles = 0
     for (const squad of sim.squads) {
       const before = orders.get(squad.id)
       const after = squad.order.kind
       orders.set(squad.id, after)
-      if (before === after || !ATTACKS.has(after) || squad.leader < 0) {
+      if (before === after || squad.leader < 0) {
+        continue
+      }
+      const order = ORDER_SHOUTS[after]
+      if (order) {
+        shout(listener, calls, order, squad.leader)
         continue
       }
       const x = sim.soldiers.position.x[squad.leader] ?? 0
       const z = sim.soldiers.position.z[squad.leader] ?? 0
-      if (Math.hypot(x - listener.x, z - listener.z) < CHARGE_RANGE) {
-        cheer(squad.side, x, z, squad.leader)
+      if (!ATTACKS.has(after) || Math.hypot(x - listener.x, z - listener.z) >= CHARGE_RANGE) {
+        continue
       }
+      let lead = 0
+      if (after === "creep" && whistles < WHISTLES) {
+        push(calls, place(listener, "whistle", x, z, whistles * WHISTLE_SPACING))
+        whistles++
+        lead = WHISTLE_LEAD
+      }
+      cheer(squad.side, x, z, squad.leader, lead)
     }
     for (const event of sim.events) {
       if (event.type === "counter-attack") {
         const z = frontLineZ(sim.map.trenches, event.side)
         if (z !== null) {
           cheer(event.side, listener.x, z, null)
+        }
+      }
+    }
+  }
+
+  /** Men giving themselves up, and a man of the side taking an objective cheering it. */
+  function captureSounds(listener: Listener, calls: SoundCall[]): void {
+    for (const event of sim.events) {
+      if (event.type === "capture") {
+        shout(listener, calls, "surrender", event.soldier)
+      } else if (event.type === "objective-taken") {
+        const objective = sim.objectives.find(({ name }) => name === event.name)
+        if (objective && shoutable(listener, objective.x, objective.z, objective.radius)) {
+          const id = nearest(objective.x, objective.z, objective.radius, event.side)
+          if (id !== null) {
+            shout(listener, calls, "taken", id)
+          }
         }
       }
     }
@@ -751,6 +837,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       deathSounds(listener, calls)
       woundSounds(listener, calls)
       chargeSounds(listener, calls)
+      captureSounds(listener, calls)
       gasAlarm(listener, calls)
       return calls
     },

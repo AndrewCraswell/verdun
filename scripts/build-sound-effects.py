@@ -578,14 +578,17 @@ def voice_cues(vendor):
 
 def shortlist(vendor):
     """Prints the takes not yet kept that are worth hearing, the best of each line first, to choose among by ear."""
-    kept = set(json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []))
+    script = json.loads(VOICE_LINES.read_text(encoding="utf-8"))
+    kept = set(script.get("keep", []))
+    # Lines marked "shouted": false (a man breaking down, sobbing) needn't be shouted, only say the words.
+    quiet = {line["id"] for line in script["lines"] if not line.get("shouted", True)}
     by_line = {}
     for name, take in voice_takes(vendor).items():
         match = difflib.SequenceMatcher(None, words(take["text"]), words(take.get("transcript", ""))).ratio()
         if name in kept or match < WORDS_MATCH:
             continue
         score = shout(load(vendor / VOICES / f"{name}.mp3"))
-        if score >= SHOUT_MIN:
+        if score >= SHOUT_MIN or take["line"] in quiet:
             by_line.setdefault(take["line"], []).append((score, name))
     for line, takes in sorted(by_line.items()):
         for score, name in sorted(takes, reverse=True)[:TAKES_PER_LINE]:
