@@ -1,4 +1,4 @@
-import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
+import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline"
@@ -60,7 +60,10 @@ export function createPostProcess(scene: Scene, camera: TargetCamera): PostProce
   return {
     pipeline,
     update() {
-      const range = camera.position.subtract(camera.getTarget()).length()
+      // Focus for whichever camera is drawing: the player's, or one a dev tool switched to.
+      const active = scene.activeCamera
+      const viewer = active instanceof TargetCamera ? active : camera
+      const range = viewer.position.subtract(viewer.getTarget()).length()
       const zoom = Math.min(1, Math.max(0, (range - distance.near) / (distance.far - distance.near)))
       // Millimetres, as the lens model counts them.
       pipeline.depthOfField.focusDistance = range * 1000
