@@ -1,6 +1,8 @@
 import type { EntityId } from "bitecs"
+import { clockMoment } from "./environment.ts"
 import { isDark } from "./flares.ts"
 import type { Simulation } from "./simulation.ts"
+import { skyAt } from "./sky.ts"
 
 /**
  * The trench routine of night and day. Both armies stood to at dawn and at dusk, every man on the fire step with
@@ -19,6 +21,18 @@ const AWAKE = 1
 export function isStandTo(sim: Simulation): boolean {
   const { altitude } = sim.environment.sky.sun
   return altitude >= STAND_TO.from && altitude <= STAND_TO.to
+}
+
+/**
+ * Whether the dawn stand-to begins within `hours` of game time: a night with first light close. Through the night the
+ * sun climbs toward the horizon, so one look ahead tells.
+ */
+export function dawnWithin(sim: Simulation, hours: number): boolean {
+  if (!isNight(sim)) {
+    return false
+  }
+  const { clock, location } = sim.environment
+  return skyAt(clockMoment(clock) + hours * 3_600_000, location).sun.altitude >= STAND_TO.from
 }
 
 /** Whether it is night proper: dark, and not stand-to. */

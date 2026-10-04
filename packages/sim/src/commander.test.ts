@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { COUNTER_ATTACK_DELAY } from "./commander.ts"
 import { Side, Stance } from "./components.ts"
-import { createSimulation, type Simulation, spawnSoldier, stepSimulation, TICK_RATE } from "./simulation.ts"
+import { isStandTo } from "./routine.ts"
+import {
+  createSimulation,
+  enqueueCommand,
+  type Simulation,
+  spawnSoldier,
+  stepSimulation,
+  TICK_RATE
+} from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad } from "./squads.ts"
 
@@ -78,6 +86,26 @@ describe("counter-attacks", () => {
     const started = sim.commanders[Side.German].counterAttackedAt
     stepFor(sim, 60)
     expect(sim.commanders[Side.German].counterAttackedAt).toBe(started)
+  })
+
+  it("wait for the dawn stand-to when it's near, and go in at once earlier in the night", () => {
+    // Lost at 00:45 on 23 June 1916, a midsummer night: first light, the sun at 10° below, comes about 02:00.
+    const small = frontTaken()
+    enqueueCommand(small.sim, { type: "clock", at: Date.UTC(1916, 5, 23, 0, 45) })
+    stepFor(small.sim, COUNTER_ATTACK_DELAY + 6)
+    expect(small.sim.commanders[Side.German].lostAt).toBeGreaterThanOrEqual(0)
+    expect(small.sim.commanders[Side.German].counterAttackedAt).toBe(-1)
+    while (!isStandTo(small.sim)) {
+      stepFor(small.sim, 5)
+    }
+    stepFor(small.sim, 6)
+    expect(small.sim.commanders[Side.German].counterAttackedAt).toBeGreaterThan(0)
+
+    // Lost at 22:00 the evening before: dawn is hours off, so no waiting.
+    const late = frontTaken()
+    enqueueCommand(late.sim, { type: "clock", at: Date.UTC(1916, 5, 22, 22) })
+    stepFor(late.sim, COUNTER_ATTACK_DELAY + 6)
+    expect(late.sim.commanders[Side.German].counterAttackedAt).toBeGreaterThan(0)
   })
 
   it("don't happen without reserves", () => {

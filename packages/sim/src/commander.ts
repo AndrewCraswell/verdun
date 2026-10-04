@@ -2,7 +2,7 @@ import { mapWidth, type Trench } from "@verdun/map"
 import { frontLineSpan, type LineSpan, Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
 import { NEVER, Side } from "./components.ts"
-import { isNight } from "./routine.ts"
+import { dawnWithin, isNight } from "./routine.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { isAlive, raidGoal, type Squad } from "./squads.ts"
 import { isInTrench } from "./stance.ts"
@@ -25,6 +25,11 @@ const FRONT_BAND = 15
  * the guns laid on the lost trench. Minutes, not hours.
  */
 export const COUNTER_ATTACK_DELAY = 180
+/**
+ * A counter-attack ready in the small hours waits for the dawn stand-to if it is this many game hours off or less: dawn
+ * was the hour for attacks, light enough to keep direction and find the enemy, too dim for his machine gunners to see far.
+ */
+const WAIT_FOR_DAWN_HOURS = 2
 /** The counter-attack goes in behind its own creeping barrage, as the attack did. */
 const COUNTER_BARRAGE = { openAhead: 70, lift: 50, interval: 90, standoff: 70, roundsPerMinute: 120, standing: 40 }
 /**
@@ -344,7 +349,8 @@ function nightWork(sim: Simulation, side: Side, front: LineSpan, state: Commande
 
 /**
  * The commanders on both sides, every few seconds: a side that finds its front line lost sends its reserves to retake
- * it once they've had time to organise, after two minutes of shelling it. One counter-attack per side. By night they
+ * it once they've had time to organise, after two minutes of shelling it, or, in the last hours of the night, at the
+ * dawn stand-to. One counter-attack per side. By night they
  * send out wiring parties, a raid, and gas when the wind serves; a raid still out at dawn keeps coming home.
  */
 export function commanderSystem(sim: Simulation): void {
@@ -376,7 +382,11 @@ export function commanderSystem(sim: Simulation): void {
       }
       continue
     }
-    if (sim.tick - state.lostAt >= COUNTER_ATTACK_DELAY * TICK_RATE && reservesOf(sim, side).length > 0) {
+    if (
+      sim.tick - state.lostAt >= COUNTER_ATTACK_DELAY * TICK_RATE &&
+      reservesOf(sim, side).length > 0 &&
+      !dawnWithin(sim, WAIT_FOR_DAWN_HOURS)
+    ) {
       state.counterAttackedAt = sim.tick
       state.assaultAt = sim.tick + PREPARATION.seconds * TICK_RATE
       prepareCounterAttack(sim, side, front)
