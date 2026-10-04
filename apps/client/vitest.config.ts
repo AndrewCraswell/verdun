@@ -5,6 +5,9 @@ export default defineConfig({
     // Babylon's NullEngine renders nothing but builds real scenes, so scene code is tested in Node.
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // A runaway test dies at 4 GB with "heap out of memory" instead of eating the machine: a time limit can't stop a
+    // loop that never yields.
+    execArgv: ["--max-old-space-size=4096"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

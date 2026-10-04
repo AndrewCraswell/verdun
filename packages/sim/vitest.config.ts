@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // A runaway test dies at 4 GB with "heap out of memory" instead of eating the machine: a time limit can't stop a
+    // loop that never yields.
+    execArgv: ["--max-old-space-size=4096"],
     // Artillery and sight-line tests run dozens of trials, each building a Rapier heightfield: seconds under coverage.
     testTimeout: 30_000,
     coverage: {
