@@ -197,7 +197,10 @@ const BOLT_RANGE = 30
 const BOLT_DELAY = 0.7
 /** At most one crack this often, in seconds: a burst of cracks blurs into noise. */
 const CRACK_INTERVAL = 0.1
-/** Rounds striking the ground this close to the listener are heard thudding in, at most one this often (seconds). */
+/**
+ * Rounds striking the ground this close to the listener are heard thudding in, at most one this often (seconds), as
+ * the dirt they kick up is seen: on the gunfire effect's strike, not the shot, since the round takes its time to fly.
+ */
 const IMPACT_RADIUS = 15
 const IMPACT_INTERVAL = 0.08
 /**
@@ -312,6 +315,11 @@ export function listenerSpace(
 export interface BattleSoundModel {
   /** The sounds of the step the simulation just took, heard from `listener`. Call after every step. */
   step(listener: Listener): SoundCall[]
+  /**
+   * The thud of a round striking the ground at (x, z), heard from `listener`, or null when it lands too far off or
+   * too soon after the last. `time` is in seconds on the clock the strikes are reported on.
+   */
+  strike(listener: Listener, x: number, z: number, time: number): SoundCall | null
   /** Whether the soldier the player controls has his mask on, so his breathing is heard through it. */
   breathingInMask(): boolean
   /** Whether the soldier the player controls is pinned down, breathing short and hard (and not in his mask). */
@@ -330,7 +338,7 @@ export interface BattleSoundOptions {
 
 /**
  * Turns the simulation's events and changes into sounds: every shot by weapon and side (machine guns round by round up
- * close, in whole bursts from afar, and riflemen nearby working the bolt), rounds cracking past and striking the ground nearby, grenades thrown, every shell
+ * close, in whole bursts from afar, and riflemen nearby working the bolt), rounds cracking past, grenades thrown, every shell
  * and grenade burst by type with the rush of heavy shells coming in and earth raining down after near ones, the
  * batteries firing far behind the lines, men hit or falling nearby, squads going over the top and counter-attacks
  * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks.
@@ -407,11 +415,6 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
         lastCrack = now
         // The round outruns the report: its crack comes first.
         push(calls, place(listener, "crack", to.x, to.z))
-      }
-      const struck = Math.hypot(to.x - listener.x, to.z - listener.z) < IMPACT_RADIUS
-      if (!event.hit && struck && now - lastImpact >= IMPACT_INTERVAL) {
-        lastImpact = now
-        push(calls, place(listener, "bullet-impact", to.x, to.z))
       }
     }
   }
@@ -612,6 +615,13 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       chargeSounds(listener, calls)
       gasAlarm(listener, calls)
       return calls
+    },
+    strike(listener, x, z, time) {
+      if (Math.hypot(x - listener.x, z - listener.z) >= IMPACT_RADIUS || time - lastImpact < IMPACT_INTERVAL) {
+        return null
+      }
+      lastImpact = time
+      return place(listener, "bullet-impact", x, z, 0, 0)
     },
     takeShock() {
       const taken = shock

@@ -185,6 +185,8 @@ async function start(): Promise<void> {
     camera: view.camera,
     light: () => lightLevel(sim.environment.illuminance)
   })
+  // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
+  tracers.onStrike.add(({ at, time }) => sounds?.strike(at.x, at.z, time))
   const explosions = createExplosions(view.scene)
   // Fog starts off while artillery and the attack are being tuned; O turns it on.
   const fog = createFogOfWar(view.scene, sim, lineOfSight, {

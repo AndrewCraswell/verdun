@@ -87,6 +87,8 @@ export interface BattleSounds {
   step(): void
   /** Keeps continuous sounds, such as breathing in a gas mask, in step with the battle. Call every frame. */
   update(): void
+  /** Plays the thud of a round striking the ground at (x, z), as its dirt flies; `time` in seconds on the strikes' clock. */
+  strike(x: number, z: number, time: number): void
   dispose(): void
 }
 
@@ -152,7 +154,12 @@ export interface BattleSoundPlayerOptions extends BattleSoundOptions {
 }
 
 /** Battle sounds that play nothing, for when they can't start. */
-const SILENT: BattleSounds = { step: () => undefined, update: () => undefined, dispose: () => undefined }
+const SILENT: BattleSounds = {
+  step: () => undefined,
+  update: () => undefined,
+  strike: () => undefined,
+  dispose: () => undefined
+}
 
 export async function createBattleSounds(
   files: BattleSoundFiles,
@@ -299,6 +306,12 @@ async function startBattleSounds(
       } else if (!masked && breathing) {
         breathing.stop()
         breathing = null
+      }
+    },
+    strike(x, z, time) {
+      const call = model.strike(listenerOf(camera), x, z, time)
+      if (call) {
+        play(call)
       }
     },
     dispose() {
