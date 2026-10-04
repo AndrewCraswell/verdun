@@ -182,8 +182,9 @@ async function start(): Promise<void> {
     enabled: false
   })
   view.camera.radius = 60
-  if (import.meta.env.DEV) {
-    // Dev-only handle for inspecting the running game from the browser console and automated checks.
+  if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
+    // A handle for inspecting the running game from the browser console and automated checks: always in development,
+    // and with ?debug in a production build, for measuring it (scripts/perf.mjs).
     const { installDeathMap } = await import("./dev/death-map.ts")
     const deaths = installDeathMap(view.scene, sim)
     Object.assign(window, {
