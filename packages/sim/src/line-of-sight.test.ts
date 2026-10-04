@@ -100,4 +100,29 @@ describe("createLineOfSight", () => {
     expect(lineOfSight.isClear(west, east)).toBe(true)
     expect(lineOfSight.rebuildRegion(500, 500, 600, 600)).toBe(0)
   })
+
+  it("is blocked by what stands high enough: a ruin hides a man, rubble only a man lying down", async () => {
+    const map = {
+      ...createFlatMap({ name: "village", cellSize: 0.5, columns: 200, rows: 200 }),
+      scenery: [
+        { kind: "ruin" as const, x: 50, z: 30, heading: 0, variant: 0, scale: 1 },
+        { kind: "rubble" as const, x: 50, z: 70, heading: 0, variant: 0, scale: 1 },
+        { kind: "bridge" as const, x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
+      ]
+    }
+    const lineOfSight = await open(map)
+    const across = (z: number, height: number) => lineOfSight.isClear(eyeAt(map, 20, z), { x: 80, y: height, z })
+
+    expect(across(30, EYE_HEIGHT)).toBe(false)
+    expect(across(70, EYE_HEIGHT)).toBe(true)
+    expect(lineOfSight.isClear({ x: 20, y: 0.4, z: 70 }, { x: 80, y: 0.4, z: 70 })).toBe(false)
+    // A bridge hides nothing.
+    expect(across(50, EYE_HEIGHT)).toBe(true)
+
+    // Shellfire brings the ruin down to its footings, then clears it.
+    lineOfSight.setSightHeight(0, 1)
+    expect(across(30, EYE_HEIGHT)).toBe(true)
+    lineOfSight.setSightHeight(0, 0)
+    expect(lineOfSight.isClear({ x: 20, y: 0.4, z: 30 }, { x: 80, y: 0.4, z: 30 })).toBe(true)
+  })
 })

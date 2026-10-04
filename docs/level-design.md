@@ -67,15 +67,22 @@ concrete post, and reports how much of no man's land, and of each attack route, 
 | Route                      | French attack | German attack |
 | -------------------------- | ------------- | ------------- |
 | Up the Ravin de la Dame    | 6%            | 28%           |
-| Along the sunken road      | 32%           | 31%           |
+| Along the sunken road      | 25%           | 20%           |
 | Straight across the middle | 25%           | 71%           |
-| Through Fleury             | 19%           | 91%           |
+| Through Fleury             | 0%            | 3%            |
 
 The real crater field is the biggest single source of cover: on generated ground the German guns see 78% of no man's
-land, on the surveyed ground 57%. The ravine is the flanking route the sector is built around: deep enough, with steep
-enough banks, that only the post sited at its head looks into it, so an attack up it has to deal with that post. A test
-keeps it that way. The ground favours a French attack, which suits a player who fights French. Ruins and trees don't
-block sight in the simulation yet, so Fleury plays more sheltered than these numbers say.
+land, on the surveyed ground 57%, and 49% once the ruins, walls and trees block sight too (`--bare` leaves them out).
+The ravine is the flanking route the sector is built around: deep enough, with steep enough banks, that only the post
+sited at its head looks into it, so an attack up it has to deal with that post. A test keeps it that way. The ground
+favours a French attack, which suits a player who fights French. Fleury is the other covered way across: its ruins hide
+an attack up the main street almost entirely from both sides' guns, so it is fought for house by house, as it was
+in 1916.
+
+What blocks sight and walking is one table, `SCENERY_FOOTPRINTS` in [scenery.ts](../packages/map/src/scenery.ts): for
+each kind of scenery, the ground it takes up, how high it stands, and what it costs to walk through. The simulation's
+line of sight stands an upright cylinder of that height on each piece (a ruin 4.5 m, the landmark barn 7 m, a wall 1.3
+m, a dead tree's trunk 8 m; rubble 1.1 m hides only a man lying down), and its pathfinding reads the same table.
 
 The skirmish and the artillery find each side's front line as the fire trench facing the enemy that lies furthest
 forward, so the layout keeps every front line spanning the map from west to east.

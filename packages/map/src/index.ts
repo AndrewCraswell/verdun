@@ -26,7 +26,15 @@ export {
 export { type ChangedArea, type Crater, mergeAreas, stampCrater } from "./craters.ts"
 export { decodeElevation, type Elevation } from "./elevation.ts"
 export { generateFleurySector } from "./fleury.ts"
-export { SCENERY_KINDS, type Scenery, type SceneryKind, type WireBelt } from "./scenery.ts"
+export {
+  footprintRadius,
+  SCENERY_FOOTPRINTS,
+  SCENERY_KINDS,
+  type Scenery,
+  type SceneryFootprint,
+  type SceneryKind,
+  type WireBelt
+} from "./scenery.ts"
 export { TRENCH_GRID } from "./trench-trace.ts"
 export {
   checkTrenchKit,

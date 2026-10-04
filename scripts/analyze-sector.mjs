@@ -4,12 +4,19 @@
 // German machine gun (eye 0.8 m above the ground it stands on, as on a fire step) and counts the cell as exposed when
 // any gun sees a man standing in it (chest height 1.3 m). Then walks attack lanes every 20 m from the French wire to the
 // German wire and reports the share of each lane under fire, so dead ground (the ravine, the sunken road, the craters)
-// shows up as numbers. Ruins, trees and smoke don't block sight in the simulation, so they don't here either.
+// shows up as numbers. Scenery blocks sight as it does in the simulation (SCENERY_FOOTPRINTS: ruins, walls, trees,
+// wrecks); smoke doesn't. `--bare` leaves the scenery out, to see how much cover it gives.
 //
-// Usage: node scripts/analyze-sector.mjs [--side french|german] [--height 1.3]
+// Usage: node scripts/analyze-sector.mjs [--side french|german] [--height 1.3] [--bare]
 
 import { readFileSync } from "node:fs"
-import { decodeElevation, generateFleurySector, heightAt } from "../packages/map/src/index.ts"
+import {
+  decodeElevation,
+  footprintRadius,
+  generateFleurySector,
+  heightAt,
+  SCENERY_FOOTPRINTS
+} from "../packages/map/src/index.ts"
 
 /** Writes a line of the report. */
 const print = (line) =>
@@ -40,6 +47,27 @@ const guns = map.scenery
   )
   .map((item) => ({ x: item.x, z: item.z, y: heightAt(map, item.x, item.z) + 0.8 }))
 
+// The top of whatever stands on the ground, on a 1 m grid: scenery footprints raised to their sight heights.
+const tops = new Float32Array(600 * 400)
+if (!process.argv.includes("--bare")) {
+  for (const item of map.scenery) {
+    const height = SCENERY_FOOTPRINTS[item.kind].sightHeight * item.scale
+    const radius = footprintRadius(item)
+    if (height <= 0) {
+      continue
+    }
+    const top = heightAt(map, item.x, item.z) + height
+    for (let z = Math.floor(item.z - radius); z <= Math.ceil(item.z + radius); z++) {
+      for (let x = Math.floor(item.x - radius); x <= Math.ceil(item.x + radius); x++) {
+        if (x >= 0 && z >= 0 && x < 600 && z < 400 && Math.hypot(x - item.x, z - item.z) <= radius) {
+          tops[z * 600 + x] = Math.max(tops[z * 600 + x], top)
+        }
+      }
+    }
+  }
+}
+const standingAt = (x, z) => Math.max(heightAt(map, x, z), tops[Math.round(z) * 600 + Math.round(x)] ?? 0)
+
 const RANGE = 500
 const STEP = 1
 function sees(gun, x, z) {
@@ -52,7 +80,7 @@ function sees(gun, x, z) {
   for (let along = 4; along < distance - 1; along += STEP) {
     const t = along / distance
     const rayY = gun.y + (aim - gun.y) * t
-    if (heightAt(map, gun.x + (x - gun.x) * t, gun.z + (z - gun.z) * t) > rayY) {
+    if (standingAt(gun.x + (x - gun.x) * t, gun.z + (z - gun.z) * t) > rayY) {
       return false
     }
   }
