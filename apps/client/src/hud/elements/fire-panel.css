@@ -1,0 +1,265 @@
+/* H10: the guns, bottom right. Missions in progress stack over a board of the four calls and the shells left. */
+.fire-panel {
+  display: grid;
+  gap: 0.4em;
+  justify-items: end;
+  width: 19.5em;
+}
+
+.fp-missions {
+  display: grid;
+  gap: 0.35em;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fp-mission {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.6em;
+  row-gap: 0.4em;
+  align-items: center;
+  padding: 0.5em 0.7em 0.55em;
+  animation: hud-enter var(--hud-med) var(--hud-ease) both;
+}
+
+.fp-mission.is-leaving {
+  opacity: 0;
+  transform: translateY(0.3em);
+  transition:
+    opacity 280ms var(--hud-ease-in),
+    transform 280ms var(--hud-ease-in);
+}
+
+.fp-mission__icon {
+  width: 1.5em;
+  height: 1.5em;
+  color: var(--hud-caution);
+}
+
+.fp-mission[data-phase="firing"] .fp-mission__icon {
+  color: var(--hud-danger);
+}
+
+.fp-mission[data-kind="gas"] .fp-mission__icon {
+  color: var(--hud-gas);
+}
+
+.fp-mission__text {
+  display: grid;
+  min-width: 0;
+}
+
+.fp-mission__label {
+  font-size: 0.86em;
+  font-weight: 700;
+}
+
+.fp-mission__place {
+  overflow: hidden;
+  font-size: 0.72em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--hud-ink-2);
+}
+
+.fp-mission__clock {
+  display: grid;
+  justify-items: end;
+}
+
+.fp-mission__time {
+  font-family: var(--hud-font-display);
+  font-size: 1.35em;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.fp-mission[data-phase="pending"] .fp-mission__time {
+  color: var(--hud-caution);
+}
+
+.fp-mission__bar {
+  grid-column: 1 / -1;
+  height: 0.22em;
+}
+
+.fp-mission[data-phase="pending"] .fp-mission__bar .hud-bar__fill {
+  background: var(--hud-caution);
+}
+
+.fp-mission[data-phase="firing"] .fp-mission__bar .hud-bar__fill {
+  background-color: var(--hud-danger);
+  background-image: repeating-linear-gradient(-45deg, transparent 0 0.2em, rgb(0 0 0 / 35%) 0.2em 0.34em);
+}
+
+/* The board: four calls on their keys. */
+.fp-board[hidden] {
+  display: none;
+}
+
+.fp-board {
+  animation: hud-enter var(--hud-med) var(--hud-ease) both;
+  display: grid;
+  gap: 0.55em;
+  width: 100%;
+  padding: 0.65em 0.75em 0.7em;
+  box-sizing: border-box;
+}
+
+.fp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fp-sos {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.64em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hud-danger);
+}
+
+.fp-sos[hidden] {
+  display: none;
+}
+
+.fp-sos__icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.fp-calls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35em;
+  pointer-events: auto;
+}
+
+.fp-call {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.18em;
+  padding: 0.55em 0.2em 0.42em;
+  border: 1px solid var(--hud-hairline);
+  border-radius: var(--hud-radius);
+  background: linear-gradient(180deg, rgb(255 246 222 / 6%), transparent 70%), rgb(10 9 7 / 45%);
+  opacity: 0.45;
+  transition:
+    opacity var(--hud-med) var(--hud-ease),
+    border-color var(--hud-med) var(--hud-ease),
+    background-color var(--hud-med) var(--hud-ease);
+}
+
+.fp-call[data-available] {
+  opacity: 1;
+}
+
+.fp-call:hover {
+  border-color: var(--hud-hairline-strong);
+}
+
+.fp-call .hud-key {
+  position: absolute;
+  top: 0.32em;
+  left: 0.3em;
+  font-size: 0.56em;
+  height: 1.55em;
+  min-width: 1.55em;
+}
+
+.fp-call__icon {
+  width: 2.1em;
+  height: 2.1em;
+  margin-top: 0.45em;
+}
+
+.fp-call__label {
+  font-size: 0.62em;
+  font-weight: 720;
+  font-stretch: 100%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fp-call__stock {
+  font-size: 0.62em;
+  color: var(--hud-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A call already firing: lit in brass, its icon in danger red. */
+.fp-call[data-active] {
+  opacity: 1;
+  border-color: var(--hud-brass);
+  background-color: rgb(201 163 90 / 16%);
+}
+
+.fp-call[data-active] .fp-call__icon {
+  color: var(--hud-danger);
+}
+
+.fp-note {
+  font-size: 0.72em;
+  color: var(--hud-ink-2);
+  text-align: center;
+}
+
+.fp-note[hidden] {
+  display: none;
+}
+
+/* Shells left by kind. */
+.fp-shells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5em;
+  padding-top: 0.5em;
+  border-top: var(--hud-rule);
+}
+
+.fp-shells[hidden] {
+  display: none;
+}
+
+.fp-shell {
+  display: grid;
+  gap: 0.18em;
+}
+
+.fp-shell .hud-label {
+  font-size: 0.5em;
+  white-space: nowrap;
+}
+
+.fp-shell__left {
+  font-size: 0.78em;
+  font-weight: 650;
+}
+
+.fp-shell__bar {
+  height: 0.2em;
+}
+
+.fp-shell[data-low] .fp-shell__left {
+  color: var(--hud-caution);
+}
+
+.fp-shell[data-low] .hud-bar__fill {
+  background: var(--hud-caution);
+}
+
+.fp-shell[data-empty] .fp-shell__left {
+  color: var(--hud-danger);
+}

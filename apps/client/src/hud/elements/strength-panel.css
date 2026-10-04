@@ -1,0 +1,122 @@
+/* H13: reserves against the starting pool, and both sides' losses, in a small ruled table. */
+.strength-panel[hidden] {
+  display: none;
+}
+
+.strength-panel {
+  animation: hud-enter var(--hud-med) var(--hud-ease) both;
+  display: grid;
+  gap: 0.6em;
+  width: 21em;
+  padding: 0.7em 0.95em 0.6em;
+  box-sizing: border-box;
+}
+
+.st-reserves {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 0.65em;
+  row-gap: 0.35em;
+  align-items: center;
+}
+
+.st-reserves[hidden] {
+  display: none;
+}
+
+.st-reserves__icon {
+  grid-row: span 2;
+  width: 1.9em;
+  height: 1.9em;
+  color: var(--hud-ours);
+}
+
+.st-reserves__text {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.st-reserves__count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+}
+
+.st-men {
+  font-family: var(--hud-font-display);
+  font-size: 1.35em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.st-full {
+  font-size: 0.72em;
+  color: var(--hud-ink-3);
+}
+
+.st-bar .hud-bar__fill {
+  background: linear-gradient(90deg, var(--hud-ours-deep), var(--hud-ours));
+}
+
+.st-reserves[data-low="true"] .st-men,
+.st-reserves[data-low="true"] .st-reserves__icon {
+  color: var(--hud-caution);
+}
+
+.st-reserves[data-low="true"] .st-bar .hud-bar__fill {
+  background: var(--hud-caution);
+}
+
+.st-losses {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82em;
+}
+
+.st-heading {
+  padding: 0 0 0.25em;
+  font-weight: inherit;
+  text-align: right;
+  color: var(--hud-ink-3);
+}
+
+.st-heading.hud-label {
+  text-align: left;
+  font-size: 0.6em;
+}
+
+.st-heading__icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.st-row {
+  border-top: var(--hud-rule);
+}
+
+.st-side {
+  padding: 0.22em 0;
+  font-size: 0.78em;
+  font-weight: 700;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.st-row[data-side="ours"] .st-side {
+  color: var(--hud-ours);
+}
+
+.st-row[data-side="theirs"] .st-side {
+  color: var(--hud-theirs);
+}
+
+.st-count {
+  padding: 0.22em 0 0.22em 0.6em;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

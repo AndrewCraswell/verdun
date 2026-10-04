@@ -1,91 +1,305 @@
 /*
- * Heads-up display: plain, period-neutral type over the battlefield, out of the way of the action. The screen is shared
- * out by corner: the soldier bottom left, the sector top right, the battle log top centre, the debug dock top left and
- * the menu hint bottom right.
+ * The HUD's frame: the root over the battlefield, the zones each corner owns (docs/design/interface.md#screen-layout)
+ * and the few shared parts every element draws with: plates, labels, key caps, bars and icons. Each element's own look
+ * lives in its own stylesheet beside it.
  */
 .hud {
   position: fixed;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
-  font:
-    13px/1.4 system-ui,
-    sans-serif;
-  color: #f2ede0;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 80%);
+  overflow: hidden;
+  font-family: var(--hud-font-ui);
+  font-size: var(--hud-size);
+  font-weight: 450;
+  font-stretch: 92%;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--hud-ink);
+  text-shadow: var(--hud-halo);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  contain: strict;
 }
 
-.hud-panel {
+/* Nothing shows until every element has drawn its first state: then the whole HUD fades in with the battle. */
+.hud:not([data-ready]) {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.hud[data-ready] {
+  animation: hud-fade-in 900ms var(--hud-ease) both;
+}
+
+/* Corners shaded toward black, so the panels read over snow, flare light and white smoke without boxes round them. */
+.hud-shade {
   position: absolute;
-  padding: 8px 12px;
-  background: rgb(20 18 14 / 55%);
-  border-radius: 4px;
+  pointer-events: none;
 }
 
-.hud-soldier {
-  left: 12px;
-  bottom: 12px;
+.hud-shade--bottom-left {
+  left: 0;
+  bottom: 0;
+  width: min(60vw, 68em);
+  height: min(62vh, 36em);
+  background: radial-gradient(ellipse 100% 100% at 0% 100%, var(--hud-shade), transparent 72%);
 }
 
-.hud-sector {
-  right: 12px;
-  top: 12px;
-  min-width: 220px;
+.hud-shade--top-right {
+  right: 0;
+  top: 0;
+  width: min(52vw, 52em);
+  height: min(70vh, 42em);
+  background: radial-gradient(ellipse 100% 100% at 100% 0%, var(--hud-shade), transparent 70%);
 }
 
-.hud-log {
+.hud-shade--bottom-right {
+  right: 0;
+  bottom: 0;
+  width: min(40vw, 40em);
+  height: min(40vh, 24em);
+  background: radial-gradient(ellipse 100% 100% at 100% 100%, var(--hud-shade), transparent 70%);
+}
+
+.hud-shade--top-centre {
   left: 50%;
-  top: 12px;
+  top: 0;
+  width: min(70vw, 60em);
+  height: min(26vh, 14em);
   transform: translateX(-50%);
-  text-align: center;
-  background: none;
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, rgb(8 7 5 / calc(0.4 * var(--hud-backing))), transparent 80%);
 }
 
-.hud-clock {
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 6px;
+/* Layers that fill the screen: the effects under everything, the marks on the ground over them. */
+.hud-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.hud-title {
-  font-weight: 600;
-  margin-bottom: 4px;
+/* Zones: each corner stacks its elements, edge-aligned. */
+.hud-zone {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--hud-gap) * 1.2);
+  pointer-events: none;
 }
 
-.hud-alarm {
-  color: #ffb27a;
+.hud-zone--top-right {
+  top: var(--hud-margin);
+  right: var(--hud-margin);
+  align-items: flex-end;
+  width: 21em;
 }
 
-.hud-muted {
-  opacity: 0.7;
-}
-
-.hud-banner {
+.hud-zone--top-centre {
+  top: var(--hud-margin);
   left: 50%;
-  top: 40%;
-  transform: translate(-50%, -50%);
-  padding: 10px 18px;
-  font-size: 1.15em;
-  text-align: center;
+  transform: translateX(-50%);
+  align-items: center;
+  width: min(40em, 46vw);
 }
 
-.hud-banner[hidden] {
-  display: none;
+.hud-zone--bottom-left {
+  left: var(--hud-margin);
+  bottom: var(--hud-margin);
+  flex-direction: column-reverse;
+  align-items: flex-start;
 }
 
-.hud-stamina {
-  width: 140px;
-  height: 4px;
-  margin: 4px 0 6px;
-  background: rgb(255 255 255 / 15%);
-  border-radius: 2px;
+.hud-zone--bottom-right {
+  right: var(--hud-margin);
+  /* Clear of the menu's hint in the corner. */
+  bottom: calc(var(--hud-margin) + 2.4em);
+  align-items: flex-end;
+}
+
+.hud-zone--bottom-centre {
+  left: 50%;
+  bottom: calc(var(--hud-margin) + 1em);
+  transform: translateX(-50%);
+  align-items: center;
+  width: max-content;
+}
+
+.hud-zone--centre {
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Shared parts --- */
+
+/* A plate: dark, faintly lit from above, with the brass registration marks of a trench map's sheet at two corners. */
+.hud-plate {
+  position: relative;
+  background: linear-gradient(180deg, var(--hud-plate-sheen), transparent 3.5em), var(--hud-plate);
+  border: 1px solid var(--hud-hairline);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+}
+
+.hud-plate::before,
+.hud-plate::after {
+  content: "";
+  position: absolute;
+  width: 0.6em;
+  height: 0.6em;
+  border: 0 solid var(--hud-brass-dim);
+  pointer-events: none;
+}
+
+.hud-plate::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.hud-plate::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+/* Small capitals for labels: "BREATH", "SECTOR". */
+.hud-label {
+  font-size: 0.66em;
+  font-weight: 650;
+  font-stretch: 100%;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hud-ink-3);
+  line-height: 1.2;
+}
+
+.hud-label--brass {
+  color: var(--hud-brass);
+}
+
+/* Key caps, as the keys are printed: drawn from text, so they follow rebinding. */
+.hud-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 0.42em;
+  margin: 0 0.12em;
+  box-sizing: border-box;
+  border: 1px solid rgb(239 231 211 / 38%);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgb(239 231 211 / 12%), rgb(239 231 211 / 4%));
+  color: var(--hud-ink);
+  font-family: var(--hud-font-ui);
+  font-size: 0.7em;
+  font-weight: 700;
+  font-stretch: 100%;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: none;
+  vertical-align: 0.12em;
+}
+
+/* Icons take the size and colour of their text. */
+.hud-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  vertical-align: -0.2em;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 55%));
+}
+
+/* A thin bar, filled by --share (0 to 1). */
+.hud-bar {
+  position: relative;
+  height: 0.3em;
+  background: rgb(239 231 211 / 11%);
+  border-radius: 1px;
   overflow: hidden;
 }
 
-.hud-stamina-fill {
-  height: 100%;
-  background: #d9cfa8;
-  transition: width 0.25s linear;
+.hud-bar__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(var(--share, 0));
+  background: linear-gradient(90deg, rgb(239 231 211 / 70%), var(--hud-ink));
+  transition: transform var(--hud-med) var(--hud-ease);
 }
 
-.hud-stamina-winded .hud-stamina-fill {
-  background: #ffb27a;
+/* State colours, by severity: every element marks severity with data-severity and these. */
+[data-severity="good"] {
+  --severity: var(--hud-good);
+}
+
+[data-severity="info"] {
+  --severity: var(--hud-info);
+}
+
+[data-severity="caution"] {
+  --severity: var(--hud-caution);
+}
+
+[data-severity="danger"] {
+  --severity: var(--hud-danger);
+}
+
+[data-severity="out"] {
+  --severity: var(--hud-out);
+}
+
+/* Danger is hatched as well as coloured, so it never depends on colour alone. */
+.hud-hatch {
+  background-image: repeating-linear-gradient(-45deg, rgb(0 0 0 / 0%) 0 0.22em, rgb(0 0 0 / 38%) 0.22em 0.36em);
+}
+
+@keyframes hud-pulse {
+  0% {
+    box-shadow:
+      var(--hud-shadow),
+      0 0 0 0 var(--pulse, var(--hud-brass-glow));
+  }
+
+  100% {
+    box-shadow:
+      var(--hud-shadow),
+      0 0 0 0.9em rgb(0 0 0 / 0%);
+  }
+}
+
+@keyframes hud-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5em);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hud-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud *,
+  .hud *::before,
+  .hud *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

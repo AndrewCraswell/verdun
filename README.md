@@ -91,6 +91,10 @@ by the National Oceanic and Atmospheric Administration Climate Program Office, a
 Laboratory Physical Sciences Laboratory. Corrected with Météo-France daily station records, under
 [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
 
+Type: [Archivo](https://github.com/Omnibus-Type/Archivo), © 2020 The Archivo Project Authors, and
+[Bodoni Moda](https://github.com/indestructible-type/Bodoni), © 2020 The Bodoni Moda Project Authors, both under the
+[SIL Open Font License 1.1](https://openfontlicense.org).
+
 ## Documentation
 
 ### Design

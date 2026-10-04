@@ -1,0 +1,327 @@
+/* H11: the hour in Didone, the light and weather under it, and a brass-needled compass with the wind on it. */
+.clock-panel {
+  display: grid;
+  gap: 0.6em;
+  width: 21em;
+  padding: 0.85em 0.95em 0.7em 1.05em;
+  box-sizing: border-box;
+}
+
+.cp-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9em;
+  align-items: start;
+}
+
+.cp-time {
+  display: grid;
+  gap: 0.2em;
+  justify-items: end;
+  text-align: right;
+  min-width: 0;
+}
+
+.cp-hour-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.cp-hour {
+  font-family: var(--hud-font-display);
+  font-size: 2.55em;
+  transition: font-size var(--hud-med) var(--hud-ease);
+  font-weight: 560;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.cp-hour__colon {
+  display: inline-block;
+  margin: 0 0.04em;
+  color: var(--hud-brass);
+  transform: translateY(-0.06em);
+}
+
+.cp-week {
+  font-family: var(--hud-font-display);
+  font-size: 0.98em;
+  font-style: italic;
+  color: var(--hud-ink-2);
+}
+
+.cp-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.38em;
+  font-size: 0.8em;
+  color: var(--hud-ink-2);
+}
+
+.cp-line__icon {
+  width: 1.3em;
+  height: 1.3em;
+  color: var(--hud-ink);
+}
+
+.cp-light {
+  margin-top: 0.28em;
+}
+
+.cp-light__phase,
+.cp-weather__label {
+  font-weight: 680;
+  font-stretch: 100%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-ink);
+}
+
+.cp-light__next::before,
+.cp-weather__temperature::before,
+.cp-weather__visibility:not(:empty)::before {
+  content: "·";
+  margin-right: 0.38em;
+  color: var(--hud-ink-4);
+}
+
+.cp-light__next:empty {
+  display: none;
+}
+
+.clock-panel[data-phase="night"] .cp-light .cp-line__icon {
+  color: #c9d3e6;
+}
+
+.clock-panel[data-phase="dawn"] .cp-light .cp-line__icon,
+.clock-panel[data-phase="dusk"] .cp-light .cp-line__icon {
+  color: var(--hud-brass-bright);
+}
+
+.clock-panel[data-phase="day"] .cp-light .cp-line__icon {
+  color: #f2d68a;
+}
+
+.cp-standto {
+  padding: 0.08em 0.45em;
+  border: 1px solid var(--hud-brass);
+  border-radius: 1px;
+  font-size: 0.86em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-brass-bright);
+  background: rgb(201 163 90 / 14%);
+}
+
+.cp-standto[hidden] {
+  display: none;
+}
+
+.cp-weather[data-short] .cp-weather__visibility {
+  color: var(--hud-caution);
+}
+
+/* Folding parts: closed at rest, open in the overview or for a moment when the light or weather turns. */
+.cp-fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--hud-med) var(--hud-ease),
+    opacity var(--hud-med) var(--hud-ease);
+}
+
+.cp-fold__inner {
+  display: grid;
+  gap: 0.2em;
+  justify-items: end;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.clock-panel[data-mode="compact"] .cp-fold {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+/* At rest: a smaller plate, just the hour and the compass, and the key that opens the rest. */
+.clock-panel[data-mode="compact"] {
+  width: auto;
+  padding: 0.55em 0.7em 0.55em 0.9em;
+  gap: 0;
+}
+
+.clock-panel[data-mode="compact"] .cp-hour {
+  font-size: 1.85em;
+}
+
+.clock-panel[data-mode="compact"] .cp-dial {
+  width: 3.4em;
+  height: 3.4em;
+}
+
+.clock-panel[data-mode="compact"] .cp-wind .hud-label {
+  display: none;
+}
+
+.cp-overview-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  margin-top: 0.15em;
+  font-size: 0.66em;
+  font-weight: 650;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hud-ink-3);
+}
+
+.clock-panel[data-mode="full"] .cp-overview-hint {
+  display: none;
+}
+
+/* The compass: a bezel, a dark face, a card of ticks turning with the camera, the wind's arrow over it. */
+.cp-compass {
+  display: grid;
+  justify-items: center;
+  gap: 0.25em;
+}
+
+.cp-dial {
+  width: 4.9em;
+  height: 4.9em;
+  overflow: visible;
+  filter: drop-shadow(0 0.25em 0.5em rgb(0 0 0 / 45%));
+}
+
+.cp-dial__bezel {
+  fill: none;
+  stroke: var(--hud-brass);
+  stroke-width: 2.4;
+  opacity: 0.85;
+}
+
+.cp-dial__face {
+  fill: rgb(10 9 7 / 78%);
+  stroke: rgb(239 231 211 / 14%);
+  stroke-width: 1;
+}
+
+.cp-dial__card {
+  transition: transform 60ms linear;
+}
+
+.cp-dial__tick {
+  stroke: rgb(239 231 211 / 35%);
+  stroke-width: 1;
+}
+
+.cp-dial__tick--major {
+  stroke: rgb(239 231 211 / 75%);
+  stroke-width: 1.8;
+}
+
+.cp-dial__letter {
+  font-family: var(--hud-font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  fill: rgb(239 231 211 / 55%);
+  text-anchor: middle;
+  dominant-baseline: central;
+  text-shadow: none;
+}
+
+.cp-dial__letter--north {
+  font-family: var(--hud-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--hud-brass-bright);
+}
+
+.cp-dial__needle {
+  fill: var(--hud-brass-bright);
+  stroke: rgb(0 0 0 / 50%);
+  stroke-width: 0.6;
+}
+
+.cp-dial__wind-body {
+  transform: scale(var(--length, 1));
+  transition: transform var(--hud-slow) var(--hud-ease);
+}
+
+.cp-dial__wind-shaft {
+  stroke: var(--hud-info);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.cp-dial__wind-head {
+  fill: var(--hud-info);
+}
+
+.cp-dial__wind-tail {
+  fill: none;
+  stroke: var(--hud-info);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-dial[data-calm] .cp-dial__wind {
+  display: none;
+}
+
+.cp-dial__pin {
+  fill: var(--hud-brass);
+  stroke: rgb(0 0 0 / 55%);
+  stroke-width: 0.8;
+}
+
+.cp-wind {
+  display: grid;
+  justify-items: center;
+}
+
+.cp-wind .hud-label {
+  font-size: 0.5em;
+}
+
+.cp-wind__text {
+  font-size: 0.7em;
+  font-weight: 650;
+  color: var(--hud-info);
+  white-space: nowrap;
+}
+
+/* The war's turn, under a rule. */
+.cp-war {
+  margin-top: 0.6em;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6em;
+  padding-top: 0.5em;
+  border-top: var(--hud-rule);
+}
+
+.cp-war[hidden] {
+  display: none;
+}
+
+.cp-war__countdown {
+  font-size: 0.72em;
+  color: var(--hud-ink-2);
+  text-align: right;
+}
+
+.cp-war[data-standto] .cp-war__countdown {
+  color: var(--hud-brass-bright);
+  font-weight: 650;
+}

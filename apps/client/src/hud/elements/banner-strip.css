@@ -1,0 +1,133 @@
+/* H15: a banner across the upper screen. Kicker between brass rules, headline in Didone, a line under it. */
+.banner-strip {
+  position: absolute;
+  top: 15vh;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 0.28em;
+  width: min(46em, 80vw);
+  padding: 1.1em 0 1.2em;
+  transform: translateX(-50%);
+  text-align: center;
+  background: radial-gradient(
+    ellipse 52% 60% at 50% 50%,
+    rgb(10 9 7 / calc(0.62 * var(--hud-backing))),
+    transparent 100%
+  );
+  --tone: var(--hud-brass-bright);
+}
+
+.banner-strip[hidden] {
+  display: none;
+}
+
+.banner-strip[data-tone="alarm"] {
+  --tone: var(--hud-danger);
+}
+
+.banner-strip[data-tone="won"] {
+  --tone: var(--hud-ours);
+}
+
+.banner-strip[data-tone="routine"] {
+  --tone: var(--hud-ink-2);
+}
+
+.bn-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+}
+
+.bn-kicker__text {
+  font-size: 0.78em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.bn-rule {
+  width: 5.5em;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--tone));
+}
+
+.bn-rule:last-child {
+  background: linear-gradient(270deg, transparent, var(--tone));
+}
+
+.bn-title {
+  font-family: var(--hud-font-display);
+  font-size: 2.7em;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: 0.005em;
+}
+
+.banner-strip[data-tone="alarm"] .bn-title {
+  color: #ffe2d4;
+}
+
+.bn-detail {
+  font-size: 0.92em;
+  color: var(--hud-ink-2);
+}
+
+.bn-detail[hidden] {
+  display: none;
+}
+
+/* In: the rules draw out from the kicker and the headline settles from wide spacing. */
+.banner-strip.is-in .bn-rule {
+  animation: bn-rule 700ms var(--hud-ease) both;
+}
+
+.banner-strip.is-in .bn-title {
+  animation: bn-title 760ms var(--hud-ease) both;
+}
+
+.banner-strip.is-in .bn-kicker__text,
+.banner-strip.is-in .bn-detail {
+  animation: hud-fade-in 500ms var(--hud-ease) both;
+}
+
+.banner-strip.is-in .bn-detail {
+  animation-delay: 180ms;
+}
+
+@keyframes bn-rule {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+
+  to {
+    width: 5.5em;
+    opacity: 1;
+  }
+}
+
+@keyframes bn-title {
+  from {
+    opacity: 0;
+    letter-spacing: 0.16em;
+    filter: blur(3px);
+  }
+
+  to {
+    opacity: 1;
+    letter-spacing: 0.005em;
+    filter: none;
+  }
+}
+
+.banner-strip.is-leaving {
+  opacity: 0;
+  transform: translate(-50%, -0.6em);
+  transition:
+    opacity 500ms var(--hud-ease-in),
+    transform 500ms var(--hud-ease-in);
+}

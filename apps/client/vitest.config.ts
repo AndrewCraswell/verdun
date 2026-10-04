@@ -13,7 +13,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      // main.ts, the dev tools, browser input, the HUD and the debug overlay need a real browser; they are verified in the browser instead.
+      // main.ts, the dev tools, browser input, the HUD's views and the debug overlay need a real browser; they are verified in
+      // the browser instead. The HUD's state, which the views draw, is tested.
       exclude: [
         "src/**/*.test.ts",
         "src/main.ts",
@@ -22,6 +23,9 @@ export default defineConfig({
         "src/audio/battle-sounds.ts",
         "src/audio/mixer.ts",
         "src/hud/hud.ts",
+        "src/hud/dom.ts",
+        "src/hud/icons.ts",
+        "src/hud/elements/**",
         "src/control/camera-rig.ts",
         "src/ui/menu.ts",
         "src/debug/dock.ts",

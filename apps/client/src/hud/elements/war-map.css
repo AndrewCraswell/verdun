@@ -1,0 +1,9 @@
+/* The war map's view: one canvas over the battlefield, under the marks and panels, faded in as the camera pulls back. */
+.war-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}

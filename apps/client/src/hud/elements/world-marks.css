@@ -1,0 +1,232 @@
+/* W2, W4-W8: marks on the ground, a fixed size on the screen. Text carries its own dark halo. */
+.world-marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.wm-text {
+  font-family: var(--hud-font-ui);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-anchor: middle;
+  fill: var(--hud-ink);
+  stroke: rgb(6 5 4 / 78%);
+  stroke-width: 3.2px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.wm-icon {
+  color: inherit;
+}
+
+/* Our guns' fire: pending as an amber dashed outline, firing as red hatching. */
+.wm-mission__band {
+  fill: none;
+  stroke: var(--hud-caution);
+  stroke-width: 1.6;
+  stroke-dasharray: 7 6;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+/* Firing: a thin red edge, so the shells' own bursts and smoke carry the picture; hatched in full only in the overview. */
+.wm-mission[data-phase="firing"] .wm-mission__band {
+  stroke: var(--hud-danger);
+  stroke-width: 1.2;
+  stroke-dasharray: none;
+  opacity: 0.55;
+}
+
+.world-marks[data-full] .wm-mission[data-phase="firing"] .wm-mission__band {
+  fill: url("#wm-hatch");
+  stroke-width: 1.6;
+  opacity: 0.9;
+}
+
+.wm-mission[data-kind="gas"] .wm-mission__band {
+  stroke: var(--hud-gas);
+}
+
+.wm-mission__standoff {
+  fill: none;
+  stroke: var(--hud-brass-bright);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.wm-mission__label {
+  opacity: 0.85;
+}
+
+.world-marks[data-full] .wm-mission__label {
+  opacity: 1;
+}
+
+.wm-mission__title {
+  font-size: 0.66em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  fill: var(--hud-caution);
+}
+
+.wm-mission[data-phase="firing"] .wm-mission__title {
+  fill: var(--hud-danger);
+}
+
+.wm-mission__time {
+  font-family: var(--hud-font-display);
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+}
+
+/* Where the squad was sent: a brass ring and cross, joined to the man under control by a dotted line. */
+.wm-order__line {
+  fill: none;
+  stroke: var(--hud-brass-bright);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.wm-order__ring {
+  fill: rgb(201 163 90 / 14%);
+  stroke: var(--hud-brass-bright);
+  stroke-width: 1.8;
+}
+
+.wm-order__cross {
+  stroke: var(--hud-brass-bright);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.wm-order__dot {
+  fill: var(--hud-brass-bright);
+}
+
+.wm-order__title {
+  font-size: 0.64em;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  fill: var(--hud-brass-bright);
+}
+
+.wm-order__distance {
+  font-size: 0.62em;
+  font-weight: 600;
+  fill: var(--hud-ink-2);
+}
+
+.wm-order .wm-icon {
+  display: none;
+  color: var(--hud-brass-bright);
+}
+
+/* Holding: a shield in the ring, and no line, since the squad is already there. */
+.wm-order[data-kind="hold"] .wm-icon {
+  display: inline;
+}
+
+.wm-order[data-kind="hold"] .wm-order__line,
+.wm-order[data-kind="hold"] .wm-order__cross,
+.wm-order[data-kind="hold"] .wm-order__dot {
+  display: none;
+}
+
+.wm-order[data-kind="hold"] .wm-order__ring {
+  fill: rgb(10 9 7 / 62%);
+}
+
+/* Objectives: a lozenge on a stake, in its holder's colour. */
+.wm-objective__shadow {
+  fill: none;
+  stroke: rgb(6 5 4 / 70%);
+  stroke-width: 4;
+}
+
+.wm-objective__glyph {
+  fill: rgb(239 231 211 / 20%);
+  stroke: var(--hud-ink);
+  stroke-width: 1.6;
+}
+
+.wm-objective[data-holder="ours"] .wm-objective__glyph {
+  fill: var(--hud-ours);
+  stroke: #d9e6f8;
+}
+
+.wm-objective[data-holder="theirs"] .wm-objective__glyph {
+  fill: var(--hud-theirs);
+  stroke: #f4cfc4;
+}
+
+.wm-objective[data-contested] .wm-objective__glyph {
+  stroke: var(--hud-caution);
+  stroke-dasharray: 4 3;
+  stroke-width: 2;
+}
+
+.wm-objective__stake {
+  fill: var(--hud-ink);
+  stroke: rgb(6 5 4 / 70%);
+  stroke-width: 1.5;
+}
+
+.wm-objective__name {
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+}
+
+/* Objectives far off are only a lozenge on the ground until the overview or a change names them. */
+.wm-objective:not([data-named]) .wm-objective__name,
+.wm-objective:not([data-named]) .wm-objective__distance {
+  display: none;
+}
+
+.world-marks[data-full] .wm-objective .wm-objective__name,
+.world-marks[data-full] .wm-objective .wm-objective__distance {
+  display: inline;
+}
+
+.wm-objective:not([data-named]) {
+  opacity: 0.7;
+}
+
+.world-marks[data-full] .wm-objective {
+  opacity: 1;
+}
+
+.wm-objective__distance {
+  font-size: 0.6em;
+  font-weight: 600;
+  fill: var(--hud-ink-2);
+}
+
+/* The squad's men in trouble, over their heads; the fallen, where they lie. */
+.wm-man {
+  color: var(--severity, var(--hud-ink));
+}
+
+.wm-man__disc {
+  fill: rgb(10 9 7 / 82%);
+  stroke: var(--severity, var(--hud-ink));
+  stroke-width: 1.5;
+}
+
+.wm-man[data-fighting="false"] .wm-man__disc {
+  fill: rgb(10 9 7 / 60%);
+  stroke-dasharray: 3 2.4;
+}
+
+.wm-man[data-severity="out"] {
+  color: var(--hud-ink-2);
+}

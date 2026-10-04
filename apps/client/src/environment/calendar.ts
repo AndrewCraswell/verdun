@@ -1,4 +1,4 @@
-import { clockMoment, type DayOutlook, type WarDay, WeatherPattern, type WorldClock } from "@verdun/sim"
+import { clockMoment, type WarDay, type WorldClock } from "@verdun/sim"
 
 /**
  * What players see of time: the week of the war, and the battle's hour by a French clock. Never a speed ratio: "one real
@@ -23,7 +23,12 @@ export function weekLabel(week: number): string {
 
 /** "07:12": the battle's hour by French civil time. */
 export function battleHour(clock: Readonly<WorldClock>): string {
-  return FRENCH_HOUR.format(clockMoment(clock))
+  return hourAt(clockMoment(clock))
+}
+
+/** "19:42": the French civil time of a moment, `utc` in milliseconds since 1970, for sunrise, sunset and the like. */
+export function hourAt(utc: number): string {
+  return FRENCH_HOUR.format(utc)
 }
 
 /** A real span as players read it: "5 h 12 min", "12 min", "3 days". */
@@ -62,35 +67,4 @@ export function countdownLabel(day: WarDay, now: number): string {
     case "over":
       return "The last communiqué is published"
   }
-}
-
-const OUTLOOK_DATE = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
-  weekday: "short",
-  day: "numeric",
-  month: "short"
-})
-const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const
-const SKY: Readonly<Record<WeatherPattern, string>> = {
-  [WeatherPattern.Clear]: "clear",
-  [WeatherPattern.Fair]: "fair",
-  [WeatherPattern.Overcast]: "overcast",
-  [WeatherPattern.Fog]: "fog",
-  [WeatherPattern.Drizzle]: "drizzle",
-  [WeatherPattern.Rain]: "rain",
-  [WeatherPattern.Storm]: "thunderstorms"
-}
-
-/**
- * A day's weather as a communiqué gives it: "Tue 27 Jun: rain, 11–17 °C, fog at times, wind W 4 m/s". Fog is noted when
- * the day isn't foggy all through; snow replaces rain when most of it fell as snow.
- */
-export function outlookLabel(day: DayOutlook): string {
-  const sky = day.snow ? "snow" : SKY[day.pattern]
-  const fog = day.fog && day.pattern !== WeatherPattern.Fog ? ", fog at times" : ""
-  const wind = COMPASS[Math.round(day.windFrom / 45) % 8]
-  return (
-    `${OUTLOOK_DATE.format(day.day)}: ${sky}, ${Math.round(day.low)}–${Math.round(day.high)} °C${fog}, ` +
-    `wind ${wind} ${Math.round(day.windSpeed)} m/s`
-  )
 }

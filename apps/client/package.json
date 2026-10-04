@@ -18,6 +18,8 @@
     "@babylonjs/addons": "catalog:",
     "@babylonjs/core": "catalog:",
     "@babylonjs/loaders": "catalog:",
+    "@fontsource-variable/archivo": "catalog:",
+    "@fontsource-variable/bodoni-moda": "catalog:",
     "@verdun/map": "workspace:*",
     "@verdun/sim": "workspace:*"
   },

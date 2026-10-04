@@ -1,0 +1,124 @@
+/* H2: conditions on the man under control, a column of discs beside his card; reasons unfold when new or hovered. */
+.effects-list {
+  position: absolute;
+  left: calc(100% + 0.75em);
+  bottom: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.36em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: auto;
+}
+
+.fx-chip {
+  display: flex;
+  align-items: center;
+  animation: fx-in var(--hud-med) var(--hud-ease) both;
+}
+
+@keyframes fx-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.6em) scale(0.85);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fx-chip.is-leaving {
+  opacity: 0;
+  transform: translateX(-0.4em);
+  transition:
+    opacity 300ms var(--hud-ease-in),
+    transform 300ms var(--hud-ease-in);
+}
+
+.fx-chip__disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.15em;
+  height: 2.15em;
+  border: 1.5px solid var(--severity);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgb(255 246 222 / 8%), transparent 70%), var(--hud-plate-deep);
+  box-shadow: 0 0.3em 0.8em rgb(0 0 0 / 35%);
+  color: var(--severity);
+}
+
+.fx-chip[data-severity="good"] .fx-chip__disc {
+  border-color: var(--hud-hairline-strong);
+  color: var(--hud-ink-2);
+}
+
+.fx-chip[data-severity="info"] .fx-chip__disc {
+  border-color: rgb(183 195 204 / 45%);
+}
+
+/* Danger gets a second ring, so it stands apart without its colour. */
+.fx-chip[data-severity="danger"] .fx-chip__disc::after {
+  content: "";
+  position: absolute;
+  inset: -0.28em;
+  border: 1px dashed var(--severity);
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+.fx-chip__icon {
+  width: 1.22em;
+  height: 1.22em;
+}
+
+.fx-chip__reason {
+  max-width: 20em;
+  margin-left: 0.5em;
+  padding: 0.3em 0.65em;
+  overflow: hidden;
+  border-left: 2px solid var(--severity);
+  border-radius: 0 var(--hud-radius) var(--hud-radius) 0;
+  background: var(--hud-plate);
+  font-size: 0.8em;
+  font-weight: 560;
+  white-space: nowrap;
+  opacity: 1;
+  transition:
+    max-width var(--hud-slow) var(--hud-ease),
+    padding var(--hud-slow) var(--hud-ease),
+    margin var(--hud-slow) var(--hud-ease),
+    opacity var(--hud-med) var(--hud-ease);
+}
+
+.fx-chip[data-severity="good"] .fx-chip__reason {
+  border-left-color: var(--hud-hairline-strong);
+}
+
+.fx-chip.is-settled .fx-chip__reason {
+  max-width: 0;
+  margin-left: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-left-width: 0;
+  opacity: 0;
+}
+
+.effects-list:hover .fx-chip.is-settled .fx-chip__reason {
+  max-width: 20em;
+  margin-left: 0.5em;
+  padding: 0.3em 0.65em;
+  border-left-width: 2px;
+  opacity: 1;
+}
+
+.fx-more {
+  padding-left: 0.55em;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--hud-ink-3);
+}

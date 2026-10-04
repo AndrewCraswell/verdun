@@ -1,0 +1,108 @@
+/* H16: the handover, low in the middle of the screen. Two faces: the man who fell, then the man taking over. */
+.handover-card {
+  position: absolute;
+  top: 58vh;
+  left: 50%;
+  display: grid;
+  width: min(34em, 80vw);
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.handover-card[hidden] {
+  display: none;
+}
+
+.ho-face {
+  grid-area: 1 / 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.18em;
+  padding: 0.9em 1.4em;
+  background: radial-gradient(ellipse 50% 70% at 50% 50%, rgb(8 7 5 / 72%), transparent 100%);
+  transition:
+    opacity 380ms var(--hud-ease),
+    transform 380ms var(--hud-ease);
+}
+
+.ho-kicker {
+  font-size: 0.74em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--hud-ink-3);
+}
+
+.ho-face--fallen .ho-kicker {
+  color: var(--hud-danger);
+}
+
+.handover-card[data-fate="taken-prisoner"] .ho-face--fallen .ho-kicker {
+  color: var(--hud-caution);
+}
+
+.ho-name {
+  font-family: var(--hud-font-display);
+  font-size: 2.15em;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.ho-face--fallen .ho-name {
+  color: var(--hud-ink-2);
+}
+
+.ho-face--next .ho-kicker {
+  color: var(--hud-brass);
+}
+
+.ho-face--next .ho-name {
+  color: var(--hud-brass-bright);
+}
+
+.ho-role {
+  font-size: 0.86em;
+  color: var(--hud-ink-2);
+}
+
+.ho-face--next {
+  opacity: 0;
+  transform: translateY(0.6em);
+}
+
+/* The fallen man's name goes first; the next man's follows once it has, so the two never overlap. */
+.handover-card[data-turned] .ho-face--fallen {
+  opacity: 0;
+  transform: translateY(-0.6em);
+  transition-duration: 220ms;
+}
+
+.handover-card[data-turned] .ho-face--next {
+  opacity: 1;
+  transform: none;
+  transition-delay: 200ms;
+}
+
+.handover-card.is-in .ho-face--fallen {
+  animation: ho-in 420ms var(--hud-ease) both;
+}
+
+@keyframes ho-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.handover-card.is-leaving {
+  opacity: 0;
+  transition: opacity 260ms var(--hud-ease-in);
+}

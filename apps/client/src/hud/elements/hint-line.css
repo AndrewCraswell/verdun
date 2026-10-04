@@ -1,0 +1,37 @@
+/* H18: a prompt above the bottom edge, with its keys as key caps. */
+.hint-line {
+  display: flex;
+  align-items: center;
+  gap: 0.85em;
+  /* Between the corners' panels, however narrow the screen. */
+  max-width: calc(100vw - 2 * (24.6em + var(--hud-margin) + 1em));
+  padding: 0.55em 1em 0.55em 0.65em;
+  box-sizing: border-box;
+  border-color: rgb(201 163 90 / 30%);
+}
+
+.hint-line[hidden] {
+  display: none;
+}
+
+.hint-line.is-in {
+  animation: hud-enter var(--hud-slow) var(--hud-ease) both;
+}
+
+.hl-step {
+  flex: none;
+  padding: 0.2em 0.5em;
+  border-right: var(--hud-rule);
+  font-size: 0.62em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--hud-brass);
+}
+
+.hl-text {
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--hud-ink);
+}

@@ -1,0 +1,409 @@
+/* H1, H3, H4: the man under control. A field card: who he is in Didone, how he is in three ruled columns. */
+.soldier-card {
+  display: grid;
+  gap: 0.72em;
+  width: 24.6em;
+  padding: 0.9em 1.05em 0.85em;
+  box-sizing: border-box;
+  animation: hud-enter var(--hud-med) var(--hud-ease) both;
+}
+
+.soldier-card[hidden] {
+  display: none;
+}
+
+/* A new man under control: his name slides in. */
+.soldier-card.is-new .sc-identity,
+.soldier-card.is-new .sc-slot__number {
+  animation: sc-turn var(--hud-slow) var(--hud-ease) both;
+}
+
+@keyframes sc-turn {
+  from {
+    opacity: 0;
+    transform: translateX(-0.7em);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sc-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9em;
+  align-items: center;
+}
+
+/* The slot number, on a brass plate like a regimental number. */
+.sc-slot {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: 2.9em;
+  height: 3.3em;
+  border: 1px solid var(--hud-brass-dim);
+  border-radius: var(--hud-radius);
+  background: linear-gradient(180deg, rgb(201 163 90 / 16%), rgb(201 163 90 / 3%));
+  box-shadow: inset 0 1px 0 rgb(232 202 136 / 18%);
+}
+
+.sc-slot .hud-label {
+  font-size: 0.48em;
+  letter-spacing: 0.24em;
+  color: var(--hud-brass);
+}
+
+.sc-slot__number {
+  font-size: 1.62em;
+  font-weight: 760;
+  font-stretch: 100%;
+  line-height: 1;
+  color: var(--hud-brass-bright);
+}
+
+.sc-identity {
+  display: grid;
+  gap: 0.12em;
+  min-width: 0;
+}
+
+.sc-rank {
+  font-size: 0.64em;
+  font-weight: 680;
+  font-stretch: 100%;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--hud-brass);
+}
+
+.sc-name {
+  overflow: hidden;
+  font-family: var(--hud-font-display);
+  font-size: 1.62em;
+  font-weight: 600;
+  line-height: 1.04;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sc-name__given {
+  margin-right: 0.26em;
+  font-size: 0.74em;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--hud-ink-2);
+}
+
+.sc-role {
+  font-size: 0.8em;
+  color: var(--hud-ink-2);
+  letter-spacing: 0.02em;
+}
+
+.soldier-card[data-role="leader"] .sc-role {
+  color: var(--hud-brass-bright);
+}
+
+/* The one thing that most needs saying: pinned, masking, under fire, spent. */
+.sc-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  margin: 0 -0.3em;
+  padding: 0.42em 0.7em;
+  border-left: 2px solid var(--severity);
+  border-radius: 1px;
+  background-color: color-mix(in srgb, var(--severity) 17%, transparent);
+  color: var(--severity);
+  animation: sc-alert-in var(--hud-med) var(--hud-ease) both;
+}
+
+.sc-alert[hidden] {
+  display: none;
+}
+
+@keyframes sc-alert-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sc-alert__icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.sc-alert__title {
+  font-size: 0.82em;
+  font-weight: 760;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sc-alert__detail {
+  font-size: 0.8em;
+  color: var(--hud-ink-2);
+}
+
+/* Spirit, body, posture: three ruled columns. */
+.sc-cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0.55em 0;
+  border-top: var(--hud-rule);
+  border-bottom: var(--hud-rule);
+}
+
+.sc-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45em;
+  align-items: start;
+  padding: 0 0.55em;
+}
+
+.sc-cell:first-child {
+  padding-left: 0.1em;
+}
+
+.sc-cell + .sc-cell {
+  border-left: var(--hud-rule);
+}
+
+.sc-cell__icon {
+  width: 1.4em;
+  height: 1.4em;
+  margin-top: 0.12em;
+  color: var(--severity);
+  transition: color var(--hud-med) var(--hud-ease);
+}
+
+.sc-cell[data-severity="good"] .sc-cell__icon {
+  color: var(--hud-ink-2);
+}
+
+.sc-cell__text {
+  display: grid;
+  gap: 0.1em;
+  min-width: 0;
+}
+
+.sc-cell__value {
+  overflow: hidden;
+  font-size: 0.9em;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--severity);
+  transition: color var(--hud-med) var(--hud-ease);
+}
+
+.sc-cell__note {
+  overflow: hidden;
+  font-size: 0.66em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--hud-ink-3);
+}
+
+.sc-cell__note:empty {
+  display: none;
+}
+
+/* Breath: a thin bar, ticked where he can no longer run. */
+.sc-breath {
+  display: grid;
+  gap: 0.34em;
+}
+
+.sc-breath__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sc-breath__state {
+  font-size: 0.66em;
+  font-weight: 720;
+  font-stretch: 100%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-caution);
+}
+
+.sc-breath__bar {
+  height: 0.36em;
+  overflow: visible;
+}
+
+.sc-breath[data-state="winded"] .hud-bar__fill {
+  background: var(--hud-caution);
+}
+
+.sc-breath[data-state="spent"] .hud-bar__fill {
+  background-color: var(--hud-danger);
+  background-image: repeating-linear-gradient(-45deg, transparent 0 0.2em, rgb(0 0 0 / 35%) 0.2em 0.34em);
+}
+
+.sc-breath[data-state="spent"] .sc-breath__state {
+  color: var(--hud-danger);
+}
+
+.sc-breath__tick {
+  position: absolute;
+  top: -0.18em;
+  bottom: -0.18em;
+  left: calc(var(--at, 0.25) * 100%);
+  width: 1px;
+  background: var(--hud-ink-2);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+}
+
+/* Kit: the weapon and whether it's ready, grenades as they hang on his belt, the mask. */
+.sc-kit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 1.1em;
+  align-items: center;
+  padding-top: 0.1em;
+}
+
+.sc-weapon {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  min-width: 0;
+}
+
+.sc-weapon__icon {
+  width: 1.8em;
+  height: 1.8em;
+  color: var(--hud-ink-2);
+}
+
+.sc-weapon__text {
+  display: grid;
+  gap: 0.12em;
+  min-width: 0;
+}
+
+.sc-weapon__name {
+  overflow: hidden;
+  font-size: 0.86em;
+  font-weight: 620;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sc-ready {
+  display: flex;
+  align-items: center;
+  gap: 0.34em;
+  font-size: 0.64em;
+  font-weight: 680;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hud-ink-3);
+}
+
+.sc-ready__ring {
+  width: 1.25em;
+  height: 1.25em;
+  transform: rotate(-90deg);
+}
+
+.sc-ready__track {
+  fill: none;
+  stroke: rgb(239 231 211 / 16%);
+  stroke-width: 2.6;
+}
+
+.sc-ready__arc {
+  fill: none;
+  stroke: var(--hud-ink-2);
+  stroke-width: 2.6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--ready, 1));
+  transition: stroke-dashoffset 110ms linear;
+}
+
+.sc-weapon[data-ready] .sc-ready {
+  color: var(--hud-ink-2);
+}
+
+.sc-weapon[data-ready] .sc-ready__arc {
+  stroke: var(--hud-brass);
+}
+
+.sc-grenades {
+  display: grid;
+  justify-items: center;
+  gap: 0.2em;
+}
+
+.sc-grenades__pips {
+  display: flex;
+  gap: 0.06em;
+}
+
+.sc-grenades__pip {
+  width: 1.12em;
+  height: 1.12em;
+  color: var(--hud-ink);
+  transition:
+    color var(--hud-med) var(--hud-ease),
+    opacity var(--hud-med) var(--hud-ease);
+}
+
+.sc-grenades__pip.is-spent {
+  color: var(--hud-ink-4);
+  filter: none;
+}
+
+.sc-grenades[data-empty] .hud-label {
+  color: var(--hud-caution);
+}
+
+.sc-mask {
+  display: grid;
+  justify-items: center;
+  gap: 0.18em;
+  min-width: 3.6em;
+}
+
+.sc-mask__icon {
+  width: 1.4em;
+  height: 1.4em;
+  color: var(--hud-ink-4);
+  transition: color var(--hud-med) var(--hud-ease);
+}
+
+.sc-mask__text {
+  font-size: 0.62em;
+  font-weight: 680;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hud-ink-3);
+}
+
+.sc-mask[data-state="masking"] .sc-mask__icon,
+.sc-mask[data-state="masking"] .sc-mask__text {
+  color: var(--hud-danger);
+}
+
+.sc-mask[data-state="on"] .sc-mask__icon,
+.sc-mask[data-state="on"] .sc-mask__text {
+  color: var(--hud-gas);
+}

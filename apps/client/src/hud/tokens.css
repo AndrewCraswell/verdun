@@ -1,0 +1,94 @@
+/*
+ * The HUD's design tokens: every colour, face, size and timing the elements use, named once. Elements use these and
+ * nothing else, so a restyle, a colour-vision palette or high contrast is a change of tokens, not of components
+ * (docs/design/interface.md#visual-language).
+ */
+.hud {
+  /* Type: Archivo, a grotesque of the 1890s' kind, for everything read in battle; Bodoni Moda, the Didone of French
+     print in 1916, for names, the hour and headlines. */
+  --hud-font-ui: "Archivo Variable", "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --hud-font-display: "Bodoni Moda Variable", "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+
+  /* One size scales the whole HUD: 16 px at 1080p, growing with the screen, times the player's interface scale. */
+  --hud-scale: 1;
+  --hud-size: calc(clamp(13px, 0.42vw + 8px, 22px) * var(--hud-scale));
+
+  /* Ink: a warm paper white, at falling strengths. */
+  --hud-ink: #efe7d3;
+  --hud-ink-2: rgb(239 231 211 / 76%);
+  --hud-ink-3: rgb(239 231 211 / 54%);
+  --hud-ink-4: rgb(239 231 211 / 30%);
+  --hud-hairline: rgb(239 231 211 / 13%);
+  --hud-hairline-strong: rgb(239 231 211 / 24%);
+
+  /* Plates behind text, and the shading in the corners that keeps the HUD legible over snow and flare light. */
+  --hud-backing: 1;
+  --hud-plate: rgb(18 16 12 / calc(0.74 * var(--hud-backing)));
+  --hud-plate-deep: rgb(12 11 8 / calc(0.86 * var(--hud-backing)));
+  --hud-plate-sheen: rgb(255 246 222 / 5%);
+  --hud-shade: rgb(8 7 5 / calc(0.62 * var(--hud-backing)));
+  --hud-shadow: 0 0.55em 1.6em rgb(0 0 0 / 30%);
+  --hud-halo: 0 1px 1px rgb(0 0 0 / 65%), 0 0 0.7em rgb(0 0 0 / 40%);
+
+  /* Accents: brass for the man under control and the HUD's own marks. */
+  --hud-brass: #c9a35a;
+  --hud-brass-bright: #e8ca88;
+  --hud-brass-dim: rgb(201 163 90 / 42%);
+  --hud-brass-glow: rgb(232 202 136 / 26%);
+
+  /* Sides, as the period trench maps drew them: our lines blue, the enemy's red, for both armies. */
+  --hud-ours: #87a9da;
+  --hud-ours-deep: #4d6f9f;
+  --hud-theirs: #d4644b;
+  --hud-theirs-deep: #8f3a29;
+
+  /* States: neutral for steady, amber for caution, vermilion for danger, stone for men out of the fight. */
+  --hud-good: var(--hud-ink);
+  --hud-info: #b7c3cc;
+  --hud-caution: #e7b24f;
+  --hud-danger: #f2673f;
+  --hud-out: #8f897c;
+  --hud-gas: #c4c968;
+
+  /* Shape and space. */
+  --hud-radius: 2px;
+  --hud-gap: 0.5em;
+  --hud-margin: clamp(12px, 1.3vw, 30px);
+  --hud-rule: 1px solid var(--hud-hairline);
+
+  /* Motion: short, purposeful, never looping on its own. */
+  --hud-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --hud-ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --hud-fast: 140ms;
+  --hud-med: 260ms;
+  --hud-slow: 560ms;
+
+  /* How strongly the screen effects show: the player's setting, 0 to 1. */
+  --hud-fx: 1;
+}
+
+/* Colour vision: the warm danger and the sides moved apart from what each kind of colour blindness confuses. */
+.hud[data-vision="deuteranopia"],
+.hud[data-vision="protanopia"] {
+  --hud-theirs: #e08a2c;
+  --hud-theirs-deep: #8a5216;
+  --hud-danger: #ff9a3d;
+  --hud-caution: #f2d25a;
+  --hud-ours: #7fb2ff;
+}
+
+.hud[data-vision="tritanopia"] {
+  --hud-ours: #7fd0d8;
+  --hud-ours-deep: #3b8a92;
+  --hud-theirs: #f0607a;
+  --hud-caution: #f4a3b0;
+}
+
+/* High contrast: solid plates, brighter ink and stronger lines. */
+.hud[data-contrast="high"] {
+  --hud-ink-2: rgb(247 241 226 / 92%);
+  --hud-ink-3: rgb(247 241 226 / 80%);
+  --hud-hairline: rgb(247 241 226 / 32%);
+  --hud-plate: rgb(8 7 5 / 94%);
+  --hud-plate-deep: rgb(4 4 3 / 97%);
+}

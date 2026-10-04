@@ -57,23 +57,15 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
 
 ## What exists today
 
-The prototype's interface is functional text, built to prove the game, not designed. Details and file references are in
-the elements below; in short:
+The battle HUD's first design is built, in `apps/client/src/hud/` (see [how it's built](#how-its-built)): the soldier
+card, roster, order, effects, the clock and compass, objectives, strength, the artillery board, the log, banners, the
+handover, the squad-lost panel, prompts, screen effects, the aim cursor, marks on the ground and the war map's view. It
+follows [at rest, overview and the war map](#at-rest-overview-and-the-war-map). Type is Archivo and Bodoni Moda;
+colours, sizes and timings are tokens.
 
-- **Three HUD panels** of plain text on dark translucent plates (`apps/client/src/hud/`): the soldier bottom left, the
-  sector top right, a battle log top centre, and a centred banner during the stand-to. System font, 13 px, cream
-  `#f2ede0`, alarms in orange `#ffb27a`. Redrawn four times a second. Nothing in it can be clicked.
-- **A menu** (Esc, `apps/client/src/ui/menu.ts`) that only lists the controls, with a "Back to the battle" button. No
-  settings of any kind.
-- **Three kinds of 3D ring** (`apps/client/src/control/soldier-marker.ts`): gold under the soldier you control with a
-  short facing line, dim khaki under the rest of the squad, and red under the enemy a shot would hit right now.
-- **Sound** carries much of the feedback: ears ringing after a close burst, breathing through the mask, panting when
-  pinned, the gas gong, cheers when a charge goes in.
-- **Dev tools** (F3 debug dock top left, the sound mixer, Babylon's Inspector) that never ship to players and need no
-  design.
-
-The biggest gap: **nothing the player orders is acknowledged on screen.** F, H, E, B, V, X and G all act silently; the
-squad's current order isn't shown anywhere; neither is a soldier's morale, or which slot is which man.
+Still to come: the order radial (H7), the grenade and call previews (H9, H10), operations, tasks and chat (H19-H21), the
+options screen (S3; the settings exist, `hud.configure`), the sector map as a screen (S4), the squad book (S5) and every
+stage 2-3 screen. The menu (S1) still only lists the controls.
 
 ## Principles
 
@@ -136,6 +128,26 @@ The prototype already shares the screen out by corner, and the elements below ke
 
 Every overlay zone should collapse to its smallest useful state when nothing in it changes for a while (an "at rest"
 look), and expand on change or on hover. The player can hide each zone in the [options](#s3-options).
+
+### At rest, overview and the war map
+
+Screen space goes to what matters now. The HUD has three states:
+
+- **At rest**: the soldier card, the roster and the order with its keys (follow, hold, advance: the squad's commands are
+  always to hand), effects when something acts on the man, missions while our guns are firing, and a compact clock: the
+  hour, the compass with the wind, and the overview key. Everything else stays away. A part comes up by itself for a few
+  seconds when what it shows changes: the objectives when one changes hands, the clock in full when the light or the
+  weather turns, the artillery board when guns are called.
+- **Overview**: hold **I** for the sector in full (the hour, week, light, weather and war turn; the objectives with
+  their bearings; reserves and losses; the artillery board with its stocks). Tap I to keep it up, tap again to put it
+  away. Marks on the ground show in full: firing footprints hatched, every objective named.
+- **The war map's view**: pulling the camera back past about 150 m fades in a trench map over the ground, complete at
+  230 m: 100 m squares lettered as on the period maps, every trench in its side's colour (ours blue, theirs red), our
+  men as blue dots and the squad in brass, and the enemy in red, only the men our side can see now (the fog of war's
+  rule: while fog is off, all of them). The overview's panels come up with it.
+
+Firing footprints at rest are a thin red edge with their countdown, since the shells' own bursts and smoke carry the
+picture; pending ones stay a dashed amber outline, as a warning.
 
 ## Screen flow
 
@@ -1089,19 +1101,32 @@ Xbox's text and contrast guidance
 
 ## How it's built
 
-What the designer's work turns into, so it can be built as designed.
+The HUD in `apps/client/src/hud/`, as built:
 
-- **DOM over the canvas.** HUD panels, menus and screens are HTML and CSS over the Babylon canvas, as today
-  (`apps/client/src/hud/`, `apps/client/src/ui/`). The HUD ignores the pointer except where it must be clicked (roster
-  tiles, the menu), because the pointer is the aim. Text updates four times a second; markers every frame.
-- **World markers** are Babylon meshes or decals in the scene (`soldier-marker.ts`), so they need simple, flat shapes
-  that read from above and survive scaling: SVG sources, single colour, with a separate outline.
+- **One state, many elements.** `hud-state.ts` works out everything the HUD shows from the simulation, ten times a
+  second, as one plain object (`HudState`); its parts live beside it (`soldier-state.ts`, `sector-state.ts`,
+  `fire-support.ts`, `battle-log.ts`, `banners.ts`, `succession.ts`, `hints.ts`, `squad-order.ts`, `attention.ts`) and
+  are tested in Node. Elements only draw that state.
+- **Each element is swappable.** Every element is one module and one stylesheet in `hud/elements/`, built by a factory
+  that gets the HUD's context and returns `{ id, zone, root, update(state), frame?(state) }` (`element.ts`).
+  `registry.ts` lists them in the order each zone stacks them. A redesign is a new module and a changed line in the
+  registry; in a dev build `verdun.hud.swap(id, factory)` swaps one into the running game.
+- **Zones** are the corners and layers of [screen layout](#screen-layout): `top-right`, `bottom-left` and so on,
+  `centre` for cards, `screen` for the effects under everything and `world` for marks over the ground.
+- **DOM over the canvas.** Panels are HTML and CSS; marks on the ground are one SVG layer projected through the camera
+  each frame after the battlefield is drawn; the war map is one 2D canvas. The HUD ignores the pointer except where it
+  must be clicked or hovered (roster tiles, the effects column, the artillery board), because the pointer is the aim.
+  The aim cursor is drawn as the browser's own cursor, so it never lags.
+- **Tokens and icons.** `tokens.css` names every colour, face, size and timing, with colour-vision and high-contrast
+  sets; `icons.ts` is the icon set as one SVG sprite. Elements use nothing else.
+- **Keys and labels.** Key caps come from the controls list in `ui/bindings.ts` (`keys.ts`), so they follow the game's
+  bindings; a test checks each is still found. The overview key is the HUD's own, registered in the controls list.
+- **Settings.** `interface-settings.ts`: HUD scale, effects strength, backing, colour vision, high contrast and the
+  prompts, kept in the browser; `hud.configure(settings)` applies them, until the options screen exists.
 - **No Fluent UI.** A UI library for menus and the war map is an [open question](../open-questions.md#technical),
   leaning shadcn/ui restyled to this direction; the in-battle HUD stays custom and minimal.
 - **Performance.** The game shares the frame with 500 soldiers: no blur behind panels (`backdrop-filter`), no continuous
-  CSS animation, few DOM nodes in the HUD.
-- **Keys and labels.** Key caps come from the bindings registry, so they follow rebinding; the designer supplies a key
-  cap style, not baked key images.
+  CSS animation, text and attributes written only when they change, and the war map drawn only while it shows.
 
 ## Data gaps
 

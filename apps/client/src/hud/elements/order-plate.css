@@ -1,0 +1,161 @@
+/* H6: the squad's order, above the roster. */
+.order-plate {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75em;
+  align-items: center;
+  width: 24.6em;
+  padding: 0.55em 0.8em;
+  box-sizing: border-box;
+}
+
+.order-plate[hidden] {
+  display: none;
+}
+
+.op-mark {
+  display: grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  border: 1px solid var(--hud-brass-dim);
+  border-radius: 50%;
+  color: var(--hud-brass-bright);
+  background: radial-gradient(circle, rgb(201 163 90 / 18%), transparent 70%);
+}
+
+.op-icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.op-text {
+  display: grid;
+  gap: 0.12em;
+  min-width: 0;
+}
+
+.op-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.op-label {
+  font-size: 0.98em;
+  font-weight: 720;
+  font-stretch: 96%;
+  letter-spacing: 0.03em;
+}
+
+.op-detail {
+  overflow: hidden;
+  font-size: 0.8em;
+  color: var(--hud-ink-2);
+  text-overflow: ellipsis;
+}
+
+.op-issues {
+  display: flex;
+  gap: 0.4em;
+}
+
+.op-issues[hidden],
+.op-issue[hidden] {
+  display: none;
+}
+
+.op-issue {
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--severity);
+  border-radius: 1px;
+  font-size: 0.64em;
+  font-weight: 720;
+  font-stretch: 100%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--severity);
+  background-color: color-mix(in srgb, var(--severity) 14%, transparent);
+}
+
+/* The order keys, faint; the current order's lit. */
+.op-keys {
+  display: grid;
+  gap: 0.22em;
+  justify-items: end;
+  animation: hud-fade-in var(--hud-med) var(--hud-ease) both;
+}
+
+.op-keys[hidden] {
+  display: none;
+}
+
+.op-key {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  opacity: 0.5;
+  transition: opacity var(--hud-med) var(--hud-ease);
+}
+
+.op-key .hud-key {
+  font-size: 0.56em;
+  height: 1.6em;
+  min-width: 1.6em;
+}
+
+.op-key__word {
+  font-size: 0.6em;
+  font-weight: 650;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hud-ink-2);
+}
+
+.op-key[data-current] {
+  opacity: 1;
+}
+
+.op-key[data-current] .op-key__word {
+  color: var(--hud-brass-bright);
+}
+
+.op-key[data-current] .hud-key {
+  border-color: var(--hud-brass);
+  color: var(--hud-brass-bright);
+}
+
+/* A new order: a sweep of brass across the plate. */
+.order-plate.is-new {
+  animation: op-new 900ms var(--hud-ease);
+}
+
+.order-plate.is-new .op-mark {
+  animation: op-mark 900ms var(--hud-ease);
+}
+
+@keyframes op-new {
+  0% {
+    background-color: rgb(201 163 90 / 34%);
+    border-color: var(--hud-brass);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes op-mark {
+  0% {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 0 var(--hud-brass-glow);
+  }
+
+  100% {
+    transform: none;
+    box-shadow: 0 0 0 1em rgb(0 0 0 / 0%);
+  }
+}

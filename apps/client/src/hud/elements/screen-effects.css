@@ -1,0 +1,104 @@
+/* E1-E8: full-screen layers under the HUD, each faded in by its own strength times the player's effects setting. */
+.screen-effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sfx {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 220ms linear;
+  will-change: opacity;
+}
+
+/* E1: rounds landing close, the edges closing in. */
+.sfx--suppression {
+  background: radial-gradient(ellipse 72% 70% at 50% 50%, transparent 46%, rgb(6 5 4 / 70%) 82%, rgb(3 2 2 / 92%) 100%);
+  opacity: calc(var(--suppression, 0) * var(--hud-fx));
+}
+
+/* E6: wounded, a slow dark pulse at the very edges: dark red-brown, never a red screen. */
+.sfx--wound {
+  background: radial-gradient(
+    ellipse 80% 78% at 50% 50%,
+    transparent 62%,
+    rgb(70 14 8 / 55%) 92%,
+    rgb(40 8 5 / 75%) 100%
+  );
+  opacity: calc(var(--wound, 0) * 0.75 * var(--hud-fx));
+}
+
+.screen-effects.is-wounded .sfx--wound {
+  animation: sfx-heartbeat 1.7s ease-in-out infinite;
+}
+
+@keyframes sfx-heartbeat {
+  0%,
+  100% {
+    opacity: calc(var(--wound, 0) * 0.5 * var(--hud-fx));
+  }
+
+  14% {
+    opacity: calc(var(--wound, 0) * 0.85 * var(--hud-fx));
+  }
+
+  28% {
+    opacity: calc(var(--wound, 0) * 0.6 * var(--hud-fx));
+  }
+
+  40% {
+    opacity: calc(var(--wound, 0) * 0.8 * var(--hud-fx));
+  }
+}
+
+/* E4: gas breathed without a mask, a sickly tint creeping in. */
+.sfx--gas {
+  background: radial-gradient(
+    ellipse 70% 68% at 50% 50%,
+    transparent 30%,
+    rgb(150 156 58 / 38%) 80%,
+    rgb(110 118 40 / 60%) 100%
+  );
+  opacity: calc(var(--gas, 0) * var(--hud-fx));
+}
+
+/* E3: the mask's two lenses: dark outside them, a faint haze within. */
+.sfx--mask {
+  background: rgb(8 8 6 / 84%);
+  mask-image:
+    radial-gradient(ellipse 33% 46% at 29% 47%, transparent 82%, #000 100%),
+    radial-gradient(ellipse 33% 46% at 71% 47%, transparent 82%, #000 100%);
+  mask-composite: intersect;
+  opacity: calc(var(--mask, 0) * 0.92 * var(--hud-fx));
+  transition: opacity 600ms var(--hud-ease);
+}
+
+.sfx--mask::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 33% 46% at 29% 47%, rgb(210 214 204 / 9%), transparent 90%),
+    radial-gradient(ellipse 33% 46% at 71% 47%, rgb(210 214 204 / 9%), transparent 90%);
+}
+
+/* E2: a shell close by, a blow of dust across the picture. */
+.sfx--burst {
+  background: radial-gradient(
+    ellipse 90% 80% at 50% 62%,
+    rgb(196 176 146 / 34%),
+    rgb(120 102 80 / 30%) 55%,
+    rgb(40 32 24 / 55%) 100%
+  );
+  opacity: calc(var(--burst, 0) * var(--hud-fx));
+  transition: opacity 90ms linear;
+}
+
+/* E8: the man under control falls. */
+.sfx--fallen {
+  background: rgb(4 3 3 / 55%);
+  opacity: var(--fallen, 0);
+  transition: opacity 300ms var(--hud-ease);
+}
