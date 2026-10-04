@@ -11,6 +11,11 @@
 import { readFileSync } from "node:fs"
 import { decodeElevation, generateFleurySector, heightAt } from "../packages/map/src/index.ts"
 
+/** Writes a line of the report. */
+const print = (line) =>
+  process.stdout.write(`${line}
+`)
+
 const option = (name, fallback) =>
   process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback
 const side = option("--side", "german")
@@ -85,14 +90,12 @@ for (let x = 20; x < 590; x += 20) {
   hit += laneHit
 }
 
-console.log(`Defender: ${side}, ${guns.length} machine guns and posts; attacker's chest at ${target} m`)
-console.log(`Front lines: French z=${frenchFront.toFixed(0)}, German z=${germanFront.toFixed(0)}`)
-console.log(`No man's land under fire: ${((100 * hit) / total).toFixed(0)}%`)
-console.log("Attack lanes (x: share of the lane a machine gun can see)")
+print(`Defender: ${side}, ${guns.length} machine guns and posts; attacker's chest at ${target} m`)
+print(`Front lines: French z=${frenchFront.toFixed(0)}, German z=${germanFront.toFixed(0)}`)
+print(`No man's land under fire: ${((100 * hit) / total).toFixed(0)}%`)
+print("Attack lanes (x: share of the lane a machine gun can see)")
 for (const { x, exposed: share } of lanes) {
-  console.log(
-    `  x=${String(x).padStart(3)}  ${"#".repeat(Math.round(share * 40)).padEnd(40)} ${(share * 100).toFixed(0)}%`
-  )
+  print(`  x=${String(x).padStart(3)}  ${"#".repeat(Math.round(share * 40)).padEnd(40)} ${(share * 100).toFixed(0)}%`)
 }
 
 // Named routes an attacking squad might take, as polylines; each reports the share of its length under fire.
@@ -119,7 +122,7 @@ const ROUTES = {
     [540, germanFront - 35]
   ]
 }
-console.log("Routes (share of the route a machine gun can see)")
+print("Routes (share of the route a machine gun can see)")
 for (const [name, points] of Object.entries(ROUTES)) {
   let samples = 0
   let seen = 0
@@ -134,5 +137,5 @@ for (const [name, points] of Object.entries(ROUTES)) {
       seen += guns.some((gun) => sees(gun, x, z)) ? 1 : 0
     }
   }
-  console.log(`  ${name.padEnd(36)} ${((100 * seen) / samples).toFixed(0)}%`)
+  print(`  ${name.padEnd(36)} ${((100 * seen) / samples).toFixed(0)}%`)
 }

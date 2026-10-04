@@ -24,6 +24,11 @@ import { createCipheriv, randomBytes } from "node:crypto"
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { join, relative, sep } from "node:path"
 
+/** Writes a line of the report. */
+const print = (line) =>
+  process.stdout.write(`${line}
+`)
+
 const kitDir = process.argv[2] ?? ".asset-cache/level"
 const outDir = process.argv[3] ?? ".asset-cache/pack"
 
@@ -86,6 +91,4 @@ await writeFile(
   `${JSON.stringify({ version: VERSION, key: key.toString("base64") })}\n`
 )
 
-console.log(
-  `Packed ${paths.length} files (${(pack.length / 2 ** 20).toFixed(1)} MiB) into ${join(outDir, "level.pack")}`
-)
+print(`Packed ${paths.length} files (${(pack.length / 2 ** 20).toFixed(1)} MiB) into ${join(outDir, "level.pack")}`)

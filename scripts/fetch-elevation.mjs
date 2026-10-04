@@ -9,6 +9,11 @@
 
 import { writeFile } from "node:fs/promises"
 
+/** Writes a line of the report. */
+const print = (line) =>
+  process.stdout.write(`${line}
+`)
+
 /** The sector's south-west corner in Lambert-93 (EPSG:2154), metres. Fleury-devant-Douaumont lies in its east. */
 const ORIGIN = { x: 876_773, y: 6_902_290 }
 const WIDTH = 600
@@ -68,4 +73,4 @@ heights.forEach((height, index) => {
   samples[index] = Math.round((height - base) * 100)
 })
 await writeFile(OUTPUT, Buffer.concat([new Uint8Array(header.buffer), new Uint8Array(samples.buffer)]))
-console.log(`Wrote ${OUTPUT.pathname}: ${columns + 1} x ${rows + 1} samples, ${base} m to ${highest.toFixed(1)} m`)
+print(`Wrote ${OUTPUT.pathname}: ${columns + 1} x ${rows + 1} samples, ${base} m to ${highest.toFixed(1)} m`)
