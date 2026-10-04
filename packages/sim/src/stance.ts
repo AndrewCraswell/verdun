@@ -1,6 +1,6 @@
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { type EntityId, hasComponent } from "bitecs"
-import { PINNED } from "./combat.ts"
+import { PINNED, Weapon } from "./combat.ts"
 import { Stance } from "./components.ts"
 import { EYE_HEIGHT, type WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
@@ -18,8 +18,13 @@ const STANCE_INTERVAL = 5
  * don't fool them; short enough that a lifting barrage starts the race to the parapet.
  */
 export const SHELTER_CALM = 15
-/** Seconds to climb out of a deep dugout with rifles and machine guns and get onto the fire step: 6 to 20. */
+/** Seconds to climb out of a deep dugout and get onto the fire step: 6 to 20. */
 const CLIMB_SECONDS = { min: 6, spread: 14 } as const
+/**
+ * Machine-gun crews were drilled to get their gun up the steps and into action before anyone else: 3 to 8 seconds. It
+ * was their guns, not the riflemen's, that so often won the race to the parapet.
+ */
+const MACHINE_GUN_CLIMB_SECONDS = { min: 3, spread: 5 } as const
 /** A sentry's shout: attackers this close bring the men up at once, if the shelling lets them. */
 const ALARM_RANGE = 40
 /** Even with the enemy close, nobody climbs out while shells are still landing this recently, in seconds. */
@@ -123,10 +128,11 @@ function enemyWithin(sim: Simulation, soldier: EntityId, range: number, living: 
 }
 
 /** Seconds a soldier takes to climb out of a dugout: spread across soldiers so they come up in ones and twos. */
-function climbSteps(soldier: EntityId): number {
+function climbSteps(sim: Simulation, soldier: EntityId): number {
   // A fixed spread by id keeps the simulation deterministic without drawing on the RNG.
   const spread = ((soldier * 2654435761) >>> 0) / 2 ** 32
-  return Math.round((CLIMB_SECONDS.min + spread * CLIMB_SECONDS.spread) * TICK_RATE)
+  const climb = sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? MACHINE_GUN_CLIMB_SECONDS : CLIMB_SECONDS
+  return Math.round((climb.min + spread * climb.spread) * TICK_RATE)
 }
 
 /**
@@ -158,7 +164,7 @@ export function stanceSystem(sim: Simulation): void {
         const alarm = sinceShelled >= ALARM_CALM && enemyWithin(sim, soldier, ALARM_RANGE, living)
         // An order to move, such as going over the top, gets them up the steps whatever is falling.
         if (calm || alarm || moving) {
-          shelter.emergeAt[soldier] = sim.tick + climbSteps(soldier)
+          shelter.emergeAt[soldier] = sim.tick + climbSteps(sim, soldier)
         }
       } else if (sim.tick >= shelter.emergeAt[soldier]) {
         stance.value[soldier] = Stance.Standing

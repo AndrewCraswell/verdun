@@ -1,7 +1,7 @@
 import { carveTrenches, createFlatMap, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { afterEach, describe, expect, it } from "vitest"
-import { BROKEN_MORALE, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
+import { BROKEN_MORALE, fireAt, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
 import { Side } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
@@ -263,5 +263,29 @@ describe("combat determinism", () => {
     stepFor(first, 20)
     stepFor(restored, 20)
     expect(takeSnapshot(restored)).toEqual(takeSnapshot(first))
+  })
+
+  it("lets a machine gun's misses fall among the men around its target, not on men well off its line", async () => {
+    let besideHit = 0
+    let wideHit = 0
+    for (let trial = 0; trial < 3; trial++) {
+      const sim = await field(trial + 1)
+      const gun = spawnSoldier(sim, { side: Side.German, x: 100, z: 190, weapon: Weapon.MachineGun })
+      const target = spawnSoldier(sim, { side: Side.French, x: 100, z: 60 })
+      const behind = spawnSoldier(sim, { side: Side.French, x: 100.5, z: 52 })
+      const wide = spawnSoldier(sim, { side: Side.French, x: 110, z: 60 })
+      for (let round = 0; round < 400; round++) {
+        sim.soldiers.health.value[target] = 1
+        sim.soldiers.health.value[behind] = 1
+        sim.soldiers.health.value[wide] = 1
+        sim.soldiers.weapon.cooldown[gun] = 0
+        fireAt(sim, gun, target)
+        besideHit += sim.soldiers.health.value[behind] < 1 ? 1 : 0
+        wideHit += sim.soldiers.health.value[wide] < 1 ? 1 : 0
+      }
+    }
+
+    expect(besideHit).toBeGreaterThan(10)
+    expect(wideHit).toBe(0)
   })
 })

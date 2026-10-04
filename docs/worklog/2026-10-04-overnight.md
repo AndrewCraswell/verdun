@@ -149,3 +149,22 @@ Committed as "Add hand grenades".
 The level-design agent asked for `createFogOfWar(..., { materials })`: extra materials, such as props, darkened like the
 ground and toggled with it. Done; `fog.plugins` lists every plugin. They'll pass the level's materials from `main.ts`,
 which they own.
+
+## Machine guns, rifle accuracy and a determinism bug
+
+Committed as "Make machine guns sweep, rifles fire like men under fire, and soldier order deterministic".
+
+- **Beaten zone**: a machine-gun round that misses its target can still hit the man nearest it within a strip 3 m wide
+  and 5 m + 8% of the range long either side of the aim point, at 60% of a direct hit's chance.
+- **Grazing fire**: machine guns engage men lying in the open at any range; riflemen still ignore covered targets beyond
+  100 m, and nobody wastes fire on men in a trench.
+- **MG crews climb first**: 3-8 s out of a dugout instead of 6-20 s. A tally showed German MGs spent about 92% of a
+  barrage attack below ground.
+- **Rifle accuracy** under fire: 0.45 at point blank, falling by e every 100 m (was 0.55 / 150 m). Hit rates fell from
+  9.6% to 4.3% of shots.
+- **Determinism bug fixed**: `soldierIds`, `fallenIds` and `capturedIds` now return ids in ascending order. The ECS
+  query order changes as soldiers die and differs after a snapshot restore, so systems drawing random numbers per
+  soldier diverged between a game and its restored save. A combat determinism test caught it after the accuracy change.
+
+Results: an attack with no artillery at all is wiped out in two minutes (1 of 200 French left, 2 Germans dead; MGs 37
+kills, rifles 158). Barrage attacks: French 94-126 of 200 left, 83-118 Germans captured.

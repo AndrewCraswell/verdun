@@ -6,7 +6,7 @@ import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { seesThroughSmoke, smokeBetween } from "./smoke.ts"
 import { isAlive } from "./squads.ts"
-import { isSheltering, soldierEye } from "./stance.ts"
+import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
 
 export const Weapon = { Rifle: 0, MachineGun: 1 } as const
 export type Weapon = (typeof Weapon)[keyof typeof Weapon]
@@ -23,9 +23,14 @@ interface WeaponStats {
   readonly suppression: number
 }
 
-/** Bolt-action rifles (Lebel, Gewehr 98) and medium machine guns (Hotchkiss, MG 08). */
+/**
+ * Bolt-action rifles (Lebel, Gewehr 98) and medium machine guns (Hotchkiss, MG 08). Accuracy is for men under fire,
+ * not on a range: an aimed rifle shot at a man walking 150 m away hits about one time in sixteen. A machine gun's
+ * rounds hit less often each, but it fires twenty times as many, and its misses still sweep the ground around the
+ * target.
+ */
 export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
-  [Weapon.Rifle]: { interval: 3, accuracy: 0.55, falloff: 150, range: 400, suppression: 0.25 },
+  [Weapon.Rifle]: { interval: 3, accuracy: 0.45, falloff: 100, range: 400, suppression: 0.25 },
   [Weapon.MachineGun]: { interval: 0.15, accuracy: 0.1, falloff: 220, range: 600, suppression: 0.12 }
 }
 
@@ -39,6 +44,12 @@ const GRENADE_CLEARANCE = 8
 const THROW_SECONDS = 3
 /** Throws scatter by this much, plus a share of the distance, in metres (probable error). */
 const THROW_ERROR = { base: 1, perMetre: 0.06 } as const
+
+/**
+ * A machine gun's beaten zone, in metres: half its width, and how far it reaches either side of the aim point along the
+ * line of fire, growing with range. `share` is the fraction of a miss that still endangers a man inside it.
+ */
+const BEATEN_ZONE = { halfWidth: 1.5, depth: 5, depthPerMetre: 0.08, share: 0.6 } as const
 
 /** Soldiers re-pick their target this often, in steps, staggered by soldier id so the work spreads out. */
 const THINK_INTERVAL = 10
@@ -163,6 +174,17 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
  * to themselves stay quiet, as they mostly did, until someone shows themselves. Only the few nearest are checked, to
  * keep sight-line casts cheap.
  */
+/**
+ * Whether a machine gun sweeps a man lying out in the open: grazing fire over open ground found men a rifleman wouldn't
+ * waste a shot on. Men in a trench are left alone, so quiet lines stay quiet.
+ */
+function sweepsTheOpen(sim: Simulation, shooter: EntityId, target: EntityId): boolean {
+  return (
+    sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun &&
+    !isInTrench(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target])
+  )
+}
+
 function pickTarget(sim: Simulation, shooter: EntityId, enemies: readonly EntityId[]): EntityId {
   const x = sim.soldiers.position.x[shooter]
   const z = sim.soldiers.position.z[shooter]
@@ -177,9 +199,51 @@ function pickTarget(sim: Simulation, shooter: EntityId, enemies: readonly Entity
     nearest.find(
       ({ enemy, distance }) =>
         canEngage(sim, shooter, enemy) &&
-        (distance <= COVERED_TARGET_RANGE * COVERED_TARGET_RANGE || isExposed(sim, shooter, enemy))
+        (distance <= COVERED_TARGET_RANGE * COVERED_TARGET_RANGE ||
+          isExposed(sim, shooter, enemy) ||
+          sweepsTheOpen(sim, shooter, enemy))
     )?.enemy ?? -1
   )
+}
+
+/** A bullet strikes a soldier: a wound, often a mortal one. */
+function strike(sim: Simulation, soldier: EntityId): void {
+  sim.soldiers.health.value[soldier] -= 0.5 + sim.rng.next() * 0.6
+  if (sim.soldiers.health.value[soldier] <= 0) {
+    applyCommand(sim, { type: "kill", soldier })
+  }
+}
+
+/**
+ * The man nearest the target inside a machine gun's beaten zone: the long, narrow patch of ground its cone of fire
+ * sweeps, a few metres wide and lengthening with range. -1 when there's no one else in it.
+ */
+function inBeatenZone(sim: Simulation, shooter: EntityId, target: EntityId): EntityId {
+  const { position, side } = sim.soldiers
+  const dx = position.x[target] - position.x[shooter]
+  const dz = position.z[target] - position.z[shooter]
+  const range = Math.sqrt(dx * dx + dz * dz)
+  if (range === 0) {
+    return -1
+  }
+  const depth = BEATEN_ZONE.depth + BEATEN_ZONE.depthPerMetre * range
+  let nearest: EntityId = -1
+  let nearestDistance = Infinity
+  for (const other of soldierIds(sim)) {
+    if (other === target || side.value[other] !== side.value[target]) {
+      continue
+    }
+    const ox = position.x[other] - position.x[target]
+    const oz = position.z[other] - position.z[target]
+    const along = (ox * dx + oz * dz) / range
+    const across = Math.abs(ox * dz - oz * dx) / range
+    const distance = ox * ox + oz * oz
+    if (Math.abs(along) <= depth && across <= BEATEN_ZONE.halfWidth && distance < nearestDistance) {
+      nearest = other
+      nearestDistance = distance
+    }
+  }
+  return nearest
 }
 
 /** Fires one shot at a target, rolling to hit; hits wound or kill, and every shot suppresses the target. */
@@ -187,12 +251,18 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
   const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
   const stats = WEAPONS[kind]
   const hit = sim.rng.next() < hitChance(sim, shooter, target)
-  const { suppression, health } = sim.soldiers
+  const { suppression } = sim.soldiers
   suppression.value[target] = Math.min(1, suppression.value[target] + stats.suppression * (hit ? 2 : 1))
   if (hit) {
-    health.value[target] -= 0.5 + sim.rng.next() * 0.6
-    if (health.value[target] <= 0) {
-      applyCommand(sim, { type: "kill", soldier: target })
+    strike(sim, target)
+  } else if (kind === Weapon.MachineGun) {
+    // A machine gun's misses still fall among the men around its target.
+    const other = inBeatenZone(sim, shooter, target)
+    if (other >= 0) {
+      suppression.value[other] = Math.min(1, suppression.value[other] + stats.suppression)
+      if (sim.rng.next() < hitChance(sim, shooter, other) * BEATEN_ZONE.share) {
+        strike(sim, other)
+      }
     }
   }
   sim.soldiers.weapon.cooldown[shooter] = stats.interval * (0.85 + sim.rng.next() * 0.3)

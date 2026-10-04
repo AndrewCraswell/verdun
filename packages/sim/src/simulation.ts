@@ -143,19 +143,28 @@ export function spawnSoldier(
   return soldier
 }
 
-/** Every soldier still in the fight: alive and free. The result is owned by the ECS: read it, don't keep it across steps. */
-export function soldierIds(sim: Simulation): QueryResult {
-  return query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead), Not(sim.soldiers.captured)])
+/**
+ * Entity ids in ascending order. The ECS's own query order shifts as components come and go (and differs after a
+ * snapshot restore), and systems that draw random numbers per soldier must visit soldiers in the same order every
+ * time to stay deterministic.
+ */
+function inIdOrder(ids: QueryResult): readonly EntityId[] {
+  return Array.from(ids).sort((a, b) => a - b)
 }
 
-/** Every soldier who has surrendered, on their way to the rear. */
-export function capturedIds(sim: Simulation): QueryResult {
-  return query(sim.world, [sim.soldiers.position, sim.soldiers.captured])
+/** Every soldier still in the fight, alive and free, in id order. */
+export function soldierIds(sim: Simulation): readonly EntityId[] {
+  return inIdOrder(query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead), Not(sim.soldiers.captured)]))
 }
 
-/** Every fallen soldier, still lying where they fell. */
-export function fallenIds(sim: Simulation): QueryResult {
-  return query(sim.world, [sim.soldiers.position, sim.soldiers.dead])
+/** Every soldier who has surrendered, on their way to the rear, in id order. */
+export function capturedIds(sim: Simulation): readonly EntityId[] {
+  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.captured]))
+}
+
+/** Every fallen soldier, still lying where they fell, in id order. */
+export function fallenIds(sim: Simulation): readonly EntityId[] {
+  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.dead]))
 }
 
 /** Queues a command for the next step. Input, AI and (later) the network all enter the simulation here. */
