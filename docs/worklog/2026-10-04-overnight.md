@@ -232,3 +232,26 @@ Committed as "Add objectives and a heads-up display".
   has been asked to add `createHud(document.body, sim, playerSquad, TICK_RATE)`, with `hud.record(sim.events)` after
   each step and `hud.update(frameSeconds)` each frame. Until then it can be tried from the dev console (see the commit
   for the snippet).
+
+## Debug statistics (asked for by the developer)
+
+Committed as "Add a debug statistics overlay". `apps/client/src/debug/`: F3 shows or hides a monospaced overlay in the
+bottom right, in every build, so playtesters can report numbers too. It shows:
+
+- frame rate, average and worst frame time over the last second
+- render time and simulation time per frame
+- draw calls, active meshes, WebGPU or WebGL2, render size
+- the battle clock and soldiers, fallen and prisoners by side
+- fire missions and shells in flight, gas and smoke cells, wind, JS heap (Chrome)
+
+Babylon's `SceneInstrumentation` runs only while the overlay is shown. The overlay needs a few lines in `main.ts`, which
+the level-design agent owns; they've been asked to add them: `createDebugStats(document.body, engine, view.scene, sim)`,
+wrap the step loop in `stats.time("simulation", ...)`, and `stats.update()` after `scene.render()`. Checked in the
+browser by loading it from the console: 57 fps, 17.4 ms average and 31.7 ms worst frame, 1.2 ms render, 263 draw calls
+on Fleury with 526 soldiers.
+
+## Coordination: weather agent in packages/sim
+
+A "Day/night and weather" session is editing `commands.ts`, `combat.ts`, `simulation.ts`, `snapshot.ts` and `index.ts`
+(adding `sim.environment`, sky and weather). To avoid two agents in the same files, I shelved my next sim change,
+artillery ammunition budgets (saved as a patch in my scratchpad), until they commit. It's ready to reapply.
