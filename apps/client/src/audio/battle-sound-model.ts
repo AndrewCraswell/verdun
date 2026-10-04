@@ -55,7 +55,10 @@ export const SOUND_CUES = [
   "front-roar",
   "fire",
   "crow",
-  "flare"
+  "flare",
+  "step-earth",
+  "step-snow",
+  "step-stone"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 
@@ -163,7 +166,10 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "front-roar": { volume: 1, reference: 1 },
   fire: { volume: 1, reference: 1 },
   crow: { volume: 0.18, reference: 15 },
-  flare: { volume: 0.5, reference: 30 }
+  flare: { volume: 0.5, reference: 30 },
+  "step-earth": { volume: 0.3, reference: 4 },
+  "step-snow": { volume: 0.3, reference: 4 },
+  "step-stone": { volume: 0.3, reference: 4 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */

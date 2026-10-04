@@ -209,6 +209,29 @@ CUES = {
         take=6,
         per_source=1,
     ),
+    # Footsteps of men close by, on bare earth, snow and the stones of Fleury's ruins. Boots on duckboards and in
+    # mud have no recording good enough yet (docs/sound.md); trench floors use the earth.
+    "step-earth": dict(
+        sources=[
+            (GDC, "PM_SDNG_Stereo_Walk_Seamless_Loop_1.wav"),
+            (GDC, "PM_SDNG_Single_Step_Footstep_19.wav"),
+            (GDC, "PM_SDNG_Single_Step_Footstep_46.wav"),
+        ],
+        gap=0.12,
+        length=0.5,
+        take=10,
+        floor=-10,
+    ),
+    "step-snow": dict(
+        sources=[(GDC, "S23_SFX_Footsteps_Snow_Singles_Sequence.wav")], gap=0.15, length=0.6, take=8, floor=-10
+    ),
+    "step-stone": dict(
+        sources=[(GDC, "015_Foley_Footsteps_Asphalt_Boot_Walk_Fast_Run_Jog_Close.wav")],
+        gap=0.12,
+        length=0.45,
+        take=8,
+        floor=-8,
+    ),
     # Fire crackling in the braziers and where shells set things alight, and crows taking off from the wire.
     "fire": dict(
         sources=[(GDC, "Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav")], take=1, bed=(5, 30, 3)

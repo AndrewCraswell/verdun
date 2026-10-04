@@ -13,6 +13,7 @@ import {
   SOUND_CUES,
   type SoundCue
 } from "./battle-sound-model.ts"
+import { createFootstepModel } from "./footstep-model.ts"
 import { createLevelSoundModel, fireLevel, type LevelSources } from "./level-sound-model.ts"
 import { type Bed, getMixer } from "./mixer.ts"
 
@@ -177,6 +178,7 @@ async function startBattleSounds(
   const beds = { rain: bed("rain"), wind: bed("wind"), "front-roar": bed("front-roar"), fire: bed("fire") }
   const level = options.level ? createLevelSoundModel(options.level) : null
   const ruins = ambienceZones(sim.map).ruins
+  const footsteps = createFootstepModel(sim, ruins)
   let breathing: AudioBufferSourceNode | null = null
 
   function play(call: SoundCall): void {
@@ -210,7 +212,12 @@ async function startBattleSounds(
       if (sim.tick % SPACE_INTERVAL === 0) {
         mixer.setSpace(listenerSpace(sim, listener, options.soldier(), ruins))
       }
-      const calls = [...model.step(listener), ...atmosphere.step(listener), ...(level?.step(listener) ?? [])]
+      const calls = [
+        ...model.step(listener),
+        ...atmosphere.step(listener),
+        ...(level?.step(listener) ?? []),
+        ...footsteps.step(listener)
+      ]
       if (sim.tick % BED_INTERVAL === 0) {
         const levels = atmosphere.levels(listener)
         const tuned = (cue: keyof typeof BED_VOLUMES) => BED_VOLUMES[cue] * mixer.tuning.level(cue)
