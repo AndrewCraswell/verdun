@@ -157,6 +157,32 @@ Planned:
 Orders need a fast interface: a radial menu on a held key, plus pings on the map. The squad must obey the way a player
 expects, every time; a squad that ignores orders feels worse than one that is weak.
 
+## Joining the battle
+
+The sector's force is fixed and players replace bots (see [population](balance.md#population)), so the fastest and most
+honest way in is to **take over a bot squad that's already in the line**. The target: **under a minute from "join" to
+seeing the enemy**.
+
+When a player joins a sector, the sector map offers, in this order:
+
+1. **Take over a squad in the line.** Any bot squad of the player's side and of a type their rank allows, with at least
+   four men standing, not in contact (no enemy within 30 m) and not in an operation's wave. The player gets those men as
+   they are: their positions, wounds, ammunition and morale. The squad's current order holds until the player gives a
+   new one. Understrength squads refill when withdrawn to the reserve line.
+2. **Join an operation.** If an operation is planned, sign up for a wave. Until its assembly window opens, the player
+   takes over a squad in the reserve or support line, and moves into the jump-off trench with the wave.
+3. **Bring up a fresh squad.** When no bot squad qualifies (all in contact, or the side's squads are all players'), a
+   new squad comes up to the rear trench from the [manpower pool](sector-battle.md#manpower), as after a wipe.
+
+The map shows each option's distance from the fighting, so a player can pick the squad holding a quiet sap or the one at
+the crossroads. Taking over a squad is instant; the bots in it simply start following the player's orders.
+
+**Leaving** hands the squad back to the AI under its current order, so the line never loses men because a player logged
+off. A player who rejoins within a few minutes is offered the same squad first, if it's still standing.
+
+**Not allowed**, so joining can't be used to dodge losses: taking over a squad while one's own squad is in contact (a
+player whose squad is fighting must see it through or lose it), or taking over more than one squad every few minutes.
+
 ## Losing the squad and coming back
 
 Built: [reinforcements.ts](../../packages/sim/src/reinforcements.ts). Death passes control along the squad; when the
@@ -181,7 +207,7 @@ In the skirmish each side holds 160 men back; in a headless barrage attack on th
 Still to come:
 
 - **Deploy points**: the support line when it is connected to the rear, and an operation's jump-off trench for squads
-  signed up to it, chosen on a deploy screen.
+  signed up to it, chosen on the sector map with the [joining](#joining-the-battle) options.
 - **Refilling survivors**: a squad that withdraws to the reserve line refills to 8 there, at the pool's cost, without a
   delay. Today only a wiped squad is replaced.
 - **Daily allotments** from the war map, through `allotReinforcements`, in place of the skirmish's fixed pool.

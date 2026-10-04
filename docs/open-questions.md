@@ -31,6 +31,17 @@ Decisions still to make. Move each to the relevant doc once decided.
 - **Playable aircraft.** Aircraft and balloons are AI and an air-superiority value per sector
   ([the air war](design/artillery-and-air.md#the-air-war)). Flying them would be a second game with its own controls,
   camera and scale. Leave it out, or add a pilot role after launch?
+- **Version 1 scope.** Proposed in [version 1 scope](design/version-1.md): one season, 1916 on Verdun's right bank, with
+  the other years as updates after release. Confirm, or pick a different first year.
+- **Sector authoring at scale.** Every year adds sectors, each needing real terrain and laid-out trenches. Hand-building
+  them won't scale for one developer: lay trenches automatically over IGN terrain, guided by historical trench maps, and
+  hand-polish only key sectors? Needs a spike.
+- **Readability.** A top-down view of a thousand soldiers in drab uniforms: telling the player's squad, friendly bots
+  and the enemy apart at a glance, and showing morale, stamina and orders without clutter. A design pass before the art
+  goes further.
+- **Colonial troops.** The French army at Verdun included Moroccan, Senegalese and Algerian regiments (the Régiment
+  d'infanterie coloniale du Maroc retook Douaumont in October 1916). How to represent them accurately and respectfully,
+  rather than leave them out.
 - **Business model.** One-off purchase, free with cosmetics, or subscription. Whatever it is, nothing sold may change a
   soldier's fighting strength ([progression](design/progression-and-community.md#rewards-that-last-beyond-a-season)).
 - **Squad size.** 6, 8 or 10 soldiers ([vision](vision.md#core-loop-the-squad) says 6–10; the prototype uses 8). Affects

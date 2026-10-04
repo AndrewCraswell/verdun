@@ -183,6 +183,46 @@ about the enemy sector, in order:
 Prisoners already exist in the simulation (men caught below by an attacker, or broken and outnumbered, surrender and
 walk to their captors' rear), so a raid is a small operation with a new purpose, not a new system.
 
+## Orders for players
+
+A player who joins at 4am, or who has just taken over a squad, needs to know what's worth doing. The sector commander
+(AI or human) posts **orders**: short, concrete jobs on the map that anyone can take. They are how a few hundred players
+get coordinated without voice chat, and how quiet war stays purposeful.
+
+### What an order is
+
+- **A job, a place and a size**: "Repair the blown-in stretch at bay 14 (one squad)", "Raid the sap opposite and bring
+  back a prisoner (two squads, tonight)", "Hold the crossroads until relieved (one squad)".
+- **A way to tell it's done**, measured by the simulation: the trench back to its stage, a prisoner delivered, the
+  stretch held for 20 minutes with no ground lost.
+- **A reward**: service record and [citations](progression-and-community.md#citations-and-the-communiqué). Never power.
+- **An expiry**, so stale orders clear themselves.
+
+A player takes one order at a time for their squad; it shows as a marker in the world and a line in the HUD. Orders
+nobody takes become jobs for bot squads, so posting an order never leaves the job undone.
+
+### Kinds of order
+
+| Order          | Posted when                                                            | Done when                                  |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------------ |
+| Hold           | A stretch of line is thinly held or threatened                         | Held for its time with no ground lost      |
+| Reinforce      | A squad is fighting outnumbered                                        | The squad arrives and the stretch holds    |
+| Repair         | Shellfire has knocked a trench down a [stage](field-works.md#trenches) | The stretch is back to its stage           |
+| Dig            | A planned work needs hands                                             | The work is finished, or a share of it     |
+| Wire           | A belt has been cut, by night                                          | The lane is closed                         |
+| Patrol         | Nobody has looked at a stretch of enemy wire for a while               | The squad reaches the point and comes back |
+| Raid           | The side has no fresh [intelligence](#raids-and-intelligence)          | A prisoner is brought back                 |
+| Snipe          | An enemy sniper or machine gun is causing losses                       | It stops                                   |
+| Counter-attack | Ground has been lost within the half hour                              | It's retaken                               |
+| Operation wave | An operation is planned                                                | The wave goes over at zero hour            |
+
+### How the commander AI posts them
+
+The AI already watches its line for the counter-attack; it posts orders from the same picture: thin stretches, damaged
+works and cut wire after a bombardment, old intelligence, enemy snipers by the losses they cause, and its own planned
+operations. It keeps the list short (a handful per sector) and ranks it by need, so the top order is always the one that
+matters most. A human commander can post, edit and remove orders, and sees the AI's suggestions.
+
 ## The sector commander
 
 Each side in each sector has one commander.

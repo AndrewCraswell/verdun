@@ -21,6 +21,20 @@ Mort-Homme, Hill 304) follows.
 
 Stage 3 opens with two or three adjacent sectors (Fleury first, then Douaumont and Vaux) and grows as players arrive.
 
+### Active sectors
+
+Opening every sector of a year to a small population would scatter it into empty battles; density is what makes a
+persistent war fun. So the war map keeps only as many sectors **active** as players can fill:
+
+- At each daily turn it opens or closes sectors by the previous day's peak players: about one active sector per 40
+  players online at the peak, never fewer than one, starting with the year's most important.
+- **Active sectors** run the full simulation and are offered to players. New players are sent to the busiest active
+  sector on their side.
+- **Inactive sectors** still exist on the war map and still fight, but resolved each daily turn by the fast statistical
+  model the [season harness](balance.md#season-harness-stage-13) uses, from their allotments. Their lines move slowly,
+  as quiet sectors did.
+- A sector that closes keeps its state (ground, craters, works) and picks up from it when it opens again.
+
 ### Key points
 
 Some places matter beyond their sector. Holding them at the daily cutoff gives the holder a war-map effect:

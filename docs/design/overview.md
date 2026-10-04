@@ -22,6 +22,7 @@ mechanic, the number is the one in the code today.
 | [Balance](balance.md)                                     | Population, factions, time zones, snowballing, tuning levers, test harness                               |
 | [How systems interact](interactions.md)                   | Weather, light, ground, shellfire, gas, supply and the soldier's state acting on each other, with limits |
 | [Progression and community](progression-and-community.md) | Onboarding, service record, ranks, veterans, regiments, conduct, rewards                                 |
+| [Version 1 scope](version-1.md)                           | What the first release contains (1916 at Verdun) and what comes after                                    |
 
 ## Pillars
 
@@ -124,6 +125,8 @@ What the simulation already does, and where everything else lands. Stages are th
 | Week of the war, 117-minute day and night, weather, sight range                         | Built                            |
 | Night fighting: flares and muzzle flashes                                               | Built                            |
 | Squad wipe, redeploy from the manpower pool                                             | Built                            |
+| Joining by taking over a bot squad                                                      | Stage 1–2, next                  |
+| Orders for players                                                                      | Stage 2                          |
 | Shell stocks by type                                                                    | In progress (gameplay session)   |
 | Wounded and killed, AI stretcher bearers, the aid post                                  | Built                            |
 | Stamina, morale additions, rally, shell shock                                           | Stage 1, next                    |
@@ -138,18 +141,24 @@ What the simulation already does, and where everything else lands. Stages are th
 | Sector commander role for humans                                                        | Stage 2                          |
 | Tanks, anti-tank weapons, armoured cars                                                 | Stage 3 (the 1917–18 seasons)    |
 | War map, daily turn, allocations, supply routes, seasons                                | Stage 3 (headless model earlier) |
+| Active sectors opened by population                                                     | Stage 3                          |
 | Ranks, service record, veterans, regiments, communiqué                                  | Stage 3                          |
 | New trenches and saps at runtime, mining, bunkers, booby traps                          | Stage 3                          |
 
 ## Suggested next steps
 
-The war-level rules are pure logic and need no networking, so they can be proven before stage 2:
+The line for the first release is drawn in [version 1 scope](version-1.md). In the prototype, next:
 
-1. **Redeploy and the manpower pool**: done. A wiped squad comes back to the rear trench after a delay, paid for from a
-   pool that can run dry; see [losing the squad](soldier-and-squad.md#losing-the-squad-and-coming-back).
-2. **Territory cells and consolidation**, headless: run a bots-only sector for a compressed day and check that the line
+1. **Redeploy and the manpower pool**: done. See
+   [losing the squad](soldier-and-squad.md#losing-the-squad-and-coming-back).
+2. **Stamina**, with the movement overhaul the gameplay session has started.
+3. **Joining by taking over a bot squad**: the [join rule](soldier-and-squad.md#joining-the-battle), so a player is in
+   the fight within a minute.
+4. **Territory cells and consolidation**, headless: run a bots-only sector for a compressed day and check that the line
    moves by plausible amounts and that counter-attacks matter.
-3. **A headless season**: a war map of three sectors, run turn by turn on bots alone at different population splits, to
-   tune allocations and the Balance before any server exists. See the [balance harness](balance.md#test-harness).
+5. **The balance harness as a script** with pass and fail bands (see [test harness](balance.md#test-harness)), before
+   more mechanics shift the balance.
+6. **A headless season**: a war map of three sectors, run turn by turn on bots alone at different population splits, to
+   tune allocations and the Balance before any server exists.
 
 Each step answers a design question with numbers before it costs a server.
