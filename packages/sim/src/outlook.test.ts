@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { dayOutlook, weekOutlook, windFrom } from "./outlook.ts"
+import { dayOutlook, forecastDay, forecastFrom, weekOutlook, windFrom } from "./outlook.ts"
 import { createForecast, typicalWeather, WeatherPattern } from "./weather.ts"
 
 describe("the weather to come", () => {
@@ -27,5 +27,40 @@ describe("the weather to come", () => {
     expect(week[0]!.fog).toBe(true)
     expect(week[0]!.precipitation).toBeGreaterThan(2)
     expect(week[0]!.high).toBeGreaterThan(week[0]!.low)
+  })
+
+  it("gives the staff's forecast: exact for the day it's issued, a forecaster's call after", () => {
+    const history = createForecast({ kind: "records", seed: 1916 })
+    const issued = Date.UTC(1916, 9, 20)
+    const days = forecastFrom(history, issued + 5 * 3_600_000, 4)
+    expect(days.map((day) => day.ahead)).toEqual([0, 1, 2, 3])
+    const [today, tomorrow] = days
+    const truth = dayOutlook(history, issued)
+    expect(today?.certain).toBe(true)
+    expect(today?.low).toBe(truth.low)
+    expect(today?.wet === 0 || today?.wet === 1).toBe(true)
+    expect(tomorrow?.certain).toBe(false)
+    expect(tomorrow?.wet).toBeGreaterThan(0)
+    expect(tomorrow?.wet).toBeLessThan(1)
+    // The same forecast always reads the same.
+    expect(forecastDay(history, issued, issued + 86_400_000)).toEqual(tomorrow)
+  })
+
+  it("loses its skill the further ahead it looks, as 1916's forecasts did", () => {
+    const history = createForecast({ kind: "records", seed: 1916 })
+    const DAY = 86_400_000
+    const rightAbout = (ahead: number) => {
+      let right = 0
+      for (let index = 0; index < 300; index++) {
+        const day = Date.UTC(1916, 0, 10) + index * DAY
+        const wet = dayOutlook(history, day).precipitation >= 1
+        right += forecastDay(history, day - ahead * DAY, day).wet >= 0.5 === wet ? 1 : 0
+      }
+      return right / 300
+    }
+    const tomorrow = rightAbout(1)
+    const nextWeek = rightAbout(6)
+    expect(tomorrow).toBeGreaterThan(0.72)
+    expect(nextWeek).toBeLessThan(tomorrow - 0.15)
   })
 })
