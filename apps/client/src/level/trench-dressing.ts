@@ -49,6 +49,10 @@ export const TRENCH_PIECES = {
   duckboard: "Prop_Trench_Planks_01",
   ladder: "Prop_Ladder_01",
   sandbags: "Env_Sandbag_Wall_Long_01",
+  /** A short length of sandbag wall, for a course broken by shellfire. */
+  sandbagsShort: "Env_Sandbag_Wall_01",
+  /** Where a shell burst in the course: a slumped heap of bags. */
+  sandbagHeap: "Env_Sandbag_Pile_01",
   pole: "Env_Trench_Pole_01",
   /** Stores and tools left along the floor against the rear wall. */
   clutter: ["Gen_Prop_Crate_02", "Gen_Prop_Barrel_Wood_01", "Gen_Prop_Sack_Stack_01"],
@@ -69,8 +73,45 @@ const WATER_SIZE = 7.64
 /** Dugout doorways open in the dugout section's -x wall, `along` metres up its z axis from its middle. */
 const DUGOUT_DOOR = { across: 0.98, along: 1.1, height: 0.8 } as const
 
-/** Sandbags laid along the parapet crest: one course, kept below the eye line of a man on the fire step. */
-const SANDBAGS = { length: 8.78, offset: 1.55, height: 2.05, course: 0.4, depth: 0.8 } as const
+/**
+ * Sandbags laid along the parapet's crest, on the kit's lip of spoil: one course, its top below the eye of a man on the
+ * fire step (1.65 m over the step, the step 1.05 m over the floor). Lengths and heights are the kit pieces' own.
+ */
+const SANDBAGS = {
+  long: { length: 8.78, height: 1 },
+  short: { length: 3.36, height: 0.86 },
+  offset: 1.55,
+  /** The course's foot above the trench floor, sunk a little into the lip, whose crest is 2.35 m up. */
+  height: 2.22,
+  course: 0.38,
+  depth: 0.8,
+  /** Of the bays a course is laid along: nearly all in the front line, most behind it. */
+  laid: { front: 0.95, rear: 0.75 },
+  /** About one stretch in this many metres has been blown in by a shell. */
+  breachEvery: 11,
+  breachLength: 1.8
+} as const
+/**
+ * Stores and timber left lying on the trench's lips, how often each turns up, and how much larger than life: a burst
+ * bag, planks, a sheet of iron, a box of ammunition, a spare duckboard, a spade, a dud.
+ */
+const LIP_LITTER: readonly (readonly [piece: string, weight: number, size: number])[] = [
+  ["Env_Sandbag_01", 8, 1.1],
+  ["Env_Sandbag_03", 6, 1.1],
+  ["Gen_Prop_Plank_01", 5, 1],
+  ["Gen_Prop_Plank_02", 5, 1],
+  ["Prop_Iron_Sheet_01", 3, 1],
+  ["Prop_Iron_Sheet_03", 3, 1],
+  ["Gen_Prop_Crate_02", 2, 0.8],
+  ["Prop_Trench_Planks_02", 2, 1],
+  ["Gen_Wep_Spade_01", 2, 1.3],
+  ["Prop_Shell_01", 2, 1.3]
+]
+const LIP_LITTER_WEIGHT = LIP_LITTER.reduce((total, [, weight]) => total + weight, 0)
+/** Lip litter is considered every this many metres along each lip, and laid at about half the places. */
+const LIP_SPACING = 6
+/** It lies on the kit's lip of spoil, this far from the centre line and this high above the floor. */
+const LIP = { from: 1.6, to: 2.3, height: 2.33 } as const
 /** Telephone poles along communication trenches, beside the spoil. */
 const POLES = { spacing: 16, offset: 3.4, height: 1.4 } as const
 /** About one place in this many metres along a trench gets clutter: more in the rear lines than the front. */
@@ -223,9 +264,10 @@ export function layOutTrenchKit(map: BattlefieldMap): Placement[] {
         placements.push(...duckboards(segment, run, bay, towardX, towardZ, floorAt))
         placements.push(...standingWater(segment, run, bay, towardX, towardZ, floorAt))
         placements.push(...clutter(segment, run, bay, towardX, towardZ, front, floorAt))
+        placements.push(...lipLitter(segment, run, bay, towardX, towardZ, floorAt))
         if (bay) {
           placements.push(...fireSteps(segment, run, towardX, towardZ, floorAt))
-          placements.push(...sandbags(segment, run, towardX, towardZ, floorAt))
+          placements.push(...sandbags(segment, run, towardX, towardZ, front, floorAt))
           if (front && run.to - run.from > 6) {
             placements.push(ladderIn(segment, run, towardX, towardZ, floorAt))
           }
@@ -485,29 +527,112 @@ function ladderIn(
   }
 }
 
-/** A course of sandbags along the parapet crest of a bay, on about half the bays. */
+/**
+ * A course of sandbags along the parapet crest of a bay, on nearly every bay in the front line and most behind it. Here
+ * and there a shell has blown a stretch in, leaving a gap and a heap of burst bags slumped into it.
+ */
 function sandbags(
   segment: Segment,
   run: { from: number; to: number },
   towardX: number,
   towardZ: number,
+  front: boolean,
   floorAt: (x: number, z: number) => number
 ): Placement[] {
-  if (run.to - run.from < 3 || hashOf(segment.ax + run.from, segment.az, 9) > 0.55) {
+  const laid = front ? SANDBAGS.laid.front : SANDBAGS.laid.rear
+  if (run.to - run.from < 3 || hashOf(segment.ax + run.from, segment.az, 9) > laid) {
     return []
   }
-  return tile(run, SANDBAGS.length).map(({ centre, length }) => {
+  // Breaches part way along, never at the ends where the course meets a traverse.
+  const breaches: number[] = []
+  for (let at = run.from + 3; at < run.to - 3; at += SANDBAGS.breachEvery) {
+    if (hashOf(segment.ax + at, segment.az, 24) < 0.5) {
+      breaches.push(at + hashOf(segment.ax + at, segment.az, 25) * Math.min(SANDBAGS.breachEvery, run.to - 3 - at))
+    }
+  }
+  const courses: { from: number; to: number }[] = []
+  let from = run.from
+  for (const breach of breaches) {
+    courses.push({ from, to: breach - SANDBAGS.breachLength / 2 })
+    from = breach + SANDBAGS.breachLength / 2
+  }
+  courses.push({ from, to: run.to })
+  const crest = (centre: number, length: number) => {
     const { x, z, floor, slope } = along(segment, centre, length, floorAt)
     return {
-      piece: TRENCH_PIECES.sandbags,
       x: x + towardX * SANDBAGS.offset,
       y: floor + SANDBAGS.height,
       z: z + towardZ * SANDBAGS.offset,
-      yaw: yawAlong(towardX, towardZ) + Math.PI,
-      up: upForSlope(segment.dx, segment.dz, slope),
-      scale: [length / SANDBAGS.length, SANDBAGS.course, SANDBAGS.depth]
+      up: upForSlope(segment.dx, segment.dz, slope)
+    }
+  }
+  const walls = courses
+    .filter((course) => course.to - course.from > 1)
+    .flatMap((course) => {
+      // Long lengths where they fit, short ones in what's left.
+      const long = course.to - course.from > 6.5
+      const wall = long ? SANDBAGS.long : SANDBAGS.short
+      const piece = long ? TRENCH_PIECES.sandbags : TRENCH_PIECES.sandbagsShort
+      return tile(course, wall.length).map(({ centre, length }): Placement => ({
+        piece,
+        ...crest(centre, length),
+        yaw: yawAlong(towardX, towardZ) + Math.PI,
+        scale: [length / wall.length, SANDBAGS.course / wall.height, SANDBAGS.depth]
+      }))
+    })
+  const heaps = breaches.map((breach): Placement => {
+    const { x, y, z } = crest(breach, SANDBAGS.breachLength)
+    return {
+      piece: TRENCH_PIECES.sandbagHeap,
+      x: x - towardX * 0.15,
+      y: y - 0.2,
+      z: z - towardZ * 0.15,
+      yaw: yawAlong(towardX, towardZ) + Math.PI + (hashOf(x, z, 26) - 0.5) * 0.6,
+      scale: [0.9, 0.55, 0.9]
     }
   })
+  return [...walls, ...heaps]
+}
+
+/**
+ * Stores and timber left lying on the lips of spoil either side of a trench: a burst bag, planks, a sheet of iron, an
+ * ammunition box, a spare duckboard, a spade, a dud. Behind a bay only, clear of its fire step and sandbags.
+ */
+function lipLitter(
+  segment: Segment,
+  run: { from: number; to: number },
+  bay: boolean,
+  towardX: number,
+  towardZ: number,
+  floorAt: (x: number, z: number) => number
+): Placement[] {
+  const placements: Placement[] = []
+  for (let at = run.from + LIP_SPACING / 2; at < run.to - 1; at += LIP_SPACING) {
+    for (const side of bay ? [-1] : [-1, 1]) {
+      const x0 = segment.ax + segment.dx * at
+      const z0 = segment.az + segment.dz * at
+      if (hashOf(x0, z0, 30 + side) > 0.5) {
+        continue
+      }
+      const out = LIP.from + hashOf(x0, z0, 32 + side) * (LIP.to - LIP.from)
+      const slide = (hashOf(x0, z0, 34 + side) - 0.5) * LIP_SPACING * 0.6
+      const x = x0 + segment.dx * slide + towardX * side * out
+      const z = z0 + segment.dz * slide + towardZ * side * out
+      let roll = hashOf(x, z, 36) * LIP_LITTER_WEIGHT
+      const [piece, , size] = LIP_LITTER.find(([, weight]) => (roll -= weight) < 0) ?? LIP_LITTER[0] ?? ["", 0, 1]
+      const tilt = (hashOf(x, z, 37) - 0.5) * 0.3
+      placements.push({
+        piece,
+        x,
+        y: floorAt(x0, z0) + LIP.height,
+        z,
+        yaw: hashOf(x, z, 38) * Math.PI * 2,
+        up: [Math.sin(tilt) * towardX * side, Math.cos(tilt), Math.sin(tilt) * towardZ * side],
+        scale: [size, size, size]
+      })
+    }
+  }
+  return placements
 }
 
 /**

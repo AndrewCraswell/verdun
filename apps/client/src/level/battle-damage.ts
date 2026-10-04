@@ -16,11 +16,13 @@ const DESTROYED = [
   /^Env_Trench_Firestep/,
   /^Env_Tree_Shards/,
   /^Env_Tree_Branch/,
+  /^Tree_Branch/,
+  /^Gen_Env_Twig/,
   /^Env_Brick_Debris/,
   /^Env_Trench_Pole/,
   /^Env_Sandbag_Wall_Long/
 ]
-const SHATTERED_TREE = /^(Env_Tree_Dead_04|Gen_Env_Tree_Dead_0\d)$/
+const SHATTERED_TREE = /^(Gen_)?Env_Tree_Dead_0\d$/
 const STUMPS = ["Env_Tree_Destroyed_01", "Env_Tree_Destroyed_02", "Env_Tree_Destroyed_03", "Env_Tree_Destroyed_04"]
 const TRENCH_SECTION = /^Env_Trench_Deep_/
 /** Earth blown into a trench, and the planks it brought down. */

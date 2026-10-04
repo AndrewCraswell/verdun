@@ -83,6 +83,8 @@ PIECES = [
     (WAR_MAP, "SM_Env_Crater_Water_02"),
     # Life in the line: the brazier's drum, a trench signboard, and tufts of grass on the slopes the shells spared.
     (NATURE, "SM_Prop_RoadSign_01"),
+    # Deadwood under the woods: a fallen limb with its twigs, and logs with the stubs of their branches.
+    *[(NATURE, f"SM_Tree_{name}") for name in ["Branch_01", "Log_01", "Log_02"]],
     # What a battle leaves on the ground: helmets of both sides, rifles, planks and iron, duds, burst sandbags, kit.
     *[
         (WAR_MAP, f"SM_{name}")
@@ -132,6 +134,9 @@ PIECES = [
             "Env_Grass_03",
             "Env_Grass_Tall_01",
             "Env_Grass_Tall_02",
+            "Env_Twig_02",
+            "Env_Twig_03",
+            "Env_Twig_04",
         ]
     ],
     *[
@@ -183,6 +188,12 @@ PIECES = [
             "Env_Tree_Shards_03",
             "Env_Tree_Branch_01",
             "Env_Tree_Branch_02",
+            "Env_Tree_Branch_03",
+            "Env_Tree_Branch_04",
+            # Trunks stripped to poles, their branches shot away: the woods nearest the lines.
+            "Env_Tree_Dead_01",
+            "Env_Tree_Dead_02",
+            "Env_Tree_Dead_03",
             "Env_Sandbag_Wall_01",
             "Env_Sandbag_Wall_Long_01",
             "Env_Sandbag_Wall_Curved_01",

@@ -154,6 +154,40 @@ describe("layOutTrenchKit", () => {
     expect(poles.every((pole) => Math.abs(Math.abs(pole.x - 40) - 3.4) < 0.01)).toBe(true)
   })
 
+  it("lays the parapets' sandbags in courses a shell has broken here and there, below the eye on the fire step", () => {
+    const courses = [...of(TRENCH_PIECES.sandbags), ...of(TRENCH_PIECES.sandbagsShort)]
+    const heaps = of(TRENCH_PIECES.sandbagHeap)
+    const floor = 10 - 1.9
+
+    expect(heaps.length).toBeGreaterThan(0)
+    // Each heap lies in a gap in its course: no length of wall covers it.
+    for (const heap of heaps) {
+      const covering = courses.filter(
+        (bags) => Math.abs(bags.z - heap.z) < 1 && Math.abs(bags.x - heap.x) < ((bags.scale?.[0] ?? 1) * 8.78) / 2
+      )
+      expect(covering.filter((bags) => bags.piece === TRENCH_PIECES.sandbags)).toHaveLength(0)
+    }
+    // The course's top sits under the eye of a man on the fire step, 1.65 m above it.
+    expect(courses.every((bags) => bags.y + 0.38 < floor + 1.05 + 1.65)).toBe(true)
+  })
+
+  it("leaves bags, planks, iron and stores lying on the lips, behind the bays and either side of the saps", () => {
+    const lip = placements.filter(
+      (placement) =>
+        ["Gen_Prop_Plank_01", "Gen_Prop_Plank_02", "Prop_Iron_Sheet_03", "Prop_Shell_01"].includes(placement.piece) ||
+        placement.piece.startsWith("Env_Sandbag_0")
+    )
+    const onFrontBay = lip.filter((placement) => placement.x > 12 && placement.x < 68 && Math.abs(placement.z - 60) < 3)
+
+    expect(lip.length).toBeGreaterThan(10)
+    // On the front line's bay only on its parados, south of the trench, away from the enemy.
+    expect(onFrontBay.length).toBeGreaterThan(0)
+    expect(onFrontBay.every((placement) => placement.z < 60 - 1.5)).toBe(true)
+    // Either side of the communication trench.
+    const sap = lip.filter((placement) => Math.abs(placement.x - 40) < 3 && placement.z > 33 && placement.z < 55)
+    expect(new Set(sap.map((placement) => Math.sign(placement.x - 40))).size).toBe(2)
+  })
+
   it("hangs a gas curtain in every dugout's doorway, with a brazier burning beside some", () => {
     const dugouts = of(TRENCH_PIECES.dugout)
     const curtains = of(TRENCH_PIECES.gasCurtain)

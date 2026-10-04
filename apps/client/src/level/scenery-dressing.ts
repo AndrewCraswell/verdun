@@ -5,6 +5,7 @@ import {
   type Scenery,
   type SceneryKind,
   Surface,
+  type Trench,
   type WireBelt
 } from "@verdun/map"
 import { hashOf, type Placement, upForSlope, yawAlong } from "./placement.ts"
@@ -22,6 +23,10 @@ interface Part {
   readonly scaled?: boolean
   /** Its own size relative to the piece's, on top of the item's scale where it has one. */
   readonly size?: number
+  /** Leans up to this many radians off upright, which way and how far picked by where it stands. */
+  readonly lean?: number
+  /** Lies felled along the item's heading, centred on it: the piece's length up its own axis, in metres. */
+  readonly felled?: number
 }
 
 const RUINS = [
@@ -85,6 +90,21 @@ const RUIN_KINDS = {
   ]
 } as const
 
+/** Dead trees still crowned with bare branches, where the shelling has only thinned the wood. */
+const CROWNED: Part = {
+  pieces: ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"],
+  scaled: true,
+  lift: -0.2,
+  lean: 0.1
+}
+/** Trunks stripped to poles, their branches shot away, leaning where the blast left them: the woods by the lines. */
+const STRIPPED: Part = {
+  pieces: ["Env_Tree_Dead_01", "Env_Tree_Dead_02", "Env_Tree_Dead_03"],
+  scaled: true,
+  lift: -0.2,
+  lean: 0.28
+}
+
 /** The art for each kind of scenery: one or more parts, picked between by the item's variant. */
 const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part[])[]>> = {
   // Most razed, some gutted, a few torn open, one in eight a front wall standing alone.
@@ -135,15 +155,8 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
     "Env_StoneWall_Rubble_03",
     "Env_StoneWall_Rubble_04"
   ].map((piece) => [{ pieces: [piece], lift: -0.1 }]),
-  tree: [
-    [
-      {
-        pieces: ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"],
-        scaled: true,
-        lift: -0.2
-      }
-    ]
-  ],
+  // Crowned or stripped, by how hard the shelling has hit the wood there (see treeVariant).
+  tree: [[CROWNED], [STRIPPED]],
   stump: [
     [
       {
@@ -163,14 +176,24 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
     ]
   ],
   log: [
+    // A limb or a length of trunk brought down, half sunk in the mud.
     [
       {
-        pieces: ["Gen_Env_Log_01", "Gen_Env_Log_02", "Env_Tree_Branch_01", "Env_Tree_Branch_02"],
+        pieces: [
+          "Env_Tree_Branch_01",
+          "Env_Tree_Branch_02",
+          "Env_Tree_Branch_03",
+          "Env_Tree_Branch_04",
+          "Tree_Log_01",
+          "Tree_Log_02"
+        ],
         tilt: true,
         scaled: true,
         lift: -0.1
       }
-    ]
+    ],
+    // A trunk felled whole, its shattered top lying where it fell.
+    [{ pieces: ["Env_Tree_Destroyed_01", "Env_Tree_Destroyed_02"], felled: 3, scaled: true, lift: 0.22 }]
   ],
   gun: [
     [
@@ -226,7 +249,76 @@ function pick(pieces: readonly string[], x: number, z: number, salt: number): st
   return pieces[Math.floor(hashOf(x, z, salt) * pieces.length)] ?? pieces[0] ?? ""
 }
 
-function sceneryPlacements(map: BattlefieldMap, item: Scenery): Placement[] {
+/** A trench's leg: a straight run of its centre line. */
+type Leg = readonly [readonly [number, number], readonly [number, number]]
+
+function legsOf(map: BattlefieldMap, kinds: readonly Trench["kind"][] = ["fire", "communication"]): Leg[] {
+  return map.trenches
+    .filter((trench) => kinds.includes(trench.kind))
+    .flatMap((trench) => trench.points.slice(1).map((b, index): Leg => [trench.points[index] ?? b, b]))
+}
+
+/** Distance from a point to the nearest of `legs`' centre lines, Infinity when there are none. */
+function distanceToLegs(legs: readonly Leg[], x: number, z: number): number {
+  let nearest = Infinity
+  for (const [a, b] of legs) {
+    const abx = b[0] - a[0]
+    const abz = b[1] - a[1]
+    const lengthSquared = abx * abx + abz * abz
+    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / lengthSquared))
+    nearest = Math.min(nearest, Math.hypot(x - (a[0] + abx * t), z - (a[1] + abz * t)))
+  }
+  return nearest
+}
+
+/** Metres behind a fire trench over which the woods go from stripped to crowned. */
+const BATTERED_REACH = 45
+
+/**
+ * How hard the shelling has hit the ground at a point, from 1 on a fire trench to nothing far behind the lines: the
+ * barrages fell on the lines, and the woods round them were stripped first.
+ */
+function batteringFrom(legs: readonly Leg[]): (x: number, z: number) => number {
+  return (x, z) => Math.exp(-distanceToLegs(legs, x, z) / BATTERED_REACH)
+}
+
+/** A tree stripped to a pole or still crowned: stripped near the lines, crowned far behind them, mixed between. */
+function treeVariant(item: Scenery, battering: number): number {
+  return hashOf(item.x, item.z, 60) < 0.12 + 0.8 * battering ? 1 : 0
+}
+
+/** The up axis for a part leaning up to `lean` radians, which way and how far picked by the item's place. */
+function leaning(item: Scenery, lean: number): [number, number, number] {
+  const angle = lean * hashOf(item.x, item.z, 61) ** 1.5
+  const toward = hashOf(item.x, item.z, 62) * Math.PI * 2
+  return [Math.sin(angle) * Math.sin(toward), Math.cos(angle), Math.sin(angle) * Math.cos(toward)]
+}
+
+/**
+ * A piece laid down along the item's heading, centred on it: its own up axis, the trunk, lies along the ground and
+ * follows its slope, its foot half its length behind the item, rolled about its length by where it lies.
+ */
+function felledAlong(map: BattlefieldMap, item: Scenery, part: Part, size: number, piece: string): Placement {
+  const length = (part.felled ?? 0) * size
+  const dx = Math.sin(item.heading + (part.turn ?? 0))
+  const dz = Math.cos(item.heading + (part.turn ?? 0))
+  const x = item.x - (dx * length) / 2
+  const z = item.z - (dz * length) / 2
+  const foot = heightAt(map, x, z)
+  const rise = (heightAt(map, item.x + (dx * length) / 2, item.z + (dz * length) / 2) - foot) / length
+  const along = Math.hypot(1, rise)
+  return {
+    piece,
+    x,
+    y: foot + (part.lift ?? 0) * size,
+    z,
+    yaw: hashOf(item.x, item.z, 63) * Math.PI * 2,
+    up: [dx / along, rise / along, dz / along],
+    scale: [size, size, size]
+  }
+}
+
+function sceneryPlacements(map: BattlefieldMap, item: Scenery, battering = 0): Placement[] {
   if (item.kind === "pool") {
     // Water fills the shell hole to a fixed depth over its lowest point.
     return [
@@ -241,22 +333,33 @@ function sceneryPlacements(map: BattlefieldMap, item: Scenery): Placement[] {
     ]
   }
   const variants = ART[item.kind]
-  const parts = variants[item.variant % variants.length] ?? []
+  const variant = item.kind === "tree" ? treeVariant(item, battering) : item.variant
+  const parts = variants[variant % variants.length] ?? []
   const forwardX = Math.sin(item.heading)
   const forwardZ = Math.cos(item.heading)
   return parts.map((part, index) => {
+    const size = (part.scaled ? item.scale : 1) * (part.size ?? 1)
+    const piece = pick(part.pieces, item.x, item.z, index)
+    if (part.felled !== undefined) {
+      return felledAlong(map, item, part, size, piece)
+    }
     const x = item.x + forwardZ * (part.right ?? 0) + forwardX * (part.forward ?? 0)
     const z = item.z - forwardX * (part.right ?? 0) + forwardZ * (part.forward ?? 0)
-    const size = (part.scaled ? item.scale : 1) * (part.size ?? 1)
     // A bridge spans a trench: it sits at the level of the ground either side, not the trench floor beneath it.
     const ground = item.kind === "bridge" ? heightAt(map, x, z) + 1.9 : heightAt(map, x, z)
+    let up: [number, number, number] | undefined
+    if (part.tilt) {
+      up = groundNormal(map, x, z)
+    } else if (part.lean !== undefined) {
+      up = leaning(item, part.lean)
+    }
     return {
-      piece: pick(part.pieces, item.x, item.z, index),
+      piece,
       x,
       y: ground + (part.lift ?? 0) * size,
       z,
       yaw: item.heading + (part.turn ?? 0),
-      up: part.tilt ? groundNormal(map, x, z) : undefined,
+      up,
       scale: [size, size, size]
     }
   })
@@ -397,23 +500,8 @@ const LITTER_CLEARANCE = 4
  * trench or a pool.
  */
 export function layOutLitter(map: BattlefieldMap): Placement[] {
-  const segments = map.trenches.flatMap((trench) =>
-    trench.points
-      .slice(1)
-      .map((b, index): [readonly [number, number], readonly [number, number]] => [trench.points[index] ?? b, b])
-  )
-  const nearestTrench = (x: number, z: number) => {
-    let nearest = Infinity
-    for (const [a, b] of segments) {
-      const abx = b[0] - a[0]
-      const abz = b[1] - a[1]
-      const lengthSquared = abx * abx + abz * abz
-      const t =
-        lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / lengthSquared))
-      nearest = Math.min(nearest, Math.hypot(x - (a[0] + abx * t), z - (a[1] + abz * t)))
-    }
-    return nearest
-  }
+  const legs = legsOf(map)
+  const nearestTrench = (x: number, z: number) => distanceToLegs(legs, x, z)
   const pools = map.scenery.filter((item) => item.kind === "pool")
   const placements: Placement[] = []
   for (let gz = LITTER_SPACING / 2; gz < map.rows * map.cellSize; gz += LITTER_SPACING) {
@@ -450,12 +538,82 @@ export function layOutLitter(map: BattlefieldMap): Placement[] {
   return placements
 }
 
-/** Places the art for every scenery item and wire belt on the map, and the grass on the ground the shells spared. */
+/**
+ * What lies under a shelled wood, how often each turns up, and how much larger than life it's drawn: limbs brought
+ * down, splinters and twigs, the twigs drawn larger so they read from the game's camera.
+ */
+const DEADWOOD: readonly (readonly [piece: string, weight: number, size: number])[] = [
+  ["Env_Tree_Branch_01", 3, 1],
+  ["Env_Tree_Branch_02", 3, 1],
+  ["Env_Tree_Branch_03", 3, 1],
+  ["Env_Tree_Branch_04", 3, 1],
+  ["Tree_Branch_01", 4, 1],
+  ["Gen_Env_Twig_02", 3, 1.8],
+  ["Gen_Env_Twig_03", 3, 1.8],
+  ["Gen_Env_Twig_04", 3, 1.8],
+  ["Env_Tree_Shards_01", 2, 1],
+  ["Env_Tree_Shards_02", 2, 1],
+  ["Env_Tree_Shards_03", 2, 1]
+]
+const DEADWOOD_WEIGHT = DEADWOOD.reduce((total, [, weight]) => total + weight, 0)
+/** Deadwood lies this far from the tree, stump or log it came off, in metres. */
+const DEADWOOD_REACH = { min: 1.5, max: 4.5 } as const
+
+/**
+ * Deadwood round the trees, stumps and logs of the woods: limbs and splinters the shelling brought down, and twigs,
+ * thickest where the shelling was heaviest. Never in a trench or a pool.
+ */
+export function layOutDeadwood(map: BattlefieldMap): Placement[] {
+  const legs = legsOf(map)
+  const battering = batteringFrom(legsOf(map, ["fire"]))
+  const pools = map.scenery.filter((item) => item.kind === "pool")
+  const placements: Placement[] = []
+  for (const item of map.scenery) {
+    if (item.kind !== "tree" && item.kind !== "stump" && item.kind !== "log") {
+      continue
+    }
+    const battered = battering(item.x, item.z)
+    const count =
+      (hashOf(item.x, item.z, 70) < 0.3 + 0.4 * battered ? 1 : 0) +
+      (hashOf(item.x, item.z, 71) < 0.3 * battered ? 1 : 0)
+    for (let index = 0; index < count; index++) {
+      const angle = hashOf(item.x, item.z, 72 + index) * Math.PI * 2
+      const reach = DEADWOOD_REACH.min + hashOf(item.x, item.z, 74 + index) * (DEADWOOD_REACH.max - DEADWOOD_REACH.min)
+      const x = item.x + Math.sin(angle) * reach
+      const z = item.z + Math.cos(angle) * reach
+      if (
+        distanceToLegs(legs, x, z) < LITTER_CLEARANCE ||
+        pools.some((pool) => Math.hypot(pool.x - x, pool.z - z) < pool.scale + 0.5)
+      ) {
+        continue
+      }
+      let roll = hashOf(x, z, 76) * DEADWOOD_WEIGHT
+      const [piece, , size] = DEADWOOD.find(([, weight]) => (roll -= weight) < 0) ?? DEADWOOD[0] ?? ["", 0, 1]
+      placements.push({
+        piece,
+        x,
+        y: heightAt(map, x, z) - 0.05,
+        z,
+        yaw: hashOf(x, z, 77) * Math.PI * 2,
+        up: groundNormal(map, x, z),
+        scale: [size, size, size]
+      })
+    }
+  }
+  return placements
+}
+
+/**
+ * Places the art for every scenery item and wire belt on the map, the grass on the ground the shells spared, the
+ * litter of battle in no man's land and the deadwood in the woods.
+ */
 export function layOutScenery(map: BattlefieldMap): Placement[] {
+  const battering = batteringFrom(legsOf(map, ["fire"]))
   return [
-    ...map.scenery.flatMap((item) => sceneryPlacements(map, item)),
+    ...map.scenery.flatMap((item) => sceneryPlacements(map, item, battering(item.x, item.z))),
     ...map.wire.flatMap((belt) => wirePlacements(map, belt)),
     ...layOutGroundCover(map),
-    ...layOutLitter(map)
+    ...layOutLitter(map),
+    ...layOutDeadwood(map)
   ]
 }
