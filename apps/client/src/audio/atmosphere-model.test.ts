@@ -19,8 +19,10 @@ function weather(sim: Simulation, changes: Partial<Simulation["environment"]["we
 describe("atmosphereLevels", () => {
   it("plays rain by how hard it falls, but not snow", () => {
     const sim = battle()
-    weather(sim, { precipitation: 3, snowFraction: 0 })
+    weather(sim, { precipitation: 0.75, snowFraction: 0 })
     expect(atmosphereLevels(sim, CLOSE, 0).rain).toBeCloseTo(0.5)
+    weather(sim, { precipitation: 0.2 })
+    expect(atmosphereLevels(sim, CLOSE, 0).rain).toBeGreaterThan(0.2)
     weather(sim, { precipitation: 12, snowFraction: 1 })
     expect(atmosphereLevels(sim, CLOSE, 0).rain).toBe(0)
   })
@@ -66,5 +68,19 @@ describe("createAtmosphereModel", () => {
     const storm = Array.from({ length: 60 * TICK_RATE }, () => model.step(CLOSE)).flat()
     expect(storm.length).toBeGreaterThanOrEqual(2)
     expect(storm.every((call) => call.cue === "thunder" && call.delay > 2 && call.cutoff < 3000)).toBe(true)
+  })
+})
+
+describe("lightning", () => {
+  it("leaves the thunder to the flashes when told to, each heard about 3 s per kilometre after", () => {
+    const sim = battle()
+    const model = createAtmosphereModel(sim, { ownThunder: false })
+    weather(sim, { pattern: WeatherPattern.Storm })
+    sim.events.length = 0
+    expect(Array.from({ length: 60 * TICK_RATE }, () => model.step(CLOSE)).flat()).toEqual([])
+    const call = model.strike(CLOSE, 2000)
+    expect(call?.cue).toBe("thunder")
+    expect(call?.delay).toBeGreaterThan(5.5)
+    expect(call?.delay).toBeLessThan(6.2)
   })
 })

@@ -52,7 +52,10 @@ export const SOUND_CUES = [
   "thunder",
   "rain",
   "wind",
-  "front-roar"
+  "front-roar",
+  "fire",
+  "crow",
+  "flare"
 ] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 
@@ -157,7 +160,10 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   // Beds play everywhere at a level atmosphere-model.ts sets; they are never placed.
   rain: { volume: 1, reference: 1 },
   wind: { volume: 1, reference: 1 },
-  "front-roar": { volume: 1, reference: 1 }
+  "front-roar": { volume: 1, reference: 1 },
+  fire: { volume: 1, reference: 1 },
+  crow: { volume: 0.18, reference: 15 },
+  flare: { volume: 0.5, reference: 30 }
 }
 
 /** Beyond these distances a sound switches to its far recording, made from further off. */
@@ -436,6 +442,14 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
     }
   }
 
+  function flareSounds(listener: Listener, calls: SoundCall[]): void {
+    for (const event of sim.events) {
+      if (event.type === "flare") {
+        push(calls, place(listener, "flare", event.x, event.z))
+      }
+    }
+  }
+
   function throwSounds(listener: Listener, calls: SoundCall[]): void {
     for (const event of sim.events) {
       if (event.type === "throw") {
@@ -568,6 +582,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       const calls: SoundCall[] = []
       shotSounds(listener, calls)
       throwSounds(listener, calls)
+      flareSounds(listener, calls)
       burstSounds(listener, calls)
       incomingSounds(listener, calls)
       batterySounds(listener, calls)

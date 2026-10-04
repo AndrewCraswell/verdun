@@ -9,9 +9,11 @@ import {
   type BattleSoundOptions,
   type Listener,
   listenerSpace,
+  type SoundCall,
   SOUND_CUES,
   type SoundCue
 } from "./battle-sound-model.ts"
+import { createLevelSoundModel, fireLevel, type LevelSources } from "./level-sound-model.ts"
 import { type Bed, getMixer } from "./mixer.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
@@ -30,7 +32,7 @@ const SPACE_INTERVAL = 10
 /** Breathing in the mask, as loud as. */
 const BREATHING_VOLUME = 0.3
 /** The looping beds at full: rain, wind and the distant front (see atmosphere-model.ts). */
-const BED_VOLUMES = { rain: 0.45, wind: 0.35, "front-roar": 0.8 } as const
+const BED_VOLUMES = { rain: 0.45, wind: 0.35, "front-roar": 0.8, fire: 0.5 } as const
 /** Beds are re-levelled this often, in steps. */
 const BED_INTERVAL = 10
 
@@ -130,6 +132,13 @@ function listenerOf(camera: TargetCamera): Listener {
  * the fallen and the gas alarm, from scripts/build-sound-effects.py, each filtered for distance and anything in the
  * way, and coloured by the trench, dugout or ruins the listener is in.
  */
+export interface BattleSoundPlayerOptions extends BattleSoundOptions {
+  /** The level's braziers, fires and crows, when the battlefield is dressed. */
+  readonly level?: LevelSources | null
+  /** Lightning flashes, with each strike's distance in metres, for thunder to follow; without it thunder comes on its own. */
+  readonly lightning?: { add(callback: (distance: number) => void): unknown } | null
+}
+
 /** Battle sounds that play nothing, for when they can't start. */
 const SILENT: BattleSounds = { step: () => undefined, update: () => undefined, dispose: () => undefined }
 
@@ -137,7 +146,7 @@ export async function createBattleSounds(
   files: BattleSoundFiles,
   sim: Simulation,
   camera: TargetCamera,
-  options: BattleSoundOptions
+  options: BattleSoundPlayerOptions
 ): Promise<BattleSounds> {
   try {
     return await startBattleSounds(files, sim, camera, options)
@@ -151,19 +160,44 @@ async function startBattleSounds(
   files: BattleSoundFiles,
   sim: Simulation,
   camera: TargetCamera,
-  options: BattleSoundOptions
+  options: BattleSoundPlayerOptions
 ): Promise<BattleSounds> {
   const mixer = getMixer()
   const decoded = await decodeAll(mixer.context, files)
   const model = createBattleSoundModel(sim, options)
-  const atmosphere = createAtmosphereModel(sim)
+  const atmosphere = createAtmosphereModel(sim, { ownThunder: !options.lightning })
   const bed = (cue: keyof typeof BED_VOLUMES): Bed | null => {
     const buffer = decoded.get(cue)?.[0]
     return buffer ? mixer.bed(buffer) : null
   }
-  const beds = { rain: bed("rain"), wind: bed("wind"), "front-roar": bed("front-roar") }
+  const beds = { rain: bed("rain"), wind: bed("wind"), "front-roar": bed("front-roar"), fire: bed("fire") }
+  const level = options.level ? createLevelSoundModel(options.level) : null
   const ruins = ambienceZones(sim.map).ruins
   let breathing: AudioBufferSourceNode | null = null
+
+  function play(call: SoundCall): void {
+    const variations = decoded.get(call.cue)
+    const buffer = variations?.[Math.floor(Math.random() * variations.length)]
+    if (buffer) {
+      const bus = busFor(call.cue)
+      mixer.play({
+        buffer,
+        volume: call.volume,
+        pan: call.pan,
+        delay: call.delay,
+        cutoff: call.cutoff,
+        reverb: bus === "battle" ? REVERB_SEND : 0,
+        detune: EARS.has(call.cue) ? 0 : (Math.random() * 2 - 1) * DETUNE,
+        bus
+      })
+    }
+  }
+  options.lightning?.add((distance) => {
+    const call = atmosphere.strike(listenerOf(camera), distance)
+    if (call) {
+      play(call)
+    }
+  })
 
   return {
     step() {
@@ -171,34 +205,20 @@ async function startBattleSounds(
       if (sim.tick % SPACE_INTERVAL === 0) {
         mixer.setSpace(listenerSpace(sim, listener, options.soldier(), ruins))
       }
-      const calls = [...model.step(listener), ...atmosphere.step(listener)]
+      const calls = [...model.step(listener), ...atmosphere.step(listener), ...(level?.step(listener) ?? [])]
       if (sim.tick % BED_INTERVAL === 0) {
         const levels = atmosphere.levels(listener)
         beds.rain?.setLevel(levels.rain * BED_VOLUMES.rain)
         beds.wind?.setLevel(levels.wind * BED_VOLUMES.wind)
         beds["front-roar"]?.setLevel(levels.roar * BED_VOLUMES["front-roar"])
+        beds.fire?.setLevel(options.level ? fireLevel(options.level, listener) * BED_VOLUMES.fire : 0)
       }
       const shock = model.takeShock()
       if (shock > 0) {
         mixer.shock(MUFFLE * shock)
       }
       for (const call of calls) {
-        const variations = decoded.get(call.cue)
-        const buffer = variations?.[Math.floor(Math.random() * variations.length)]
-        if (buffer) {
-          const ears = EARS.has(call.cue)
-          const bus = busFor(call.cue)
-          mixer.play({
-            buffer,
-            volume: call.volume,
-            pan: call.pan,
-            delay: call.delay,
-            cutoff: call.cutoff,
-            reverb: bus === "battle" ? REVERB_SEND : 0,
-            detune: ears ? 0 : (Math.random() * 2 - 1) * DETUNE,
-            bus
-          })
-        }
+        play(call)
       }
     },
     update() {

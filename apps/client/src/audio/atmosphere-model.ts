@@ -11,11 +11,14 @@ export interface AtmosphereLevels {
   readonly roar: number
 }
 
-/** Rain this heavy, in millimetres an hour, plays the rain bed fully. */
-const RAIN_FULL = 6
+/**
+ * Rain this heavy, in millimetres an hour, plays the rain bed fully: a thunderstorm's downpour. Lighter rain plays
+ * by the square root, so drizzle (0.1 to 0.25 mm an hour) is still heard and ordinary rain (0.4 to 1.6) clearly.
+ */
+const RAIN_FULL = 3
 /** Wind below WIND_CALM metres per second adds nothing; at WIND_FULL the wind bed plays fully. */
 const WIND_CALM = 3
-const WIND_FULL = 12
+const WIND_FULL = 10
 /** The roar fades in as the camera climbs from ROAR_FROM to ROAR_FULL metres. */
 const ROAR_FROM = 90
 const ROAR_FULL = 260
@@ -40,7 +43,7 @@ export function atmosphereLevels(sim: Simulation, listener: Listener, intensity:
   const zoom = clamp01((listener.height - ROAR_FROM) / (ROAR_FULL - ROAR_FROM))
   return {
     // Snow falls silently.
-    rain: clamp01(precipitation / RAIN_FULL) * (1 - snowFraction),
+    rain: Math.sqrt(clamp01(precipitation / RAIN_FULL)) * (1 - snowFraction),
     wind: clamp01((Math.hypot(wind.x, wind.z) - WIND_CALM) / (WIND_FULL - WIND_CALM)),
     roar: zoom * (ROAR_QUIET + (1 - ROAR_QUIET) * intensity)
   }
@@ -52,6 +55,17 @@ export interface AtmosphereModel {
   /** How heavy the fighting has been lately, from 0 (quiet) to 1. */
   intensity(): number
   levels(listener: Listener): AtmosphereLevels
+  /** Thunder from a lightning flash `distance` metres off in a random direction, heard when sound gets there. */
+  strike(listener: Listener, distance: number): SoundCall | null
+}
+
+export interface AtmosphereOptions {
+  readonly seed?: number
+  /**
+   * Whether the model schedules thunder itself in a storm. Off when the environment view's lightning drives it
+   * instead, so the thunder follows the flashes seen.
+   */
+  readonly ownThunder?: boolean
 }
 
 /** A small seeded generator, so thunder never draws on the simulation's own random numbers. */
@@ -66,12 +80,24 @@ function generator(seed: number): () => number {
 }
 
 /** Weather and the sense of the whole front: what the looping beds play, and thunder in a storm. */
-export function createAtmosphereModel(sim: Simulation, seed = 1916): AtmosphereModel {
+export function createAtmosphereModel(
+  sim: Simulation,
+  { seed = 1916, ownThunder = true }: AtmosphereOptions = {}
+): AtmosphereModel {
   const random = generator(seed)
   let fighting = 0
   let untilThunder = THUNDER_GAP[0]
   const smoothing = 1 / (INTENSITY_SECONDS * TICK_RATE)
   const intensity = () => clamp01(fighting / FULL_FIGHTING)
+  const strike = (listener: Listener, distance: number) => {
+    const bearing = random() * 2 * Math.PI
+    return placeSound(
+      listener,
+      "thunder",
+      listener.x + Math.cos(bearing) * distance,
+      listener.z + Math.sin(bearing) * distance
+    )
+  }
 
   return {
     step(listener) {
@@ -81,20 +107,14 @@ export function createAtmosphereModel(sim: Simulation, seed = 1916): AtmosphereM
       }
       fighting += (weight * TICK_RATE - fighting) * smoothing
       untilThunder -= 1 / TICK_RATE
-      if (sim.environment.weather.pattern !== WeatherPattern.Storm || untilThunder > 0) {
+      if (!ownThunder || sim.environment.weather.pattern !== WeatherPattern.Storm || untilThunder > 0) {
         return []
       }
       untilThunder = THUNDER_GAP[0] + random() * (THUNDER_GAP[1] - THUNDER_GAP[0])
-      const bearing = random() * 2 * Math.PI
-      const range = THUNDER_RANGE[0] + random() * (THUNDER_RANGE[1] - THUNDER_RANGE[0])
-      const call = placeSound(
-        listener,
-        "thunder",
-        listener.x + Math.cos(bearing) * range,
-        listener.z + Math.sin(bearing) * range
-      )
+      const call = strike(listener, THUNDER_RANGE[0] + random() * (THUNDER_RANGE[1] - THUNDER_RANGE[0]))
       return call ? [call] : []
     },
+    strike,
     intensity,
     levels(listener) {
       return atmosphereLevels(sim, listener, intensity())

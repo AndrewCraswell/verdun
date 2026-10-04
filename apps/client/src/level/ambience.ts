@@ -6,7 +6,7 @@ export const AMBIENCE_FILES = ["no-mans-land", "wood", "rear", "ruins", "guns-fa
 export type AmbienceAudio = Readonly<Record<(typeof AMBIENCE_FILES)[number], ArrayBuffer>>
 
 /** Loudest each bed gets, where its zone is strongest. */
-const BED_LEVELS = { "no-mans-land": 0.55, wood: 0.5, rear: 0.35, ruins: 0.4 } as const
+const BED_LEVELS = { "no-mans-land": 0.55, wood: 0.5, rear: 0.35, ruins: 0.22 } as const
 /** Distant guns: one every few seconds, quiet, from a random side. */
 const GUNS = { minGap: 4, maxGap: 14, minVolume: 0.12, maxVolume: 0.35 } as const
 /** How fast beds fade toward their new levels, per second. */

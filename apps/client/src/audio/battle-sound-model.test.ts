@@ -115,6 +115,13 @@ describe("createBattleSoundModel", () => {
     ])
   })
 
+  it("hears Very lights go up", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(sim, { type: "flare", side: Side.French, x: 100, z: 60 })
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["flare"])
+  })
+
   it("hears grenades thrown nearby", () => {
     const { sim, french, german } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })

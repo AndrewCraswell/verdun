@@ -122,7 +122,9 @@ async function start(): Promise<void> {
   // The battle's sound effects, heard from the camera, when the kit has them.
   const sounds = level?.sfx
     ? await createBattleSounds(level.sfx, sim, view.camera, {
-        soldier: () => (control.soldier >= 0 ? control.soldier : null)
+        soldier: () => (control.soldier >= 0 ? control.soldier : null),
+        level,
+        lightning: environment?.onLightning
       })
     : null
   const lineOfSight = await createLineOfSight(map)

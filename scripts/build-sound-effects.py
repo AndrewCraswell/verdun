@@ -13,6 +13,7 @@ one at random and set the level itself.
 """
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -52,7 +53,8 @@ def boom_rifle(rifle, metres):
 # `isolated` keeps only takes that die away (to `tail` dB) within the longest length, so a lone crack isn't a burst.
 # `lead` cuts the run-up to a take's loudest moment instead, ending there: an incoming rush that the game starts so it
 # ends as the shell lands. `bed` cuts a continuous recording into a loop instead, as (start, length, crossfade) in
-# seconds: the sound just past the loop's end fades out over its start, so it repeats without a seam.
+# seconds: the sound just past the loop's end fades out over its start, so it repeats without a seam. `loudest` cuts
+# the loudest stretches of that many seconds from a recording that never falls quiet, none overlapping.
 # Rifles stand in for the period ones: the Mosin-Nagant 1891 for the Lebel (both long, full-power 1890s rifles) and the
 # M1917 Enfield's Mauser-pattern action for the Gewehr 98. The Browning M1919 stands in for the Hotchkiss and MG 08,
 # whose rate of fire it shares; the MG 42 fires far too fast.
@@ -226,6 +228,17 @@ CUES = {
         take=7,
         per_source=1,
     ),
+    # A Very light going up: a firework launch, the nearest recording to the flare pistol's pop and the fizz of the climb.
+    "flare": dict(
+        sources=[(GDC, "FRWKComr_InsJ_Fireworks_Launch_Close_01-03.wav")], gap=0.8, length=3, take=3, floor=-12
+    ),
+    # Fire crackling in the braziers and where shells set things alight, and crows taking off from the wire.
+    "fire": dict(
+        sources=[(GDC, "Burning_House_t4_Fire_low_intensity_with_crackling_MKH8060.wav")], take=1, bed=(5, 30, 3)
+    ),
+    # A flock lifting off the wire: the loudest stretches of a flock of crows calling (Detunized, recorded in a
+    # European town), never pausing long enough to have separate takes.
+    "crow": dict(sources=[(GDC, "Detunized_Urban-Crows_12c.wav")], take=4, loudest=2.5),
     # Men going over the top, and a counter-attack heard across the line: battle cries without words, as no French or
     # German voices are recorded yet.
     "charge": dict(
@@ -400,7 +413,25 @@ def bed_clip(samples, start, length, crossfade):
     return clip
 
 
+def loudest_clips(samples, seconds, count):
+    """The `count` loudest stretches of `seconds`, none overlapping, faded in and out."""
+    window = int(seconds * RATE)
+    hop = window // 4
+    starts = range(0, max(1, len(samples) - window), hop)
+    energy = sorted(((float(np.mean(samples[start : start + window] ** 2)), start) for start in starts), reverse=True)
+    chosen = []
+    for _, start in energy:
+        if all(abs(start - other) >= window for other in chosen):
+            chosen.append(start)
+        if len(chosen) == count:
+            break
+    return [finish(samples[start : start + window], fade_in=0.08, fade_out=0.5) for start in sorted(chosen)]
+
+
 def cue_clips(vendor, cue):
+    if "loudest" in cue:
+        samples = load(find(vendor, *cue["sources"][0]))
+        return match_loudness(loudest_clips(samples, cue["loudest"], cue["take"]))
     if "bed" in cue:
         return match_loudness([bed_clip(load(find(vendor, folder, file)), *cue["bed"]) for folder, file in cue["sources"]])
     candidates = []
@@ -472,8 +503,17 @@ def build(vendor, output):
     manifest["ear-ring"] = {"variations": 1, "loop": False}
     print("[sound-effects] ear-ring: made", flush=True)
     (sfx / "sounds.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    shutil.rmtree(final, ignore_errors=True)
-    sfx.rename(final)
+    # Moved in file by file (os.replace swaps each atomically), the manifest last, then stale files removed: the dev
+    # server may hold the folder open, so it can't be swapped whole on Windows.
+    final.mkdir(parents=True, exist_ok=True)
+    built = sorted(sfx.iterdir(), key=lambda path: path.name == "sounds.json")
+    for path in built:
+        os.replace(path, final / path.name)
+    names = {path.name for path in built}
+    for stale in final.iterdir():
+        if stale.name not in names:
+            stale.unlink()
+    shutil.rmtree(sfx, ignore_errors=True)
 
 
 if __name__ == "__main__":
