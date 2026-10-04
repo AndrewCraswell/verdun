@@ -41,7 +41,7 @@ describe("createSmokeCloud", () => {
 
     releaseGas(sim.smoke, 50, 50, 25_000)
     expect(smoke.update()?.some((strength) => strength > 0)).toBe(true)
-    expect(smoke.mesh.thinInstanceCount).toBe(1)
+    expect(smoke.instances.matrices().length).toBe(1)
     expect(smokeStrength(1)).toBe(0)
     expect(smokeStrength(1e6)).toBe(1)
   })
@@ -54,20 +54,20 @@ describe("createGasCloud", () => {
     const ground = new StandardMaterial("ground", view)
     const cloud = createGasCloud(view, sim, ground)
     cloud.update()
-    expect(cloud.puffs.thinInstanceCount).toBe(0)
+    expect(cloud.puffInstances.matrices().length).toBe(0)
 
     releaseGas(sim.gas, 50, 50, 600_000)
     cloud.update()
-    expect(cloud.puffs.thinInstanceCount).toBe(1)
-    const [puff] = cloud.puffs.thinInstanceGetWorldMatrices()
+    expect(cloud.puffInstances.matrices().length).toBe(1)
+    const [puff] = cloud.puffInstances.matrices()
     expect(Math.abs((puff?.getTranslation().x ?? 0) - 50)).toBeLessThan(2)
 
     sim.gas.concentration.fill(0)
     sim.gas.active = false
     cloud.update()
-    expect(cloud.puffs.thinInstanceCount).toBe(0)
+    expect(cloud.puffInstances.matrices().length).toBe(0)
     cloud.update()
-    expect(cloud.puffs.thinInstanceCount).toBe(0)
+    expect(cloud.puffInstances.matrices().length).toBe(0)
   })
 
   it("tints the ground under gas in both shader languages", () => {

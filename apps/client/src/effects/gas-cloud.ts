@@ -14,6 +14,7 @@ import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt } from "@verdun/map"
 import { GAS_CELL, GAS_DETECTED, type GasField, type Simulation } from "@verdun/sim"
+import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 
 /** Concentration, in mg/m³, drawn at full strength: around a lethal cloud's heart. */
 const FULL_STRENGTH = 2000
@@ -125,6 +126,7 @@ export class GasTintPlugin extends MaterialPluginBase {
 /** A low layer of translucent puffs over the thick parts of a cloud grid. */
 export interface CloudPuffs {
   readonly mesh: Mesh
+  readonly instances: InstanceBuffer
   /** Redraws the puffs; returns each cell's drawing strength, or null when there was nothing to redraw. */
   update(): Float32Array | null
 }
@@ -153,13 +155,13 @@ function createCloudPuffs(scene: Scene, map: BattlefieldMap, field: GasField, lo
   mesh.material = material
   mesh.isPickable = false
   mesh.alwaysSelectAsActiveMesh = true
-  mesh.thinInstanceCount = 0
-  const matrices = new Float32Array(MAX_PUFFS * 16)
+  const instances = instanceBuffer(mesh, MAX_PUFFS)
   const strengths = new Float32Array(field.columns * field.rows)
   let drawn = false
 
   return {
     mesh,
+    instances,
     update() {
       if (!field.active && !drawn) {
         return null
@@ -180,6 +182,7 @@ function createCloudPuffs(scene: Scene, map: BattlefieldMap, field: GasField, lo
         const radius = GAS_CELL * (0.55 + 0.35 * strength + jitter(cell, 0x7d) * 0.3)
         const height = look.height.min + (look.height.max - look.height.min) * strength
         const offset = index * 16
+        const matrices = instances.data
         matrices.fill(0, offset, offset + 16)
         matrices[offset] = radius
         matrices[offset + 5] = height / 2
@@ -189,8 +192,7 @@ function createCloudPuffs(scene: Scene, map: BattlefieldMap, field: GasField, lo
         matrices[offset + 14] = z
         matrices[offset + 15] = 1
       })
-      mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
-      mesh.thinInstanceCount = shown.length
+      instances.commit(shown.length)
       drawn = field.active
       return strengths
     }
@@ -201,6 +203,7 @@ export interface GasCloud {
   readonly plugin: GasTintPlugin
   /** Low, translucent puffs over the densest gas. */
   readonly puffs: Mesh
+  readonly puffInstances: InstanceBuffer
   /** Redraws the cloud from the simulation's gas grid. */
   update(): void
 }
@@ -242,6 +245,7 @@ export function createGasCloud(scene: Scene, sim: Simulation, groundMaterial: Ma
   return {
     plugin,
     puffs: puffs.mesh,
+    puffInstances: puffs.instances,
     update() {
       const strengths = puffs.update()
       if (strengths) {

@@ -312,7 +312,7 @@ describe("createSquadMarkers", () => {
     expect(markers.leader.position.x).toBe(50)
     expect(markers.leader.position.y).toBeCloseTo(3.05)
     expect(markers.leader.rotation.y).toBeCloseTo(Math.PI / 2)
-    expect(markers.members.thinInstanceCount).toBe(1)
+    expect(markers.memberRings.matrices()).toHaveLength(1)
   })
 
   it("hides the leader marker once the squad is gone", () => {
@@ -325,6 +325,7 @@ describe("createSquadMarkers", () => {
     markers.update()
 
     expect(markers.leader.isEnabled()).toBe(false)
+    expect(markers.memberRings.matrices()).toHaveLength(0)
     expect(markers.members.thinInstanceCount).toBe(0)
   })
 
@@ -337,12 +338,14 @@ describe("createSquadMarkers", () => {
     sim.soldiers.facing.x[soldier] = 1
     sim.soldiers.facing.z[soldier] = 0
     markers.update()
-    expect(markers.target.isEnabled()).toBe(false)
+    expect(markers.aiming).toBe(-1)
+    expect(markers.target.scaling.x).toBe(0)
 
     sim.soldiers.facing.x[soldier] = 0
     sim.soldiers.facing.z[soldier] = 1
     markers.update()
-    expect(markers.target.isEnabled()).toBe(true)
+    expect(markers.aiming).toBe(enemy)
+    expect(markers.target.scaling.x).toBeGreaterThan(0)
     expect(markers.target.position.x).toBe(sim.soldiers.position.x[enemy])
     expect(markers.target.position.z).toBe(sim.soldiers.position.z[enemy])
     const line = markers.leader.getChildMeshes().find((mesh) => mesh.name === "squad-leader-aim")

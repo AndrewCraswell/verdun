@@ -4,11 +4,11 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
-import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { aimedTarget, isAlive, type Simulation, type Squad } from "@verdun/sim"
+import { type InstanceBuffer, instanceBuffer } from "../effects/instance-buffer.ts"
 
 /** Length of the aim line in front of the controlled soldier with no one in his sights, in metres. */
 const AIM_LENGTH = 4
@@ -21,8 +21,12 @@ const TARGET_RING_DIAMETER = 1.8
 export interface SquadMarkers {
   /** Ring and aim line on the controlled soldier. */
   readonly leader: TransformNode
-  /** Ring on the enemy the controlled soldier's shot would strike, hidden when there's no one in his sights. */
+  /** Ring on the enemy the controlled soldier's shot would strike, shrunk to nothing when there's no one in his sights. */
   readonly target: Mesh
+  /** The enemy in the controlled soldier's sights, or -1. */
+  readonly aiming: number
+  /** The other squad members' rings, as drawn. */
+  readonly memberRings: InstanceBuffer
   /** Small rings on the other living squad members, drawn as thin instances. */
   readonly members: Mesh
   /** Moves the markers to the squad. Call once per frame. */
@@ -41,6 +45,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
   const bright = markerMaterial(scene, "squad-leader-marker", new Color3(0.95, 0.85, 0.45))
   const dim = markerMaterial(scene, "squad-member-marker", new Color3(0.62, 0.58, 0.4))
 
+  let aimingAt = -1
   const leader = new TransformNode("squad-leader-marker", scene)
   const ring = CreateTorus("squad-leader-ring", { diameter: 1.4, thickness: 0.08, tessellation: 32 }, scene)
   ring.material = bright
@@ -59,18 +64,23 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
   )
   target.material = sights
   target.isPickable = false
-  target.setEnabled(false)
+  // Shown and hidden by its size, not switched on and off, so a recorded frame (snapshot rendering) still holds.
+  target.scaling.setAll(0)
 
   const members = CreateTorus("squad-member-rings", { diameter: 1, thickness: 0.05, tessellation: 24 }, scene)
   members.material = dim
   members.isPickable = false
   members.alwaysSelectAsActiveMesh = true
-  const matrices = new Float32Array(squad.members.length * 16)
+  const memberRings = instanceBuffer(members, squad.members.length)
 
   return {
     leader,
     target,
     members,
+    memberRings,
+    get aiming() {
+      return aimingAt
+    },
     update() {
       const soldier = squad.leader
       leader.setEnabled(soldier >= 0)
@@ -83,6 +93,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
       }
       // The sight picture: the line runs out to whoever a shot would strike now, and he's ringed.
       const aimed = soldier >= 0 ? aimedTarget(sim, soldier) : -1
+      aimingAt = aimed
       let reach = AIM_LENGTH
       if (aimed >= 0) {
         const x = sim.soldiers.position.x[aimed]
@@ -95,7 +106,9 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         const dz = z - sim.soldiers.position.z[soldier]
         reach = Math.max(AIM_LENGTH, Math.sqrt(dx * dx + dz * dz) - AIM_START - 0.9)
       }
-      target.setEnabled(aimed >= 0)
+      if (aimed < 0) {
+        target.scaling.setAll(0)
+      }
       aim.scaling.z = reach
       aim.position.set(0, 0.05, AIM_START + reach / 2)
 
@@ -107,6 +120,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         const x = sim.soldiers.position.x[member]
         const z = sim.soldiers.position.z[member]
         const offset = count * 16
+        const matrices = memberRings.data
         matrices.fill(0, offset, offset + 16)
         matrices[offset] = 1
         matrices[offset + 5] = 1
@@ -117,8 +131,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         matrices[offset + 15] = 1
         count += 1
       }
-      members.thinInstanceSetBuffer("matrix", matrices, 16, false)
-      members.thinInstanceCount = count
+      memberRings.commit(count)
     }
   }
 }

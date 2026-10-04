@@ -25,20 +25,20 @@ describe("createExplosions", () => {
     explosions.add([burst(Shell.FieldHighExplosive), burst(Shell.HeavyHighExplosive)])
     explosions.update(0.05)
 
-    expect(explosions.flashes.thinInstanceCount).toBe(2)
-    expect(explosions.smoke.thinInstanceCount).toBe(8)
+    expect(explosions.instances.flashes.matrices().length).toBe(2)
+    expect(explosions.instances.smoke.matrices().length).toBe(8)
     const [low] = explosions.instances.smoke.matrices()
     const startY = low?.getTranslation().y ?? 0
 
     explosions.update(1)
-    expect(explosions.flashes.thinInstanceCount).toBe(0)
+    expect(explosions.instances.flashes.matrices().length).toBe(0)
     // A heavy shell's column reaches well above a field gun's.
     const tops = explosions.instances.smoke.matrices().map((matrix) => matrix.getTranslation().y)
     expect(Math.max(...tops)).toBeGreaterThan(15)
     expect(explosions.instances.smoke.matrices()[0]?.getTranslation().y).toBeGreaterThan(startY)
 
     explosions.update(10)
-    expect(explosions.smoke.thinInstanceCount).toBe(0)
+    expect(explosions.instances.smoke.matrices().length).toBe(0)
   })
 
   it("draws a grenade's burst much smaller than a shell's", () => {
@@ -59,8 +59,8 @@ describe("createExplosions", () => {
     explosions.add([burst(Shell.FieldShrapnel, 12)])
     explosions.update(0.05)
 
-    expect(explosions.smoke.thinInstanceCount).toBe(0)
-    expect(explosions.airbursts.thinInstanceCount).toBe(1)
+    expect(explosions.instances.smoke.matrices().length).toBe(0)
+    expect(explosions.instances.airbursts.matrices().length).toBe(1)
     expect(explosions.instances.airbursts.matrices()[0]?.getTranslation().y).toBeGreaterThan(11)
   })
 })

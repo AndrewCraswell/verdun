@@ -4,6 +4,7 @@ import { EngineInstrumentation } from "@babylonjs/core/Instrumentation/engineIns
 import { SceneInstrumentation } from "@babylonjs/core/Instrumentation/sceneInstrumentation"
 import type { Scene } from "@babylonjs/core/scene"
 import type { Simulation } from "@verdun/sim"
+import type { SnapshotDirector } from "../render/snapshot-director.ts"
 import { debugDock } from "./dock.ts"
 import { worldStats } from "./stats-model.ts"
 import { createTracer, downloadTrace, type Tracer, traceScene } from "./trace.ts"
@@ -16,6 +17,8 @@ export interface DebugStats {
   update(): void
   /** The frame tracer behind it, for timing work anywhere in the frame. */
   readonly tracer: Tracer
+  /** Shows how snapshot rendering is doing: replaying, or recording and why. */
+  watchSnapshots(director: SnapshotDirector | null): void
   /** Shows or hides the debug dock it lives in. F3 does the same. */
   toggle(): void
   readonly visible: boolean
@@ -63,6 +66,7 @@ export function createDebugStats(
   let instrumentation: SceneInstrumentation | null = null
   let gpu: EngineInstrumentation | null = null
   let captureNote = ""
+  let snapshots: SnapshotDirector | null = null
   let shown = false
   let sinceRedraw = Infinity
 
@@ -95,6 +99,9 @@ export function createDebugStats(
     const lines = [
       `${frames.perSecond.toFixed(0)} fps   frame ${frames.averageMs.toFixed(1)} ms, worst ${frames.worstMs.toFixed(1)} ms`,
       gpuMs > 0 ? `GPU ${gpuMs.toFixed(1)} ms a frame` : "GPU time not reported by this browser",
+      snapshots
+        ? `snapshot ${snapshots.playing ? "replaying" : "drawing live"}, ${snapshots.recordsPerSecond} recorded/s${snapshots.lastReason ? ` (last: ${snapshots.lastReason})` : ""}`
+        : "snapshot rendering off",
       "hot spots, ms a frame:  self  total  worst",
       ...hot,
       captureNote || "F4: capture a 5 s trace for Perfetto",
@@ -133,6 +140,9 @@ export function createDebugStats(
 
   return {
     tracer,
+    watchSnapshots(director) {
+      snapshots = director
+    },
     time(part, work) {
       return tracer.span(part, work)
     },

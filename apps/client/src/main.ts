@@ -34,6 +34,7 @@ import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
 import { openKitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
+import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
@@ -82,6 +83,11 @@ async function start(): Promise<void> {
   const stats = createDebugStats(document.body, engine, view.scene, sim)
   const trace = stats.tracer.span
   sim.systemTimer = trace
+  // Replays recorded frames on WebGPU, saving the CPU from encoding every draw call each frame. ?nosnapshot to compare.
+  const snapshots = new URLSearchParams(location.search).has("nosnapshot")
+    ? null
+    : createSnapshotDirector(engine, view.scene)
+  stats.watchSnapshots(snapshots)
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
   const kitFiles = openKitFiles()
@@ -190,7 +196,8 @@ async function start(): Promise<void> {
         night,
         war,
         flares,
-        trace: stats.tracer
+        trace: stats.tracer,
+        snapshots
       }
     })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
@@ -252,7 +259,11 @@ async function start(): Promise<void> {
     trace("environment", () => environment?.update(frameSeconds))
     trace("flares", () => flares.update(frameSeconds))
     trace("sound", () => sounds?.update())
-    trace("render", () => view.scene.render())
+    trace("render", () => {
+      trace("snapshot: before", () => snapshots?.beforeRender())
+      view.scene.render()
+      trace("snapshot: after", () => snapshots?.afterRender())
+    })
     stats.update()
   })
   window.addEventListener("resize", () => engine.resize())

@@ -32,13 +32,13 @@ describe("createTracers", () => {
     tracers.add([shot(0, 100)])
     tracers.update(0.01)
 
-    expect(tracers.mesh.thinInstanceCount).toBe(1)
+    expect(tracers.instances.matrices().length).toBe(1)
     const [matrix] = tracers.instances.matrices()
     expect(matrix?.getTranslation().z).toBeCloseTo(50)
     expect(matrix?.getTranslation().y).toBeCloseTo(1.5)
 
     tracers.update(0.2)
-    expect(tracers.mesh.thinInstanceCount).toBe(0)
+    expect(tracers.instances.matrices().length).toBe(0)
   })
 
   it("copes with shots straight up or down, and caps how many are alive", () => {
@@ -47,7 +47,7 @@ describe("createTracers", () => {
     tracers.add(Array.from({ length: 600 }, (_, index) => shot(0, index + 1)))
     tracers.update(0.01)
 
-    expect(tracers.mesh.thinInstanceCount).toBe(512)
+    expect(tracers.instances.matrices().length).toBe(512)
     expect(tracers.instances.matrices().every((matrix) => Number.isFinite(matrix.m[0]))).toBe(true)
   })
 })
