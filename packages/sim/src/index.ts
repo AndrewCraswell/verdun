@@ -63,6 +63,7 @@ export {
   type SimulationOptions,
   soldierIds,
   type SoldierSpawn,
+  type SystemTimer,
   spawnSoldier,
   STEP_SECONDS,
   stepSimulation,

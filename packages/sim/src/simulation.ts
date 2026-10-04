@@ -80,6 +80,11 @@ export interface Simulation {
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
+  /**
+   * Times each system's work in a step, for profiling: called with the system's name and its work, it must run the
+   * work. Unset, systems run untimed. It changes nothing in the simulation.
+   */
+  systemTimer?: SystemTimer
 }
 
 /** Something that happened during a step that a renderer may want to show. */
@@ -247,21 +252,41 @@ export function enqueueCommand(sim: Simulation, command: Command): void {
 /** Advances the world by exactly one fixed step. */
 export function stepSimulation(sim: Simulation): void {
   sim.events.length = 0
-  for (const command of sim.pendingCommands.splice(0)) {
-    applyCommand(sim, command)
+  const timer = sim.systemTimer
+  for (const [name, system] of SYSTEMS) {
+    if (timer) {
+      timer(name, () => system(sim))
+    } else {
+      system(sim)
+    }
   }
-  environmentSystem(sim, STEP_SECONDS)
-  commanderSystem(sim)
-  squadSystem(sim)
-  reinforcementSystem(sim)
-  stanceSystem(sim)
-  flareSystem(sim)
-  captureSystem(sim)
-  combatSystem(sim)
-  artillerySystem(sim)
-  gasSystem(sim)
-  woundSystem(sim)
-  movementSystem(sim, STEP_SECONDS)
-  objectiveSystem(sim)
   sim.tick += 1
 }
+
+/** Times a system's work: see `Simulation.systemTimer`. */
+export type SystemTimer = (name: string, work: () => void) => void
+
+/** The systems of a step, in the order they run, by name. */
+const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
+  [
+    "sim: commands",
+    (sim) => {
+      for (const command of sim.pendingCommands.splice(0)) {
+        applyCommand(sim, command)
+      }
+    }
+  ],
+  ["sim: environment", (sim) => environmentSystem(sim, STEP_SECONDS)],
+  ["sim: commanders", commanderSystem],
+  ["sim: squads", squadSystem],
+  ["sim: reinforcements", reinforcementSystem],
+  ["sim: stances", stanceSystem],
+  ["sim: flares", flareSystem],
+  ["sim: capture", captureSystem],
+  ["sim: combat", combatSystem],
+  ["sim: artillery", artillerySystem],
+  ["sim: gas", gasSystem],
+  ["sim: wounds", woundSystem],
+  ["sim: movement", (sim) => movementSystem(sim, STEP_SECONDS)],
+  ["sim: objectives", objectiveSystem]
+]

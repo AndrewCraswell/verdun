@@ -77,13 +77,27 @@ function sceneryTops(map: BattlefieldMap): SceneryTops {
  * This is presentation only: gameplay sight lines use the simulation's line of sight.
  */
 export function computeViewshed(map: BattlefieldMap, eye: WorldPoint, range: number, grid: FogGrid): void {
+  const job = startViewshed(map, eye, range, grid)
+  job.advance(job.rays)
+}
+
+/** A viewshed worked out a few rays at a time, so its cost can be spread over frames. */
+export interface ViewshedJob {
+  /** How many rays it casts in all. */
+  readonly rays: number
+  /** Casts up to this many more rays. Returns true once every ray is cast. */
+  advance(rays: number): boolean
+}
+
+/** Starts a viewshed (see `computeViewshed`): clears the grid and marks the eye's own cell. */
+export function startViewshed(map: BattlefieldMap, eye: WorldPoint, range: number, grid: FogGrid): ViewshedJob {
   grid.values.fill(0)
   const scenery = sceneryTops(map)
   const width = mapWidth(map)
   const depth = mapDepth(map)
-  const step = grid.cellSize / 2
-  // Enough rays that neighbouring rays are less than a cell apart at full range.
-  const rays = Math.ceil((2 * Math.PI * range) / (grid.cellSize * 0.75))
+  // Samples and rays a little under a cell apart, even at full range, so no cell falls between them.
+  const step = grid.cellSize * 0.75
+  const rays = Math.ceil((2 * Math.PI * range) / (grid.cellSize * 0.85))
 
   const mark = (x: number, z: number) => {
     const column = Math.min(grid.columns - 1, Math.floor(x / grid.cellSize))
@@ -92,7 +106,7 @@ export function computeViewshed(map: BattlefieldMap, eye: WorldPoint, range: num
   }
   mark(eye.x, eye.z)
 
-  for (let ray = 0; ray < rays; ray++) {
+  const cast = (ray: number) => {
     const angle = (ray / rays) * 2 * Math.PI
     const dx = Math.cos(angle)
     const dz = Math.sin(angle)
@@ -110,6 +124,18 @@ export function computeViewshed(map: BattlefieldMap, eye: WorldPoint, range: num
       const standing =
         scenery.tops[Math.floor(z / SCENERY_CELL) * scenery.columns + Math.floor(x / SCENERY_CELL)] ?? -Infinity
       steepest = Math.max(steepest, (Math.max(ground, standing) - eye.y) / distance)
+    }
+  }
+
+  let next = 0
+  return {
+    rays,
+    advance(count) {
+      const until = Math.min(rays, next + count)
+      for (; next < until; next++) {
+        cast(next)
+      }
+      return next >= rays
     }
   }
 }

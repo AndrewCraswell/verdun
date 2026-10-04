@@ -172,7 +172,7 @@ export function createBattlefieldScene(
   if (attachControl) {
     // The player's camera: panning, turning, zooming and following, with the left button free to fire and the right
     // to give orders.
-    createCameraRig(camera, scene, sim.map, terrain.meshes)
+    createCameraRig(camera, scene, sim.map)
   }
 
   const gas = createGasCloud(scene, sim, groundMaterial)

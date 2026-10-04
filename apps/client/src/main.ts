@@ -70,6 +70,8 @@ async function start(): Promise<void> {
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE, { war })
   const stats = createDebugStats(document.body, engine, view.scene, sim)
+  const trace = stats.tracer.span
+  sim.systemTimer = trace
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
   const kitFiles = openKitFiles()
@@ -112,24 +114,18 @@ async function start(): Promise<void> {
   })
 
   // The player commands the squad in the middle of the French front line.
-  const control = createPlayerControl(
-    sim,
-    playerSquad,
-    view.camera,
-    createBrowserInput(view.scene, view.terrain.meshes),
-    {
-      debugActions: import.meta.env.DEV,
-      commands: {
-        whistle: () => attackBehindBarrage(sim, playerSquad.side),
-        bombard: () => bombardEnemyLine(sim, playerSquad.side),
-        callFire: (x, z) => callForFire(sim, playerSquad.side, x, z),
-        callGas: (x, z) => callGasOn(sim, playerSquad.side, x, z)
-      },
-      toggleFog: () => {
-        fog.enabled = !fog.enabled
-      }
+  const control = createPlayerControl(sim, playerSquad, view.camera, createBrowserInput(view.scene, sim.map), {
+    debugActions: import.meta.env.DEV,
+    commands: {
+      whistle: () => attackBehindBarrage(sim, playerSquad.side),
+      bombard: () => bombardEnemyLine(sim, playerSquad.side),
+      callFire: (x, z) => callForFire(sim, playerSquad.side, x, z),
+      callGas: (x, z) => callGasOn(sim, playerSquad.side, x, z)
+    },
+    toggleFog: () => {
+      fog.enabled = !fog.enabled
     }
-  )
+  })
   const markers = createSquadMarkers(view.scene, sim, playerSquad)
   // The battle's sound effects, heard from the camera, when the kit has them.
   const sounds = level?.sfx
@@ -157,7 +153,22 @@ async function start(): Promise<void> {
     const { installDeathMap } = await import("./dev/death-map.ts")
     const deaths = installDeathMap(view.scene, sim)
     Object.assign(window, {
-      verdun: { engine, sim, view, control, fog, lineOfSight, level, deaths, environment, soldiers, sounds, night, war }
+      verdun: {
+        engine,
+        sim,
+        view,
+        control,
+        fog,
+        lineOfSight,
+        level,
+        deaths,
+        environment,
+        soldiers,
+        sounds,
+        night,
+        war,
+        trace: stats.tracer
+      }
     })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
     installInspectorToggle(view.scene)
@@ -168,7 +179,7 @@ async function start(): Promise<void> {
   let cratered: ChangedArea | null = null
   engine.runRenderLoop(() => {
     const frameSeconds = engine.getDeltaTime() / 1000
-    control.update(frameSeconds)
+    trace("input", () => control.update(frameSeconds))
     // Paused while the menu is open, after P, or through the stand-to at the daily cutoff: the picture keeps moving, the
     // battle doesn't.
     war.update(Date.now())
@@ -176,8 +187,8 @@ async function start(): Promise<void> {
     stats.time("simulation", () => {
       for (let step = 0; step < steps; step++) {
         stepSimulation(sim)
-        hud.record(sim.events)
-        sounds?.step()
+        trace("hud: log", () => hud.record(sim.events))
+        trace("sound: step", () => sounds?.step())
         const shots = shotEvents(sim.events)
         tracers.add(shots)
         night?.flash(shots.map((shot) => shot.from))
@@ -203,18 +214,20 @@ async function start(): Promise<void> {
       stats.time("terrain", () => view.terrain.rebuildRegion(crater.minX, crater.minZ, crater.maxX, crater.maxZ))
       cratered = null
     }
-    tracers.update(frameSeconds)
-    explosions.update(frameSeconds)
-    hud.update(frameSeconds)
-    const sightChanged = fog.update(frameSeconds)
+    trace("effects", () => {
+      tracers.update(frameSeconds)
+      explosions.update(frameSeconds)
+    })
+    trace("hud", () => hud.update(frameSeconds))
+    const sightChanged = trace("fog", () => fog.update(frameSeconds))
     if (steps > 0 || sightChanged) {
-      view.syncSoldiers(fog.isShown)
+      trace("soldiers: sync", () => view.syncSoldiers(fog.isShown))
     }
-    markers.update()
-    night?.update(frameSeconds)
-    environment?.update(frameSeconds)
-    sounds?.update()
-    view.scene.render()
+    trace("markers", () => markers.update())
+    trace("night", () => night?.update(frameSeconds))
+    trace("environment", () => environment?.update(frameSeconds))
+    trace("sound", () => sounds?.update())
+    trace("render", () => view.scene.render())
     stats.update()
   })
   window.addEventListener("resize", () => engine.resize())

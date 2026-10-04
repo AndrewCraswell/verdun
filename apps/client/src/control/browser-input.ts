@@ -1,5 +1,6 @@
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene } from "@babylonjs/core/scene"
+import type { BattlefieldMap } from "@verdun/map"
+import { groundUnderPointer } from "./ground-pick.ts"
 import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.ts"
 
 /** Keys held to steer the soldier under control, by `KeyboardEvent.code`. */
@@ -47,15 +48,12 @@ export function actionForKey(code: string): PlayerAction | null {
  * other layouts. Held keys are released when the window loses focus, so a soldier never walks off on their own.
  * Left-click fires; right-clicking the ground orders the squad there.
  */
-export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]): PlayerInput {
+export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInput {
   const held = new Set<string>()
-  const pickable = new Set(ground)
   let actions: PlayerAction[] = []
 
-  const pointerGround = (): GroundVector | null => {
-    const hit = scene.pick(scene.pointerX, scene.pointerY, (mesh) => pickable.has(mesh))
-    return hit.hit && hit.pickedPoint ? { x: hit.pickedPoint.x, z: hit.pickedPoint.z } : null
-  }
+  // Marched over the map's heights rather than picked against the terrain's meshes: it's asked every frame.
+  const pointerGround = (): GroundVector | null => groundUnderPointer(scene, map)
 
   window.addEventListener("keydown", (event) => {
     if (MOVEMENT_KEYS.has(event.code) || RUN_KEYS.has(event.code)) {

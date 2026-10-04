@@ -51,6 +51,7 @@ describe("the controls list", () => {
       "Escape",
       "KeyP",
       "F3",
+      "F4",
       "Backquote"
     ]
 

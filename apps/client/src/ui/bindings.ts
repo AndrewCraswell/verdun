@@ -66,7 +66,8 @@ export const CONTROLS: readonly BindingGroup[] = [
       { keys: "Esc", action: "Menu and controls; the battle pauses while it's open" },
       { keys: "P", action: "Pause or carry on" },
       { keys: "O", action: "Fog of war on or off" },
-      { keys: "F3", action: "Debug statistics" }
+      { keys: "F3", action: "Debug statistics" },
+      { keys: "F4", action: "Save 5 seconds of frame timings, to open in Perfetto" }
     ]
   },
   {

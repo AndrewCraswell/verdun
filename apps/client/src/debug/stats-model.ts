@@ -1,56 +1,5 @@
 import { capturedIds, fallenIds, Side, type Simulation, soldierIds, TICK_RATE } from "@verdun/sim"
 
-/** Frame timings over the last second or so, for frame rate and frame-time spikes. */
-export interface FrameTimes {
-  /** Records one frame: its length and the time spent in each measured part, in milliseconds. */
-  add(frameMs: number, parts?: Readonly<Record<string, number>>): void
-  /** Frames per second, averaged over the window. */
-  readonly fps: number
-  /** Average and worst frame time over the window, in milliseconds. */
-  readonly averageMs: number
-  readonly worstMs: number
-  /** Average time per frame in each measured part, in milliseconds. */
-  part(name: string): number | null
-  /** The names of every part measured in the window, in the order first seen. */
-  readonly partNames: readonly string[]
-}
-
-/** Frames are averaged over this many seconds. */
-const WINDOW_SECONDS = 1
-
-export function createFrameTimes(): FrameTimes {
-  let frames: { ms: number; parts: Readonly<Record<string, number>> }[] = []
-  const windowMs = () => frames.reduce((sum, frame) => sum + frame.ms, 0)
-  return {
-    add(frameMs, parts = {}) {
-      frames.push({ ms: frameMs, parts })
-      while (frames.length > 1 && windowMs() - (frames[0]?.ms ?? 0) > WINDOW_SECONDS * 1000) {
-        frames = frames.slice(1)
-      }
-    },
-    get fps() {
-      const total = windowMs()
-      return total > 0 ? (frames.length * 1000) / total : 0
-    },
-    get averageMs() {
-      return frames.length > 0 ? windowMs() / frames.length : 0
-    },
-    get worstMs() {
-      return frames.reduce((worst, frame) => Math.max(worst, frame.ms), 0)
-    },
-    get partNames() {
-      return [...new Set(frames.flatMap((frame) => Object.keys(frame.parts)))]
-    },
-    part(name) {
-      const measured = frames.filter((frame) => name in frame.parts)
-      if (measured.length === 0) {
-        return null
-      }
-      return measured.reduce((sum, frame) => sum + (frame.parts[name] ?? 0), 0) / frames.length
-    }
-  }
-}
-
 /** What's on the battlefield, for the debug overlay. */
 export interface WorldStats {
   readonly clock: string

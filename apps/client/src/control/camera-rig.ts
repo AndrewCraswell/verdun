@@ -1,8 +1,8 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { type CameraRigModel, createCameraRigModel, ZOOM_RANGE } from "./camera-rig-model.ts"
+import { groundUnderPointer } from "./ground-pick.ts"
 
 export interface CameraRig {
   readonly model: CameraRigModel
@@ -55,12 +55,7 @@ function typing(event: KeyboardEvent): boolean {
  *
  * It replaces Babylon's own camera inputs and drives the camera every frame, before rendering.
  */
-export function createCameraRig(
-  camera: ArcRotateCamera,
-  scene: Scene,
-  map: BattlefieldMap,
-  ground: readonly AbstractMesh[]
-): CameraRig {
+export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: BattlefieldMap): CameraRig {
   camera.lowerBetaLimit = 0.05
   camera.upperBetaLimit = 1.5
   camera.lowerRadiusLimit = ZOOM_RANGE.min
@@ -77,16 +72,12 @@ export function createCameraRig(
     }
   )
   const canvas = scene.getEngine().getRenderingCanvas()
-  const pickable = new Set(ground)
   const arrows = new Set<string>()
   let pointer: { x: number; y: number } | null = null
   let dragging: { x: number; y: number; grab: boolean } | null = null
   let written = camera.radius
 
-  const groundUnderPointer = () => {
-    const hit = scene.pick(scene.pointerX, scene.pointerY, (mesh) => pickable.has(mesh))
-    return hit.hit && hit.pickedPoint ? { x: hit.pickedPoint.x, z: hit.pickedPoint.z } : undefined
-  }
+  const pointerGround = () => groundUnderPointer(scene, map) ?? undefined
 
   /** Arrow keys and screen edges together decide the held pan and turn. */
   function updateHeld(shift: boolean): void {
@@ -175,7 +166,7 @@ export function createCameraRig(
     event.preventDefault()
     const notches = event.deltaMode === 1 ? event.deltaY / LINES_PER_NOTCH : event.deltaY / PIXELS_PER_NOTCH
     // Some mice and trackpads report huge deltas in one event; a fling shouldn't jump the whole zoom range.
-    model.zoom(Math.max(-MAX_NOTCHES, Math.min(MAX_NOTCHES, notches)), groundUnderPointer())
+    model.zoom(Math.max(-MAX_NOTCHES, Math.min(MAX_NOTCHES, notches)), pointerGround())
   }
   const onMouseDown = (event: MouseEvent) => {
     if (event.button === 1) {

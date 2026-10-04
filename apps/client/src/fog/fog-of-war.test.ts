@@ -173,9 +173,10 @@ describe("createFogOfWar", () => {
     sightLines.push(lineOfSight)
     const fog = createFogOfWar(scene(), sim, lineOfSight, {
       squad,
-      groundMaterial: new StandardMaterial("ground", scene())
+      groundMaterial: new StandardMaterial("ground", scene()),
+      framesPerUpdate: 1
     })
-    return { sim, squad, player, lookout, friend, enemyInOpen, fog }
+    return { sim, squad, player, lookout, friend, enemyInOpen, fog, lineOfSight }
   }
 
   it("hides enemies from a soldier down in the trench, but always shows friends", async () => {
@@ -204,6 +205,27 @@ describe("createFogOfWar", () => {
     expect(fog.update(0.2)).toBe(true)
   })
 
+  it("spreads each look over several frames, and does nothing while turned off", async () => {
+    const { sim, squad, player, enemyInOpen, lineOfSight } = await trenchSetup()
+    sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    const sliced = createFogOfWar(scene(), sim, lineOfSight, {
+      squad,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      framesPerUpdate: 3
+    })
+    const casts = vi.spyOn(lineOfSight, "isClear")
+    sliced.update(0)
+    sliced.update(0)
+    expect(sliced.update(0)).toBe(true)
+    expect(sliced.isShown(enemyInOpen)).toBe(true)
+
+    sliced.enabled = false
+    casts.mockClear()
+    expect(sliced.update(1)).toBe(true)
+    expect(sliced.update(1)).toBe(false)
+    expect(casts).not.toHaveBeenCalled()
+  })
+
   it("doesn't see enemies beyond its range", async () => {
     const { sim, squad, player, enemyInOpen } = await trenchSetup()
     const lineOfSight = await createLineOfSight(sim.map)
@@ -212,7 +234,8 @@ describe("createFogOfWar", () => {
     const shortSighted = createFogOfWar(scene(), sim, lineOfSight, {
       squad,
       groundMaterial: new StandardMaterial("ground", scene()),
-      range: 20
+      range: 20,
+      framesPerUpdate: 1
     })
     shortSighted.update(0)
 
@@ -273,7 +296,8 @@ describe("createFogOfWar", () => {
     const fog = createFogOfWar(scene(), sim, lineOfSight, {
       squad,
       groundMaterial: new StandardMaterial("ground", scene()),
-      materials: [props]
+      materials: [props],
+      framesPerUpdate: 1
     })
 
     expect(fog.plugins).toHaveLength(2)
@@ -289,7 +313,8 @@ describe("createFogOfWar", () => {
     const fog = createFogOfWar(scene(), sim, lineOfSight, {
       squad,
       groundMaterial: new StandardMaterial("ground", scene()),
-      enabled: false
+      enabled: false,
+      framesPerUpdate: 1
     })
 
     expect(fog.enabled).toBe(false)

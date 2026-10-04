@@ -1,30 +1,7 @@
 import { createFlatMap } from "@verdun/map"
 import { createSimulation, Side, spawnSoldier, stepSimulation, surrender, TICK_RATE } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { createFrameTimes, worldStats } from "./stats-model.ts"
-
-describe("createFrameTimes", () => {
-  it("averages frame rate and frame time over the last second, and finds the worst frame", () => {
-    const frames = createFrameTimes()
-    for (let frame = 0; frame < 100; frame++) {
-      frames.add(frame === 90 ? 40 : 10, { simulation: 2 })
-    }
-
-    expect(frames.fps).toBeGreaterThan(90)
-    expect(frames.fps).toBeLessThan(105)
-    expect(frames.worstMs).toBe(40)
-    expect(frames.averageMs).toBeCloseTo(1000 / frames.fps)
-    expect(frames.part("simulation")).toBeCloseTo(2)
-    expect(frames.part("pathfinding")).toBeNull()
-    expect(frames.partNames).toEqual(["simulation"])
-  })
-
-  it("reads zero before any frames", () => {
-    const frames = createFrameTimes()
-
-    expect([frames.fps, frames.averageMs, frames.worstMs]).toEqual([0, 0, 0])
-  })
-})
+import { worldStats } from "./stats-model.ts"
 
 describe("worldStats", () => {
   it("counts soldiers, the fallen and prisoners by side, and sums up artillery, clouds and wind", () => {
