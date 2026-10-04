@@ -137,7 +137,7 @@ describe("generateFleurySector", () => {
       return Math.hypot(x - (471 + dx * t), z - (270 + dz * t))
     }
     const onMainStreet = map.scenery.filter((item) => item.kind === "ruin" && along(item.x, item.z) < 10)
-    expect(onMainStreet.length).toBeGreaterThanOrEqual(4)
+    expect(onMainStreet.length).toBeGreaterThanOrEqual(3)
     // Gable to the street: its houses face across it, square to its run. (A few odd ruins stand off the streets.)
     const street = Math.atan2(62, -110)
     const facing = onMainStreet.filter((house) => Math.abs(Math.cos(house.heading - street)) < 0.05)

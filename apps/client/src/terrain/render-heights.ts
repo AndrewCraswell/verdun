@@ -1,4 +1,4 @@
-import { type BattlefieldMap, sampleIndex, TRENCH_PROFILE } from "@verdun/map"
+import { type BattlefieldMap, footprintRadius, SCENERY_FOOTPRINTS, sampleIndex, TRENCH_PROFILE } from "@verdun/map"
 
 /**
  * How far from a trench centre line the drawn ground takes its neighbours' minimum: past the revetted walls by a little
@@ -16,6 +16,13 @@ const LIP_FADE = { from: TRENCH_PROFILE.parapetOuter - 0.2, to: TRENCH_PROFILE.p
 /** Brightness of the spoil band, matching the kit's earth, fading back to full over `SPOIL_FADE`. */
 const SPOIL_SHADE = 0.7
 const SPOIL_FADE = { from: TRENCH_PROFILE.parapetOuter, to: TRENCH_PROFILE.parapetOuter + 1.5 } as const
+/**
+ * The ground darkens at the foot of whatever stands on it, where the sky can't reach: to this brightness under it,
+ * clearing by `CONTACT_REACH` footprint radii out. Only scenery standing at least `CONTACT_HEIGHT` high casts it.
+ */
+const CONTACT_SHADE = 0.72
+const CONTACT_REACH = 1.5
+const CONTACT_HEIGHT = 0.8
 
 export interface RenderHeights {
   /** One height per map sample, like `map.heights`. */
@@ -60,18 +67,45 @@ function fade(distance: number, range: { readonly from: number; readonly to: num
   return Math.min(1, Math.max(0, (distance - range.from) / (range.to - range.from)))
 }
 
+/** Contact shade: darkens the ground at the foot of each piece of scenery standing high enough (see CONTACT_SHADE). */
+function darkenAtTheirFeet(map: BattlefieldMap, shade: Float32Array): void {
+  for (const item of map.scenery) {
+    if (SCENERY_FOOTPRINTS[item.kind].sightHeight * item.scale < CONTACT_HEIGHT) {
+      continue
+    }
+    const radius = footprintRadius(item)
+    const reach = radius * CONTACT_REACH
+    const minColumn = Math.max(0, Math.floor((item.x - reach) / map.cellSize))
+    const maxColumn = Math.min(map.columns, Math.ceil((item.x + reach) / map.cellSize))
+    const minRow = Math.max(0, Math.floor((item.z - reach) / map.cellSize))
+    const maxRow = Math.min(map.rows, Math.ceil((item.z + reach) / map.cellSize))
+    for (let row = minRow; row <= maxRow; row++) {
+      for (let column = minColumn; column <= maxColumn; column++) {
+        const distance = Math.hypot(column * map.cellSize - item.x, row * map.cellSize - item.z)
+        const clear = fade(distance, { from: radius * 0.5, to: reach })
+        const index = sampleIndex(map, column, row)
+        shade[index] = Math.min(shade[index] ?? 1, CONTACT_SHADE + (1 - CONTACT_SHADE) * clear)
+      }
+    }
+  }
+}
+
 /**
  * Heights for drawing the ground. Unshaped, they are the simulation's. Shaped for the trench kit, they differ around
  * trenches, where the kit's meshes stand in for the ground: a 0.5 m height grid can't follow vertical revetments, and a
  * triangle spanning the trench floor and the lip would cut through the wall. Each sample near a trench takes the
  * lowest of its neighbours, the floor and the spoil lips are drawn a little lower so the kit covers them, and the
- * spoil is darkened to the kit's earth so seams between pieces read as shadow. Soldiers and line of sight always use
- * the simulation's heights.
+ * spoil is darkened to the kit's earth so seams between pieces read as shadow, and the ground at the foot of the
+ * buildings, walls, trees and guns darkens where the sky can't reach it. Soldiers and line of sight always use the
+ * simulation's heights.
  */
 export function createRenderHeights(map: BattlefieldMap, shapedForTrenchKit: boolean): RenderHeights {
   const heights = Float32Array.from(map.heights)
   const distances = shapedForTrenchKit ? trenchDistances(map) : new Float32Array(map.heights.length).fill(Infinity)
   const shade = distances.map((distance) => SPOIL_SHADE + (1 - SPOIL_SHADE) * fade(distance, SPOIL_FADE))
+  if (shapedForTrenchKit) {
+    darkenAtTheirFeet(map, shade)
+  }
 
   function update(minColumn: number, minRow: number, maxColumn: number, maxRow: number): void {
     for (let row = Math.max(0, minRow); row <= Math.min(map.rows, maxRow); row++) {

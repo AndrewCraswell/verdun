@@ -1,9 +1,10 @@
-import { type Crater, stampCrater } from "./craters.ts"
+import { type Crater, slumpGround, stampCrater } from "./craters.ts"
 import { type Elevation, elevationAt } from "./elevation.ts"
 import { type BattlefieldMap, createFlatMap, sampleIndex, Surface } from "./format.ts"
 import { valueNoise } from "./noise.ts"
 import { heightAt } from "./sampling.ts"
 import type { Objective, Scenery, SceneryKind, WireBelt } from "./scenery.ts"
+import { sculptForScenery } from "./sculpt.ts"
 import { type Bay, communicationRoute, crenellatedTrace, junctionNear, TRENCH_GRID } from "./trench-trace.ts"
 import { carveTrenches, type GroundPoint, type Trench, TRENCH_PROFILE } from "./trenches.ts"
 
@@ -600,6 +601,8 @@ function placeRoadsideTrees(seed: number, placer: Placer, random: () => number):
   }
 }
 
+/** No house stands within this many metres of the map's edge, where the ground ends. */
+const EDGE_MARGIN = 14
 /** House plots front the streets this far apart: a cottage, its barn door and a yard. */
 const PLOT_WIDTH = 11
 /** From the middle of the street to the middle of a house fronting it. */
@@ -654,7 +657,7 @@ function lineStreet(
   for (let along = PLOT_WIDTH / 2; along < length; along += PLOT_WIDTH) {
     for (const side of [-1, 1]) {
       const plot = besideStreet(street, along, side * (HOUSE_SETBACK + random() * 1.5))
-      if (!plot) {
+      if (!plot || Math.min(plot.x, plot.z, WIDTH - plot.x, DEPTH - plot.z) < EDGE_MARGIN) {
         continue
       }
       const facing = plot.heading - (side * Math.PI) / 2
@@ -782,9 +785,11 @@ function placeCraters(
   }
   // Shells bursting on the ridge throw up the chalk beneath the topsoil.
   const onRidge = craters.map((crater) => heightAt(map, crater.x, crater.z) > ridge)
-  for (const crater of craters) {
-    stampCrater(map, crater)
-  }
+  // Fresh walls and lips settle: no wall left standing steeper than about 45 degrees.
+  slumpGround(
+    map,
+    craters.map((crater) => stampCrater(map, crater))
+  )
   // Only the bigger shells dig down to the chalk, and not every time.
   craters.forEach((crater, index) => {
     if (onRidge[index] && crater.radius > 2 && random() < 0.5) {
@@ -823,7 +828,7 @@ function placePools(
 ): void {
   const waterDepth = 0.4
   for (const crater of craters) {
-    if (crater.depth < 1.2 || random() > 0.3) {
+    if (crater.depth < 1.2 || random() > 0.5) {
       continue
     }
     const lowest =
@@ -969,7 +974,9 @@ export function generateFleurySector({
   const objectives = objectivesOf(seed)
   if (layout) {
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
-    return { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives }
+    const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives }
+    sculptForScenery(drawn, drawn.scenery)
+    return drawn
   }
 
   placeVillage(placer, craters, sceneryRandom)
@@ -1027,11 +1034,14 @@ export function generateFleurySector({
   placeRoadsideTrees(seed, placer, sceneryRandom)
   placeWoods(seed, placer, sceneryRandom)
 
-  return {
+  const sector = {
     ...map,
     trenches,
     scenery: placer.scenery,
     wire: [...frenchWire.belts, ...germanWire.belts],
     objectives
   }
+  // Level house plots and dumps, dig the gun pits, bank the concrete posts: the ground the art stands on.
+  sculptForScenery(sector, sector.scenery)
+  return sector
 }

@@ -291,8 +291,9 @@ export function layOutGroundCover(map: BattlefieldMap): Placement[] {
       if (hashOf(x, z, 32) > 0.2 + unbroken * 0.12) {
         continue
       }
-      const tall = unbroken === 4 && hashOf(x, z, 33) < 0.3
-      const size = 1.3 + hashOf(x, z, 34) * 0.9
+      const tall = unbroken === 4 && hashOf(x, z, 33) < 0.15
+      // Short tufts about knee high; the tall ones, rank grass and nettles, up to a man's waist.
+      const size = tall ? 0.6 + hashOf(x, z, 34) * 0.35 : 1.3 + hashOf(x, z, 34) * 0.9
       placements.push({
         piece: pick(tall ? TALL_TUFTS : TUFTS, x, z, 35),
         x,

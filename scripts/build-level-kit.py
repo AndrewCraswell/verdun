@@ -176,7 +176,7 @@ GENERIC_PALETTE = Path("Synty/PolygonGeneric/Textures/Alts/Generic_01_B.png")
 GROUND = [
     ("grass", "Grass_02", "55593d", 0.4, False),
     ("mud", "Mud_01", "574636", 0.9, False),
-    ("chalk", "Pebbles_Sand_01", "8e897b", 0.4, False),
+    ("chalk", "Pebbles_Sand_01", "6f6a5e", 0.35, False),
     ("churned", "Mud_01", "43372b", 0.8, True),
 ]
 # Each layer's normal map, written as "<layer>_normal.png". Mirrored layers get their normal map mirrored to match.
@@ -222,6 +222,8 @@ FX = [
     ("ember", "PolygonParticles_Sparkle_01", 128),
     ("scorch", "PolygonParticles_Circle_Dark_01", 256),
     ("grunge", "Generic_Decal_Grunge_01", 512),
+    # A soft disc filling its frame: the body of smoke, dust and the column of earth a shell throws up.
+    ("puff", "Generic_Circle_Soft_01", 256),
 ]
 
 # What the build can be limited to, naming them after the output directory; all of them by default.
@@ -352,7 +354,11 @@ def build_kit(converted, vendor, output):
     print(f"[level-kit] {len(PIECES)} pieces -> {output / 'kit.glb'}", flush=True)
 
 
-def grade(pixels, target_hex, saturation):
+# How much of each ground texture's contrast to keep: the chalk's white pebbles glare like snow at full contrast.
+GROUND_CONTRAST = {"chalk": 0.55}
+
+
+def grade(pixels, target_hex, saturation, contrast=1.0):
     """Keeps a texture's detail but moves its mean colour onto a palette swatch, with some colour drained first."""
     rgb = pixels[..., :3]
     luminance = rgb @ np.array([0.2126, 0.7152, 0.0722])
@@ -360,6 +366,7 @@ def grade(pixels, target_hex, saturation):
     # Image.pixels holds the stored sRGB values, the same encoding as the palette's hex colours.
     target = np.array([int(target_hex[i : i + 2], 16) / 255 for i in (0, 2, 4)])
     rgb = rgb * (target / rgb.reshape(-1, 3).mean(axis=0))
+    rgb = target + (rgb - target) * contrast
     pixels[..., :3] = np.clip(rgb, 0, 1)
     pixels[..., 3] = 1
     return pixels
@@ -375,7 +382,7 @@ def build_ground(vendor, output):
         pixels = np.array(image.pixels[:], dtype=np.float32).reshape(GROUND_SIZE, GROUND_SIZE, 4)
         if mirror:
             pixels = pixels[::-1, ::-1].copy()
-        image.pixels.foreach_set(grade(pixels, target_hex, saturation).ravel())
+        image.pixels.foreach_set(grade(pixels, target_hex, saturation, GROUND_CONTRAST.get(name, 1.0)).ravel())
         image.filepath_raw = str(ground_dir / f"{name}.png")
         image.file_format = "PNG"
         image.save()
@@ -444,8 +451,9 @@ def build_audio(vendor, output):
 
 # Soldiers: the Synty WW1 characters with the animations scripts/retarget-animations.py baked onto their rig (in the
 # asset cache, beside the converted packs). Each side's body gets its helmet bound to the head and its own copy of the
-# palette with the uniform recoloured; a rifle and a gas mask are bound to the hand and head as separate skinned meshes,
-# and each side's machine gun stands on its tripod in front of the gunner. One GLB, every clip kept.
+# palette with the uniform recoloured; a gas mask is bound to the head as a separate skinned mesh; the rifle comes
+# unrigged, for the game to put between the hands in every frame of every clip; and each side's machine gun stands on its
+# tripod in front of the gunner. One GLB, every clip kept.
 SOLDIER_ANIMATIONS = Path("animations") / "synty-soldier.glb"
 SOLDIER_MODELS = Path(WAR_MAP) / "Synty" / "PolygonWarMap" / "Models"
 # Palette swaps, source hex to target hex. Horizon blue for the French (#7d8fa6 the tunic) on the British body, with
@@ -475,11 +483,10 @@ SOLDIER_BODIES = [
     ("Soldier_French", "Character_British_WW1_01", "SM_Chr_Attach_French_Helmet_01", FRENCH_UNIFORM),
     ("Soldier_German", "Character_German_WW1_01", "SM_Chr_Attach_German_Helmet_2", GERMAN_UNIFORM),
 ]
-# The Gewehr 98 for both sides: closer to the long Lebel than the Lee-Enfield is.
+# The Gewehr 98 for both sides: closer to the long Lebel than the Lee-Enfield is. It keeps Synty's layout, in metres:
+# grip at the origin, muzzle along the character's forward, sights up.
 SOLDIER_RIFLE = ("Soldier_Rifle", "SM_Wep_German_Rifle_01")
 SOLDIER_MASK = ("Soldier_Mask", "SM_Chr_Attach_Mask_Gas_01")
-# The rifle is fitted to this clip and frame, the standing aim: from the right palm toward the left hand, sights up.
-RIFLE_POSE = ("idle_6", 0)
 # (output name, gun and tripod). The Vickers stands in for the French Hotchkiss, the German MG 08 for itself.
 SOLDIER_GUNS = [
     ("MachineGun_French", ["SM_Wep_British_HeavyMachineGun_01", "SM_Wep_British_HeavyMachineGun_Tripod_01"]),
@@ -528,36 +535,6 @@ def skin_to_bone(obj, armature, bone):
     group.add(range(len(obj.data.vertices)), 1.0, "REPLACE")
     modifier = obj.modifiers.new("Armature", "ARMATURE")
     modifier.object = armature
-
-
-def rifle_world(armature):
-    """Where the rifle sits at rest so that, skinned to the right hand, it lies along the aim in RIFLE_POSE."""
-    clip, frame = RIFLE_POSE
-    animation = armature.animation_data
-    muted = [track.mute for track in animation.nla_tracks]
-    for track in animation.nla_tracks:
-        track.mute = True
-    animation.action = bpy.data.actions[clip]
-    if len(animation.action.slots):
-        animation.action_slot = animation.action.slots[0]
-    bpy.context.scene.frame_set(frame)
-    bones = armature.pose.bones
-    hand = armature.matrix_world @ bones["Hand_R"].matrix
-    fingers = (armature.matrix_world @ bones["IndexFinger_01.001"].matrix).translation
-    palm = (hand.translation + fingers) / 2
-    forward = ((armature.matrix_world @ bones["Hand_L"].matrix).translation - palm).normalized()
-    side = forward.cross(Vector((0, 0, 1))).normalized()
-    up = side.cross(forward)
-    # Synty weapons lie along the character's forward (-Y), sights up (+Z): turn that frame onto the aim.
-    aim = Matrix((side, forward, up)).transposed() @ Matrix(((-1, 0, 0), (0, -1, 0), (0, 0, 1)))
-    posed = Matrix.Translation(palm) @ aim.to_4x4()
-    rest = armature.matrix_world @ armature.data.bones["Hand_R"].matrix_local
-    animation.action = None
-    for track, mute in zip(animation.nla_tracks, muted):
-        track.mute = mute
-    for pose_bone in bones:
-        pose_bone.matrix_basis = Matrix()
-    return rest @ hand.inverted() @ posed
 
 
 def hex_rgb(value):
@@ -641,9 +618,8 @@ def build_soldier(converted, output):
         body.data.name = name
 
     rifle_name, rifle_model = SOLDIER_RIFLE
-    rifle = load_joined(models / f"{rifle_model}.glb")
-    place_in_armature(rifle, armature, rifle_world(armature) @ authored(rifle))
-    skin_to_bone(rifle, armature, "Hand_R")
+    rifle = join_into(load_joined(models / f"{rifle_model}.glb"), [])
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     mask_name, mask_model = SOLDIER_MASK
     mask = load_joined(models / f"{mask_model}.glb")
     place_in_armature(mask, armature, head @ authored(mask))

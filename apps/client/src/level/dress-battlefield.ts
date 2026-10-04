@@ -3,10 +3,13 @@ import type { Material } from "@babylonjs/core/Materials/material"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import "@babylonjs/core/Meshes/instancedMesh"
 import type { InstancedMesh } from "@babylonjs/core/Meshes/instancedMesh"
-import type { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
+import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import type { BattleSoundFiles } from "../audio/battle-sounds.ts"
+import { backdropTrees, createBackdrop, type Surroundings } from "../terrain/backdrop.ts"
 import { GroundSplatPlugin } from "../terrain/ground-splat-plugin.ts"
 import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
@@ -14,11 +17,12 @@ import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage } from "./battle-damage.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
-import type { Placement } from "./placement.ts"
+import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
 import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
 import { createScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
+import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
 import { layOutTrenchKit } from "./trench-dressing.ts"
 import { createGasCurtain, createTrenchLife, type TrenchLife } from "./trench-life.ts"
 
@@ -130,6 +134,48 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Gen_Env_Grass_Tall_02: 110
 }
 
+/** Dead trees for the backdrop's woods and its scattered survivors along the front. */
+const BACKDROP_TREES = ["Env_Tree_Dead_04", "Gen_Env_Tree_Dead_01", "Gen_Env_Tree_Dead_02", "Gen_Env_Tree_Dead_03"]
+
+/**
+ * Trees on the ground beyond the sector (see backdropTrees). There are thousands and all of them far off, so each kind
+ * is one mesh of its decimated far copy drawn as thin instances: one draw, no per-tree culling.
+ */
+function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: ReadonlyMap<string, Mesh>): Mesh[] {
+  const byPiece = new Map<string, number[]>()
+  for (const { x, y, z } of backdropTrees(map, surroundings)) {
+    const piece = BACKDROP_TREES[Math.floor(hashOf(x, z, 40) * BACKDROP_TREES.length)] ?? ""
+    const size = 0.8 + hashOf(x, z, 41) * 0.8
+    const matrix = placementMatrix({
+      piece,
+      x,
+      y: y - 0.2,
+      z,
+      yaw: hashOf(x, z, 42) * Math.PI * 2,
+      scale: [size, size, size]
+    })
+    const matrices = byPiece.get(piece) ?? []
+    matrices.push(...matrix.asArray())
+    byPiece.set(piece, matrices)
+  }
+  const woods: Mesh[] = []
+  for (const [piece, matrices] of byPiece) {
+    const source = pieces.get(piece)
+    // The far copy where the kit has one: at a kilometre the full tree is wasted triangles.
+    const far = source?.getLODLevels()[0]?.mesh ?? source
+    if (!source || !far) {
+      continue
+    }
+    const wood = new Mesh(`backdrop-${piece}`, source.getScene())
+    VertexData.ExtractFromMesh(far, true, true).applyToMesh(wood)
+    wood.material = source.material
+    wood.isPickable = false
+    wood.thinInstanceSetBuffer("matrix", new Float32Array(matrices), 16, true)
+    woods.push(wood)
+  }
+  return woods
+}
+
 /** Everything the level dressed the battlefield with. */
 export interface LevelDressing extends BattlefieldDressing {
   /** The plugin texturing the ground. */
@@ -138,6 +184,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly atmosphere: Atmosphere | null
   /** Shell damage to the props, in step with the craters the simulation blasts. */
   readonly damage: BattleDamage
+  /** Shells bursting: flash, fireball, the column of earth, dust, sparks and black smoke. */
+  readonly bursts: ShellBursts
   /** Scorch, smoke, fires and thrown earth where shells burst, and the jolt of a near one. */
   readonly aftermath: ShellAftermath
   /** Braziers burning by the dugouts, and crows on the wire. */
@@ -146,6 +194,9 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly postProcess: PostProcess | null
   /** The kit's effect sprites, for effects made outside the level such as the night's lights. */
   readonly fx: KitEffects
+  /** The ground round the sector out to the horizon, when the level was given it, and the woods on it. */
+  readonly backdrop: Mesh | null
+  readonly woods: readonly Mesh[]
   /** The props' materials, for effects layered on them such as fog of war. */
   readonly materials: readonly Material[]
   /** The sector's ambient sound, following the camera, or null when the kit has none. */
@@ -160,6 +211,8 @@ interface LevelOptions {
   readonly wind?: () => { readonly x: number; readonly z: number }
   /** Where to read the kit from, when the caller reads more from it; by default the level opens and closes its own. */
   readonly files?: KitFiles | null
+  /** The surveyed ground round the sector, drawn out to the horizon; without it the sector ends at its edges. */
+  readonly surroundings?: Surroundings
 }
 
 const WESTERLY = { x: 2, z: 0 } as const
@@ -180,7 +233,7 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY, files }: LevelOptions = {}
+  { wind = () => WESTERLY, files, surroundings }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
   const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
@@ -188,27 +241,34 @@ export async function dressLevel(
   }
   const scorch = createScorchMap(view.scene, mapWidth(map), mapDepth(map))
   const ground = new GroundSplatPlugin(view.groundMaterial, kit.ground, scorch)
+  const backdrop = surroundings ? createBackdrop(view.scene, map, surroundings, view.groundMaterial) : null
   view.terrain.shapeForTrenchKit()
   const atmosphere = createAtmosphere(view.scene, map, view.camera, kit.fx)
   // Pieces the kit lacks, made in code.
   const curtain = createGasCurtain(view.scene)
   const pieces = new Map(kit.pieces).set(curtain.name, curtain)
   const dressed = dressBattlefield(map, { ...kit, pieces })
+  const woods = surroundings ? plantBackdrop(map, surroundings, pieces) : []
   const life = createTrenchLife(view.scene, map, dressed.instances, kit.fx)
+  const bursts = createShellBursts(view.scene, map, kit.fx, wind)
   const dressing = {
     ...dressed,
     ground,
     atmosphere,
     damage: createBattleDamage(pieces, dressed.instances),
-    aftermath: createShellAftermath(view.scene, map, view.camera, kit.fx, scorch, wind, (event) =>
+    bursts,
+    aftermath: createShellAftermath(view.scene, map, view.camera, kit.fx, scorch, wind, (event) => {
+      bursts.burst(event)
       life.crows.scare(event.at.x, event.at.z)
-    ),
+    }),
     life,
     postProcess: createPostProcess(view.scene, view.camera),
     materials: [...kit.materials, ...(curtain.material ? [curtain.material] : [])],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,
-    fx: kit.fx
+    fx: kit.fx,
+    backdrop,
+    woods
   }
   const ambience = dressing.ambience
   view.scene.onBeforeRenderObservable.add(() => {
@@ -218,6 +278,7 @@ export async function dressLevel(
     view.terrain.refine(target.x, target.z)
     ambience?.update(target.x, target.z, frameSeconds)
     dressing.aftermath.update(frameSeconds)
+    bursts.update()
     life.update(frameSeconds)
     dressing.postProcess?.update()
   })

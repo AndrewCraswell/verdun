@@ -23,8 +23,8 @@ export {
   TRENCH_PROFILE,
   type TrenchSystemOptions
 } from "./trenches.ts"
-export { type ChangedArea, type Crater, mergeAreas, stampCrater } from "./craters.ts"
-export { decodeElevation, type Elevation } from "./elevation.ts"
+export { type ChangedArea, type Crater, mergeAreas, slumpGround, stampCrater } from "./craters.ts"
+export { decodeElevation, type Elevation, elevationAt } from "./elevation.ts"
 export { generateFleurySector } from "./fleury.ts"
 export {
   footprintRadius,

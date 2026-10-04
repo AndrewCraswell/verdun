@@ -17,8 +17,8 @@ import type { ScorchMap } from "./scorch-map.ts"
 
 /** Effect sprites the aftermath draws with, from the level kit. */
 export interface AftermathSprites {
-  /** A soft spot: smoke thinned to haze. */
-  readonly mist: Texture
+  /** A soft disc filling its frame: smoke thinned to haze. */
+  readonly puff: Texture
   /** A flipbook of flames, 10 x 10 frames. */
   readonly fire: Texture
   /** A spark. */
@@ -100,29 +100,44 @@ interface Fire {
   age: number
 }
 
-/** Places, each to emit a number of particles from: the particle system takes the next one as it emits. */
+/**
+ * Places, each to emit a number of particles from: the particle system takes the next one as it emits. A place can
+ * carry a throw speed, which then sets the particle's speed (the system sets its own direction): a system draws bursts
+ * of every size, and the next one may come in the same frame.
+ */
 interface EmitQueue {
-  readonly pending: { x: number; y: number; z: number; spread: number }[]
-  add(system: ParticleSystem, x: number, y: number, z: number, spread: number, count: number): void
+  readonly pending: { x: number; y: number; z: number; spread: number; speed?: number }[]
+  add(system: ParticleSystem, x: number, y: number, z: number, spread: number, count: number, speed?: number): void
 }
 
 function emitQueue(system: ParticleSystem): EmitQueue {
   const pending: EmitQueue["pending"] = []
+  let current: EmitQueue["pending"][number] | undefined
   system.startPositionFunction = (_world, position) => {
-    const next = pending.shift()
-    if (next) {
+    current = pending.shift()
+    if (current) {
       position.set(
-        next.x + (Math.random() - 0.5) * next.spread,
-        next.y + Math.random() * next.spread * 0.3,
-        next.z + (Math.random() - 0.5) * next.spread
+        current.x + (Math.random() - 0.5) * current.spread,
+        current.y + Math.random() * current.spread * 0.3,
+        current.z + (Math.random() - 0.5) * current.spread
       )
+    }
+  }
+  const direct = system.startDirectionFunction
+  if (!direct) {
+    // Thrown up and out in a broad cone, as fast as the place says.
+    system.startDirectionFunction = (_world, direction) => {
+      const speed = (current?.speed ?? 1) * (0.5 + Math.random() * 0.5)
+      direction
+        .set((Math.random() - 0.5) * 1.4, 1 + Math.random() * 0.6, (Math.random() - 0.5) * 1.4)
+        .scaleInPlace(speed)
     }
   }
   return {
     pending,
-    add(target, x, y, z, spread, count) {
+    add(target, x, y, z, spread, count, speed) {
       for (let index = 0; index < count; index++) {
-        pending.push({ x, y, z, spread })
+        pending.push({ x, y, z, spread, speed })
       }
       target.manualEmitCount = Math.max(0, target.manualEmitCount) + count
     }
@@ -150,13 +165,16 @@ function createSmoke(scene: Scene, texture: Texture, wind: () => { x: number; z:
   smoke.colorDead = new Color4(0.45, 0.44, 0.42, 0)
   // Faint as it forms inside the burst's own column, thickest once that has thinned, then gone.
   smoke.addColorGradient(0, new Color4(0.3, 0.28, 0.26, 0))
-  smoke.addColorGradient(0.15, new Color4(0.3, 0.28, 0.26, 0.3))
-  smoke.addColorGradient(0.6, new Color4(0.38, 0.36, 0.33, 0.2))
+  smoke.addColorGradient(0.15, new Color4(0.3, 0.28, 0.26, 0.16))
+  smoke.addColorGradient(0.6, new Color4(0.38, 0.36, 0.33, 0.1))
   smoke.addColorGradient(1, new Color4(0.45, 0.44, 0.42, 0))
-  smoke.minSize = 6
-  smoke.maxSize = 10
-  smoke.addSizeGradient(0, 0.6)
-  smoke.addSizeGradient(1, 2.4)
+  // Size gradients are the size itself, in metres; each particle varies by its scale.
+  smoke.addSizeGradient(0, 4)
+  smoke.addSizeGradient(1, 20)
+  smoke.minScaleX = 0.75
+  smoke.maxScaleX = 1.25
+  smoke.minScaleY = 0.75
+  smoke.maxScaleY = 1.25
   smoke.minLifeTime = 18
   smoke.maxLifeTime = 34
   // It drifts with the wind near the ground, rising slowly.
@@ -186,8 +204,9 @@ function createClods(scene: Scene, texture: Texture): ParticleSystem {
   clods.maxSize = 0.45
   clods.minLifeTime = 1.1
   clods.maxLifeTime = 2.1
-  clods.direction1 = new Vector3(-0.7, 1, -0.7)
-  clods.direction2 = new Vector3(0.7, 1.6, 0.7)
+  // Each burst's own throw speed sets the clods' speed (see emitQueue).
+  clods.minEmitPower = 1
+  clods.maxEmitPower = 1
   clods.gravity = new Vector3(0, -9.81, 0)
   clods.minAngularSpeed = -6
   clods.maxAngularSpeed = 6
@@ -244,7 +263,7 @@ export function createShellAftermath(
   wind: () => { x: number; z: number },
   onBurst: (event: BurstEvent) => void = () => undefined
 ): ShellAftermath {
-  const smoke = createSmoke(scene, sprites.mist, wind)
+  const smoke = createSmoke(scene, sprites.puff, wind)
   const clods = createClods(scene, sprites.scorch)
   const embers = createEmbers(scene, sprites.ember)
   const smokeQueue = emitQueue(smoke)
@@ -301,9 +320,7 @@ export function createShellAftermath(
         smokeQueue.add(smoke, x, y + 1.5, z, Math.max(2, stats.scorch * 1.6), stats.smoke)
       }
       if (stats.clods > 0 && !inAir) {
-        clods.minEmitPower = stats.throw * 0.5
-        clods.maxEmitPower = stats.throw
-        clodQueue.add(clods, x, ground + 0.3, z, stats.scorch * 0.6, stats.clods)
+        clodQueue.add(clods, x, ground + 0.3, z, stats.scorch * 0.6, stats.clods, stats.throw)
       }
       const chance = stats.fire * (burnable(x, z) ? 4 : 1)
       if (!inAir && random() < chance) {

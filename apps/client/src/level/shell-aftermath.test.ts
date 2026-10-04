@@ -34,7 +34,7 @@ function setup() {
     scene,
     map,
     camera,
-    { mist: sprite, fire: sprite, ember: sprite, scorch: sprite },
+    { puff: sprite, fire: sprite, ember: sprite, scorch: sprite },
     scorch,
     () => ({ x: 2, z: 0 })
   )

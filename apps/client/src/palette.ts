@@ -17,6 +17,6 @@ export const palette = {
 export const surfaceColors: Readonly<Record<Surface, Color3>> = {
   [Surface.Grass]: Color3.FromHexString("#55593d"),
   [Surface.Mud]: Color3.FromHexString("#574636"),
-  [Surface.Chalk]: Color3.FromHexString("#8e897b"),
+  [Surface.Chalk]: Color3.FromHexString("#6f6a5e"),
   [Surface.Churned]: Color3.FromHexString("#43372b")
 }

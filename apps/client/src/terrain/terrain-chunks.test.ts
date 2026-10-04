@@ -31,12 +31,12 @@ describe("createTerrainChunks", () => {
 
     expect(CHUNK_SIZE_METERS).toBe(64)
     expect(terrain.meshes).toHaveLength(70)
-    // A full chunk at 1 m vertices is 65 x 65, plus skirts along the two edges it shares, north and east; the last
-    // column of chunks is 600 - 576 = 24 m wide, with skirts north and west.
-    expect(terrain.meshes[0]?.getTotalVertices()).toBe(65 * 65 + 2 * 65)
-    expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65 + 25 + 65)
+    // A full chunk at 1 m vertices is 65 x 65, plus a skirt along each of its four edges; the last column of chunks is
+    // 600 - 576 = 24 m wide.
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(65 * 65 + 4 * 65)
+    expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65 + 2 * 25 + 2 * 65)
     // Every vertex carries its surface colour.
-    expect(terrain.meshes[0]?.getVerticesData("color")).toHaveLength((65 * 65 + 2 * 65) * 4)
+    expect(terrain.meshes[0]?.getVerticesData("color")).toHaveLength((65 * 65 + 4 * 65) * 4)
   })
 
   it("renders chunks with trenches at full 0.5 m detail, so trench steps keep their shape", () => {
@@ -51,8 +51,8 @@ describe("createTerrainChunks", () => {
     const { terrain } = setup(128, 128, 2, [trench])
 
     // The trench chunk at every sample: 129 x 129. Its neighbour to the north at 1 m: 65 x 65. Both skirted.
-    expect(terrain.meshes[0]?.getTotalVertices()).toBe(129 * 129 + 2 * 129)
-    expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65 + 2 * 65)
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(129 * 129 + 4 * 129)
+    expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65 + 4 * 65)
   })
 
   it("rebuilds only the chunks a change touches", () => {
@@ -78,8 +78,13 @@ describe("createTerrainChunks", () => {
       facing: "north"
     }
     const { terrain } = setup(64, 64, 2, [trench])
+    // The ground itself: the first 129 x 129 vertices, before the skirts.
     const lowest = () =>
-      Math.min(...Array.from(terrain.meshes[0]?.getVerticesData("position") ?? []).filter((_, i) => i % 3 === 1))
+      Math.min(
+        ...Array.from(terrain.meshes[0]?.getVerticesData("position") ?? [])
+          .slice(0, 129 * 129 * 3)
+          .filter((_, i) => i % 3 === 1)
+      )
     const before = lowest()
 
     terrain.shapeForTrenchKit()

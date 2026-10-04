@@ -117,6 +117,31 @@ function shadeAt(column: number, row: number, x: number, z: number): number {
   return 0.9 + patch * 0.16 + jitter * 0.04
 }
 
+/**
+ * Cavity occlusion: ground lying below the ground a metre or two round it (crater bowls, the foot of a bank) sees less
+ * sky and darkens, by up to `CAVITY_DARKEN`; crests and lips catch a little more light. Samples are compared with the
+ * ground `CAVITY_REACH` samples away, near and far.
+ */
+const CAVITY_REACH = [3, 6] as const
+const CAVITY_DARKEN = 0.26
+const CREST_LIGHTEN = 0.1
+
+function cavityAt(map: BattlefieldMap, heights: Float32Array, column: number, row: number): number {
+  const here = heightOf(map, heights, column, row)
+  let around = 0
+  for (const reach of CAVITY_REACH) {
+    around +=
+      heightOf(map, heights, column - reach, row) +
+      heightOf(map, heights, column + reach, row) +
+      heightOf(map, heights, column, row - reach) +
+      heightOf(map, heights, column, row + reach)
+  }
+  const depth = around / (4 * CAVITY_REACH.length) - here
+  const hollow = Math.min(1, Math.max(0, depth / 0.9))
+  const crest = Math.min(1, Math.max(0, -depth / 0.5))
+  return 1 - CAVITY_DARKEN * hollow * (2 - hollow) + CREST_LIGHTEN * crest
+}
+
 /** How far around a sample the ground is compared with it to find hollows, in samples. */
 const HOLLOW_REACH = 20
 
@@ -147,25 +172,17 @@ export interface ChunkGeometry {
 }
 
 /**
- * The grid's vertices along each edge of the chunk that faces another chunk (not the map's own edge), in order. Skirts
- * hang from these.
+ * The grid's vertices along each of the chunk's four edges, in order. Skirts hang from these: between chunks, and along
+ * the map's own edge, where the backdrop beyond meets it.
  */
-function innerEdges(map: BattlefieldMap, bounds: ChunkBounds, columnCount: number, rowCount: number): number[][] {
-  const edges: number[][] = []
+function chunkEdges(columnCount: number, rowCount: number): number[][] {
   const along = (count: number, vertex: (index: number) => number) => Array.from({ length: count }, (_, i) => vertex(i))
-  if (bounds.firstRow > 0) {
-    edges.push(along(columnCount, (i) => i))
-  }
-  if (bounds.lastRow < map.rows) {
-    edges.push(along(columnCount, (i) => (rowCount - 1) * columnCount + i))
-  }
-  if (bounds.firstColumn > 0) {
-    edges.push(along(rowCount, (i) => i * columnCount))
-  }
-  if (bounds.lastColumn < map.columns) {
-    edges.push(along(rowCount, (i) => i * columnCount + columnCount - 1))
-  }
-  return edges
+  return [
+    along(columnCount, (i) => i),
+    along(columnCount, (i) => (rowCount - 1) * columnCount + i),
+    along(rowCount, (i) => i * columnCount),
+    along(rowCount, (i) => i * columnCount + columnCount - 1)
+  ]
 }
 
 /**
@@ -174,9 +191,9 @@ function innerEdges(map: BattlefieldMap, bounds: ChunkBounds, columnCount: numbe
  * the 0.5 m simulation grid for rendering. `ground` replaces the map's heights for drawing and darkens some samples;
  * see render-heights.ts.
  *
- * `skirtDepth` hangs a curtain of ground that deep below every edge shared with another chunk. A neighbour drawn at a
- * coarser step cuts its edge straight across where this one follows every sample, leaving slivers of sky between them;
- * the skirt fills them.
+ * `skirtDepth` hangs a curtain of ground that deep below every edge of the chunk. A neighbour drawn at a coarser step
+ * cuts its edge straight across where this one follows every sample, leaving slivers of sky between them, and the
+ * backdrop beyond the map meets its edge only every 10 m; the skirt fills both.
  */
 export function buildChunkGeometry(
   map: BattlefieldMap,
@@ -189,7 +206,7 @@ export function buildChunkGeometry(
   const heights = ground?.heights ?? map.heights
   const columns = sampleSteps(bounds.firstColumn, bounds.lastColumn, step)
   const rows = sampleSteps(bounds.firstRow, bounds.lastRow, step)
-  const edges = skirtDepth > 0 ? innerEdges(map, bounds, columns.length, rows.length) : []
+  const edges = skirtDepth > 0 ? chunkEdges(columns.length, rows.length) : []
   const vertexCount = columns.length * rows.length + edges.reduce((total, edge) => total + edge.length, 0)
 
   // Typed arrays filled in place: a detailed chunk is 17,000 vertices, rebuilt while the camera pans.
@@ -213,7 +230,7 @@ export function buildChunkGeometry(
       writeNormal(map, heights, column, row, step, normals, vertex * 3)
       uvs[vertex * 2] = x / UV_TILE_METERS
       uvs[vertex * 2 + 1] = z / UV_TILE_METERS
-      const shade = shadeAt(column, row, x, z) * (ground?.shade[index] ?? 1)
+      const shade = shadeAt(column, row, x, z) * (ground?.shade[index] ?? 1) * cavityAt(map, heights, column, row)
       const shared = vertex * SURFACE_COUNT
       let r = 0
       let g = 0
@@ -241,7 +258,9 @@ export function buildChunkGeometry(
     }
   }
 
-  // Rows run toward +z, so triangles wind to face up in Babylon's left-handed system.
+  // Rows run toward +z, so triangles wind to face up in Babylon's left-handed system. Each quad splits along the
+  // diagonal whose ends are nearer in height, which follows ridges and crater walls instead of cutting across them in
+  // a staircase.
   const rowLength = columns.length
   const gridQuads = (rowLength - 1) * (rows.length - 1)
   const skirtQuads = edges.reduce((total, edge) => total + edge.length - 1, 0)
@@ -253,12 +272,24 @@ export function buildChunkGeometry(
       const nearRight = nearLeft + 1
       const farLeft = nearLeft + rowLength
       const farRight = farLeft + 1
-      indices[corner++] = nearRight
-      indices[corner++] = farRight
-      indices[corner++] = farLeft
-      indices[corner++] = nearLeft
-      indices[corner++] = nearRight
-      indices[corner++] = farLeft
+      const heightOfVertex = (vertexIndex: number) => positions[vertexIndex * 3 + 1] ?? 0
+      const across = Math.abs(heightOfVertex(nearRight) - heightOfVertex(farLeft))
+      const along = Math.abs(heightOfVertex(nearLeft) - heightOfVertex(farRight))
+      if (across <= along) {
+        indices[corner++] = nearRight
+        indices[corner++] = farRight
+        indices[corner++] = farLeft
+        indices[corner++] = nearLeft
+        indices[corner++] = nearRight
+        indices[corner++] = farLeft
+      } else {
+        indices[corner++] = nearLeft
+        indices[corner++] = farRight
+        indices[corner++] = farLeft
+        indices[corner++] = nearLeft
+        indices[corner++] = nearRight
+        indices[corner++] = farRight
+      }
     }
   }
 

@@ -13,9 +13,10 @@ import { AMBIENCE_FILES, type AmbienceAudio } from "./ambience.ts"
 import type { EffectSprites } from "./atmosphere.ts"
 import { type KitFiles, openKitFiles } from "./kit-files.ts"
 import type { AftermathSprites } from "./shell-aftermath.ts"
+import type { BurstSprites } from "./shell-burst.ts"
 
 /** Every effect sprite in the kit: smoke and mist for the air, flames, sparks and scorch for shellfire. */
-export interface KitEffects extends EffectSprites, AftermathSprites {
+export interface KitEffects extends EffectSprites, AftermathSprites, BurstSprites {
   /** Splotches of grunge, for ragged scorch. */
   readonly grunge: Texture
 }
@@ -191,8 +192,8 @@ export async function loadLevelKit(scene: Scene, given?: KitFiles | null): Promi
       layer("mud"),
       layer("chalk"),
       layer("churned"),
-      Promise.all(["smoke", "mist", "fire", "ember", "scorch", "grunge"].map(sprite)).then(
-        ([smoke, mist, fire, ember, scorch, grunge]) => ({ smoke, mist, fire, ember, scorch, grunge })
+      Promise.all(["smoke", "mist", "fire", "ember", "scorch", "grunge", "puff"].map(sprite)).then(
+        ([smoke, mist, fire, ember, scorch, grunge, puff]) => ({ smoke, mist, fire, ember, scorch, grunge, puff })
       ),
       loadAudio(files),
       loadBattleSoundFiles(files)
