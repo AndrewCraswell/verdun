@@ -12,7 +12,8 @@ pre-commit:
     lockfile:
       # Installs on a VPN go through a corporate npm mirror; make the lockfile installable from public npm in CI.
       glob: "pnpm-lock.yaml"
-      run: pnpm lockfile:normalize
+      # Then resync node_modules, or pnpm's verifyDepsBeforeRun rejects the next pnpm command (such as pre-push).
+      run: pnpm lockfile:normalize && pnpm install --frozen-lockfile --prefer-offline
       stage_fixed: true
     format:
       glob: "*.{js,jsx,ts,tsx,json,css,yaml,yml,md}"
