@@ -97,7 +97,12 @@ async function start(): Promise<void> {
     sectorBase: elevation.base,
     sectorOrigin: { x: 1200, z: 1300 }
   }
-  const level = await dressLevel(view, map, { wind: () => sim.wind, files: kitFiles, surroundings })
+  const level = await dressLevel(view, map, {
+    wind: () => sim.wind,
+    files: kitFiles,
+    surroundings,
+    wire: () => sim.wire
+  })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
   kitFiles?.close?.()
