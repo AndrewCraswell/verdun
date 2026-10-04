@@ -1,13 +1,24 @@
-import { type BattlefieldMap, footprintRadius, heightAt, mapDepth, mapWidth, SCENERY_FOOTPRINTS } from "@verdun/map"
+import {
+  type BattlefieldMap,
+  type ChangedArea,
+  footprintRadius,
+  heightAt,
+  mapDepth,
+  mapWidth,
+  SCENERY_FOOTPRINTS
+} from "@verdun/map"
 import type { EntityId } from "bitecs"
 import { snowDepth, sodden, weatherPace } from "./ground.ts"
 import type { Simulation } from "./simulation.ts"
 import { slopeCost, surfacePace } from "./terrain.ts"
-import { wireAt, wirePace } from "./wire.ts"
+import { WIRE_CELL, wireAt, wirePace } from "./wire.ts"
 
 /** Navigation grid cell size, in metres: fine enough for gaps in the wire and lanes between ruins. */
 export const NAV_CELL = 2
-/** At most this often, in seconds, the costs are rebuilt after shells have cut wire or the ground has changed. */
+/**
+ * At most this often, in seconds, the costs are brought up to date after shells have cut wire or cratered the ground,
+ * or the weather has changed it.
+ */
 const REFRESH_SECONDS = 10
 /**
  * The costs follow the mud and snow once they have changed by this much (0 to 1): a rebuild drops every flow field, so
@@ -53,6 +64,11 @@ interface NavState {
    * route's search only adds them up.
    */
   readonly steps: Float64Array
+  /** The wire as the costs last saw it, to find the cells shells have cut or wiring parties mended since. */
+  readonly wireSeen: Float32Array
+  /** 1 where craters have reshaped a cell since the costs were last brought up to date. */
+  readonly cratered: Uint8Array
+  anyCratered: boolean
   builtAt: number
   /** The wire's cut count when the costs were last built. */
   builtForCuts: number
@@ -126,44 +142,112 @@ function layObstacles(map: BattlefieldMap, columns: number, rows: number): Float
 }
 
 /**
- * Rebuilds every cell's cost from the ground as it is now: surface, duckboards, obstacles, the wire, and the weather's
- * mud and snow, so routes keep to firmer going when the ground is sodden and flooded trenches are worth climbing out of.
+ * Works out a cell's cost from the ground as it is now: surface, duckboards, obstacles, the wire, and the weather's mud
+ * and snow, so routes keep to firmer going when the ground is sodden and flooded trenches are worth climbing out of.
  */
-function rebuild(sim: Simulation, state: NavState): void {
+function survey(sim: Simulation, state: NavState, cell: number): void {
   const { map } = sim
   const quarter = NAV_CELL / 4
-  for (let row = 0; row < state.rows; row++) {
-    for (let column = 0; column < state.columns; column++) {
-      const cell = row * state.columns + column
-      const x = (column + 0.5) * NAV_CELL
-      const z = (row + 0.5) * NAV_CELL
-      state.height[cell] = heightAt(map, x, z)
-      // Wire is finer than the grid: average a few points, so a lane through it shows as passable ground.
-      const wire =
-        (wirePace(sim.wire, x - quarter, z - quarter) +
-          wirePace(sim.wire, x + quarter, z - quarter) +
-          wirePace(sim.wire, x - quarter, z + quarter) +
-          wirePace(sim.wire, x + quarter, z + quarter)) /
-        4
-      state.cost[cell] = read(state.obstacles, cell) / (surfacePace(map, x, z) * weatherPace(sim, x, z) * wire)
-      state.wired[cell] =
-        wireAt(sim.wire, x - quarter, z - quarter) +
-          wireAt(sim.wire, x + quarter, z - quarter) +
-          wireAt(sim.wire, x - quarter, z + quarter) +
-          wireAt(sim.wire, x + quarter, z + quarter) +
-          wireAt(sim.wire, x, z) >
-        0
-          ? 1
-          : 0
-    }
-  }
-  laySteps(state)
+  const x = ((cell % state.columns) + 0.5) * NAV_CELL
+  const z = (Math.floor(cell / state.columns) + 0.5) * NAV_CELL
+  state.height[cell] = heightAt(map, x, z)
+  // Wire is finer than the grid: average a few points, so a lane through it shows as passable ground.
+  const wire =
+    (wirePace(sim.wire, x - quarter, z - quarter) +
+      wirePace(sim.wire, x + quarter, z - quarter) +
+      wirePace(sim.wire, x - quarter, z + quarter) +
+      wirePace(sim.wire, x + quarter, z + quarter)) /
+    4
+  state.cost[cell] = read(state.obstacles, cell) / (surfacePace(map, x, z) * weatherPace(sim, x, z) * wire)
+  state.wired[cell] =
+    wireAt(sim.wire, x - quarter, z - quarter) +
+      wireAt(sim.wire, x + quarter, z - quarter) +
+      wireAt(sim.wire, x - quarter, z + quarter) +
+      wireAt(sim.wire, x + quarter, z + quarter) +
+      wireAt(sim.wire, x, z) >
+    0
+      ? 1
+      : 0
+}
+
+/** Notes the costs as built now, dropping every route worked out from the old ones. */
+function built(sim: Simulation, state: NavState): void {
+  state.wireSeen.set(sim.wire.density)
+  state.cratered.fill(0)
+  state.anyCratered = false
   state.builtAt = sim.tick
   state.builtForCuts = sim.wire.cuts
   state.builtForMud = sodden(sim)
   state.builtForSnow = snowDepth(sim)
   state.fields.clear()
   state.unfinished.clear()
+}
+
+/** Rebuilds every cell's cost: for the weather, which changes the ground everywhere. */
+function rebuild(sim: Simulation, state: NavState): void {
+  for (let cell = 0; cell < state.columns * state.rows; cell++) {
+    survey(sim, state, cell)
+  }
+  laySteps(state)
+  built(sim, state)
+}
+
+/**
+ * Brings up to date only the cells shells and wiring parties have changed: the wire cut or mended, and the craters.
+ * Rebuilding the whole grid for a few shell holes stalled a step for most of a hundred milliseconds.
+ */
+function refresh(sim: Simulation, state: NavState): void {
+  const { density } = sim.wire
+  const changed = state.cratered
+  const wireColumns = sim.wire.columns
+  for (let cell = 0; cell < density.length; cell++) {
+    if (density[cell] !== state.wireSeen[cell]) {
+      const column = Math.floor((((cell % wireColumns) + 0.5) * WIRE_CELL) / NAV_CELL)
+      const row = Math.floor(((Math.floor(cell / wireColumns) + 0.5) * WIRE_CELL) / NAV_CELL)
+      if (column < state.columns && row < state.rows) {
+        changed[row * state.columns + column] = 1
+      }
+    }
+  }
+  const cells: number[] = []
+  for (let cell = 0; cell < changed.length; cell++) {
+    if (changed[cell] === 1) {
+      cells.push(cell)
+      survey(sim, state, cell)
+    }
+  }
+  // A step's time reads the cells at both its ends: lay those into and out of each changed cell again.
+  for (const cell of cells) {
+    const column = cell % state.columns
+    const row = Math.floor(cell / state.columns)
+    for (let r = Math.max(0, row - 1); r <= Math.min(state.rows - 1, row + 1); r++) {
+      for (let c = Math.max(0, column - 1); c <= Math.min(state.columns - 1, column + 1); c++) {
+        layStepsInto(state, r * state.columns + c)
+      }
+    }
+  }
+  built(sim, state)
+}
+
+/**
+ * Tells navigation the ground has been reshaped in an area, as a crater does: its costs there are brought up to date
+ * with the next refresh.
+ */
+export function groundChanged(sim: Simulation, area: ChangedArea): void {
+  const state = states.get(sim)
+  if (!state) {
+    return
+  }
+  const minColumn = Math.max(0, Math.floor(area.minX / NAV_CELL))
+  const maxColumn = Math.min(state.columns - 1, Math.floor(area.maxX / NAV_CELL))
+  const minRow = Math.max(0, Math.floor(area.minZ / NAV_CELL))
+  const maxRow = Math.min(state.rows - 1, Math.floor(area.maxZ / NAV_CELL))
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let column = minColumn; column <= maxColumn; column++) {
+      state.cratered[row * state.columns + column] = 1
+      state.anyCratered = true
+    }
+  }
 }
 
 /** Each of the `NEIGHBOURS` directions paired with its opposite: a step one way and back share their ground. */
@@ -199,6 +283,29 @@ function laySteps(state: NavState): void {
   }
 }
 
+/** Lays again the time to walk into one cell from each of its neighbours, as `laySteps` does for every cell. */
+function layStepsInto(state: NavState, at: number): void {
+  const { columns, rows, cost, height, steps } = state
+  const cells = columns * rows
+  const column = at % columns
+  const row = Math.floor(at / columns)
+  for (let direction = 0; direction < NEIGHBOURS.length; direction++) {
+    const [dc, dr, length] = NEIGHBOURS[direction] ?? [0, 0, 1]
+    const c = column + dc
+    const r = row + dr
+    let time = Infinity
+    if (c >= 0 && r >= 0 && c < columns && r < rows) {
+      const from = r * columns + c
+      const through = (read(cost, at) + read(cost, from)) / 2
+      if (Number.isFinite(through)) {
+        const run = length * NAV_CELL
+        time = run * through * slopeCost((read(height, at) - read(height, from)) / run)
+      }
+    }
+    steps[direction * cells + at] = time
+  }
+}
+
 function navState(sim: Simulation): NavState {
   let state = states.get(sim)
   if (!state) {
@@ -212,6 +319,9 @@ function navState(sim: Simulation): NavState {
       obstacles: layObstacles(sim.map, columns, rows),
       wired: new Uint8Array(columns * rows),
       steps: new Float64Array(columns * rows * NEIGHBOURS.length),
+      wireSeen: new Float32Array(sim.wire.density.length),
+      cratered: new Uint8Array(columns * rows),
+      anyCratered: false,
       builtAt: 0,
       builtForCuts: 0,
       builtForMud: 0,
@@ -223,14 +333,16 @@ function navState(sim: Simulation): NavState {
     }
     states.set(sim, state)
     rebuild(sim, state)
-  } else if (
-    (sim.wire.cuts !== state.builtForCuts ||
-      Math.abs(sodden(sim) - state.builtForMud) >= GROUND_CHANGE ||
-      Math.abs(snowDepth(sim) - state.builtForSnow) >= GROUND_CHANGE) &&
-    sim.tick - state.builtAt >= REFRESH_SECONDS * 20
-  ) {
+  } else if (sim.tick - state.builtAt >= REFRESH_SECONDS * 20) {
     // Twenty steps a second; a literal, since importing TICK_RATE here would be circular at load time.
-    rebuild(sim, state)
+    if (
+      Math.abs(sodden(sim) - state.builtForMud) >= GROUND_CHANGE ||
+      Math.abs(snowDepth(sim) - state.builtForSnow) >= GROUND_CHANGE
+    ) {
+      rebuild(sim, state)
+    } else if (sim.wire.cuts !== state.builtForCuts || state.anyCratered) {
+      refresh(sim, state)
+    }
   }
   if (state.budgetTick !== sim.tick) {
     state.budgetTick = sim.tick
@@ -326,19 +438,35 @@ function startField(state: NavState, goal: NavGoal): FlowField {
   const { columns, rows, cost } = state
   const distance = new Float32Array(columns * rows).fill(Infinity)
   const heap = new Heap(1024)
+  if (goal.kind === "line") {
+    // A line's goal is whole rows: lay them at once, and search on only from the rows at its edge.
+    const rowReached = (row: number) => ((row + 0.5) * NAV_CELL - goal.z) * goal.direction >= 0
+    for (let row = 0; row < rows; row++) {
+      if (!rowReached(row)) {
+        continue
+      }
+      const edge = (row > 0 && !rowReached(row - 1)) || (row < rows - 1 && !rowReached(row + 1))
+      for (let cell = row * columns; cell < (row + 1) * columns; cell++) {
+        if (Number.isFinite(read(cost, cell))) {
+          distance[cell] = 0
+          if (edge) {
+            heap.push(cell, 0)
+          }
+        }
+      }
+    }
+    return { distance, heap }
+  }
   const reached = (column: number, row: number) => {
     const x = (column + 0.5) * NAV_CELL
     const z = (row + 0.5) * NAV_CELL
-    return goal.kind === "line"
-      ? (z - goal.z) * goal.direction >= 0
-      : (x - goal.x) ** 2 + (z - goal.z) ** 2 <= goal.radius ** 2
+    return (x - goal.x) ** 2 + (z - goal.z) ** 2 <= goal.radius ** 2
   }
-  // Only the rows and columns the goal could cover: a point's are few.
-  const rowsFrom = goal.kind === "point" ? Math.max(0, Math.floor((goal.z - goal.radius) / NAV_CELL)) : 0
-  const rowsTo = goal.kind === "point" ? Math.min(rows - 1, Math.floor((goal.z + goal.radius) / NAV_CELL)) : rows - 1
-  const columnsFrom = goal.kind === "point" ? Math.max(0, Math.floor((goal.x - goal.radius) / NAV_CELL)) : 0
-  const columnsTo =
-    goal.kind === "point" ? Math.min(columns - 1, Math.floor((goal.x + goal.radius) / NAV_CELL)) : columns - 1
+  // Only the rows and columns the point's ground could cover.
+  const rowsFrom = Math.max(0, Math.floor((goal.z - goal.radius) / NAV_CELL))
+  const rowsTo = Math.min(rows - 1, Math.floor((goal.z + goal.radius) / NAV_CELL))
+  const columnsFrom = Math.max(0, Math.floor((goal.x - goal.radius) / NAV_CELL))
+  const columnsTo = Math.min(columns - 1, Math.floor((goal.x + goal.radius) / NAV_CELL))
   for (let row = rowsFrom; row <= rowsTo; row++) {
     for (let column = columnsFrom; column <= columnsTo; column++) {
       const cell = row * columns + column
@@ -346,8 +474,7 @@ function startField(state: NavState, goal: NavGoal): FlowField {
         continue
       }
       distance[cell] = 0
-      // Only cells on the goal's edge lead anywhere new: a line's goal can be half the map, and searching on from
-      // every cell of it would spend the budget on ground already reached.
+      // Only cells on the goal's edge lead anywhere new.
       const edge = NEIGHBOURS.some(([dc, dr]) => {
         const c = column + dc
         const r = row + dr
@@ -433,16 +560,13 @@ function field(state: NavState, goal: NavGoal, cell: number): Float32Array | nul
 
 /**
  * Carries on the route searches soldiers asked for and the budget cut short, with what's left of it this step, so the
- * routes are ready when their squads next take stock.
+ * routes are ready when their squads next take stock; and keeps the costs up to date with the ground.
  */
 export function navigationSystem(sim: Simulation): void {
-  const state = states.get(sim)
-  if (!state || state.unfinished.size === 0) {
-    return
-  }
-  const current = navState(sim)
-  for (const [field, cell] of current.unfinished) {
-    if (!settle(current, field, cell)) {
+  // Also lays the costs on the first step, while the game loads, rather than on the first order of a battle.
+  const state = navState(sim)
+  for (const [field, cell] of state.unfinished) {
+    if (!settle(state, field, cell)) {
       return
     }
   }

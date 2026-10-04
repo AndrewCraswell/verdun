@@ -5,6 +5,7 @@ import { Side, Stance } from "./components.ts"
 import { refreshGasGround, releaseGas } from "./gas.ts"
 import { burstReach } from "./ground.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
+import { groundChanged } from "./navigation.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
@@ -491,6 +492,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     depth: stats.craterDepth
   })
   sim.artillery.pendingSightRebuild = mergeAreas(sim.artillery.pendingSightRebuild, crater)
+  groundChanged(sim, crater)
   refreshGasGround(sim.gas, sim.map, crater)
   if (stats.gasMass > 0) {
     releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
