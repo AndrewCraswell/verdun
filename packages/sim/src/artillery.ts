@@ -10,9 +10,16 @@ import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
  * howitzer is the 15 cm class (German sFH 13, French 155 mm). Field gas shells are the German Green Cross
- * (diphosgene) and the French No. 5 (phosgene), both first fired in quantity at Verdun in 1916.
+ * (diphosgene) and the French No. 5 (phosgene), both first fired in quantity at Verdun in 1916. Hand grenades (the
+ * French F1, the German stick grenade) burst the same way, thrown rather than fired.
  */
-export const Shell = { FieldHighExplosive: 0, FieldShrapnel: 1, HeavyHighExplosive: 2, FieldGas: 3 } as const
+export const Shell = {
+  FieldHighExplosive: 0,
+  FieldShrapnel: 1,
+  HeavyHighExplosive: 2,
+  FieldGas: 3,
+  Grenade: 4
+} as const
 export type Shell = (typeof Shell)[keyof typeof Shell]
 
 interface ShellStats {
@@ -94,6 +101,21 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     airburstHeight: 0,
     gasMass: 600_000,
     smokeMass: 1000
+  },
+  // Thrown, not fired: no battery, no flight from the rear. About 60 g of explosive; deadly within a few metres, its
+  // fragments stopped by the traverses either side of a trench bay.
+  [Shell.Grenade]: {
+    craterRadius: 0.3,
+    craterDepth: 0.1,
+    lethalExposed: 3,
+    lethalCovered: 0.8,
+    suppressionRadius: 12,
+    flightSpeed: 0,
+    rangeError: 0,
+    deflectionError: 0,
+    airburstHeight: 0,
+    gasMass: 0,
+    smokeMass: 600
   }
 }
 

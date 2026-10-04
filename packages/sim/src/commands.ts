@@ -1,6 +1,6 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
 import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
-import { fireAimed, shakeSquad } from "./combat.ts"
+import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
@@ -76,6 +76,14 @@ export interface StanceCommand {
   readonly prone: boolean
 }
 
+/** A player throws a grenade toward a ground point, as far as a throw reaches. */
+export interface ThrowGrenadeCommand {
+  readonly type: "throw-grenade"
+  readonly soldier: EntityId
+  readonly x: number
+  readonly z: number
+}
+
 /** Sets the wind near the ground, in metres per second toward +x (east) and +z (north). */
 export interface WindCommand {
   readonly type: "wind"
@@ -125,6 +133,7 @@ export type Command =
   | KillCommand
   | FireCommand
   | StanceCommand
+  | ThrowGrenadeCommand
   | WindCommand
   | FireMissionCommand
   | BarrageAttackCommand
@@ -217,6 +226,12 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "stance": {
       if (isSoldier(sim, command.soldier)) {
         sim.soldiers.stance.value[command.soldier] = command.prone ? Stance.Prone : Stance.Standing
+      }
+      return
+    }
+    case "throw-grenade": {
+      if (isSoldier(sim, command.soldier) && Number.isFinite(command.x) && Number.isFinite(command.z)) {
+        throwGrenade(sim, command.soldier, command.x, command.z)
       }
       return
     }

@@ -7,7 +7,7 @@ import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, 
 import type { SquadOrder } from "./squads.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 8
+export const SIM_STATE_VERSION = 9
 
 export interface SoldierState {
   readonly id: number
@@ -33,6 +33,7 @@ export interface SoldierState {
   readonly maskAt: number
   readonly maskClearSince: number
   readonly gasDose: number
+  readonly grenades: number
 }
 
 export interface SquadState {
@@ -104,7 +105,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       mask: toMask(sim.soldiers.mask.state[id]),
       maskAt: sim.soldiers.mask.at[id],
       maskClearSince: sim.soldiers.mask.clearSince[id],
-      gasDose: sim.soldiers.gasDose.value[id]
+      gasDose: sim.soldiers.gasDose.value[id],
+      grenades: sim.soldiers.grenades.count[id]
     }))
   const squads = sim.squads.map((squad): SquadState => ({
     side: squad.side,
@@ -169,6 +171,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.soldiers.mask.at[id] = soldier.maskAt
     sim.soldiers.mask.clearSince[id] = soldier.maskClearSince
     sim.soldiers.gasDose.value[id] = soldier.gasDose
+    sim.soldiers.grenades.count[id] = soldier.grenades
     if (soldier.dead) {
       addComponent(sim.world, id, sim.soldiers.dead)
     }

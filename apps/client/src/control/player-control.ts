@@ -38,6 +38,8 @@ export type PlayerAction =
   | { readonly kind: "toggle-fog" }
   /** Lie down (and crawl), or get back up. */
   | { readonly kind: "toggle-prone" }
+  /** Throw a grenade toward a ground point. */
+  | { readonly kind: "grenade"; readonly x: number; readonly z: number }
   /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
 
@@ -166,6 +168,11 @@ export function createPlayerControl(
         return
       case "toggle-fog":
         toggleFog?.()
+        return
+      case "grenade":
+        if (squad.leader >= 0) {
+          enqueueCommand(sim, { type: "throw-grenade", soldier: squad.leader, x: action.x, z: action.z })
+        }
         return
       case "toggle-prone":
         if (squad.leader >= 0) {

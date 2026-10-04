@@ -41,6 +41,19 @@ describe("createExplosions", () => {
     expect(explosions.smoke.thinInstanceCount).toBe(0)
   })
 
+  it("draws a grenade's burst much smaller than a shell's", () => {
+    const explosions = createExplosions(scene())
+    explosions.add([burst(Shell.Grenade), burst(Shell.FieldHighExplosive)])
+    explosions.update(0.5)
+    const matrices = explosions.smoke.thinInstanceGetWorldMatrices()
+    // Four puffs to a column: the grenade's first, then the shell's.
+    const grenade = matrices[0]?.m[0] ?? 0
+    const shell = matrices[4]?.m[0] ?? 0
+
+    expect(grenade).toBeGreaterThan(0)
+    expect(grenade).toBeLessThan(shell / 2)
+  })
+
   it("leaves a single white puff hanging in the air for shrapnel", () => {
     const explosions = createExplosions(scene())
     explosions.add([burst(Shell.FieldShrapnel, 12)])

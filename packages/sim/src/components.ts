@@ -65,6 +65,8 @@ export interface SoldierComponents {
   readonly mask: { readonly state: Uint8Array; readonly at: Int32Array; readonly clearSince: Int32Array }
   /** Gas breathed so far, in mg·min/m³ (concentration times minutes): the measure of a gas casualty. */
   readonly gasDose: { readonly value: Float32Array }
+  /** Hand grenades still carried. */
+  readonly grenades: { readonly count: Uint8Array }
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -90,6 +92,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
       at: new Int32Array(capacity).fill(-1),
       clearSince: new Int32Array(capacity).fill(-1)
     },
-    gasDose: { value: new Float32Array(capacity) }
+    gasDose: { value: new Float32Array(capacity) },
+    grenades: { count: new Uint8Array(capacity) }
   }
 }

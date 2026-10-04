@@ -17,6 +17,8 @@ export const TICK_RATE = 20
 export const STEP_SECONDS = 1 / TICK_RATE
 
 const DEFAULT_CAPACITY = 8192
+/** Hand grenades each soldier goes into action with. Bombers carried a sackful; riflemen two to four. */
+export const GRENADES_CARRIED = 3
 /** Average marching pace with kit, in metres per second. */
 export const WALKING_SPEED = 1.4
 
@@ -134,6 +136,7 @@ export function spawnSoldier(
   sim.soldiers.mask.at[soldier] = -1
   sim.soldiers.mask.clearSince[soldier] = -1
   sim.soldiers.gasDose.value[soldier] = 0
+  sim.soldiers.grenades.count[soldier] = GRENADES_CARRIED
   const towardEnemy = side === Side.French ? 1 : -1
   facingStore.x[soldier] = facing?.x ?? 0
   facingStore.z[soldier] = facing?.z ?? towardEnemy

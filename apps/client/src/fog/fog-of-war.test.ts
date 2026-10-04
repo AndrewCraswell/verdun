@@ -224,6 +224,23 @@ describe("createFogOfWar", () => {
     expect(fog.isShown(enemyInOpen)).toBe(false)
   })
 
+  it("darkens other materials too, such as props, and toggles them together", async () => {
+    const { sim, squad } = await trenchSetup()
+    const lineOfSight = await createLineOfSight(sim.map)
+    sightLines.push(lineOfSight)
+    const props = new StandardMaterial("props", scene())
+    const fog = createFogOfWar(scene(), sim, lineOfSight, {
+      squad,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      materials: [props]
+    })
+
+    expect(fog.plugins).toHaveLength(2)
+    expect(fog.plugins[1]?.getClassName()).toBe("FogOfWarPlugin")
+    fog.enabled = false
+    expect(fog.plugins.every((plugin) => !plugin.darkenUnseen)).toBe(true)
+  })
+
   it("can start turned off", async () => {
     const { sim, squad, enemyInOpen } = await trenchSetup()
     const lineOfSight = await createLineOfSight(sim.map)

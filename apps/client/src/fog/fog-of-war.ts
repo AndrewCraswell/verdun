@@ -25,6 +25,8 @@ export interface FogOfWarOptions {
   readonly squad: Squad
   /** The ground material to darken where the viewer can't see. */
   readonly groundMaterial: Material
+  /** Other materials darkened the same way, such as the props standing on the ground. */
+  readonly materials?: readonly Material[]
   /** How far the viewer can see, in metres. */
   readonly range?: number
   /** How often sight is recomputed, per second. */
@@ -42,6 +44,8 @@ export interface FogOfWar {
   readonly visibleEnemies: ReadonlySet<EntityId>
   /** The plugin darkening the ground material. */
   readonly plugin: FogOfWarPlugin
+  /** Every plugin darkening a material, the ground's first. */
+  readonly plugins: readonly FogOfWarPlugin[]
   /** Whether fog is on. Turning it off lights all ground and shows every soldier. */
   enabled: boolean
 }
@@ -54,7 +58,7 @@ export function createFogOfWar(
   scene: Scene,
   sim: Simulation,
   lineOfSight: LineOfSight,
-  { squad, groundMaterial, range = 300, updatesPerSecond = 4, enabled = true }: FogOfWarOptions
+  { squad, groundMaterial, materials = [], range = 300, updatesPerSecond = 4, enabled = true }: FogOfWarOptions
 ): FogOfWar {
   const grid = createFogGrid(sim.map)
   const texture = new RawTexture(
@@ -70,13 +74,13 @@ export function createFogOfWar(
   )
   texture.wrapU = Texture.CLAMP_ADDRESSMODE
   texture.wrapV = Texture.CLAMP_ADDRESSMODE
-  const plugin = new FogOfWarPlugin(groundMaterial, {
-    texture,
-    mapWidth: mapWidth(sim.map),
-    mapDepth: mapDepth(sim.map)
-  })
-
-  plugin.darkenUnseen = enabled
+  // One plugin per material, all reading the same visibility texture.
+  const settings = { texture, mapWidth: mapWidth(sim.map), mapDepth: mapDepth(sim.map) }
+  const plugins = [groundMaterial, ...materials].map((material) => new FogOfWarPlugin(material, settings))
+  const [plugin = new FogOfWarPlugin(groundMaterial, settings)] = plugins
+  for (const each of plugins) {
+    each.darkenUnseen = enabled
+  }
   const visibleEnemies = new Set<EntityId>()
   const interval = 1 / updatesPerSecond
   let sinceUpdate = interval
@@ -112,11 +116,14 @@ export function createFogOfWar(
   return {
     visibleEnemies,
     plugin,
+    plugins,
     get enabled() {
       return plugin.darkenUnseen
     },
     set enabled(value) {
-      plugin.darkenUnseen = value
+      for (const each of plugins) {
+        each.darkenUnseen = value
+      }
       // Redraw soldiers on the next update either way.
       sinceUpdate = interval
     },

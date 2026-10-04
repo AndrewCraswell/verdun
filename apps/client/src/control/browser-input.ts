@@ -54,6 +54,14 @@ export function createBrowserInput(scene: Scene, ground: readonly AbstractMesh[]
       held.add(event.code)
       return
     }
+    if (event.code === "KeyQ" && !event.repeat) {
+      // Throw a grenade at whatever is under the pointer.
+      const point = pointerGround()
+      if (point) {
+        actions.push({ kind: "grenade", x: point.x, z: point.z })
+      }
+      return
+    }
     if (event.code === "KeyV" && !event.repeat) {
       // Call for fire on whatever is under the pointer.
       const point = pointerGround()

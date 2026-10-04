@@ -217,7 +217,8 @@ describe("createPlayerControl", () => {
       { kind: "bombard" },
       { kind: "call-fire", x: 1, z: 2 },
       { kind: "toggle-fog" },
-      { kind: "toggle-prone" }
+      { kind: "toggle-prone" },
+      { kind: "grenade", x: 50, z: 70 }
     ]
     const control = createPlayerControl(
       sim,
@@ -237,6 +238,7 @@ describe("createPlayerControl", () => {
 
     expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
     expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier: leader, prone: true })
+    expect(sim.pendingCommands).toContainEqual({ type: "throw-grenade", soldier: leader, x: 50, z: 70 })
     expect(whistles).toEqual([0, -1, -2, -3])
     stepSimulation(sim)
     expect(shotEvents(sim.events).filter((event) => event.shooter === leader)).toHaveLength(1)

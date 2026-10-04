@@ -1,4 +1,5 @@
 import { type EntityId, hasComponent } from "bitecs"
+import { Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
 import { MaskState, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
@@ -27,6 +28,17 @@ export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
   [Weapon.Rifle]: { interval: 3, accuracy: 0.55, falloff: 150, range: 400, suppression: 0.25 },
   [Weapon.MachineGun]: { interval: 0.15, accuracy: 0.1, falloff: 220, range: 600, suppression: 0.12 }
 }
+
+/** Grenades are thrown at enemies between these distances, in metres: closer risks the thrower, further is too far. */
+export const GRENADE_RANGE = { min: 6, max: 25 } as const
+/** Seconds from deciding to throw until the grenade bursts: pull the pin or the cord, throw, and a 4-5 s fuse. */
+const GRENADE_FUSE = 4.5
+/** Nobody throws where a friend is within this many metres of the target: grenades scatter, and so do fragments. */
+const GRENADE_CLEARANCE = 8
+/** Seconds a throw takes the thrower out of the fight, priming and throwing. */
+const THROW_SECONDS = 3
+/** Throws scatter by this much, plus a share of the distance, in metres (probable error). */
+const THROW_ERROR = { base: 1, perMetre: 0.06 } as const
 
 /** Soldiers re-pick their target this often, in steps, staggered by soldier id so the work spreads out. */
 const THINK_INTERVAL = 10
@@ -255,6 +267,79 @@ export function shakeSquad(sim: Simulation, fallen: EntityId): void {
   }
 }
 
+/** A normally distributed offset with the given probable error, from the simulation's RNG. */
+function scatter(sim: Simulation, probableError: number): number {
+  const u = Math.max(sim.rng.next(), Number.EPSILON)
+  const v = sim.rng.next()
+  return (Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * probableError) / 0.6745
+}
+
+/**
+ * Throws a grenade toward a ground point, if the soldier has one and is ready, at most the maximum throw away. It
+ * bursts after its fuse wherever it lands. Returns whether a grenade was thrown.
+ */
+export function throwGrenade(sim: Simulation, thrower: EntityId, x: number, z: number): boolean {
+  const { grenades, weapon, position } = sim.soldiers
+  if (!isAlive(sim, thrower) || grenades.count[thrower] === 0 || weapon.cooldown[thrower] > 0) {
+    return false
+  }
+  const dx = x - position.x[thrower]
+  const dz = z - position.z[thrower]
+  const distance = Math.sqrt(dx * dx + dz * dz)
+  const reach = distance > GRENADE_RANGE.max ? GRENADE_RANGE.max / distance : 1
+  const error = THROW_ERROR.base + THROW_ERROR.perMetre * Math.min(distance, GRENADE_RANGE.max)
+  grenades.count[thrower] -= 1
+  weapon.cooldown[thrower] = THROW_SECONDS
+  sim.artillery.shells.push({
+    shell: Shell.Grenade,
+    side: sim.soldiers.side.value[thrower] === 1 ? 1 : 0,
+    x: position.x[thrower] + dx * reach + scatter(sim, error),
+    z: position.z[thrower] + dz * reach + scatter(sim, error),
+    landsAtTick: sim.tick + Math.round(GRENADE_FUSE / STEP_SECONDS)
+  })
+  return true
+}
+
+/**
+ * Bombs an enemy close by and in cover: down in a trench bay, behind a parapet, flat in a shell hole. Rifles can't
+ * reach men there, but a grenade lobbed over can. Returns whether a grenade was thrown.
+ */
+function bombIfWorthIt(
+  sim: Simulation,
+  soldier: EntityId,
+  enemies: readonly EntityId[],
+  friends: readonly EntityId[]
+): boolean {
+  // Without sight lines nobody knows where anyone is, so nobody fights.
+  if (!sim.lineOfSight || sim.soldiers.grenades.count[soldier] === 0 || sim.soldiers.weapon.cooldown[soldier] > 0) {
+    return false
+  }
+  const { position } = sim.soldiers
+  let best: EntityId = -1
+  let bestDistance = Infinity
+  for (const enemy of enemies) {
+    const dx = position.x[enemy] - position.x[soldier]
+    const dz = position.z[enemy] - position.z[soldier]
+    const distance = Math.sqrt(dx * dx + dz * dz)
+    if (distance >= GRENADE_RANGE.min && distance <= GRENADE_RANGE.max && distance < bestDistance) {
+      best = enemy
+      bestDistance = distance
+    }
+  }
+  if (best < 0 || isExposed(sim, soldier, best)) {
+    return false
+  }
+  const x = position.x[best]
+  const z = position.z[best]
+  // Bombers throw from the front: not where a friend is close to the target, nor over the heads of friends nearer to
+  // it, who may be running in by the time it bursts.
+  const friendNear = friends.some((friend) => {
+    const toTarget = (position.x[friend] - x) ** 2 + (position.z[friend] - z) ** 2
+    return friend !== soldier && (toTarget < GRENADE_CLEARANCE ** 2 || toTarget < bestDistance ** 2)
+  })
+  return !friendNear && throwGrenade(sim, soldier, x, z)
+}
+
 /**
  * One step of fighting: suppression fades and morale recovers, soldiers re-pick targets a few times a second
  * (staggered), and everyone whose weapon is ready fires at their target if they can still see it.
@@ -278,6 +363,9 @@ export function combatSystem(sim: Simulation): void {
     }
     if ((sim.tick + soldier) % THINK_INTERVAL === 0) {
       const enemies = [...bySide.entries()].filter(([key]) => key !== side.value[soldier]).flatMap(([, list]) => list)
+      if (bombIfWorthIt(sim, soldier, enemies, bySide.get(side.value[soldier]) ?? [])) {
+        continue
+      }
       target.id[soldier] = pickTarget(sim, soldier, enemies)
     }
     const aimed = target.id[soldier]

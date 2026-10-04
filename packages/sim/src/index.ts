@@ -11,7 +11,17 @@ export {
   type ShellInFlight
 } from "./artillery.ts"
 export type { EntityId } from "bitecs"
-export { BROKEN_MORALE, fireAimed, hitChance, PINNED, type ShotEvent, shotEvents, Weapon, WEAPONS } from "./combat.ts"
+export {
+  BROKEN_MORALE,
+  fireAimed,
+  GRENADE_RANGE,
+  hitChance,
+  PINNED,
+  type ShotEvent,
+  shotEvents,
+  Weapon,
+  WEAPONS
+} from "./combat.ts"
 export type {
   Command,
   BarrageAttackCommand,
@@ -23,6 +33,7 @@ export type {
   SquadOrderCommand,
   StanceCommand,
   SteerCommand,
+  ThrowGrenadeCommand,
   WindCommand,
   TakeCommandCommand
 } from "./commands.ts"
@@ -33,6 +44,7 @@ export {
   createSimulation,
   enqueueCommand,
   fallenIds,
+  GRENADES_CARRIED,
   type Simulation,
   type SimEvent,
   type SimulationOptions,

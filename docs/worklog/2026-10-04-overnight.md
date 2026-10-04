@@ -131,3 +131,21 @@ late 1916.
 - The level-design agent owns `README.md`, `docs/roadmap.md` and `docs/architecture.md` until it commits, so the roadmap
   doesn't mention ground pace, smoke and running yet. M5 and M6 are already ticked in the committed roadmap.
 - `docs/architecture.md` says smoke and gas block sight "through their" grids: that's now true.
+
+## Grenades
+
+Committed as "Add hand grenades".
+
+- `Shell.Grenade`: about a 3 m radius for half casualties in the open, 0.8 m behind earth, so trench traverses shield
+  the next bay. Thrown, not fired: a 4.5 s fuse, scatter of 1 m plus 6% of the distance, 25 m maximum.
+- Every soldier carries 3. AI soldiers bomb the nearest enemy 6-25 m away whom they can't shoot properly (in a trench
+  bay, behind a parapet, flat in a shell hole), unless a friend is within 8 m of the target or nearer to it than the
+  thrower. Without that second rule, men running into a trench were killed by their comrades' bombs (up to 28 a battle);
+  now it's 2-8. **Q** throws the player's grenade at the pointer. Snapshots are version 9.
+- Battle matrix after grenades: French 100-136 of 200 left, Germans 89-104 captured and 0-8 left.
+
+## Fog of war for props
+
+The level-design agent asked for `createFogOfWar(..., { materials })`: extra materials, such as props, darkened like the
+ground and toggled with it. Done; `fog.plugins` lists every plugin. They'll pass the level's materials from `main.ts`,
+which they own.

@@ -16,6 +16,8 @@ const MAX_PUFFS = 2048
  */
 const FIELD_COLUMN = { puffs: 4, radius: 3.2, step: 1.9 } as const
 const HEAVY_SCALE = 2.2
+/** A grenade throws up a puff of smoke and earth a couple of metres high. */
+const GRENADE_SCALE = 0.4
 const AIRBURST_RADIUS = 3.5
 
 interface Puff {
@@ -108,7 +110,13 @@ export function createExplosions(scene: Scene): Explosions {
         const { x, y, z } = burst.at
         const heavy = burst.shell === Shell.HeavyHighExplosive
         const air = burst.shell === Shell.FieldShrapnel
-        const scale = heavy ? HEAVY_SCALE : 1
+        const grenade = burst.shell === Shell.Grenade
+        let scale = 1
+        if (heavy) {
+          scale = HEAVY_SCALE
+        } else if (grenade) {
+          scale = GRENADE_SCALE
+        }
         flashList.push({ x, y, z, size: 3 * scale, rise: 0, lifetime: FLASH_SECONDS, age: 0 })
         if (air) {
           airPuffs.push({ x, y, z, size: AIRBURST_RADIUS, rise: 0.3, lifetime: SMOKE_SECONDS.air, age: 0 })
