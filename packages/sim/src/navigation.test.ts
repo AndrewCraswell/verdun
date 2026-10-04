@@ -98,4 +98,45 @@ describe("navigation", () => {
     expect(Math.abs(before.x - 60)).toBeGreaterThan(5)
     expect(after).toEqual({ x: 60, z: 120 })
   })
+
+  it("wades round a flooded shell hole, sized by its scale", () => {
+    const pool: Scenery = { kind: "pool", x: 60, z: 130, heading: 0, variant: 0, scale: 5 }
+    const sim = createSimulation({ map: field([pool]), seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 60, z: 115 })
+    const waypoint = nextWaypoint(sim, soldier, { x: 60, z: 145 }, { kind: "point", x: 60, z: 145, radius: 4 })
+
+    expect(Math.abs(waypoint.x - 60)).toBeGreaterThan(3)
+  })
+
+  it("heads straight for the target when standing where no route starts, as inside a ruin", () => {
+    const ruin: Scenery = { kind: "ruin", x: 60, z: 130, heading: 0, variant: 0, scale: 2 }
+    const sim = createSimulation({ map: field([ruin]), seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 60, z: 130 })
+
+    expect(nextWaypoint(sim, soldier, { x: 60, z: 160 }, { kind: "point", x: 60, z: 160, radius: 4 })).toEqual({
+      x: 60,
+      z: 160
+    })
+  })
+
+  it("stays put on the goal when already there and the way to the exact spot is blocked", () => {
+    const sim = createSimulation({ map: field(), seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 60, z: 103 })
+    const waypoint = nextWaypoint(sim, soldier, { x: 60, z: 97 }, { kind: "line", z: 101, direction: 1 })
+
+    expect(waypoint).toEqual({ x: 61, z: 103 })
+  })
+
+  it("routes along the map's edge, and keeps a dozen routes at most", () => {
+    const sim = createSimulation({ map: field(), seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 21, z: 80 })
+    const waypoints = Array.from({ length: 14 }, (_, index) =>
+      nextWaypoint(sim, soldier, { x: 21, z: 110 + index * 4 }, { kind: "line", z: 110 + index * 4, direction: 1 })
+    )
+
+    // Round the west end of the belt, at x = 18.3, between it and the map's edge.
+    expect(waypoints.every((waypoint) => waypoint.x < 21)).toBe(true)
+    const again = nextWaypoint(sim, soldier, { x: 21, z: 110 }, { kind: "line", z: 110, direction: 1 })
+    expect(again).toEqual(waypoints[0])
+  })
 })
