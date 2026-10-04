@@ -2,6 +2,7 @@ import { Stance, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import {
   choosePose,
+  CROUCH_WALKS,
   deathClip,
   headingClip,
   poseFrame,
@@ -16,8 +17,10 @@ const standing: SoldierState = {
   weapon: Weapon.Rifle,
   speed: 0,
   heading: 0,
-  ordersToRun: false,
+  running: false,
+  climbing: false,
   aiming: false,
+  overParapet: false,
   pinned: false,
   broken: false,
   action: null,
@@ -36,6 +39,7 @@ describe("headingClip", () => {
     expect(headingClip(WALKS, 0.3)).toBe("walk_forward")
     expect(headingClip(WALKS, 0.5)).toBe("walk_forward_right")
     expect(headingClip(WALKS, -2.4)).toBe("walk_back_left")
+    expect(headingClip(CROUCH_WALKS, -2.4)).toBe("crouch_walk_back_left")
   })
 })
 
@@ -45,20 +49,42 @@ describe("choosePose", () => {
     expect(pose({ aiming: true }).clip).toBe("idle_6")
   })
 
-  it("walks or runs the way they move, faster clips for faster men", () => {
+  it("keeps watch with the rifle ready when his head is over the parapet", () => {
+    expect(pose({ overParapet: true }).clip).toBe("idle_6")
+  })
+
+  it("walks or runs the way they move, at the pace the clip was made for", () => {
     const walk = pose({ speed: 1.4, heading: Math.PI / 2 })
     expect(walk.clip).toBe("walk_right")
     expect(walk.rate).toBeCloseTo(1)
+    // A spent man walks at three quarters of the pace; slower still, the steps stop slowing.
+    expect(pose({ speed: 1.05 }).rate).toBeCloseTo(0.75)
     expect(pose({ speed: 0.7 }).rate).toBeCloseTo(0.6)
     expect(pose({ speed: 2.8, heading: Math.PI }).clip).toBe("run_back")
-    // Running through mud on orders is no faster than a walk, but it's still a run.
-    expect(pose({ speed: 1.2, ordersToRun: true })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.6 })
+    expect(pose({ speed: 2.8 }).rate).toBeCloseTo(1)
+    // Running through mud is no faster than a walk, but it's still a run.
+    expect(pose({ speed: 1.2, running: true })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.6 })
     // Moving outweighs firing on the move.
     expect(pose({ speed: 1.4, action: "fire" }).clip).toBe("walk_forward")
   })
 
-  it("runs straight for it when broken, and cowers when broken and still", () => {
-    expect(pose({ broken: true, speed: 1.4, heading: Math.PI }).clip).toBe("run_forward")
+  it("crouches: squatting over the rifle when still, aiming or not, and walking bent at 0.6 pace", () => {
+    expect(pose({ stance: Stance.Crouching }).clip).toBe("idle_4")
+    expect(pose({ stance: Stance.Crouching, aiming: true, action: "fire" }).clip).toBe("idle_4")
+    expect(pose({ stance: Stance.Crouching, speed: 0.84, heading: Math.PI / 2 })).toEqual({
+      clip: "crouch_walk_right",
+      mode: "loop",
+      rate: 0.6
+    })
+  })
+
+  it("scrambles up a wall, however slowly he crosses the ground", () => {
+    expect(pose({ climbing: true, speed: 0.1 })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.8 })
+    expect(pose({ climbing: true, stance: Stance.Prone }).clip).toBe("idle_1")
+  })
+
+  it("gets away bent double when broken, and cowers when broken and still", () => {
+    expect(pose({ broken: true, speed: 1.4, heading: Math.PI }).clip).toBe("crouch_walk_back")
     expect(pose({ broken: true })).toEqual({ clip: "death_crouch_back", mode: "still", rate: 1 })
   })
 
@@ -75,8 +101,8 @@ describe("choosePose", () => {
     expect(pose({ action: "hit", pinned: true }).clip).toBe("hit_ribs")
   })
 
-  it("keeps low when pinned, and crouches behind a machine gun", () => {
-    expect(pose({ pinned: true, aiming: true }).clip).toBe("idle_5")
+  it("keeps low when pinned, and kneels behind a machine gun", () => {
+    expect(pose({ pinned: true, aiming: true }).clip).toBe("idle_4")
     expect(pose({ weapon: Weapon.MachineGun, aiming: true, action: "fire" }).clip).toBe("idle_3")
   })
 
@@ -91,10 +117,11 @@ describe("choosePose", () => {
 })
 
 describe("deathClip", () => {
-  it("falls forward from prone, and four ways from standing by id", () => {
+  it("falls forward from prone, from a crouch when crouching, and four ways from standing by id", () => {
     expect(deathClip(Stance.Prone, 3)).toBe("death_prone")
     expect(new Set([0, 1, 2, 3].map((id) => deathClip(Stance.Standing, id))).size).toBe(4)
     expect(deathClip(Stance.Standing, 5)).toBe(deathClip(Stance.Standing, 1))
+    expect([0, 1].map((id) => deathClip(Stance.Crouching, id))).toEqual(["death_crouch_back", "death_crouch_right"])
   })
 })
 

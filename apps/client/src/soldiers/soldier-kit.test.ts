@@ -5,6 +5,7 @@ import { Bone } from "@babylonjs/core/Bones/bone"
 import { Skeleton } from "@babylonjs/core/Bones/skeleton"
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import type { Material } from "@babylonjs/core/Materials/material"
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
@@ -81,12 +82,18 @@ function loadedContainer(
   const palette = new PBRMaterial("Soldier_French", target)
   palette.albedoTexture = new Texture(null, target)
   const plain = new PBRMaterial("PolygonWarMap_01_A", target)
+  // A material that's matte already passes through as it is.
+  const matte = new StandardMaterial("Soldier_German", target)
+  const materials = new Map<string, Material>([
+    ["Soldier_French", palette],
+    ["Soldier_German", matte]
+  ])
   const rigged = ["Soldier_French", "Soldier_German", "Soldier_Mask", ...(riggedRifle ? ["Soldier_Rifle"] : [])]
   for (const name of rigged.filter((candidate) => candidate !== skip)) {
     const mesh = CreateBox(name, { size: 0.5 }, target)
     mesh.parent = armature
     mesh.skeleton = skeleton
-    mesh.material = name === "Soldier_French" ? palette : plain
+    mesh.material = materials.get(name) ?? plain
     container.meshes.push(mesh)
   }
   const unrigged = [...(riggedRifle ? [] : ["Soldier_Rifle"]), "MachineGun_French", "MachineGun_German"]
@@ -99,7 +106,7 @@ function loadedContainer(
   }
   container.meshes.push(root)
   container.transformNodes.push(armature, hipsNode)
-  container.materials.push(palette, plain)
+  container.materials.push(palette, plain, matte)
   container.skeletons.push(skeleton)
   container.animationGroups.push(
     clip(target, "idle", hipsNode, "position"),
@@ -283,6 +290,75 @@ describe("restingRifle", () => {
   })
 })
 
+describe("crouched walks", () => {
+  /** A one-second clip setting nodes' positions and turns about x, in degrees, from the first value to the second. */
+  function keyed(
+    target: Scene,
+    name: string,
+    keys: readonly [TransformNode, "position" | "rotationQuaternion", Vector3 | number, Vector3 | number][]
+  ): AnimationGroup {
+    const group = new AnimationGroup(name, target)
+    for (const [node, property, from, to] of keys) {
+      const type = property === "position" ? Animation.ANIMATIONTYPE_VECTOR3 : Animation.ANIMATIONTYPE_QUATERNION
+      const animation = new Animation(`${name}-${node.name}-${property}`, property, 60, type)
+      const value = (key: Vector3 | number) =>
+        key instanceof Vector3 ? key : Quaternion.RotationAxis(Vector3.Right(), (key * Math.PI) / 180)
+      animation.setKeys([
+        { frame: 0, value: value(from) },
+        { frame: 60, value: value(to) }
+      ])
+      group.addTargetedAnimation(animation, node)
+    }
+    group.normalize(0, 60)
+    return group
+  }
+
+  it("lays the crouch over each walk: lower, bent further, and nothing the walk leaves alone piling up", () => {
+    const target = scene()
+    const skeleton = new Skeleton("crouch", "crouch0", target)
+    const hipsNode = new TransformNode("Hips", target)
+    const spineNode = new TransformNode("Spine", target)
+    const hips = new Bone("Hips", skeleton, null, Matrix.Identity())
+    hips.linkTransformNode(hipsNode)
+    new Bone("Spine", skeleton, hips, Matrix.Identity()).linkTransformNode(spineNode)
+    const up = new Vector3(0, 1, 0)
+    // At ease the hips are a metre up; crouched, 0.7 and bent 30 degrees, the spine bent 20 more.
+    const idle = keyed(target, "idle", [
+      [hipsNode, "position", up, up],
+      [hipsNode, "rotationQuaternion", 0, 0],
+      [spineNode, "rotationQuaternion", 0, 0]
+    ])
+    const hunched = keyed(target, "idle_5", [
+      [hipsNode, "position", new Vector3(0, 0.7, 0), new Vector3(0, 0.7, 0)],
+      [hipsNode, "rotationQuaternion", 30, 30],
+      [spineNode, "rotationQuaternion", 20, 20]
+    ])
+    // The walk bobs the hips and swings them 10 degrees; it never moves the spine.
+    const walk = keyed(target, "walk_forward", [
+      [hipsNode, "position", up, new Vector3(0, 1.1, 0)],
+      [hipsNode, "rotationQuaternion", 0, 10]
+    ])
+    const { data, clips } = bakeClips(skeleton, [idle, hunched, walk], Matrix.Identity())
+
+    const crouched = clips.get("crouch_walk_forward")
+    expect(crouched?.frames).toBe(BAKE_FPS + 1)
+    expect(clips.has("crouch_walk_back")).toBe(false)
+    const floatsPerFrame = (2 + 2) * 16
+    const hipsAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame)
+    const spineAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame + 16)
+    const start = crouched?.start ?? 0
+    // Halfway through, the walk has the hips 1.05 up and swung 5 degrees: crouched, 0.3 lower and 30 degrees more.
+    const halfway = hipsAt(start + BAKE_FPS / 2)
+    expect(halfway.getTranslation().y).toBeCloseTo(0.75, 4)
+    const forward = Vector3.TransformNormal(Vector3.Forward(), halfway)
+    expect(Math.atan2(-forward.y, forward.z)).toBeCloseTo((35 * Math.PI) / 180, 3)
+    // The spine isn't the walk's to move, so the crouch doesn't build up on it frame after frame: it keeps its turn on
+    // the hips.
+    const spineOnHips = (row: number) => spineAt(row).multiply(Matrix.Invert(hipsAt(row)))
+    expect(spineOnHips(start + BAKE_FPS).equalsWithEpsilon(spineOnHips(start + 1), 1e-5)).toBe(true)
+  })
+})
+
 describe("prepareSoldierKit", () => {
   it("stands the meshes at the origin on the shared animation, with matte materials", () => {
     const target = scene()
@@ -296,6 +372,7 @@ describe("prepareSoldierKit", () => {
     expect(kit.rifle.bakedVertexAnimationManager).toBe(body.bakedVertexAnimationManager)
     expect(body.material).toBeInstanceOf(StandardMaterial)
     expect(body.material?.name).toBe("Soldier_French")
+    expect(kit.bodies[Side.German].material?.name).toBe("Soldier_German")
     expect(kit.mask.material).toBe(kit.rifle.material)
     expect(kit.materials.every((material) => material instanceof StandardMaterial)).toBe(true)
     expect([...kit.clips.keys()]).toEqual(["idle", "walk_forward"])
@@ -353,6 +430,8 @@ describe("loadSoldierKit", () => {
     // The caller gave the files, so closing them is left to it.
     expect(close).not.toHaveBeenCalled()
     await expect(loadSoldierKit(scene(), null)).resolves.toBeNull()
+    // Given no files, it opens the kit's own; here, with no dev server to serve them, there are none to read.
+    await expect(loadSoldierKit(scene())).resolves.toBeNull()
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("capsules"), expect.anything())
   })
 })

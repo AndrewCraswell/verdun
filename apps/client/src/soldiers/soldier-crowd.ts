@@ -5,12 +5,14 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import {
   BROKEN_MORALE,
+  canRun,
   capturedIds,
   type EntityId,
   fallenIds,
   isInTrench,
   MaskState,
   PINNED,
+  seesOverParapet,
   Side,
   type Simulation,
   soldierIds,
@@ -56,8 +58,15 @@ const ACTION_CLIPS: Readonly<Record<Action, ClipName>> = {
 const SNAP_SPEED = 15
 /** How quickly the drawn heading turns toward the simulation's, per second, and into or out of an aiming stance. */
 const TURN_RATE = 8
-/** How closely a move must head for the move order's target, as a cosine, to be that order being carried out. */
+/**
+ * How closely a move must keep to an order, as a cosine, to be that order being carried out: heading for the move
+ * order's target, or the way the player steers.
+ */
 const ON_ORDERS = 0.98
+/** Rising more than this for every metre across the ground is a scramble, not a walk: the simulation's 45 degrees. */
+const SCRAMBLE_GRADE = 1
+/** A scramble lasts this long after the last step that rose like one, so a man on a wall doesn't flicker in and out. */
+const CLIMB_HOLD = 0.3
 /** A loss of health this large is a wound worth flinching at; gas wears health down more slowly. */
 const WOUND = 0.02
 /** How much of each new speed measurement goes into the smoothed speed. */
@@ -95,7 +104,10 @@ interface Track {
   turn: number
   speed: number
   heading: number
-  ordersToRun: boolean
+  running: boolean
+  /** Until when the soldier is scrambling up a wall, by the clock, and which way he's going up it. */
+  climbUntil: number
+  climbYaw: number
   /** Turns a lying body from level onto the slope beneath it, or null when standing. */
   tilt: Matrix | null
   cooldown: number
@@ -170,6 +182,20 @@ function turn(from: number, to: number): number {
   return difference < -Math.PI ? difference + 2 * Math.PI : difference
 }
 
+/** Whether a move keeps to a direction: within `ON_ORDERS` of it. */
+function along(dx: number, dz: number, directionX: number, directionZ: number): boolean {
+  const lengths = Math.sqrt((dx * dx + dz * dz) * (directionX * directionX + directionZ * directionZ))
+  return lengths > 0 && (dx * directionX + dz * directionZ) / lengths > ON_ORDERS
+}
+
+/** The stance a soldier is drawn in: prone, crouching or standing. Men down a dugout aren't drawn at all. */
+function drawnStance(stance: number): Stance {
+  if (stance === Stance.Prone || stance === Stance.Crouching) {
+    return stance
+  }
+  return Stance.Standing
+}
+
 /** A stable fraction from 0 to 1 for an id. */
 function idFraction(id: number): number {
   const hashed = Math.imul(id + 1, 2654435761) >>> 0
@@ -238,7 +264,7 @@ export function createSoldierCrowd(
     const yaw = Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
     return {
       status,
-      stance: soldiers.stance.value[id] === Stance.Prone ? Stance.Prone : Stance.Standing,
+      stance: drawnStance(soldiers.stance.value[id]),
       side: soldiers.side.value[id] === Side.German ? Side.German : Side.French,
       weapon: soldiers.weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle,
       shown: false,
@@ -258,7 +284,9 @@ export function createSoldierCrowd(
       turn: 0,
       speed: 0,
       heading: 0,
-      ordersToRun: false,
+      running: false,
+      climbUntil: Number.NEGATIVE_INFINITY,
+      climbYaw: yaw,
       tilt: null,
       cooldown: soldiers.weapon.cooldown[id],
       grenades: soldiers.grenades.count[id],
@@ -271,6 +299,20 @@ export function createSoldierCrowd(
       masked: false,
       gunLift: 0
     }
+  }
+
+  /**
+   * Whether a man moving (dx, dz) since the last sync is running: on a run order or the run key, standing, and with the
+   * breath and the nerve for it. Both flags outlive what set them, so only a move along the order counts: straight for
+   * the move order's target, or the way he's steered.
+   */
+  function runs(id: EntityId, dx: number, dz: number, track: Track): boolean {
+    const { moveOrder, steer } = soldiers
+    if (soldiers.stance.value[id] !== Stance.Standing || !canRun(sim, id)) {
+      return false
+    }
+    const ordered = moveOrder.run[id] === 1 && along(dx, dz, moveOrder.x[id] - track.toX, moveOrder.z[id] - track.toZ)
+    return ordered || (steer.run[id] === 1 && along(dx, dz, steer.x[id], steer.z[id]))
   }
 
   /** Sets where a track is drawn at `now`, partway from its last place to its newest. */
@@ -318,13 +360,15 @@ export function createSoldierCrowd(
         const fx = soldiers.facing.x[id]
         const fz = soldiers.facing.z[id]
         track.heading = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz)
-        // The run flag outlives its order, so only a man heading straight for the order's target is running on it.
-        const aimX = soldiers.moveOrder.x[id] - track.toX
-        const aimZ = soldiers.moveOrder.z[id] - track.toZ
-        const along = (dx * aimX + dz * aimZ) / Math.sqrt((dx * dx + dz * dz) * (aimX * aimX + aimZ * aimZ) || 1)
-        track.ordersToRun = soldiers.moveOrder.run[id] === 1 && along > ON_ORDERS
+        track.running = runs(id, dx, dz, track)
       } else {
-        track.ordersToRun = false
+        track.running = false
+      }
+      // Up a wall the simulation moves a man slowly across the ground and steadily upward.
+      const rise = heightAt(map, x, z) - track.toY
+      if (!jumped && rise > 0 && rise > Math.sqrt(dx * dx + dz * dz) * SCRAMBLE_GRADE) {
+        track.climbUntil = now + CLIMB_HOLD
+        track.climbYaw = Math.atan2(dx, dz)
       }
       track.fromX = jumped ? x : track.x
       track.fromY = jumped ? heightAt(map, x, z) : track.y
@@ -340,9 +384,11 @@ export function createSoldierCrowd(
     // A soldier's side and weapon are his for life, but cost nothing to read again.
     track.side = soldiers.side.value[id] === Side.German ? Side.German : Side.French
     track.weapon = soldiers.weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+    const climbing = status === "fighting" && now < track.climbUntil
     if (status === "fighting") {
-      track.targetYaw = Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
-      track.stance = stance === Stance.Prone ? Stance.Prone : Stance.Standing
+      // A man scrambles up a wall facing it, whichever way he was looking.
+      track.targetYaw = climbing ? track.climbYaw : Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
+      track.stance = drawnStance(stance)
       if (soldiers.grenades.count[id] < track.grenades) {
         startAction(track, "throw", now)
       } else if (soldiers.weapon.cooldown[id] > track.cooldown + 1e-3) {
@@ -376,8 +422,16 @@ export function createSoldierCrowd(
       weapon: track.weapon,
       speed: status === "fallen" ? 0 : track.speed,
       heading: track.heading,
-      ordersToRun: track.ordersToRun,
+      running: track.running,
+      climbing,
       aiming: soldiers.target.id[id] >= 0,
+      // Only a man standing still with no one in his sights needs to know: aiming or moving, he isn't watching.
+      overParapet:
+        status === "fighting" &&
+        track.stance === Stance.Standing &&
+        track.speed < MOVING_SPEED &&
+        soldiers.target.id[id] < 0 &&
+        seesOverParapet(sim, id),
       pinned: soldiers.suppression.value[id] >= PINNED,
       broken: soldiers.morale.value[id] < BROKEN_MORALE,
       action: track.action,

@@ -17,7 +17,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { Side } from "@verdun/sim"
 import { type KitFiles, openKitFiles } from "../level/kit-files.ts"
-import { AIMING, type BakedClip, CLIPS, type ClipName } from "./soldier-animation.ts"
+import { AIMING, type BakedClip, CLIPS, type ClipName, CROUCH_LAYER, CROUCH_WALKS, WALKS } from "./soldier-animation.ts"
 
 /** The soldier models and their baked animation, as scripts/build-level-kit.py builds them into soldier.glb. */
 export interface SoldierKit {
@@ -92,6 +92,75 @@ function poseAt(group: AnimationGroup, seconds: number): void {
   }
 }
 
+/** For each node a clip moves, how to turn and shift it from one pose to another. */
+type Layer = Map<TransformNode, { readonly turn: Quaternion; readonly shift: Vector3 }>
+
+/** Where a clip's first frame puts each node it moves. */
+function firstFrame(group: AnimationGroup): Map<TransformNode, { rotation: Quaternion; position: Vector3 }> {
+  poseAt(group, 0)
+  const pose = new Map<TransformNode, { rotation: Quaternion; position: Vector3 }>()
+  for (const { target } of group.targetedAnimations) {
+    if (target instanceof TransformNode) {
+      pose.set(target, {
+        rotation: (target.rotationQuaternion ?? Quaternion.Identity()).clone(),
+        position: target.position.clone()
+      })
+    }
+  }
+  return pose
+}
+
+/** What takes each node from where one clip's first frame has it to where another's does. */
+function layerBetween(from: AnimationGroup, to: AnimationGroup): Layer {
+  const start = firstFrame(from)
+  const end = firstFrame(to)
+  const layer: Layer = new Map()
+  for (const [node, before] of start) {
+    const after = end.get(node)
+    if (after) {
+      layer.set(node, {
+        turn: Quaternion.Inverse(before.rotation).multiply(after.rotation),
+        shift: after.position.subtract(before.position)
+      })
+    }
+  }
+  return layer
+}
+
+/**
+ * The part of a layer a clip can carry: the turns of the nodes it turns and the shifts of those it moves. The others
+ * keep whatever pose they were last given, and a layer laid over them frame after frame would pile up.
+ */
+function layerOver(group: AnimationGroup, layer: Layer): Layer {
+  const turned = new Set<unknown>()
+  const moved = new Set<unknown>()
+  for (const { animation, target } of group.targetedAnimations) {
+    if (animation.targetProperty === "rotationQuaternion") {
+      turned.add(target)
+    } else if (animation.targetProperty === "position") {
+      moved.add(target)
+    }
+  }
+  const over: Layer = new Map()
+  for (const [node, { turn, shift }] of layer) {
+    if (turned.has(node) || moved.has(node)) {
+      over.set(node, {
+        turn: turned.has(node) ? turn : Quaternion.Identity(),
+        shift: moved.has(node) ? shift : Vector3.Zero()
+      })
+    }
+  }
+  return over
+}
+
+/** Lays a layer over whatever pose the nodes are in: each turned on in its own frame, and shifted. */
+function applyLayer(layer: Layer): void {
+  for (const [node, { turn, shift }] of layer) {
+    node.rotationQuaternion = (node.rotationQuaternion ?? Quaternion.Identity()).multiply(turn)
+    node.position.addInPlace(shift)
+  }
+}
+
 /** How long a clip runs, in seconds. */
 function clipSeconds(group: AnimationGroup): number {
   const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? BAKE_FPS
@@ -154,12 +223,15 @@ export function rifleBetween(grip: Vector3, forend: Vector3, result: Matrix): Ma
 
 /** A rifle let go of: on its side on the ground below where it was held, lying the way it pointed. */
 export function restingRifle(held: Matrix, result: Matrix): Matrix {
-  const forward = new Vector3(held.m[8] ?? 0, 0, held.m[10] ?? 0)
+  const forward = Vector3.TransformNormal(Vector3.Forward(), held)
+  forward.y = 0
   if (forward.lengthSquared() < 1e-6) {
     // Held straight up or down: it falls the way its sights faced.
-    forward.set(held.m[4] ?? 0, 0, held.m[6] ?? 1)
+    forward.copyFrom(Vector3.TransformNormal(Vector3.Up(), held))
+    forward.y = 0
   }
   forward.normalize()
+  const grip = held.getTranslation()
   const right = Vector3.Up()
   const up = Vector3.Cross(forward, right)
   Matrix.FromValuesToRef(
@@ -175,9 +247,9 @@ export function restingRifle(held: Matrix, result: Matrix): Matrix {
     forward.y,
     forward.z,
     0,
-    held.m[12] ?? 0,
+    grip.x,
     DROP.height,
-    held.m[14] ?? 0,
+    grip.z,
     1,
     result
   )
@@ -212,15 +284,27 @@ export function bakeClips(
 ): { data: Float32Array; drift: Float32Array; clips: Map<ClipName, BakedClip>; width: number } {
   const byName = new Map(groups.map((group) => [group.name, group]))
   const clips = new Map<ClipName, BakedClip>()
-  const rows: { name: ClipName; group: AnimationGroup; frames: number }[] = []
+  const rows: { name: ClipName; group: AnimationGroup; frames: number; layer?: Layer }[] = []
   let start = 0
-  for (const name of CLIPS) {
-    const group = byName.get(name)
+  const add = (name: ClipName, group: AnimationGroup | undefined, layer?: Layer) => {
     if (group) {
       const frames = Math.max(1, Math.round(clipSeconds(group) * BAKE_FPS) + 1)
       clips.set(name, { start, frames, fps: BAKE_FPS, turn: 0 })
-      rows.push({ name, group, frames })
+      rows.push({ name, group, frames, layer })
       start += frames
+    }
+  }
+  for (const name of CLIPS) {
+    add(name, byName.get(name))
+  }
+  // The crouched walks: each walk with the crouch laid over it.
+  const stand = byName.get(CROUCH_LAYER.from)
+  const crouch = byName.get(CROUCH_LAYER.to)
+  const crouchLayer = stand && crouch ? layerBetween(stand, crouch) : undefined
+  for (const [index, name] of CROUCH_WALKS.entries()) {
+    const walk = byName.get(WALKS[index] ?? "")
+    if (crouchLayer && walk) {
+      add(name, walk, layerOver(walk, crouchLayer))
     }
   }
   const boneFloats = (skeleton.bones.length + 1) * 16
@@ -245,13 +329,16 @@ export function bakeClips(
       .addInPlace(jointAt(hand.finger, world, placed, joint))
       .scaleInPlace(0.5)
   let row = 0
-  for (const { name, group, frames } of rows) {
+  for (const { name, group, frames, layer } of rows) {
     const oneHanded = ONE_HANDED.test(name)
     // Where an aiming clip points the rifle, summed over its frames: the soldier is turned to put that ahead.
     let aimX = 0
     let aimZ = 0
     for (let frame = 0; frame < frames; frame++) {
       poseAt(group, frame / BAKE_FPS)
+      if (layer) {
+        applyLayer(layer)
+      }
       skeleton.prepare(true)
       const matrices = skeleton.getTransformMatrices(null)
       for (let index = 0; index < boneFloats; index += 16) {
@@ -284,8 +371,9 @@ export function bakeClips(
         rifle.copyFrom(Matrix.IdentityReadOnly)
       }
       rifle.copyToArray(data, row * floatsPerFrame + boneFloats)
-      aimX += rifle.m[8] ?? 0
-      aimZ += rifle.m[10] ?? 0
+      Vector3.TransformNormalToRef(Vector3.Forward(), rifle, joint)
+      aimX += joint.x
+      aimZ += joint.z
       row++
     }
     const clip = clips.get(name)

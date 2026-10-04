@@ -4,7 +4,7 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
-import { generateRollingTerrain, heightAt } from "@verdun/map"
+import { createFlatMap, generateRollingTerrain, heightAt, sampleIndex } from "@verdun/map"
 import {
   createSimulation,
   enqueueCommand,
@@ -19,7 +19,7 @@ import {
   Weapon
 } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { type BakedClip, CLIPS, type ClipName, deathClip } from "./soldier-animation.ts"
+import { type BakedClip, CLIPS, type ClipName, CROUCH_WALKS, deathClip } from "./soldier-animation.ts"
 import { createSoldierCrowd, type SoldierCrowd } from "./soldier-crowd.ts"
 import type { SoldierKit } from "./soldier-kit.ts"
 
@@ -32,9 +32,24 @@ const map = generateRollingTerrain({
   amplitude: 8
 })
 
+/** Who sees over a parapet, when a test says; otherwise the simulation decides. */
+const parapet = vi.hoisted(() => {
+  const state: { over: ((soldier: number) => boolean) | null } = { over: null }
+  return state
+})
+vi.mock("@verdun/sim", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@verdun/sim")>()
+  return {
+    ...actual,
+    seesOverParapet: (sim: Simulation, soldier: number) =>
+      parapet.over?.(soldier) ?? actual.seesOverParapet(sim, soldier)
+  }
+})
+
 const engines: NullEngine[] = []
 
 afterEach(() => {
+  parapet.over = null
   for (const engine of engines.splice(0)) {
     engine.dispose()
   }
@@ -45,8 +60,9 @@ const AIM_TURN = 0.7
 
 /** Every clip ten frames long at ten a second, one after another; the standing and kneeling aims turn their men. */
 const CLIP_FRAMES = 10
+const ALL_CLIPS: readonly ClipName[] = [...CLIPS, ...CROUCH_WALKS]
 const clips = new Map<ClipName, BakedClip>(
-  CLIPS.map((name, index) => [
+  ALL_CLIPS.map((name, index) => [
     name,
     {
       start: index * CLIP_FRAMES,
@@ -58,8 +74,8 @@ const clips = new Map<ClipName, BakedClip>(
 )
 
 /** Every death carries the hips half a metre further along +x each frame; nothing else drifts. */
-const drift = new Float32Array(CLIPS.length * CLIP_FRAMES * 2)
-for (const [index, name] of CLIPS.entries()) {
+const drift = new Float32Array(ALL_CLIPS.length * CLIP_FRAMES * 2)
+for (const [index, name] of ALL_CLIPS.entries()) {
   if (name.startsWith("death_")) {
     for (let frame = 0; frame < CLIP_FRAMES; frame++) {
       drift[(index * CLIP_FRAMES + frame) * 2] = frame * 0.5
@@ -68,7 +84,7 @@ for (const [index, name] of CLIPS.entries()) {
 }
 
 function clipAt(row: number | undefined): ClipName | undefined {
-  return row === undefined ? undefined : CLIPS[Math.floor(row / CLIP_FRAMES)]
+  return row === undefined ? undefined : ALL_CLIPS[Math.floor(row / CLIP_FRAMES)]
 }
 
 interface Harness {
@@ -390,6 +406,105 @@ describe("createSoldierCrowd", () => {
     crowd.update()
 
     expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["run_forward", "walk_forward"])
+  })
+
+  it("crouches: squatting over the rifle when still, walking bent when he moves", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const still = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const moving = spawnSoldier(sim, { side: Side.French, x: 30, z: 10 })
+    sim.soldiers.stance.value[still] = Stance.Crouching
+    sim.soldiers.stance.value[moving] = Stance.Crouching
+    const { crowd, kit, tick, rows } = harness(sim)
+    crowd.sync()
+    for (let step = 0; step < 5; step++) {
+      sim.soldiers.position.z[moving] += 0.84 * STEP_SECONDS
+      sim.tick += 1
+      tick(STEP_SECONDS)
+      crowd.sync()
+    }
+    crowd.update()
+
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["idle_4", "crouch_walk_forward"])
+  })
+
+  it("runs on the run key while he has the breath, and walks once he's spent", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const fresh = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const spent = spawnSoldier(sim, { side: Side.French, x: 30, z: 10 })
+    const { steer, stamina, position } = sim.soldiers
+    for (const soldier of [fresh, spent]) {
+      steer.run[soldier] = 1
+      steer.z[soldier] = 1
+    }
+    stamina.spent[spent] = 1
+    const { crowd, kit, tick, rows } = harness(sim)
+    crowd.sync()
+    for (let step = 0; step < 5; step++) {
+      // Through mud: no faster than a walk.
+      position.z[fresh] += 1.2 * STEP_SECONDS
+      position.z[spent] += 1.2 * STEP_SECONDS
+      sim.tick += 1
+      tick(STEP_SECONDS)
+      crowd.sync()
+    }
+    crowd.update()
+
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["run_forward", "walk_forward"])
+  })
+
+  it("scrambles up a wall, slowly as he crosses the ground, and walks on at the top", () => {
+    // Flat ground with a two-metre wall rising across it at 20 m north, a metre from foot to top.
+    const walled = createFlatMap({ name: "wall", cellSize: 0.5, columns: 80, rows: 80 })
+    for (let row = 0; row <= walled.rows; row++) {
+      const z = row * walled.cellSize
+      for (let column = 0; column <= walled.columns; column++) {
+        walled.heights[sampleIndex(walled, column, row)] = Math.min(2, Math.max(0, (z - 19.5) * 2))
+      }
+    }
+    const sim = createSimulation({ map: walled, seed: 1 })
+    const climber = spawnSoldier(sim, { side: Side.French, x: 10, z: 19.6 })
+    const { crowd, kit, tick, rows, matrices } = harness(sim)
+    const clipNow = () => {
+      crowd.update()
+      return clipAt(rows(kit.bodies[Side.French])[0])
+    }
+    const stepNorth = (metres: number) => {
+      sim.soldiers.position.z[climber] += metres
+      sim.tick += 1
+      tick(STEP_SECONDS)
+      crowd.sync()
+    }
+    crowd.sync()
+    // He faces east, looking along the wall, but turns to it as he climbs.
+    sim.soldiers.facing.x[climber] = 1
+    sim.soldiers.facing.z[climber] = 0
+    for (let step = 0; step < 5; step++) {
+      stepNorth(0.02)
+    }
+    tick(2)
+    expect(clipNow()).toBe("run_forward")
+    const [climbing] = matrices(kit.bodies[Side.French])
+    const forward = climbing ? Vector3.TransformNormal(Vector3.Forward(), climbing) : Vector3.Zero()
+    expect(forward.z).toBeCloseTo(1)
+    // Over the top and walking on: a moment later he's walking.
+    stepNorth(1.5)
+    for (let step = 0; step < 8; step++) {
+      stepNorth(0.07)
+    }
+    // Still looking east as he walks on north.
+    expect(clipNow()).toBe("walk_left")
+  })
+
+  it("keeps watch with the rifle ready when standing with his head over the parapet", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const sentry = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    spawnSoldier(sim, { side: Side.French, x: 30, z: 10 })
+    parapet.over = (soldier) => soldier === sentry
+    const { crowd, kit, rows } = harness(sim)
+    crowd.sync()
+    crowd.update()
+
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["idle_6", "idle"])
   })
 
   it("reads each soldier's weapon afresh", () => {
