@@ -33,7 +33,7 @@ describe("createTracers", () => {
     tracers.update(0.01)
 
     expect(tracers.mesh.thinInstanceCount).toBe(1)
-    const [matrix] = tracers.mesh.thinInstanceGetWorldMatrices()
+    const [matrix] = tracers.instances.matrices()
     expect(matrix?.getTranslation().z).toBeCloseTo(50)
     expect(matrix?.getTranslation().y).toBeCloseTo(1.5)
 
@@ -48,6 +48,6 @@ describe("createTracers", () => {
     tracers.update(0.01)
 
     expect(tracers.mesh.thinInstanceCount).toBe(512)
-    expect(tracers.mesh.thinInstanceGetWorldMatrices().every((matrix) => Number.isFinite(matrix.m[0]))).toBe(true)
+    expect(tracers.instances.matrices().every((matrix) => Number.isFinite(matrix.m[0]))).toBe(true)
   })
 })

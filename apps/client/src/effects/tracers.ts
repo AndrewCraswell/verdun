@@ -2,9 +2,9 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
-import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import type { ShotEvent } from "@verdun/sim"
+import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 
 /** How long a tracer stays on screen, in seconds. */
 const TRACER_SECONDS = 0.12
@@ -19,6 +19,8 @@ interface Tracer {
 
 export interface Tracers {
   readonly mesh: Mesh
+  /** The live tracers' matrices. */
+  readonly instances: InstanceBuffer
   /** Adds tracers for shots fired in the last simulation steps. */
   add(shots: readonly ShotEvent[]): void
   /** Ages tracers and redraws the live ones. Call once per frame. */
@@ -81,13 +83,13 @@ export function createTracers(scene: Scene): Tracers {
   mesh.material = material
   mesh.isPickable = false
   mesh.alwaysSelectAsActiveMesh = true
-  mesh.thinInstanceCount = 0
+  const instances = instanceBuffer(mesh, MAX_TRACERS)
 
   let live: Tracer[] = []
-  const matrices = new Float32Array(MAX_TRACERS * 16)
 
   return {
     mesh,
+    instances,
     add(shots) {
       live.push(...shots.map((shot) => ({ shot, age: 0 })))
       if (live.length > MAX_TRACERS) {
@@ -95,10 +97,13 @@ export function createTracers(scene: Scene): Tracers {
       }
     },
     update(frameSeconds) {
+      if (live.length === 0) {
+        instances.commit(0)
+        return
+      }
       live = live.filter((tracer) => (tracer.age += frameSeconds) < TRACER_SECONDS)
-      live.forEach((tracer, index) => writeSegment(matrices, index * 16, tracer.shot))
-      mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
-      mesh.thinInstanceCount = live.length
+      live.forEach((tracer, index) => writeSegment(instances.data, index * 16, tracer.shot))
+      instances.commit(live.length)
     }
   }
 }

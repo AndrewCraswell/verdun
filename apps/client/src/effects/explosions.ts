@@ -2,9 +2,9 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
-import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BurstEvent, Shell } from "@verdun/sim"
+import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 
 /** How long the flash lasts, and how long smoke and dust hang in the air, in seconds. */
 const FLASH_SECONDS = 0.2
@@ -38,6 +38,12 @@ export interface Explosions {
   readonly smoke: Mesh
   /** Shrapnel's white airburst puffs. */
   readonly airbursts: Mesh
+  /** Each mesh's instance matrices, as drawn. */
+  readonly instances: {
+    readonly flashes: InstanceBuffer
+    readonly smoke: InstanceBuffer
+    readonly airbursts: InstanceBuffer
+  }
   /** Adds the flash and smoke for shells that landed in the last simulation steps. */
   add(bursts: readonly BurstEvent[]): void
   /** Ages and redraws the effects. Call once per frame. */
@@ -71,7 +77,6 @@ function instancedSpheres(scene: Scene, name: string, color: Color3, glowing: bo
   mesh.material = material
   mesh.isPickable = false
   mesh.alwaysSelectAsActiveMesh = true
-  mesh.thinInstanceCount = 0
   return mesh
 }
 
@@ -86,25 +91,27 @@ export function createExplosions(scene: Scene): Explosions {
   let flashList: Puff[] = []
   let puffs: Puff[] = []
   let airPuffs: Puff[] = []
-  const flashMatrices = new Float32Array(MAX_PUFFS * 16)
-  const smokeMatrices = new Float32Array(MAX_PUFFS * 16)
-  const airMatrices = new Float32Array(MAX_PUFFS * 16)
+  const instances = {
+    flashes: instanceBuffer(flashes, MAX_PUFFS),
+    smoke: instanceBuffer(smoke, MAX_PUFFS),
+    airbursts: instanceBuffer(airbursts, MAX_PUFFS)
+  }
 
-  function drawPuffs(mesh: Mesh, matrices: Float32Array, list: readonly Puff[]): void {
+  function drawPuffs(buffer: InstanceBuffer, list: readonly Puff[]): void {
     list.forEach((puff, index) => {
       const progress = puff.age / puff.lifetime
       // Swell quickly, then thin away.
       const radius = puff.size * Math.min(1, progress * 6) * (1 - progress)
-      writeSphere(matrices, index * 16, puff.x, puff.y + puff.rise * puff.age, puff.z, radius)
+      writeSphere(buffer.data, index * 16, puff.x, puff.y + puff.rise * puff.age, puff.z, radius)
     })
-    mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
-    mesh.thinInstanceCount = list.length
+    buffer.commit(list.length)
   }
 
   return {
     flashes,
     smoke,
     airbursts,
+    instances,
     add(bursts) {
       for (const burst of bursts) {
         const { x, y, z } = burst.at
@@ -144,12 +151,18 @@ export function createExplosions(scene: Scene): Explosions {
       puffs = puffs.filter((puff) => (puff.age += frameSeconds) < puff.lifetime)
       airPuffs = airPuffs.filter((puff) => (puff.age += frameSeconds) < puff.lifetime)
       flashList.forEach((flash, index) =>
-        writeSphere(flashMatrices, index * 16, flash.x, flash.y, flash.z, flash.size * (1 - flash.age / flash.lifetime))
+        writeSphere(
+          instances.flashes.data,
+          index * 16,
+          flash.x,
+          flash.y,
+          flash.z,
+          flash.size * (1 - flash.age / flash.lifetime)
+        )
       )
-      flashes.thinInstanceSetBuffer("matrix", flashMatrices, 16, false)
-      flashes.thinInstanceCount = flashList.length
-      drawPuffs(smoke, smokeMatrices, puffs)
-      drawPuffs(airbursts, airMatrices, airPuffs)
+      instances.flashes.commit(flashList.length)
+      drawPuffs(instances.smoke, puffs)
+      drawPuffs(instances.airbursts, airPuffs)
     }
   }
 }
