@@ -122,6 +122,15 @@ function radialTexture(scene: Scene, name: string, size: number, power: number):
   return texture
 }
 
+/**
+ * Hides a flare's mesh by shrinking it to nothing, never by disabling it: the meshes stay in the draw list, always
+ * selected, so recorded draw commands (snapshot rendering under WebGPU) needn't be recorded again as flares come and go.
+ */
+function hide(mesh: Mesh): void {
+  mesh.alwaysSelectAsActiveMesh = true
+  mesh.scaling.setAll(0)
+}
+
 /** A billboard drawn by its own light: additive, unlit, its colour above 1 to bloom. */
 function glowCard(scene: Scene, name: string, texture: Texture, fog: boolean): Mesh {
   const card = CreatePlane(name, { size: 1 }, scene)
@@ -137,7 +146,7 @@ function glowCard(scene: Scene, name: string, texture: Texture, fog: boolean): M
   material.fogEnabled = fog
   material.backFaceCulling = false
   card.material = material
-  card.setEnabled(false)
+  hide(card)
   return card
 }
 
@@ -150,7 +159,7 @@ function canopy(scene: Scene, name: string): Mesh {
   material.backFaceCulling = false
   material.alpha = 0.92
   dome.material = material
-  dome.setEnabled(false)
+  hide(dome)
   return dome
 }
 
@@ -269,7 +278,8 @@ export function createFlareView(
     spark: radialTexture(scene, "flare-spark", 16, 1.5),
     smoke: radialTexture(scene, "flare-smoke", 32, 1.2)
   }
-  const visuals: Visual[] = []
+  // The whole pool from the start, so the draw list never grows mid-battle.
+  const visuals: Visual[] = Array.from({ length: POOL }, (_, index) => createVisual(scene, index, textures))
   const lights = Array.from({ length: LIGHT.count }, (_, index) => {
     const light = new SpotLight(
       `flare-light-${index}`,
@@ -329,15 +339,8 @@ export function createFlareView(
     const free = visuals.find((visual) => visual.flare === null && visual.outFor < 0)
     if (free) {
       free.flare = flare
-      return free
     }
-    if (visuals.length >= POOL) {
-      return null
-    }
-    const created = createVisual(scene, visuals.length, textures)
-    created.flare = flare
-    visuals.push(created)
-    return created
+    return free ?? null
   }
 
   function setLit(on: boolean): void {
@@ -384,10 +387,10 @@ export function createFlareView(
           // Burnt out: no star, no sparks, the smoke drifting on until it thins away.
           if (visual.outFor >= 0) {
             visual.outFor += frameSeconds
-            visual.canopy.setEnabled(false)
-            visual.core.setEnabled(false)
-            visual.glare.setEnabled(false)
-            visual.halo.setEnabled(false)
+            hide(visual.canopy)
+            hide(visual.core)
+            hide(visual.glare)
+            hide(visual.halo)
             visual.sparks.emitRate = 0
             visual.smoke.emitRate = 0
             if (visual.outFor > AFTERLIFE) {
@@ -426,8 +429,9 @@ export function createFlareView(
         // The parachute hangs at the pivot of the swing, opening out once the flare tops its climb, tilting against the
         // swing, its silk lit from beneath.
         const open = Math.min(1, hanging / CANOPY.opening)
-        visual.canopy.setEnabled(open > 0)
-        if (open > 0) {
+        if (open <= 0) {
+          hide(visual.canopy)
+        } else {
           const ground = heightAt(sim.map, at.x, at.z)
           visual.canopy.position.set(at.x, ground + at.y + CANOPY.lines, at.z)
           const width = CANOPY.width * (0.3 + 0.7 * open)
@@ -442,21 +446,18 @@ export function createFlareView(
 
         // The star itself, blooming, and the lit air round it.
         const rising = age < FLARE.riseSeconds
-        visual.core.setEnabled(true)
         visual.core.position.copyFrom(visual.position)
         visual.core.scaling.setAll(CORE.size * (rising ? 0.6 : 1) * (0.7 + 0.3 * visual.brightness))
         const core = visual.core.material
         if (core instanceof StandardMaterial) {
           core.emissiveColor = color.scale(CORE.glow * visual.brightness)
         }
-        visual.glare.setEnabled(true)
         visual.glare.position.copyFrom(visual.position)
         visual.glare.scaling.setAll(GLARE.size * (0.6 + 0.4 * visual.brightness))
         const glare = visual.glare.material
         if (glare instanceof StandardMaterial) {
           glare.emissiveColor = color.scale(GLARE.glow * visual.brightness * (1 - light * 0.6))
         }
-        visual.halo.setEnabled(true)
         visual.halo.position.copyFrom(visual.position)
         visual.halo.scaling.setAll(HALO.size + HALO.hazeSize * haze)
         const halo = visual.halo.material

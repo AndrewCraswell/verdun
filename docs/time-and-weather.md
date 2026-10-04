@@ -245,9 +245,11 @@ what the eye adds:
   the sun's, culled to those in its light and chosen again twice a second as it drifts. Swinging with the parachute.
 - **The night brightens round a flare**: the sky's fill light and the haze lift with the flare light where the camera
   looks.
-- **Budget**: at most 12 flares drawn, their drawings pooled and reused; the lights switch on only after dark (below a
-  light level of 0.55, off again above 0.62), so day shaders never pay for them; the light count stays fixed while they
-  are on, so shaders don't recompile. Fires and muzzle flashes are lit by `apps/client/src/level/night-light.ts`.
+- **Budget**: at most 12 flares drawn, their drawings made once at the start and reused, hidden by shrinking them to
+  nothing rather than disabling them, and always selected, so the draw list never changes and snapshot rendering under
+  WebGPU needn't record it again; the lights switch on only after dark (below a light level of 0.55, off again above
+  0.62), so day shaders never pay for them; the light count stays fixed while they are on, so shaders don't recompile.
+  Fires and muzzle flashes are lit by `apps/client/src/level/night-light.ts`.
 
 ## Weather
 

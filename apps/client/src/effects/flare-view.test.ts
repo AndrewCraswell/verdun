@@ -65,9 +65,9 @@ describe("the flare view", () => {
     const drawn = view.drawn[0]!
     expect(drawn.position.y).toBeCloseTo(flarePosition(flare, state.tick).y, 0)
     const core = scene.getMeshByName("flare-core-0")
-    expect(core?.isEnabled()).toBe(true)
+    expect(core?.scaling.x).toBeGreaterThan(0)
     // Still climbing: the parachute hasn't opened.
-    expect(scene.getMeshByName("flare-canopy-0")?.isEnabled()).toBe(false)
+    expect(scene.getMeshByName("flare-canopy-0")?.scaling.x).toBe(0)
     const material = core?.material
     expect(material instanceof StandardMaterial && material.emissiveColor.r > 1.05).toBe(true)
   })
@@ -87,7 +87,9 @@ describe("the flare view", () => {
     expect(Math.max(...positions.map(Math.abs))).toBeLessThan(1)
     // The parachute hangs open over the swing's pivot, a few metres up, glowing with the flare's light.
     const canopy = scene.getMeshByName("flare-canopy-0")
+    // Shrunk away rather than disabled while closed, so the draw list stays the same; open now.
     expect(canopy?.isEnabled()).toBe(true)
+    expect(canopy?.alwaysSelectAsActiveMesh).toBe(true)
     const pivot = flarePosition(flare, state.tick)
     expect(canopy?.position.x).toBeCloseTo(pivot.x, 5)
     expect((canopy?.position.y ?? 0) - view.drawn[0]!.position.y).toBeCloseTo(3.5, 1)
