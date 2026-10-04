@@ -5,7 +5,9 @@ export {
   DEFENSIVE_BARRAGE_DELAY,
   type FireMission,
   type FireMissionPlan,
+  frontLineSpan,
   frontLineZ,
+  type LineSpan,
   Shell,
   SHELLS,
   type ShellInFlight
@@ -19,6 +21,7 @@ export {
   PINNED,
   type ShotEvent,
   shotEvents,
+  type ThrowEvent,
   Weapon,
   WEAPONS
 } from "./combat.ts"
@@ -81,3 +84,4 @@ export {
   releaseGas
 } from "./gas.ts"
 export { SMOKE_EXTINCTION, seesThroughSmoke, smokeBetween } from "./smoke.ts"
+export { WIRE_CELL, wireAt, type WireCutEvent, type WireField, wirePace } from "./wire.ts"

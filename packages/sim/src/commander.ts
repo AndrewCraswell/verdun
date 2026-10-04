@@ -1,5 +1,5 @@
 import { mapWidth } from "@verdun/map"
-import { frontLineZ, Shell } from "./artillery.ts"
+import { frontLineSpan, type LineSpan, Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
 import { Side } from "./components.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
@@ -13,7 +13,7 @@ const CHECK_SECONDS = 5
 const LOST_ENEMIES = 8
 /** ...outnumbering what's left of its garrison by this much. */
 const LOST_RATIO = 3
-/** Soldiers within this distance of the front line's z hold it, in metres: its bays, traverses and the ground around. */
+/** Soldiers within this distance of the front line's span hold it, in metres: its bays, traverses and the ground around. */
 const FRONT_BAND = 15
 /**
  * Seconds from losing the front line to counter-attacking it. German doctrine at Verdun was the immediate counter-attack
@@ -53,11 +53,14 @@ export function createCommanders(): Record<Side, CommanderState> {
 }
 
 /** Whether the enemy holds a side's front line: enough of them in it, and few of its own men left. */
-function frontLost(sim: Simulation, side: Side, frontZ: number): boolean {
+function frontLost(sim: Simulation, side: Side, front: LineSpan): boolean {
+  const near = Math.min(front.forward, front.rear) - FRONT_BAND
+  const far = Math.max(front.forward, front.rear) + FRONT_BAND
   let own = 0
   let enemies = 0
   for (const soldier of soldierIds(sim)) {
-    if (Math.abs(sim.soldiers.position.z[soldier] - frontZ) > FRONT_BAND) {
+    const z = sim.soldiers.position.z[soldier]
+    if (z < near || z > far) {
       continue
     }
     if (sim.soldiers.side.value[soldier] === side) {
@@ -74,13 +77,13 @@ function reservesOf(sim: Simulation, side: Side) {
 }
 
 /** Opens the counter-attack: the guns pound the lost trench while the reserves wait below. */
-function prepareCounterAttack(sim: Simulation, side: Side, frontZ: number): void {
+function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan): void {
   const lostTrench = {
     side,
     fromX: 0,
     toX: mapWidth(sim.map),
-    z: frontZ,
-    band: 20,
+    z: (front.forward + front.rear) / 2,
+    band: Math.abs(front.forward - front.rear) + 20,
     delay: 0,
     duration: PREPARATION.seconds
   }
@@ -96,21 +99,23 @@ function prepareCounterAttack(sim: Simulation, side: Side, frontZ: number): void
 }
 
 /** Sends a side's reserves out of their dugouts to retake its lost front line behind a creeping barrage. */
-function assault(sim: Simulation, side: Side, frontZ: number): void {
+function assault(sim: Simulation, side: Side, front: LineSpan): void {
   const reserves = reservesOf(sim, side)
   if (reserves.length === 0) {
     return
   }
   const towardEnemy = side === Side.French ? 1 : -1
   const reserveZ = reserves.reduce((sum, squad) => sum + sim.soldiers.position.z[squad.leader], 0) / reserves.length
-  const toFront = Math.abs(frontZ - reserveZ)
+  // Coming from behind, the reserves meet the line's rear first and retake it through to its forward bays.
+  const toFront = Math.abs(front.rear - reserveZ)
   applyCommand(sim, {
     type: "barrage-attack",
     side,
     fromX: 0,
     toX: mapWidth(sim.map),
     startZ: reserveZ + towardEnemy * Math.min(COUNTER_BARRAGE.openAhead, toFront),
-    objectiveZ: frontZ,
+    objectiveZ: front.forward,
+    objectiveDepth: Math.abs(front.forward - front.rear),
     roundsPerMinute: COUNTER_BARRAGE.roundsPerMinute,
     lift: COUNTER_BARRAGE.lift,
     interval: COUNTER_BARRAGE.interval,
@@ -131,20 +136,20 @@ export function commanderSystem(sim: Simulation): void {
   }
   for (const side of [Side.French, Side.German]) {
     const state = sim.commanders[side]
-    const frontZ = frontLineZ(sim.map.trenches, side)
-    if (frontZ === null) {
+    const front = frontLineSpan(sim.map.trenches, side)
+    if (front === null) {
       continue
     }
     if (state.assaultAt >= 0 && sim.tick >= state.assaultAt) {
       state.assaultAt = -1
-      assault(sim, side, frontZ)
+      assault(sim, side, front)
       continue
     }
     if (state.counterAttackedAt >= 0) {
       continue
     }
     if (state.lostAt < 0) {
-      if (frontLost(sim, side, frontZ)) {
+      if (frontLost(sim, side, front)) {
         state.lostAt = sim.tick
       }
       continue
@@ -152,7 +157,7 @@ export function commanderSystem(sim: Simulation): void {
     if (sim.tick - state.lostAt >= COUNTER_ATTACK_DELAY * TICK_RATE && reservesOf(sim, side).length > 0) {
       state.counterAttackedAt = sim.tick
       state.assaultAt = sim.tick + PREPARATION.seconds * TICK_RATE
-      prepareCounterAttack(sim, side, frontZ)
+      prepareCounterAttack(sim, side, front)
     }
   }
 }

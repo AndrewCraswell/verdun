@@ -4,6 +4,7 @@ import { MaskState, Stance } from "../components.ts"
 import { clampToMap, type Simulation } from "../simulation.ts"
 import { CRAWL_FACTOR } from "../stance.ts"
 import { groundPace } from "../terrain.ts"
+import { wirePace } from "../wire.ts"
 
 /** Walking pace in a gas mask, as a fraction of normal: every breath is drawn through the filter. */
 const MASKED_PACE = 0.85
@@ -14,12 +15,15 @@ const RUN_FACTOR = 2
  * Moves soldiers for one step. Directly steered soldiers walk where the player pushes them, or crawl if they're prone.
  * Soldiers with a move order walk straight toward the target, face where they walk, and drop the order on arrival;
  * while pinned they go to ground and wait, and men down a dugout stay there. Mud, churned ground and slopes slow
- * everyone, a trench wall most of all, and so does breathing through a gas mask.
+ * everyone, a trench wall most of all; uncut wire all but stops them; and so does breathing through a gas mask.
  */
 export function movementSystem(sim: Simulation, stepSeconds: number): void {
   const { position, speed, moveOrder, facing, steer, stance, suppression, mask } = sim.soldiers
   const pace = (soldier: EntityId) =>
-    speed.value[soldier] * stepSeconds * (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1)
+    speed.value[soldier] *
+    stepSeconds *
+    (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1) *
+    wirePace(sim.wire, position.x[soldier], position.z[soldier])
   const arrived: EntityId[] = []
 
   for (const soldier of query(sim.world, [position, steer])) {

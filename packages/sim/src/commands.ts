@@ -123,6 +123,11 @@ export interface BarrageAttackCommand {
   readonly standingRoundsPerMinute?: number
   /** Ids of the squads that go: absent for every squad on the side. */
   readonly squads?: readonly number[]
+  /**
+   * How deep the objective trench runs, in metres, back from its near edge to `objectiveZ` at its far edge: the
+   * standing barrage covers all of it, and the attackers go in once the creeping barrage has lifted past all of it.
+   */
+  readonly objectiveDepth?: number
 }
 
 /** Everything that can change the simulation from outside. Grows as mechanics land. */
@@ -272,17 +277,16 @@ export function applyCommand(sim: Simulation, command: Command): void {
       })
       const standing = command.standingRoundsPerMinute ?? 0
       if (standing > 0) {
-        // Lifts when the creeping barrage is one lift short of the objective, so the two never overlap.
-        const lifts = Math.max(
-          0,
-          Math.ceil((Math.abs(command.objectiveZ - command.startZ) - command.lift) / command.lift)
-        )
+        // Lifts when the creeping barrage is one lift short of the objective's near edge, so the two never overlap.
+        const depth = command.objectiveDepth ?? 0
+        const nearEdge = command.objectiveZ - direction * depth
+        const lifts = Math.max(0, Math.ceil((Math.abs(nearEdge - command.startZ) - command.lift) / command.lift))
         const target = {
           side: command.side,
           fromX: command.fromX,
           toX: command.toX,
-          z: command.objectiveZ,
-          band: 20,
+          z: command.objectiveZ - (direction * depth) / 2,
+          band: depth + 20,
           delay: command.delay,
           duration: lifts * command.interval
         }

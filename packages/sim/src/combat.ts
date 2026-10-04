@@ -90,6 +90,12 @@ export interface ShotEvent {
   readonly to: WorldPoint
 }
 
+/** A soldier throwing a grenade this step, for animation. */
+export interface ThrowEvent {
+  readonly type: "throw"
+  readonly soldier: EntityId
+}
+
 /** Just the shots among a step's events. */
 export function shotEvents(events: readonly SimEvent[]): ShotEvent[] {
   return events.filter((event): event is ShotEvent => event.type === "shot")
@@ -360,6 +366,7 @@ export function throwGrenade(sim: Simulation, thrower: EntityId, x: number, z: n
   const error = THROW_ERROR.base + THROW_ERROR.perMetre * Math.min(distance, GRENADE_RANGE.max)
   grenades.count[thrower] -= 1
   weapon.cooldown[thrower] = THROW_SECONDS
+  sim.events.push({ type: "throw", soldier: thrower })
   sim.artillery.shells.push({
     shell: Shell.Grenade,
     side: sim.soldiers.side.value[thrower] === 1 ? 1 : 0,

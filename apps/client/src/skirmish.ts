@@ -3,7 +3,9 @@ import {
   createSquad,
   enqueueCommand,
   type EntityId,
+  frontLineSpan,
   frontLineZ,
+  type LineSpan,
   Shell,
   Side,
   type Simulation,
@@ -132,10 +134,13 @@ export const CREEPING_BARRAGE = {
   standingRoundsPerMinute: 60
 } as const
 
-function lines(sim: Simulation, side: Side): { own: number; enemy: number } | null {
-  const own = frontLineZ(sim.map.trenches, side)
-  const enemy = frontLineZ(sim.map.trenches, side === Side.French ? Side.German : Side.French)
-  return own === null || enemy === null ? null : { own, enemy }
+/** Both front lines as seen from one side: how deep each runs, and the enemy's middle. */
+function lines(sim: Simulation, side: Side): { own: LineSpan; enemy: LineSpan; enemyMiddle: number } | null {
+  const enemySide = side === Side.French ? Side.German : Side.French
+  const own = frontLineSpan(sim.map.trenches, side)
+  const enemy = frontLineSpan(sim.map.trenches, enemySide)
+  const enemyMiddle = frontLineZ(sim.map.trenches, enemySide)
+  return own === null || enemy === null || enemyMiddle === null ? null : { own, enemy, enemyMiddle }
 }
 
 /** The whistle: the whole side goes over the top behind a creeping barrage, which opens at once. */
@@ -144,14 +149,16 @@ export function attackBehindBarrage(sim: Simulation, side: Side): void {
   if (!front) {
     return
   }
-  const direction = Math.sign(front.enemy - front.own)
+  const direction = Math.sign(front.enemy.forward - front.own.forward)
   enqueueCommand(sim, {
     type: "barrage-attack",
     side,
     fromX: 0,
     toX: mapWidth(sim.map),
-    startZ: front.own + direction * CREEPING_BARRAGE.openAhead,
-    objectiveZ: front.enemy,
+    // Opens ahead of our own most forward bays; the objective is the whole depth of the enemy's line.
+    startZ: front.own.forward + direction * CREEPING_BARRAGE.openAhead,
+    objectiveZ: front.enemy.rear,
+    objectiveDepth: Math.abs(front.enemy.rear - front.enemy.forward),
     roundsPerMinute: CREEPING_BARRAGE.roundsPerMinute,
     lift: CREEPING_BARRAGE.lift,
     interval: CREEPING_BARRAGE.interval,
@@ -162,15 +169,32 @@ export function attackBehindBarrage(sim: Simulation, side: Side): void {
 }
 
 /**
- * A preparatory bombardment of the enemy front line: heavy howitzers to smash the trench and field guns to keep the
- * defenders down, for two minutes. Real bombardments lasted days; this is the last, most intense stretch.
+ * Where the enemy's wire belts lie in front of its front line, in metres (their middle, and how deep they run), and
+ * how hard the field guns work at cutting them. Cutting wire took days of fire and tens of thousands of shells; this
+ * two-minute bombardment stands for the end of that, so it fires at the rate that does days' worth of cutting.
+ */
+const WIRE_BELTS = { middle: 30, depth: 30, roundsPerMinute: 600 } as const
+
+/**
+ * A preparatory bombardment of the enemy front line: heavy howitzers to smash the trench, field guns to keep the
+ * defenders down and to cut lanes through the wire in front of it, for two minutes. Real bombardments lasted days; this
+ * is the last, most intense stretch.
  */
 export function bombardEnemyLine(sim: Simulation, side: Side): void {
   const front = lines(sim, side)
   if (!front) {
     return
   }
-  const target = { side, fromX: 0, toX: mapWidth(sim.map), z: front.enemy, band: 20, delay: 5, duration: 120 }
+  const depth = Math.abs(front.enemy.rear - front.enemy.forward)
+  const target = {
+    side,
+    fromX: 0,
+    toX: mapWidth(sim.map),
+    z: front.enemyMiddle,
+    band: depth + 20,
+    delay: 5,
+    duration: 120
+  }
   enqueueCommand(sim, {
     type: "fire-mission",
     plan: { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: 30 }
@@ -178,6 +202,18 @@ export function bombardEnemyLine(sim: Simulation, side: Side): void {
   enqueueCommand(sim, {
     type: "fire-mission",
     plan: { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: 120 }
+  })
+  // Field guns sweep the wire belts in front of the trench to cut lanes for the infantry.
+  const towardUs = Math.sign(front.own.forward - front.enemy.forward)
+  enqueueCommand(sim, {
+    type: "fire-mission",
+    plan: {
+      ...target,
+      z: front.enemy.forward + towardUs * WIRE_BELTS.middle,
+      band: WIRE_BELTS.depth,
+      shell: Shell.FieldHighExplosive,
+      roundsPerMinute: WIRE_BELTS.roundsPerMinute
+    }
   })
 }
 

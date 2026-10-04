@@ -45,6 +45,7 @@ describe("grenades", () => {
     const thrower = spawnSoldier(sim, { side: Side.French, x: 100, z: 140 })
 
     expect(throwGrenade(sim, thrower, 100, 60)).toBe(true)
+    expect(sim.events).toContainEqual({ type: "throw", soldier: thrower })
     expect(sim.soldiers.grenades.count[thrower]).toBe(GRENADES_CARRIED - 1)
     const [grenade] = sim.artillery.shells
     expect(grenade?.shell).toBe(Shell.Grenade)

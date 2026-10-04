@@ -2,7 +2,7 @@ import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
 import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryState } from "./artillery.ts"
 import { captureSystem, type CaptureEvent } from "./capture.ts"
-import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
+import { combatSystem, type ShotEvent, type ThrowEvent, Weapon } from "./combat.ts"
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
@@ -12,6 +12,7 @@ import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
 import { movementSystem } from "./systems/movement.ts"
+import { createWireField, type WireCutEvent, type WireField } from "./wire.ts"
 
 /** Simulation steps per second. */
 export const TICK_RATE = 20
@@ -44,6 +45,8 @@ export interface Simulation {
   readonly gas: GasField
   /** Smoke and dust thrown up by shell bursts, which hide whatever lies behind them. */
   readonly smoke: GasField
+  /** Barbed wire in front of the trenches, as staked and as shells have cut it since. */
+  readonly wire: WireField
   /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
   readonly wind: { x: number; z: number }
   /** Each side's commander: whether it has lost its front line and counter-attacked. */
@@ -54,7 +57,7 @@ export interface Simulation {
 }
 
 /** Something that happened during a step that a renderer may want to show. */
-export type SimEvent = ShotEvent | BurstEvent | CaptureEvent | CounterAttackEvent
+export type SimEvent = ShotEvent | ThrowEvent | BurstEvent | CaptureEvent | CounterAttackEvent | WireCutEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -83,6 +86,7 @@ export function createSimulation({
     artillery: createArtilleryState(),
     gas: createGasField(map),
     smoke: createGasField(map),
+    wire: createWireField(map),
     wind: { x: wind.x, z: wind.z },
     commanders: createCommanders(),
     events: [],

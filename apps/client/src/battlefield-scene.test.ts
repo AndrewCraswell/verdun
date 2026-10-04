@@ -113,6 +113,19 @@ describe("createBattlefieldScene", () => {
     expect(view.prisonerMeshes[Side.German].thinInstanceCount).toBe(1)
   })
 
+  it("hands soldiers over to another renderer, hiding the capsules", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    spawnSoldier(sim, { side: Side.French, x: 30, z: 30 })
+    const view = render(sim)
+    const synced: unknown[] = []
+    const isShown = () => true
+    view.useSoldierRenderer({ sync: (shown) => synced.push(shown) })
+    view.syncSoldiers(isShown)
+
+    expect(synced).toEqual([undefined, isShown])
+    expect(view.soldierMeshes[Side.French].isEnabled()).toBe(false)
+  })
+
   it("grows its instance buffers when more soldiers join", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })

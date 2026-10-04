@@ -4,6 +4,7 @@ import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
+import { wireDetour } from "./wire.ts"
 
 /** What a squad's soldiers do when the player isn't steering them. */
 export type SquadOrder =
@@ -162,7 +163,9 @@ function orderMoveTo(sim: Simulation, soldier: EntityId, target: { x: number; z:
   const dx = target.x - position.x[soldier]
   const dz = target.z - position.z[soldier]
   if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
-    applyCommand(sim, { type: "move-to", soldier, x: target.x, z: target.z, run })
+    // Make for a gap rather than cut through the wire, if there's one within reach.
+    const via = wireDetour(sim.wire, position.x[soldier], position.z[soldier], target.x, target.z) ?? target
+    applyCommand(sim, { type: "move-to", soldier, x: via.x, z: via.z, run })
   }
 }
 

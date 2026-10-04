@@ -6,6 +6,7 @@ import { refreshGasGround, releaseGas } from "./gas.ts"
 import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
+import { cutWire } from "./wire.ts"
 
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
@@ -46,6 +47,8 @@ interface ShellStats {
    * few seconds, several times as much from a heavy howitzer's.
    */
   readonly smokeMass: number
+  /** Barbed wire is cut within this many metres of the burst: a field gun's HE clears a gap a few metres wide. */
+  readonly wireCutRadius: number
 }
 
 export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
@@ -60,7 +63,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     deflectionError: 4,
     airburstHeight: 0,
     gasMass: 0,
-    smokeMass: 8000
+    smokeMass: 8000,
+    wireCutRadius: 2.5
   },
   [Shell.FieldShrapnel]: {
     craterRadius: 0,
@@ -73,7 +77,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     deflectionError: 4,
     airburstHeight: 6,
     gasMass: 0,
-    smokeMass: 1500
+    smokeMass: 1500,
+    wireCutRadius: 1.2
   },
   [Shell.HeavyHighExplosive]: {
     craterRadius: 2.5,
@@ -86,7 +91,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     deflectionError: 6,
     airburstHeight: 0,
     gasMass: 0,
-    smokeMass: 25_000
+    smokeMass: 25_000,
+    wireCutRadius: 5
   },
   // A small burster just opens the shell: a quiet pop that men often didn't notice over the barrage.
   [Shell.FieldGas]: {
@@ -100,7 +106,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     deflectionError: 4,
     airburstHeight: 0,
     gasMass: 600_000,
-    smokeMass: 1000
+    smokeMass: 1000,
+    wireCutRadius: 0.5
   },
   // Thrown, not fired: no battery, no flight from the rear. About 60 g of explosive; deadly within a few metres, its
   // fragments stopped by the traverses either side of a trench bay.
@@ -115,7 +122,8 @@ export const SHELLS: Readonly<Record<Shell, ShellStats>> = {
     deflectionError: 0,
     airburstHeight: 0,
     gasMass: 0,
-    smokeMass: 600
+    smokeMass: 600,
+    wireCutRadius: 0.8
   }
 }
 
@@ -328,7 +336,10 @@ function shielded(sim: Simulation, from: WorldPoint, soldier: EntityId): boolean
 /** Suppresses and shakes everyone near a burst, more the closer they are. Shellfire breaks men more than bullets. */
 function shake(sim: Simulation, at: WorldPoint, radius: number): void {
   for (const soldier of soldierIds(sim)) {
-    const distance = Math.hypot(sim.soldiers.position.x[soldier] - at.x, sim.soldiers.position.z[soldier] - at.z)
+    const dx = sim.soldiers.position.x[soldier] - at.x
+    const dz = sim.soldiers.position.z[soldier] - at.z
+    // Math.sqrt, not Math.hypot: it's correctly rounded on every engine, which keeps the simulation deterministic.
+    const distance = Math.sqrt(dx * dx + dz * dz)
     if (distance < radius) {
       const closeness = 1 - distance / radius
       sim.soldiers.suppression.value[soldier] = Math.min(1, sim.soldiers.suppression.value[soldier] + 0.8 * closeness)
@@ -344,7 +355,9 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   const at = { x: landed.x, y: heightAt(sim.map, landed.x, landed.z) + 0.3, z: landed.z }
   const reach = stats.lethalExposed * 3
   for (const soldier of Array.from(soldierIds(sim))) {
-    const distance = Math.hypot(sim.soldiers.position.x[soldier] - at.x, sim.soldiers.position.z[soldier] - at.z)
+    const dx = sim.soldiers.position.x[soldier] - at.x
+    const dz = sim.soldiers.position.z[soldier] - at.z
+    const distance = Math.sqrt(dx * dx + dz * dz)
     if (distance > reach) {
       continue
     }
@@ -369,6 +382,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
   }
   releaseGas(sim.smoke, landed.x, landed.z, stats.smokeMass)
+  cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
   return { type: "burst", shell: landed.shell, at, crater }
 }
 
@@ -403,19 +417,46 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   }
   shake(sim, at, stats.suppressionRadius)
   releaseGas(sim.smoke, landed.x, burstZ, stats.smokeMass)
+  // Shrapnel balls snip a strand here and there where they come down.
+  cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
   return { type: "burst", shell: landed.shell, at, crater: null }
 }
 
-/** The z of a side's front-line fire trench: the one facing the enemy that lies closest to no man's land. */
-export function frontLineZ(trenches: readonly Trench[], side: Side): number | null {
+/** A side's front-line fire trench: the one facing the enemy that lies closest to no man's land. */
+function frontLine(trenches: readonly Trench[], side: Side): Trench | null {
   const facing = side === Side.French ? "north" : "south"
+  const middle = (trench: Trench) => trench.points.reduce((sum, [, z]) => sum + z, 0) / trench.points.length
   const lines = trenches
     .filter((trench) => trench.kind === "fire" && trench.facing === facing)
-    .map((trench) => trench.points.reduce((sum, [, z]) => sum + z, 0) / trench.points.length)
-  if (lines.length === 0) {
+    .sort((a, b) => (side === Side.French ? middle(b) - middle(a) : middle(a) - middle(b)))
+  return lines[0] ?? null
+}
+
+/** The z of a side's front-line fire trench, averaged along its length. */
+export function frontLineZ(trenches: readonly Trench[], side: Side): number | null {
+  const line = frontLine(trenches, side)
+  return line ? line.points.reduce((sum, [, z]) => sum + z, 0) / line.points.length : null
+}
+
+/** How deep a side's front line runs: the z of its bays nearest the enemy, and of its rearmost. */
+export interface LineSpan {
+  readonly forward: number
+  readonly rear: number
+}
+
+/**
+ * The span of a side's front-line fire trench. Lines zigzag around salients and re-entrants, tens of metres deep, so a
+ * barrage aimed at the average z would miss the bays pushed forward of it.
+ */
+export function frontLineSpan(trenches: readonly Trench[], side: Side): LineSpan | null {
+  const line = frontLine(trenches, side)
+  if (!line) {
     return null
   }
-  return side === Side.French ? Math.max(...lines) : Math.min(...lines)
+  const zs = line.points.map(([, z]) => z)
+  return side === Side.French
+    ? { forward: Math.max(...zs), rear: Math.min(...zs) }
+    : { forward: Math.min(...zs), rear: Math.max(...zs) }
 }
 
 /**
@@ -427,11 +468,14 @@ function callDefensiveBarrage(sim: Simulation): void {
     if (sim.artillery.sosCalledAt[side] >= 0) {
       continue
     }
-    const ownLine = frontLineZ(sim.map.trenches, side)
-    const enemyLine = frontLineZ(sim.map.trenches, side === Side.French ? Side.German : Side.French)
-    if (ownLine === null || enemyLine === null) {
+    const own = frontLineSpan(sim.map.trenches, side)
+    const enemy = frontLineSpan(sim.map.trenches, side === Side.French ? Side.German : Side.French)
+    if (own === null || enemy === null) {
       continue
     }
+    // Between the bays each side has pushed furthest forward.
+    const ownLine = own.forward
+    const enemyLine = enemy.forward
     // Out of every trench and between the lines. Front lines zigzag, so a man in a forward bay isn't in the open.
     const inNoMansLand = (x: number, z: number) =>
       !isInTrench(sim.map, x, z) &&

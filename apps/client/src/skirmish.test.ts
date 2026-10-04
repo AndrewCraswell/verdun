@@ -97,9 +97,14 @@ describe("setupSkirmish", () => {
 
     expect(sim.artillery.missions.map((mission) => mission.shell)).toEqual([
       Shell.HeavyHighExplosive,
+      Shell.FieldHighExplosive,
       Shell.FieldHighExplosive
     ])
-    expect(sim.artillery.missions.every((mission) => Math.abs(mission.z - mapDepth(map) * 0.75) <= 3)).toBe(true)
+    const [heavy, field, wire] = sim.artillery.missions
+    const enemyLine = mapDepth(map) * 0.75
+    expect([heavy, field].every((mission) => Math.abs((mission?.z ?? 0) - enemyLine) <= 3)).toBe(true)
+    // The third sweeps the wire belts in front of the line.
+    expect(Math.abs((wire?.z ?? 0) - (enemyLine - 30))).toBeLessThanOrEqual(3)
   })
 
   it("calls fire on a point, arriving after the communications delay", () => {

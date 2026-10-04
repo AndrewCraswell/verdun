@@ -50,6 +50,16 @@ export interface BattlefieldView {
    * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
    */
   syncSoldiers(isShown?: (soldier: EntityId) => boolean): void
+  /**
+   * Hands drawing the soldiers to another renderer, such as animated character models, and hides the capsules. From
+   * then on `syncSoldiers` passes straight through to it.
+   */
+  useSoldierRenderer(renderer: SoldierRenderer): void
+}
+
+/** Something that draws the soldiers from the simulation's state. */
+export interface SoldierRenderer {
+  sync(isShown?: (soldier: EntityId) => boolean): void
 }
 
 export interface BattlefieldViewOptions {
@@ -203,7 +213,21 @@ export function createBattlefieldScene(
     return sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French
   }
 
+  let renderer: SoldierRenderer | null = null
+
+  function useSoldierRenderer(replacement: SoldierRenderer): void {
+    renderer = replacement
+    for (const mesh of batches.keys()) {
+      mesh.setEnabled(false)
+    }
+    renderer.sync()
+  }
+
   function syncSoldiers(isShown?: (soldier: EntityId) => boolean): void {
+    if (renderer) {
+      renderer.sync(isShown)
+      return
+    }
     const { position } = sim.soldiers
     const living = soldierIds(sim)
     const fallen = fallenIds(sim)
@@ -255,6 +279,7 @@ export function createBattlefieldScene(
     prisonerMeshes,
     gas,
     smoke,
-    syncSoldiers
+    syncSoldiers,
+    useSoldierRenderer
   }
 }

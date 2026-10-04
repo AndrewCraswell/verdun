@@ -6,9 +6,10 @@ import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
+import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 10
+export const SIM_STATE_VERSION = 11
 
 export interface SoldierState {
   readonly id: number
@@ -62,6 +63,8 @@ export interface SimulationSnapshot {
   readonly wind: { readonly x: number; readonly z: number }
   /** Each side's commander: when it lost its front line and when it counter-attacked. */
   readonly commanders: Record<Side, CommanderState>
+  /** Wire cut since it was staked: [cell, density left] for each cell shells have touched. */
+  readonly wireCuts: readonly (readonly [number, number])[]
 }
 
 function toSide(value: number): Side {
@@ -131,7 +134,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     commanders: {
       [Side.French]: { ...sim.commanders[Side.French] },
       [Side.German]: { ...sim.commanders[Side.German] }
-    }
+    },
+    wireCuts: wireCuts(sim.wire)
   }
 }
 
@@ -210,5 +214,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   sim.smoke.active = snapshot.smoke.some((value) => value > 0)
   Object.assign(sim.commanders[Side.French], snapshot.commanders[Side.French])
   Object.assign(sim.commanders[Side.German], snapshot.commanders[Side.German])
+  for (const [cell, density] of snapshot.wireCuts) {
+    sim.wire.density[cell] = density
+  }
   return sim
 }

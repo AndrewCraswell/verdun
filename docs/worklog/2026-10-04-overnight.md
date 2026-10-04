@@ -188,3 +188,31 @@ Committed as "Add reserves and the counter-attack".
 - Result: the counter-attack goes in about 5 minutes after the front falls. The preparation kills about 25 of the 150
   French holding the captured trench. The 56-62 reserves then fail against them, outnumbered over 2 to 1, at a cost of
   15-25 more French.
+
+## Barbed wire, front-line spans and wire detours
+
+Committed as "Add barbed wire, front-line spans and detours through the gaps". The level-design agent committed map
+format 4 (wire belts, knife rests, objectives) in `98032ed`.
+
+- **Wire** (`packages/sim/src/wire.ts`): the map's belts are staked on a 1 m grid, about 3.4 m deep, plus knife rests.
+  Getting through intact wire costs 95% of walking pace (about a minute a belt). Shells cut it clean within half their
+  cut radius and partly out to its edge: 5 m for heavy HE, 2.5 m for field HE, 1.2 m for shrapnel, 0.8 m for a grenade.
+  A `wire-cut` event tells renderers, and snapshots (version 11) carry only the cut cells.
+- **Detours**: when a squad sends a soldier somewhere and the straight way crosses intact wire, he goes for the nearest
+  crossing within 80 m (a patrol gap, a belt's end, or a lane cut by shells) and through it, then on.
+- **Front-line spans**: Fleury's front lines zigzag 40-50 m deep (the German front trench runs from z 242 to 282), so
+  the average z misplaced everything. `frontLineSpan` gives each line's forward and rear edges. The creeping barrage now
+  opens 70 m beyond our most forward bays, the standing barrage covers the enemy trench's whole depth, and attackers
+  rush only once the barrage has lifted past its rear. The SOS barrage and the commander use the edges too. Barrage
+  attacks take an `objectiveDepth`.
+- **Wire-cutting bombardment**: B now also sweeps the belts 15-45 m in front of the enemy line at 600 rounds a minute,
+  standing in for days of wire-cutting. One bombardment cuts about 15% of the wire, and the attack on Fleury fails
+  (50-65 of 264 French left). Three bombardments cut about 39% and open 74-82 m of lanes, and the attack succeeds
+  (109-129 left, 80-90 Germans captured). How long to prepare is now a real decision.
+- **Determinism**: `Math.hypot` in artillery replaced with `Math.sqrt`, which is correctly rounded on every engine.
+- **For the crowd renderer** (the level-design agent's M7 work): `view.useSoldierRenderer({ sync })` in
+  `battlefield-scene.ts` hands soldier drawing to animated models and hides the capsules. There's also a new `throw`
+  event when a grenade is thrown.
+
+**Not pushed.** The level-design agent's commits `98032ed` and `723e184` are under mine, and their user asked them not
+to push yet, so my commits wait locally until they say so.
