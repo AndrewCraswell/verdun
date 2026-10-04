@@ -56,14 +56,18 @@ describe("gunfire", () => {
 
   it("sends misses on past their man, most of them into the ground near him, kicking up dirt", () => {
     const { tracers, rifleman } = setup()
+    const strikes: number[] = []
+    tracers.onStrike.add((strike) => strikes.push(strike.time))
     tracers.add(Array.from({ length: 10 }, () => shot(rifleman, false, 60)))
     expect(tracers.rounds).toBe(10)
     for (let frame = 0; frame < 30; frame++) {
       tracers.update(1 / 60)
     }
     expect(tracers.rounds).toBe(0)
-    // Five grains a strike, from at least half of them.
+    // Five grains a strike, from at least half of them, each strike told as the dirt flies: about 50-100 m out, 0.07-0.13 s.
     expect(tracers.dirt.manualEmitCount).toBeGreaterThanOrEqual(25)
+    expect(strikes.length * 5).toBe(tracers.dirt.manualEmitCount)
+    expect(strikes.every((time) => time > 0.05 && time < 0.2)).toBe(true)
   })
 
   it("makes every fourth machine-gun round a bright tracer, and flashes at the muzzle", () => {

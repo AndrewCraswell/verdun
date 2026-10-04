@@ -7,6 +7,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { Observable } from "@babylonjs/core/Misc/observable"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
@@ -60,6 +61,12 @@ interface Flash {
   age: number
 }
 
+/** A round striking the ground, as the dirt is kicked up: where, and when on the effect's clock, in seconds. */
+export interface Strike {
+  readonly at: Vector3
+  readonly time: number
+}
+
 export interface Tracers {
   /** Every round's faint streak. */
   readonly mesh: Mesh
@@ -73,6 +80,11 @@ export interface Tracers {
   readonly dirt: ParticleSystem
   /** Rounds in flight. */
   readonly rounds: number
+  /**
+   * Fires as each round strikes the ground, wherever it is (dirt is drawn only near the camera): for the thud of the
+   * impact, in step with what's seen. `time` counts the seconds `update` has been given.
+   */
+  readonly onStrike: Observable<Strike>
   /** Adds the shots fired in the last simulation steps. */
   add(shots: readonly ShotEvent[]): void
   /** Flies the rounds and redraws them. Call once per frame. */
@@ -260,6 +272,8 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
     system.manualEmitCount = Math.max(0, system.manualEmitCount) + count
   }
 
+  const onStrike = new Observable<Strike>()
+  let clock = 0
   let rounds: Round[] = []
   let flashing: Flash[] = []
   const fired = new Map<number, number>()
@@ -345,6 +359,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
     get rounds() {
       return rounds.length
     },
+    onStrike,
     add(shots) {
       for (const event of shots) {
         shotCount++
@@ -387,6 +402,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       }
     },
     update(frameSeconds) {
+      clock += frameSeconds
       const dark = 1 - Math.min(1, Math.max(0, sources.light()))
       const tint = (color: Color3, day: number, night: number) => color.scale(day + (night - day) * dark)
       const materialOf = (each: Mesh) => (each.material instanceof StandardMaterial ? each.material : null)
@@ -418,6 +434,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
           if (near(at)) {
             emit(dirt, dirtAt, at, 5)
           }
+          onStrike.notifyObservers({ at, time: clock })
         }
         const length = round.tracer ? TRACER.length : STREAK.length
         const head = Math.min(round.flown, round.range)
@@ -478,6 +495,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
       for (const each of [mesh, tracers, flashes]) {
         each.dispose(false, true)
       }
+      onStrike.clear()
       smoke.dispose()
       dirt.dispose()
       for (const map of [streakMap, flashMap, puffMap]) {
