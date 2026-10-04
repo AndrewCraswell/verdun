@@ -3,6 +3,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, sampleIndex, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
+import { surfaceColors } from "../palette.ts"
 import { CHUNK_SIZE_METERS, createTerrainChunks } from "./terrain-chunks.ts"
 
 const engines: NullEngine[] = []
@@ -14,7 +15,7 @@ function setup(widthMeters: number, depthMeters: number, renderStep?: number, tr
   const flat = createFlatMap({ name: "test", cellSize: 0.5, columns: widthMeters * 2, rows: depthMeters * 2 })
   const map = { ...flat, trenches }
   const material = new StandardMaterial("ground", scene)
-  return { map, terrain: createTerrainChunks(scene, map, { material, renderStep }) }
+  return { map, terrain: createTerrainChunks(scene, map, { material, surfaceColors, renderStep }) }
 }
 
 afterEach(() => {
@@ -33,8 +34,8 @@ describe("createTerrainChunks", () => {
     // A full chunk at 1 m vertices is 65 x 65; the last column of chunks is 600 - 576 = 24 m wide.
     expect(terrain.meshes[0]?.getTotalVertices()).toBe(65 * 65)
     expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65)
-    // Every vertex carries four splat weights for the ground material.
-    expect(terrain.meshes[0]?.getVerticesData("splat")).toHaveLength(65 * 65 * 4)
+    // Every vertex carries its surface colour.
+    expect(terrain.meshes[0]?.getVerticesData("color")).toHaveLength(65 * 65 * 4)
   })
 
   it("renders chunks with trenches at full 0.5 m detail, so trench steps keep their shape", () => {

@@ -1,3 +1,4 @@
+import type { Color3 } from "@babylonjs/core/Maths/math.color"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import {
   type BattlefieldMap,
@@ -59,7 +60,7 @@ function normalAt(map: BattlefieldMap, column: number, row: number, step: number
 }
 
 /**
- * Share of each surface around a sample, as texture splat weights in `Surface` order. Reads the map by global sample
+ * Share of each surface around a sample, in `Surface` order. Reads the map by global sample
  * position, never by chunk, so neighbouring chunks agree along their shared edge.
  */
 function surfaceWeights(map: BattlefieldMap, column: number, row: number): number[] {
@@ -81,18 +82,22 @@ function surfaceWeights(map: BattlefieldMap, column: number, row: number): numbe
 function shadeAt(column: number, row: number, x: number, z: number): number {
   const patch = valueNoise(PATCH_SEED, x, z, PATCH_SCALE_METERS)
   const jitter = latticeValue(SHADE_SEED, column, row)
-  return 0.82 + patch * 0.3 + jitter * 0.06
+  return 0.9 + patch * 0.16 + jitter * 0.04
 }
 
-export interface ChunkGeometry {
-  /** Positions, height-field normals, world-space UVs and a brightness variation as vertex colour. */
-  readonly vertexData: VertexData
-  /** Four surface weights per vertex (grass, mud, chalk, churned) for the terrain splat material. */
-  readonly splat: number[]
-}
+/** One flat colour per surface: Synty-style terrain for version 1 (see docs/assets/art-direction.md). */
+export type SurfaceColors = Readonly<Record<Surface, Color3>>
 
-/** Builds one terrain chunk. `step` thins the 0.5 m simulation grid for rendering. */
-export function buildChunkGeometry(map: BattlefieldMap, bounds: ChunkBounds, step: number): ChunkGeometry {
+/**
+ * Builds one terrain chunk: positions, height-field normals, world-space UVs, and vertex colours that blend the surface
+ * palette across patch edges with a gentle brightness variation. `step` thins the 0.5 m simulation grid for rendering.
+ */
+export function buildChunkGeometry(
+  map: BattlefieldMap,
+  bounds: ChunkBounds,
+  step: number,
+  surfaceColors: SurfaceColors
+): VertexData {
   const columns = sampleSteps(bounds.firstColumn, bounds.lastColumn, step)
   const rows = sampleSteps(bounds.firstRow, bounds.lastRow, step)
 
@@ -100,7 +105,7 @@ export function buildChunkGeometry(map: BattlefieldMap, bounds: ChunkBounds, ste
   const normals: number[] = []
   const uvs: number[] = []
   const colors: number[] = []
-  const splat: number[] = []
+  const palette = [Surface.Grass, Surface.Mud, Surface.Chalk, Surface.Churned].map((surface) => surfaceColors[surface])
   for (const row of rows) {
     for (const column of columns) {
       const x = column * map.cellSize
@@ -110,8 +115,18 @@ export function buildChunkGeometry(map: BattlefieldMap, bounds: ChunkBounds, ste
       normals.push(...normalAt(map, column, row, step))
       uvs.push(x / UV_TILE_METERS, z / UV_TILE_METERS)
       const shade = shadeAt(column, row, x, z)
-      colors.push(shade, shade, shade, 1)
-      splat.push(...surfaceWeights(map, column, row))
+      let r = 0
+      let g = 0
+      let b = 0
+      surfaceWeights(map, column, row).forEach((weight, surface) => {
+        const color = palette[surface]
+        if (color && weight > 0) {
+          r += color.r * weight
+          g += color.g * weight
+          b += color.b * weight
+        }
+      })
+      colors.push(r * shade, g * shade, b * shade, 1)
     }
   }
 
@@ -134,5 +149,5 @@ export function buildChunkGeometry(map: BattlefieldMap, bounds: ChunkBounds, ste
   vertexData.uvs = uvs
   vertexData.colors = colors
   vertexData.indices = indices
-  return { vertexData, splat }
+  return vertexData
 }

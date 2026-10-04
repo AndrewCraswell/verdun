@@ -2,15 +2,15 @@ import type { Material } from "@babylonjs/core/Materials/material"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, TRENCH_PROFILE } from "@verdun/map"
-import { buildChunkGeometry, type ChunkBounds } from "./chunk-geometry.ts"
-import { SPLAT_KIND } from "./terrain-splat-plugin.ts"
+import { buildChunkGeometry, type ChunkBounds, type SurfaceColors } from "./chunk-geometry.ts"
 
 /** Terrain is split into square chunks this many metres on a side, so local changes rebuild only nearby chunks. */
 export const CHUNK_SIZE_METERS = 64
 
 export interface TerrainChunksOptions {
-  /** Ground material; expected to read the per-vertex splat weights (see TerrainSplatPlugin). */
+  /** Ground material. Surface colours arrive as vertex colours. */
   readonly material: Material
+  readonly surfaceColors: SurfaceColors
   /** Render one vertex every `renderStep` map samples: 2 gives 1 m vertices on the 0.5 m simulation grid. */
   readonly renderStep?: number
   /**
@@ -55,7 +55,7 @@ function trenchBoxes(map: BattlefieldMap): { minX: number; minZ: number; maxX: n
 export function createTerrainChunks(
   scene: Scene,
   map: BattlefieldMap,
-  { material, renderStep = 2, trenchStep = 1 }: TerrainChunksOptions
+  { material, surfaceColors, renderStep = 2, trenchStep = 1 }: TerrainChunksOptions
 ): TerrainChunks {
   const chunkCells = Math.round(CHUNK_SIZE_METERS / map.cellSize)
   if (!Number.isInteger(renderStep) || renderStep < 1 || chunkCells % renderStep !== 0) {
@@ -89,9 +89,7 @@ export function createTerrainChunks(
   }
 
   function build(chunk: Chunk): void {
-    const { vertexData, splat } = buildChunkGeometry(map, chunk.bounds, chunk.step)
-    vertexData.applyToMesh(chunk.mesh, true)
-    chunk.mesh.setVerticesData(SPLAT_KIND, splat, true, 4)
+    buildChunkGeometry(map, chunk.bounds, chunk.step, surfaceColors).applyToMesh(chunk.mesh, true)
   }
   chunks.forEach(build)
 
