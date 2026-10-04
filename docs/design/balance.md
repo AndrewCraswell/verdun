@@ -84,30 +84,32 @@ The numbers that tune the game, where they live, and their values today. Each sy
 logistics, operations, artillery and air, armour, squad types) are listed at the end of its doc. "Built" values come
 from the simulation; the rest are starting values in these docs.
 
-| Lever                                  | Value today                                          | Tunes                                       |
-| -------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
-| Rifle hit chance                       | 0.45 at point blank, × 1/e per 100 m (built)         | Lethality of fire, value of closing in      |
-| Rifle hold-fire range on covered men   | 100 m (built)                                        | How quiet quiet lines are                   |
-| Machine-gun beaten zone                | 3 m wide, 5 m + 8% of range long, 60% chance (built) | Machine guns against charges                |
-| Prone exposure                         | 30% as easy to hit (built)                           | Value of going to ground                    |
-| Pinned threshold                       | Suppression 0.6 (built)                              | How long attacks stall under fire           |
-| Grenade radius                         | 3 m in the open, 0.8 m behind earth (built)          | Trench fighting                             |
-| Mask leakage, donning time             | 3%, 5–12 s (built)                                   | Gas lethality                               |
-| Gas casualty dose                      | 1,600 mg·min/m³ ± 40% (built)                        | Gas lethality                               |
-| Wire pace                              | 5% of walking pace (built)                           | Value of wire cutting                       |
-| Ground pace on churned ground          | 50% (built)                                          | Cost of crossing a bombarded field          |
-| Counter-attack delay                   | 3 minutes, then a 2-minute bombardment (built)       | Defender's answer                           |
-| Capture time                           | 30 s                                                 | How fast ground changes hands               |
-| Consolidation time                     | 30 minutes, halved by engineers                      | Counter-attack window, night raids          |
-| Redeploy delay                         | 30 s, rising to 90 s as the pool empties (built)     | Cost of dying                               |
-| Force per side per sector              | 500 in stage 2                                       | Server budget, battle density               |
-| Bot replacement floor                  | A quarter of the pool kept for players (built)       | How fast the line thins as reserves run out |
-| Skirmish pool                          | 160 men a side (built)                               | Attrition in the prototype                  |
-| Daily allocations                      | Set by the calendar                                  | The season's arc                            |
-| Operations per side per sector per day | 3                                                    | Pace of the war                             |
-| Main-effort vote bonus                 | 30%                                                  | Player influence on the war                 |
-| Front move cap                         | One trench system a day                              | Safety net against collapses                |
-| Balance weights                        | To tune with the season harness                      | How the war is won                          |
+| Lever                                  | Value today                                                    | Tunes                                       |
+| -------------------------------------- | -------------------------------------------------------------- | ------------------------------------------- |
+| Rifle hit chance                       | 0.45 at point blank, × 1/e per 100 m (built)                   | Lethality of fire, value of closing in      |
+| Rifle hold-fire range on covered men   | 100 m (built)                                                  | How quiet quiet lines are                   |
+| Machine-gun beaten zone                | 3 m wide, 5 m + 8% of range long, 60% chance (built)           | Machine guns against charges                |
+| Prone exposure                         | 30% as easy to hit (built)                                     | Value of going to ground                    |
+| Pinned threshold                       | Suppression 0.6 (built)                                        | How long attacks stall under fire           |
+| Grenade radius                         | 3 m in the open, 0.8 m behind earth (built)                    | Trench fighting                             |
+| Mask leakage, donning time             | 3%, 5–12 s (built)                                             | Gas lethality                               |
+| Gas casualty dose                      | 1,600 mg·min/m³ ± 40% (built)                                  | Gas lethality                               |
+| Wire pace                              | 5% of walking pace (built)                                     | Value of wire cutting                       |
+| Ground pace on churned ground          | 50% (built)                                                    | Cost of crossing a bombarded field          |
+| Counter-attack delay                   | 3 minutes, then a 2-minute bombardment (built)                 | Defender's answer                           |
+| Capture time                           | 30 s                                                           | How fast ground changes hands               |
+| Consolidation time                     | 30 minutes, halved by engineers                                | Counter-attack window, night raids          |
+| Redeploy delay                         | 30 s, rising to 90 s as the pool empties (built)               | Cost of dying                               |
+| Stretcher-bearer teams per side        | 6 (in progress)                                                | How many wounded are saved                  |
+| Aid post capacity and triage           | 8 at once; ~40% back in 10 minutes, ~50% to hospital, ~10% die | Manpower returned from the wounded          |
+| Force per side per sector              | 500 in stage 2                                                 | Server budget, battle density               |
+| Bot replacement floor                  | A quarter of the pool kept for players (built)                 | How fast the line thins as reserves run out |
+| Skirmish pool                          | 160 men a side (built)                                         | Attrition in the prototype                  |
+| Daily allocations                      | Set by the calendar                                            | The season's arc                            |
+| Operations per side per sector per day | 3                                                              | Pace of the war                             |
+| Main-effort vote bonus                 | 30%                                                            | Player influence on the war                 |
+| Front move cap                         | One trench system a day                                        | Safety net against collapses                |
+| Balance weights                        | To tune with the season harness                                | How the war is won                          |
 
 ## Test harness
 

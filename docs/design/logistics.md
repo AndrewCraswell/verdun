@@ -121,7 +121,9 @@ on when squads are wiped out, refilled by the daily allotment. Planned:
   the sector a relief is a dangerous hour: communication trenches packed, the line briefly held by both. The enemy's
   harassing fire on a relief is a target worth shelling, if they know it's happening (prisoners and listening posts tell
   them).
-- **Wounded and sick** evacuated put a fraction back into the pool (half a wounded man, built as `returnToPool`).
+- **Wounded and sick** carried to the
+  [aid post](soldier-and-squad.md#wounds-stretcher-bearers-and-the-aid-post-in-progress) come back to the pool through
+  `returnToPool`: the patched up within minutes, half of those sent to hospital at the next daily turn.
 - **Prisoners** taken are counted on the war map and come out of the enemy's manpower for the season.
 
 ## Communications (planned)

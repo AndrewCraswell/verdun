@@ -34,19 +34,58 @@ sheltering long before he is dead.
 | Gas dose    | mg·min/m³                   | Breathing gas                                                               | Past about 1,600 (±40% per man) the soldier is a casualty                                                              |
 | Grenades    | Count, 3 at start           | Throwing; resupply at dumps (planned)                                       | Bombing men a rifle can't reach                                                                                        |
 
-### Wounds and evacuation (planned, stage 1–2)
+### Wounds, stretcher bearers and the aid post (in progress)
 
-Today a wounded soldier fights on until health runs out. The planned model gives casualties three outcomes:
+The gameplay session is building this (`packages/sim/src/wounds.ts`); this section is the design it follows.
 
-- **Lightly wounded**: fights on, slower, with worse aim. Most hits.
-- **Badly wounded**: down and helpless, bleeding out over a few minutes. The side's AI stretcher bearers, or a
-  squadmate, can carry him to an aid post in a support trench. An evacuated man returns **half a man** to the sector's
-  [manpower pool](sector-battle.md#manpower) (half of the evacuated recover in time for the season), and his squad slot
-  refills with a recruit at the next resupply. Abandoned, he dies.
+**Three outcomes of being hit.** On the Western Front about three men were wounded for every one killed, so most men
+knocked out of the fight are still alive:
+
+- **Lightly wounded**: fights on, slower, with worse aim.
+- **Badly wounded**: down and helpless where he fell, out of the fight, slowly bleeding (about 1% chance a minute of
+  dying where he lies). The share killed outright depends on what hit him: about 30% for bullets, 25% for shells, 10%
+  for gas.
 - **Killed**: out for good, and out of the pool.
 
-Carrying the wounded is slow, exposed work for no kills. It pays off in manpower and in
-[citations](progression-and-community.md#citations-and-the-communiqué), which is how the game rewards it.
+A badly wounded man lying near the enemy with no friend close is taken prisoner, wounded.
+
+**Stretcher bearers are AI.** Each side has stretcher-bearer teams (six to start), run by the AI for the whole side as
+one of the [AI services](roles-and-loadouts.md#ai-services). Players never have to carry stretchers.
+
+- Teams go for the reachable wounded nearest the aid post first, one man per trip, at a slow walk; reaching a man,
+  dressing him and lifting him takes about a minute.
+- **Inside the trenches they work at any hour. Out in no man's land they only go at night.** By day, walking out for a
+  man meant lying beside him, so the wounded of a daylight attack lie out until dark, and some die waiting. Flares at
+  night can still catch a team in the open. That makes the [117-minute day](../time-and-weather.md) matter twice: dusk
+  attacks leave fewer men to bleed, and each night is when the field is cleared.
+- Bearers won't go where an enemy is within 40 m of the man.
+- The client draws a team as two figures with a stretcher walking the route, so players see them work.
+- A squad can still carry its own man back (a slow, exposed squad order), for a squadmate the bearers can't reach yet.
+
+**The aid post heals men and returns them to the reserves.** Each side has an aid post (_poste de secours_,
+_Truppenverbandplatz_), a dugout or tent marked with the red cross in its support line, near a communication trench.
+Bearers carry the wounded there. When a man arrives he's triaged:
+
+| Outcome               | Share | What happens                                                                                                        |
+| --------------------- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| Patched up            | ~40%  | Back to duty after about 10 real minutes: one whole man added to the side's [reserves](logistics.md#reinforcements) |
+| Sent back to hospital | ~50%  | Leaves the sector; at the next daily turn, half of them come back to the reserves                                   |
+| Dies of his wounds    | ~10%  | Out for good                                                                                                        |
+
+- The aid post treats about **8 men at once**; beyond that the wounded wait their turn, so a big attack swamps it and
+  men die waiting. Its size is a [balance lever](balance.md#tuning-levers).
+- If the line is overrun the aid post falls back to the next trench, and the men in it are captured.
+- **The red cross is respected by the rules**: neither the commander AI nor players' calls for fire can target ground
+  within 30 m of an enemy aid post. Shells still land there by accident, but nobody is rewarded for it.
+- A patched-up veteran rejoins his own squad at its next refill if it's still on the field, so the
+  [names](progression-and-community.md#the-squad-roster) players know come back (later).
+
+On average an evacuated man is worth about two-thirds of a man to the reserves. Every wounded man the bearers reach is
+manpower saved, and every one left in no man's land when dawn comes is manpower lost.
+
+**What the player sees**: wounded men stay on the field with a marker, the squad panel shows its men as wounded,
+evacuated or returned, the map shows the aid post and how many wait there, and the battle log reports men brought in and
+returned to duty. When the soldier the player controls is badly wounded, control passes to the next man as on death.
 
 ## Weapons
 

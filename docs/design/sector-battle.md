@@ -82,7 +82,9 @@ Each side's sector garrison draws from a **manpower pool** the war map refills d
 - The **force in the line** is set by the sector, not by how many players turn up: for example 500 soldiers per side in
   stage 2. Players replace bots one squad at a time; they don't add soldiers. See
   [population balance](balance.md#population).
-- Every soldier **killed or captured** comes out of the pool. Evacuated wounded put half a man back.
+- Every soldier **killed or captured** comes out of the pool. Wounded men the stretcher bearers bring to the
+  [aid post](soldier-and-squad.md#wounds-stretcher-bearers-and-the-aid-post-in-progress) come back: about two-thirds of
+  a man each, on average.
 - While the pool is healthy the line stays full. As it runs low, redeploys slow, squads arrive understrength and bot
   squads stop being replaced, so the force in the line shrinks. Attrition is visible on the ground.
 - An empty pool never locks a player out: they still deploy, with whatever men can be found, usually 3 or 4.
@@ -144,18 +146,18 @@ Everything about them, from how the commander AI picks an objective to the 1918 
 
 What a sector does between operations. Each activity should be worth doing alone or with a few friends at any hour.
 
-| Activity         | What the player does                                                             | What it earns                                      | Stage |
-| ---------------- | -------------------------------------------------------------------------------- | -------------------------------------------------- | ----- |
-| Holding the line | Man the fire step, watch no man's land, shoot what shows                         | Kills, citations for a stand                       | Built |
-| Sniping          | One soldier with a scoped rifle in a hide, hunting careless heads                | Kills, enemy suppression                           | 2     |
-| Patrols          | Crawl into no man's land at night, check the enemy wire, find their gaps         | Reveals wire and gaps on the map for the side      | 2     |
-| Raids            | A small party crosses at night, takes prisoners from an enemy bay and comes back | [Intelligence](#raids-and-intelligence), prisoners | 2     |
-| Wire work        | Engineers repair cut wire or lay new belts, by night                             | Defence for tomorrow; consumes stores              | 2     |
-| Digging          | Push a sap toward the enemy, or dig a new jump-off trench                        | Shorter crossings for the next operation           | 3     |
-| Mining           | Tunnel under the enemy line over several days, charge it, fire it at zero hour   | A huge crater and a destroyed bay                  | 3     |
-| Countermining    | Listen for enemy miners, dig to meet them, blow their gallery                    | A wrecked enemy project                            | 3     |
-| Gas harassment   | Call gas shells on enemy rear trenches                                           | Masks on, aim spoiled, pace slowed                 | Built |
-| Stretcher work   | Carry the wounded back                                                           | Manpower, citations                                | 1–2   |
+| Activity                | What the player does                                                                           | What it earns                                      | Stage |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----- |
+| Holding the line        | Man the fire step, watch no man's land, shoot what shows                                       | Kills, citations for a stand                       | Built |
+| Sniping                 | One soldier with a scoped rifle in a hide, hunting careless heads                              | Kills, enemy suppression                           | 2     |
+| Patrols                 | Crawl into no man's land at night, check the enemy wire, find their gaps                       | Reveals wire and gaps on the map for the side      | 2     |
+| Raids                   | A small party crosses at night, takes prisoners from an enemy bay and comes back               | [Intelligence](#raids-and-intelligence), prisoners | 2     |
+| Wire work               | Engineers repair cut wire or lay new belts, by night                                           | Defence for tomorrow; consumes stores              | 2     |
+| Digging                 | Push a sap toward the enemy, or dig a new jump-off trench                                      | Shorter crossings for the next operation           | 3     |
+| Mining                  | Tunnel under the enemy line over several days, charge it, fire it at zero hour                 | A huge crater and a destroyed bay                  | 3     |
+| Countermining           | Listen for enemy miners, dig to meet them, blow their gallery                                  | A wrecked enemy project                            | 3     |
+| Gas harassment          | Call gas shells on enemy rear trenches                                                         | Masks on, aim spoiled, pace slowed                 | Built |
+| Bringing in a squadmate | Carry a wounded man of your own squad to the aid post, when the AI bearers can't reach him yet | Manpower, citations                                | 1–2   |
 
 ### Night
 
