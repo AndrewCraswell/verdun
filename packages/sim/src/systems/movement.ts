@@ -1,4 +1,5 @@
 import { type EntityId, query, removeComponent } from "bitecs"
+import { recoveryFactor } from "../climate.ts"
 import { BROKEN_MORALE, PINNED } from "../combat.ts"
 import { MaskState, Stance } from "../components.ts"
 import { weatherPace } from "../ground.ts"
@@ -135,6 +136,7 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     removeComponent(sim.world, soldier, moveOrder)
   }
 
+  const recovery = recoveryFactor(sim)
   for (const soldier of soldierIds(sim)) {
     const doing = activity.get(soldier)
     let change: number
@@ -144,8 +146,9 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
       change = stance.value[soldier] === Stance.Sheltering ? STAMINA.dugout : STAMINA.still
     }
     if (change > 0) {
-      // Breathing through a mask is hard work, and so is being afraid.
-      change *= (mask.state[soldier] === MaskState.On ? 0.5 : 1) * (morale.value[soldier] < SHAKEN_MORALE ? 0.5 : 1)
+      // Breathing through a mask is hard work, and so is being afraid; cold and heat wear men down (climate.ts).
+      change *=
+        (mask.state[soldier] === MaskState.On ? 0.5 : 1) * (morale.value[soldier] < SHAKEN_MORALE ? 0.5 : 1) * recovery
     }
     const value = Math.min(FULL_STAMINA, Math.max(0, stamina.value[soldier] + change * stepSeconds))
     stamina.value[soldier] = value

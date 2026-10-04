@@ -1,5 +1,6 @@
 import { type ChangedArea, heightAt, mapDepth, mapWidth, mergeAreas, stampCrater, type Trench } from "@verdun/map"
 import type { EntityId } from "bitecs"
+import { craterDepthFactor } from "./climate.ts"
 import { applyCommand } from "./commands.ts"
 import { Side, Stance } from "./components.ts"
 import { refreshGasGround, releaseGas } from "./gas.ts"
@@ -489,7 +490,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     x: landed.x,
     z: landed.z,
     radius: stats.craterRadius,
-    depth: stats.craterDepth
+    depth: stats.craterDepth * craterDepthFactor(sim)
   })
   sim.artillery.pendingSightRebuild = mergeAreas(sim.artillery.pendingSightRebuild, crater)
   groundChanged(sim, crater)

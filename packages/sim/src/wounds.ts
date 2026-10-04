@@ -1,6 +1,7 @@
 import { type BattlefieldMap, type GroundPoint, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, type EntityId, hasComponent, removeComponent } from "bitecs"
 import { surrender } from "./capture.ts"
+import { exposureFactor } from "./climate.ts"
 import { applyCommand } from "./commands.ts"
 import { Side } from "./components.ts"
 import { isDark } from "./flares.ts"
@@ -212,7 +213,8 @@ export function woundSystem(sim: Simulation): void {
       surrender(sim, soldier)
       continue
     }
-    if (sim.rng.next() < BLEED_PER_MINUTE / 60) {
+    // Left out in the cold, the wounded die faster (climate.ts).
+    if (sim.rng.next() < (BLEED_PER_MINUTE / 60) * exposureFactor(sim)) {
       removeComponent(sim.world, soldier, sim.soldiers.wounded)
       care.evacuateAt[soldier] = -1
       sim.events.push({ type: "died-of-wounds", soldier })

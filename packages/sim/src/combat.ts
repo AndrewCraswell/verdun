@@ -1,5 +1,6 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { Shell } from "./artillery.ts"
+import { reloadFactor } from "./climate.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut } from "./sight.ts"
@@ -301,7 +302,9 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
       }
     }
   }
-  sim.soldiers.weapon.cooldown[shooter] = stats.interval * (0.85 + sim.rng.next() * 0.3)
+  // Mud and rain foul weapons: longer between shots (climate.ts).
+  const fouled = reloadFactor(sim, sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun)
+  sim.soldiers.weapon.cooldown[shooter] = stats.interval * fouled * (0.85 + sim.rng.next() * 0.3)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
   sim.events.push({
     type: "shot",
@@ -331,7 +334,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   const facingX = sim.soldiers.facing.x[shooter]
   const facingZ = sim.soldiers.facing.z[shooter]
   const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
-  sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
+  sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval * reloadFactor(sim, kind === Weapon.MachineGun)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
   const from = soldierEye(sim, shooter)
   sim.events.push({

@@ -1,8 +1,9 @@
 import { createFlatMap, sampleIndex, Surface } from "@verdun/map"
 import { describe, expect, it } from "vitest"
+import { sodden } from "./climate.ts"
 import { Side } from "./components.ts"
 import { releaseGas } from "./gas.ts"
-import { burstReach, sodden, weatherPace } from "./ground.ts"
+import { burstReach, weatherPace } from "./ground.ts"
 import {
   createSimulation,
   enqueueCommand,

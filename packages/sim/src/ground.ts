@@ -1,15 +1,9 @@
 import { Surface } from "@verdun/map"
+import { isFrozen, sodden } from "./climate.ts"
 import type { Simulation } from "./simulation.ts"
 import { isInTrench } from "./stance.ts"
 import { surfaceAt } from "./terrain.ts"
 
-/**
- * Ground up to this wet goes as usual; the surfaces' own paces already allow for Verdun's ordinary mud. Fair weather
- * leaves the ground about this damp, so a fair day changes nothing.
- */
-export const WET_GROUND = 0.3
-/** Below this temperature, in °C, wet ground is frozen hard and goes like dry. */
-const FROZEN = -2
 /**
  * How much of their pace sodden ground takes from men, by what they walk on: mud and shell-churned ground turn to a
  * bog that sucks boots off; a trench floods to the knee; grass and chalk only turn slippery.
@@ -22,12 +16,6 @@ const SMOTHERING = 0.3
 
 function isSoft(surface: Surface): boolean {
   return surface === Surface.Mud || surface === Surface.Churned
-}
-
-/** How sodden the ground is beyond ordinary going, from 0 to 1: rain of the last few days, unless it is frozen. */
-export function sodden(sim: Simulation): number {
-  const { wetness, temperature } = sim.environment.weather
-  return temperature < FROZEN ? 0 : Math.max(0, (wetness - WET_GROUND) / (1 - WET_GROUND))
 }
 
 /** How deep snow lies, from 0 (none) to 1 (deep enough to slow men most). */
@@ -56,9 +44,19 @@ function bogging(sim: Simulation, x: number, z: number): number {
 }
 
 /**
+ * Frozen ground throws a shell's fragments this much further: it bursts on the hard surface instead of burying itself,
+ * as the winters of 1916-17 showed.
+ */
+const FROZEN_REACH = 1.15
+
+/**
  * How much of a ground burst's reach survives the ground it lands in: in sodden mud a shell plunges deep before it
- * bursts and the mud swallows its fragments, as men at Verdun and Passchendaele found. 1 on firm or frozen ground.
+ * bursts and the mud swallows its fragments, as men at Verdun and Passchendaele found; on frozen ground it bursts on
+ * the surface and reaches further. 1 on firm ground.
  */
 export function burstReach(sim: Simulation, x: number, z: number): number {
+  if (isFrozen(sim)) {
+    return FROZEN_REACH
+  }
   return isSoft(surfaceAt(sim.map, x, z)) ? 1 - SMOTHERING * sodden(sim) : 1
 }

@@ -8,7 +8,8 @@ import {
   SCENERY_FOOTPRINTS
 } from "@verdun/map"
 import type { EntityId } from "bitecs"
-import { snowDepth, sodden, weatherPace } from "./ground.ts"
+import { sodden } from "./climate.ts"
+import { snowDepth, weatherPace } from "./ground.ts"
 import type { Simulation } from "./simulation.ts"
 import { slopeCost, surfacePace } from "./terrain.ts"
 import { WIRE_CELL, wireAt, wirePace } from "./wire.ts"
