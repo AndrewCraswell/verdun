@@ -1,7 +1,9 @@
 /// <reference types="node" />
 import { createHash } from "node:crypto"
 import { createReadStream, existsSync, readFileSync } from "node:fs"
+import type { ServerResponse } from "node:http"
 import { extname, resolve, sep } from "node:path"
+import { pipeline } from "node:stream"
 import { defineConfig, type Plugin } from "vite"
 
 /** Where scripts/build-level-kit.py writes the level kit. Git-ignored: paid Synty art that must never ship raw. */
@@ -11,6 +13,14 @@ const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
   ".ogg": "audio/ogg",
   ".json": "application/json"
+}
+
+/**
+ * Streams a file into a response. When the browser gives up on it first (a reload, a hot update), the file is closed
+ * too: Windows locks a file while it's open, and a leaked handle stops the kit's build scripts replacing it.
+ */
+function sendFile(file: string, response: ServerResponse): void {
+  pipeline(createReadStream(file), response, () => undefined)
 }
 
 /**
@@ -30,7 +40,7 @@ function levelKit(): Plugin {
           return
         }
         response.setHeader("Content-Type", contentType)
-        createReadStream(file).pipe(response)
+        sendFile(file, response)
       })
     }
   }
@@ -104,7 +114,7 @@ function assetPack(): Plugin {
           return
         }
         response.setHeader("Content-Type", "application/octet-stream")
-        createReadStream(PACK_FILE).pipe(response)
+        sendFile(PACK_FILE, response)
       })
     }
   }
