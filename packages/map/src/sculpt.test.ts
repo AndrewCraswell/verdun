@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { createFlatMap, sampleIndex, Surface } from "./format.ts"
 import { heightAt } from "./sampling.ts"
 import type { Scenery } from "./scenery.ts"
-import { sculptForScenery } from "./sculpt.ts"
+import { sculptForRailways, sculptForScenery } from "./sculpt.ts"
 import type { Trench } from "./trenches.ts"
 
 /** A field 100 m square rising 1 m in every 5 m eastward: no house plot or gun pit on it is level to start with. */
@@ -94,5 +94,87 @@ describe("sculptForScenery", () => {
       }
     }
     expect(heightAt(map, 20, 20)).toBe(4)
+  })
+})
+
+describe("sculptForRailways", () => {
+  /** Flat ground 100 m square with a bank across it, rising 3 m between 50 m and 60 m east. */
+  function bank() {
+    const map = createFlatMap({ name: "bank", cellSize: 0.5, columns: 200, rows: 200 }, 0, Surface.Grass)
+    for (let row = 0; row <= map.rows; row++) {
+      for (let column = 0; column <= map.columns; column++) {
+        const x = column * map.cellSize
+        map.heights[sampleIndex(map, column, row)] = Math.min(3, Math.max(0, (x - 50) * 0.3))
+      }
+    }
+    return map
+  }
+  const along = (map: ReturnType<typeof bank>, z: number) =>
+    Array.from({ length: 91 }, (_, index) => heightAt(map, 5 + index, z))
+
+  it("grades the bed no steeper than 1 in 25, cutting into the bank and banking up to it", () => {
+    const map = bank()
+    sculptForRailways(map, [
+      {
+        points: [
+          [5, 50],
+          [95, 50]
+        ]
+      }
+    ])
+    const heights = along(map, 50)
+    const steepest = Math.max(...heights.slice(1).map((height, index) => Math.abs(height - (heights[index] ?? 0))))
+
+    expect(steepest).toBeLessThan(0.042)
+    // Banked up below the bank and cut into it above, as little as the grade allows, and back near the ground at the
+    // line's ends.
+    expect(heightAt(map, 50, 50)).toBeGreaterThan(0.8)
+    expect(heightAt(map, 60, 50)).toBeLessThan(2.2)
+    expect(Math.abs(heightAt(map, 5, 50))).toBeLessThan(0.7)
+    expect(Math.abs(heightAt(map, 95, 50) - 3)).toBeLessThan(0.7)
+    // The ground off the bed is left as it was.
+    expect(heightAt(map, 50, 56)).toBe(0)
+  })
+
+  it("levels the bed across the slope it runs along, and treads it to mud", () => {
+    const map = slope()
+    sculptForRailways(map, [
+      {
+        points: [
+          [50, 10],
+          [50, 90]
+        ]
+      }
+    ])
+
+    expect(heightAt(map, 49.5, 50)).toBeCloseTo(heightAt(map, 50.5, 50), 1)
+    expect(map.surfaces[sampleIndex(map, 100, 100)]).toBe(Surface.Mud)
+    expect(map.surfaces[sampleIndex(map, 106, 100)]).toBe(Surface.Grass)
+  })
+
+  it("leaves a trench's walls alone where the line passes near", () => {
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [20, 52],
+        [80, 52]
+      ],
+      facing: "north"
+    }
+    const map = slope([trench])
+    const before = Float32Array.from(map.heights)
+    sculptForRailways(map, [
+      {
+        points: [
+          [10, 51],
+          [90, 51]
+        ]
+      }
+    ])
+
+    for (let column = 60; column <= 140; column++) {
+      const index = sampleIndex(map, column, 104)
+      expect(map.heights[index]).toBe(before[index])
+    }
   })
 })

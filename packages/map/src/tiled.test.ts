@@ -34,7 +34,16 @@ const layout = {
     { kind: "tree", x: 12.3456, z: 7.891, heading: 1.234, variant: 2, scale: 1.25 },
     { kind: "gun", x: 0, z: 40, heading: -0.5, variant: 0, scale: 0.8 }
   ],
-  objectives: [{ name: "The crossroads", x: 25.25, z: 21.5, radius: 12 }]
+  objectives: [{ name: "The crossroads", x: 25.25, z: 21.5, radius: 12 }],
+  railways: [
+    {
+      points: [
+        [0, 3],
+        [30.5, 4.25],
+        [58, 3]
+      ]
+    }
+  ]
 } satisfies TiledLayout
 
 const map = { ...createFlatMap({ name: "test sector", cellSize: 0.5, columns: 120, rows: 80 }), ...layout }
@@ -102,7 +111,7 @@ function expectWireClose(actual: readonly WireBelt[], expected: readonly WireBel
 }
 
 describe("Tiled maps", () => {
-  it("round-trip trenches, wire and scenery through JSON", () => {
+  it("round-trip trenches, wire, railways and scenery through JSON", () => {
     const read = fromTiledMap(exported())
 
     expect(read.trenches.map(({ kind, facing }) => ({ kind, facing }))).toEqual(
@@ -112,6 +121,7 @@ describe("Tiled maps", () => {
       expectPointsClose(read.trenches[index]!.points, trench.points)
     }
     expectWireClose(read.wire, layout.wire)
+    expectWireClose(read.railways ?? [], layout.railways)
     expectSceneryClose(read.scenery, layout.scenery)
     expect(read.objectives).toEqual(layout.objectives)
     expect(read.warnings).toEqual([])
@@ -124,6 +134,13 @@ describe("Tiled maps", () => {
     expect(fromTiledMap(tiled).objectives).toBeUndefined()
   })
 
+  it("keeps the generated railways for a map saved before it had a layer for them", () => {
+    const tiled = exported()
+    tiled.layers = tiled.layers.filter((layer) => layer.name !== "railways")
+
+    expect(fromTiledMap(tiled).railways).toBeUndefined()
+  })
+
   it("is an orthogonal map of one-metre tiles with a layer per kind of thing", () => {
     const tiled = toTiledMap(map)
 
@@ -132,19 +149,26 @@ describe("Tiled maps", () => {
     expect(tiled.layers.map((layer) => [layer.name, layer.type, layer.objects.length])).toEqual([
       ["trenches", "objectgroup", 2],
       ["wire", "objectgroup", 1],
+      ["railways", "objectgroup", 1],
       ["scenery", "objectgroup", 2],
       ["objectives", "objectgroup", 1]
     ])
     const ids = tiled.layers.flatMap((layer) => layer.objects.map((object) => object.id))
-    expect(ids).toEqual([1, 2, 3, 4, 5, 6])
-    expect(tiled.nextobjectid).toBe(7)
-    expect(tiled.layers[3]?.objects[0]).toMatchObject({ name: "The crossroads", point: true, x: 252.5, y: 185 })
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(tiled.nextobjectid).toBe(8)
+    expect(tiled.nextlayerid).toBe(6)
+    expect(tiled.layers.find((layer) => layer.name === "objectives")?.objects[0]).toMatchObject({
+      name: "The crossroads",
+      point: true,
+      x: 252.5,
+      y: 185
+    })
   })
 
   it("flips z so north is up, and stores headings in degrees", () => {
     const tiled = toTiledMap(map)
-    const [trench] = tiled.layers[0]!.objects
-    const [tree] = tiled.layers[2]!.objects
+    const [trench] = tiled.layers.find((layer) => layer.name === "trenches")!.objects
+    const [tree] = tiled.layers.find((layer) => layer.name === "scenery")!.objects
 
     // The map is 40 m deep: z 20 is 20 m below the top edge, at y 200 px.
     expect(trench).toMatchObject({ x: 100, y: 200 })
@@ -213,6 +237,7 @@ describe("Tiled maps", () => {
       expectPointsClose(read.trenches[index]!.points, trench.points)
     }
     expectWireClose(read.wire, fleury.wire)
+    expectWireClose(read.railways ?? [], fleury.railways)
     expectSceneryClose(read.scenery, fleury.scenery)
     expect(read.warnings).toEqual([])
   })
@@ -334,7 +359,7 @@ describe("Tiled maps", () => {
         "unknown scenery",
         "scenery",
         (object) => ({ ...object, type: "tank" }),
-        /object 4 .* class "tank"; expected one of ruin/
+        /object 5 .* class "tank"; expected one of ruin/
       ],
       ["scenery that isn't a point", "scenery", ({ point: _, ...rest }) => rest, /must be a point object/],
       [

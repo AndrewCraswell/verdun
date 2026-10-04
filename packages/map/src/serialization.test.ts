@@ -152,6 +152,35 @@ describe("map documents", () => {
     expect(() => fromMapDocument({ ...older, version: 5, weatherRegion: 3 })).toThrow(/weather region/)
   })
 
+  it("round-trip railways, load older files without any, and reject malformed ones", () => {
+    const line = {
+      points: [
+        [0, 1],
+        [2.5, 1.5]
+      ] as const
+    }
+    const map = { ...createFlatMap({ name: "railhead", cellSize: 1, columns: 3, rows: 3 }), railways: [line] }
+    expect(fromMapDocument(structuredClone(toMapDocument(map)))).toEqual(map)
+    const older = { ...toMapDocument(map), version: 5, railways: undefined }
+    expect(fromMapDocument(older).railways).toEqual([])
+    const current = toMapDocument(map)
+    expect(() => fromMapDocument({ ...current, railways: undefined })).toThrow("railways")
+    expect(() => fromMapDocument({ ...current, railways: [{ points: [[0, 0]] }] })).toThrow("railways")
+    expect(() =>
+      fromMapDocument({
+        ...current,
+        railways: [
+          {
+            points: [
+              [0, 0],
+              [1, "a"]
+            ]
+          }
+        ]
+      })
+    ).toThrow("railways")
+  })
+
   it("rejects documents that are not objects", () => {
     expect(() => fromMapDocument(null)).toThrow("must be an object")
     expect(() => fromMapDocument("map")).toThrow("must be an object")

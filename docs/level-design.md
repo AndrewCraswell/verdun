@@ -77,6 +77,29 @@ sandbags, packs, canteens, duds and now and then a stretcher, on the churned gro
 out from the trenches, where the attacks broke on the wire. The small kit is drawn half as large again so it reads from
 the game's camera. None of it blocks sight or movement.
 
+### The railway
+
+Behind the French lines runs a 60 cm Decauville field railway, the light lines both armies laid by the thousand
+kilometres to carry shells and stores up to the front ([railway.ts](../apps/client/src/level/railway.ts)). It comes in
+from the sector's south edge, up from the rear toward Fort Souville, crosses the plateau behind the reserve line, passes
+a dump by the main road, crosses the road, and comes down off the plateau to a railhead and its dump, where the loads
+went on up the communication trenches on men's backs. It keeps to the plateau because the rest of the French rear falls
+a tenth of its length toward the Meuse, far steeper than the little engines, horses and men who hauled the wagons could
+manage, and the reserve line and the lateral road leave it no room further north.
+
+The track is laid as the real thing was: prefabricated panels 2.5 m long, two rails riveted to four sleepers, bolted end
+to end along the line's course. A drawn line's corners are eased into curves of about 25 m radius (`railwayCourse`), the
+sharpest the 60 cm lines took. One panel in six is worn, a sleeper gone and others knocked askew. Rakes of flat wagons
+stand by each dump within 10 m of the line, loaded with shells, crates and sacks from the kit or standing empty, and the
+line ends in a timber buffer stop. A wagon lies off the rails on its side partway along, its load spilled beside it,
+kept off the roads. Where the line runs off the sector, its track runs on 300 m over the ground beyond (see
+[the world beyond](#the-world-beyond)), its trees cleared, so it doesn't stop dead at the edge.
+
+The track, wagons and stop are made in code, since no Synty pack has a railway; the loads are kit pieces under names of
+their own, so they're drawn as far off as the wagons rather than dropped with the litter. Shellfire cuts the track and
+throws the loads off; the wagons stand. The track casts no shadow worth its cost and stops drawing beyond 260 m, where
+the mud of its bed carries the line. The simulation takes no notice of the railway: its bed is ordinary ground.
+
 ### Ground work
 
 The ground is worked for what stands on it ([sculpt.ts](../packages/map/src/sculpt.ts), `GROUND_WORK`). It changes the
@@ -88,6 +111,9 @@ map's own heights and surfaces, so line of sight and movement see the ground the
   open behind, where the crew came and went.
 - **Banked**: earth heaped against the concrete posts to the loopholes.
 - **Trodden**: churned earth round the ruins with limestone rubble in patches, and mud round the guns and dumps.
+- **Graded**: the railway's bed levelled across, trodden to mud, and smoothed along its length to climb and fall no
+  steeper than 1 in 25: midway between the highest such run under the ground and the lowest over it, so it's cut into
+  rises and banked over dips no deeper than it must be (on the surveyed ground, up to about 1.2 m).
 
 Nothing within about 1.7 m of a trench's centre line is touched, so every trench keeps its profile.
 
@@ -132,8 +158,9 @@ forward, so the layout keeps every front line spanning the map from west to east
 The map stores what the simulation will need: heights, surfaces, trench polylines, and since format version 4,
 **scenery** (ruins, trees, stumps, logs, guns, wrecks, bunkers, machine guns, knife rests, stores, bridges and pools,
 each with a position, heading, variant and scale), **wire belts** (polylines) and **objectives** (named points with a
-radius). The client picks the art; the map never names a Synty model. Pure decoration that follows from geometry, such
-as the trench kit pieces, fire steps, duckboards and ladders, is derived by the client and isn't stored.
+radius). Version 5 added the **weather region**, and version 6 the **railways** (polylines). The client picks the art;
+the map never names a Synty model. Pure decoration that follows from geometry, such as the trench kit pieces, fire
+steps, duckboards and ladders, is derived by the client and isn't stored.
 
 ## Trenches and the trench kit
 
@@ -452,7 +479,7 @@ deploying from a machine that holds the vendor files. Not decided yet.
 
 ## Editing in Tiled
 
-The layout (trench lines, wire belts and scenery) can be edited in [Tiled](https://www.mapeditor.org), as the
+The layout (trench lines, wire belts, railways and scenery) can be edited in [Tiled](https://www.mapeditor.org), as the
 [editor plan](tooling.md#editor-plan) proposes. [tiled.ts](../packages/map/src/tiled.ts) converts between our map format
 and a Tiled JSON map (`.tmj`). Heights, surfaces and craters stay generated.
 
@@ -473,6 +500,7 @@ file it uses its own layout.
 | `trenches`   | Polylines | String properties `kind` (`fire` or `communication`) and `facing` (`north`, `south`, `none`) |
 | `wire`       | Polylines | One belt each                                                                                |
 | `scenery`    | Points    | Class (Tiled's object type) is the kind; float `heading`, float `scale`, int `variant`       |
+| `railways`   | Polylines | One line each; its corners are eased into curves                                             |
 | `objectives` | Points    | The object's name is the objective's; float `radius` in metres, the ground held round it     |
 
 Headings are in **degrees** clockwise from north, which is clockwise on screen (the map format stores radians). A
@@ -493,10 +521,10 @@ A trench whose end lies within 5 cm of another trench's centre line joins it the
 warnings, and a test keeps it that way.
 
 **Using an edited layout.** `generateFleurySector({ layout: fromTiledMap(json) })` builds the sector around a Tiled
-layout: its trenches, wire, scenery and objectives replace the generated ones, while heights, surfaces, roads and
-craters stay seeded. A map saved before there was an `objectives` layer keeps the generated objectives. Pools and
-bridges follow the craters and roads, so they are always regenerated. Each side's front line must still span the map
-from west to east. Client and simulation must load the same layout.
+layout: its trenches, wire, scenery, objectives and railways replace the generated ones, while heights, surfaces, roads
+and craters stay seeded. A map saved before there was an `objectives` or `railways` layer keeps the generated objectives
+or railway. Pools and bridges follow the craters and roads, so they are always regenerated. Each side's front line must
+still span the map from west to east. Client and simulation must load the same layout.
 
 ## Dev tools
 

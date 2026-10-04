@@ -1,4 +1,4 @@
-// Exports the Fleury sector's layout (trenches, wire and scenery) as a Tiled map, or checks an edited one.
+// Exports the Fleury sector's layout (trenches, wire, railways and scenery) as a Tiled map, or checks an edited one.
 //
 // Usage:
 //   node scripts/export-tiled.mjs [out.tmj]       writes maps/fleury.tmj by default
@@ -55,6 +55,7 @@ if (args[0] === "--check") {
   process.stdout.write(
     `${path}: ${layout.trenches.length} trenches, ${layout.wire.length} wire belts, ${layout.scenery.length} scenery, ` +
       `${layout.objectives ? `${layout.objectives.length} objectives` : "the generated objectives"}, ` +
+      `${layout.railways ? `${layout.railways.length} railways` : "the generated railway"}, ` +
       `${layout.warnings.length} warnings\n`
   )
 } else {

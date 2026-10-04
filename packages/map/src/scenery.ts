@@ -108,6 +108,15 @@ export interface WireBelt {
   readonly points: readonly GroundPoint[]
 }
 
+/**
+ * A narrow-gauge field railway: one of the 60 cm Decauville lines that carried shells and stores up from the railheads
+ * to the dumps behind the lines. The line of its track's centre. Neither cover nor obstacle: the simulation takes no
+ * notice of it.
+ */
+export interface Railway {
+  readonly points: readonly GroundPoint[]
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -146,11 +155,20 @@ export function isObjective(value: unknown): value is Objective {
   return typeof name === "string" && isFiniteNumber(x) && isFiniteNumber(z) && isFiniteNumber(radius) && radius > 0
 }
 
-export function isWireBelt(value: unknown): value is WireBelt {
+/** Whether a value is a line of at least two ground points, as wire belts and railways are. */
+function isLine(value: unknown): value is { readonly points: readonly GroundPoint[] } {
   if (!isRecord(value) || !Array.isArray(value.points) || value.points.length < 2) {
     return false
   }
   return value.points.every(
     (point: unknown) => Array.isArray(point) && point.length === 2 && point.every(isFiniteNumber)
   )
+}
+
+export function isWireBelt(value: unknown): value is WireBelt {
+  return isLine(value)
+}
+
+export function isRailway(value: unknown): value is Railway {
+  return isLine(value)
 }

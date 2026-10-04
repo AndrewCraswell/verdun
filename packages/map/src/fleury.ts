@@ -2,9 +2,10 @@ import { type Crater, slumpGround, stampCrater } from "./craters.ts"
 import { type Elevation, elevationAt } from "./elevation.ts"
 import { type BattlefieldMap, createFlatMap, sampleIndex, Surface } from "./format.ts"
 import { valueNoise } from "./noise.ts"
+import { railwayCourse } from "./railways.ts"
 import { heightAt } from "./sampling.ts"
-import type { Objective, Scenery, SceneryKind, WireBelt } from "./scenery.ts"
-import { sculptForScenery } from "./sculpt.ts"
+import type { Objective, Railway, Scenery, SceneryKind, WireBelt } from "./scenery.ts"
+import { sculptForRailways, sculptForScenery } from "./sculpt.ts"
 import { type Bay, communicationRoute, crenellatedTrace, junctionNear, TRENCH_GRID } from "./trench-trace.ts"
 import { carveTrenches, type GroundPoint, type Trench, TRENCH_PROFILE } from "./trenches.ts"
 
@@ -123,6 +124,31 @@ const CROSSROADS: GroundPoint = [526, 174]
 /** Roads behind the lines keep their surface; the one through no man's land and the village is shelled to nothing. */
 const REAR_ROAD_LIMITS = { french: 110, german: 300 } as const
 const ROAD_HALF_WIDTH = 2.4
+
+/**
+ * The French field railway: a 60 cm Decauville line up from the rear toward Fort Souville, in from the sector's south
+ * edge on the plateau behind the lines, over the main road and along the lateral road's rear side, down off the plateau
+ * to a railhead, its shells and stores carried on up to the line by hand. The rest of the French rear falls a tenth of
+ * its length toward the Meuse, too steep for the line, and the reserve line and the road leave it no room further north.
+ */
+const FRENCH_RAILWAY: readonly GroundPoint[] = [
+  [575, 0],
+  [565, 9],
+  [540, 14],
+  [500, 12],
+  [470, 9],
+  [440, 7],
+  [400, 6],
+  [372, 7],
+  [350, 8]
+]
+/** Nothing is placed within this many metres of a railway's track: half a wagon's width and a margin. */
+const RAILWAY_CLEARANCE = 1.8
+/** The dumps the railway serves: one by the main road, and the railhead's at its end. */
+const RAILWAY_DUMPS: readonly GroundPoint[] = [
+  [500, 4],
+  [342, 10]
+]
 
 const WOODS = [
   /** Bois de la Caillette, through which the French front line runs. */
@@ -525,13 +551,18 @@ const FOOTPRINTS: Partial<Record<SceneryKind, number>> = { ruin: 6, landmark: 11
 interface Placer {
   readonly scenery: Scenery[]
   place(kind: SceneryKind, x: number, z: number, heading: number, options?: { variant?: number; scale?: number }): void
-  /** True when nothing placed so far, and no trench, lies within `radius` of the point. */
+  /** True when nothing placed so far, and no trench or railway track, lies within `radius` of the point. */
   isClear(x: number, z: number, radius: number): boolean
 }
 
-function createPlacer(segments: readonly [GroundPoint, GroundPoint][], random: () => number): Placer {
+function createPlacer(
+  segments: readonly [GroundPoint, GroundPoint][],
+  random: () => number,
+  railways: readonly Railway[] = []
+): Placer {
   const scenery: Scenery[] = []
   const footprints: { x: number; z: number; radius: number }[] = []
+  const courses = railways.map(railwayCourse)
   return {
     scenery,
     place(kind, x, z, heading, { variant = Math.floor(random() * 1_000), scale = 1 } = {}) {
@@ -543,6 +574,9 @@ function createPlacer(segments: readonly [GroundPoint, GroundPoint][], random: (
         return false
       }
       if (trenchDistance(segments, x, z) < radius + TRENCH_PROFILE.parapetOuter) {
+        return false
+      }
+      if (courses.some((course) => nearestOnLine(course, x, z).distance < radius + RAILWAY_CLEARANCE)) {
         return false
       }
       return footprints.every((footprint) => Math.hypot(footprint.x - x, footprint.z - z) > footprint.radius + radius)
@@ -928,6 +962,8 @@ export interface SectorLayout {
   readonly wire: readonly WireBelt[]
   readonly scenery: readonly Scenery[]
   readonly objectives?: readonly Objective[]
+  /** Field railways: absent, the generated ones. */
+  readonly railways?: readonly Railway[]
 }
 
 /** Generates the Fleury sector: 600 m by 400 m, French to the south and Germans to the north. */
@@ -974,14 +1010,16 @@ export function generateFleurySector({
   carveTrenches(map, trenches)
 
   const sceneryRandom = createRandom(seed + SEEDS.scenery)
-  const placer = createPlacer(segments, sceneryRandom)
+  const railways = layout?.railways ?? [{ points: FRENCH_RAILWAY }]
+  const placer = createPlacer(segments, sceneryRandom, railways)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)
   const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf(seed)
   if (layout) {
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
-    const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives }
+    const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives, railways }
     sculptForScenery(drawn, drawn.scenery)
+    sculptForRailways(drawn, railways)
     return drawn
   }
 
@@ -1005,6 +1043,9 @@ export function generateFleurySector({
     ],
     Math.PI
   )
+  for (const [x, z] of RAILWAY_DUMPS) {
+    placeNear(placer, "stores", x, z, 0, 1.5)
+  }
   placeNear(placer, "wrecked-gun", 338, 62, 0.4, 3)
   placeNear(placer, "wrecked-gun", 432, 388, 2.8, 3)
   placeNear(placer, "wrecked-plane", 262, 203, 2.2, 5)
@@ -1045,9 +1086,12 @@ export function generateFleurySector({
     trenches,
     scenery: placer.scenery,
     wire: [...frenchWire.belts, ...germanWire.belts],
-    objectives
+    objectives,
+    railways
   }
-  // Level house plots and dumps, dig the gun pits, bank the concrete posts: the ground the art stands on.
+  // Level house plots and dumps, dig the gun pits, bank the concrete posts, lay the railway's bed: the ground the art
+  // stands on.
   sculptForScenery(sector, sector.scenery)
+  sculptForRailways(sector, railways)
   return sector
 }

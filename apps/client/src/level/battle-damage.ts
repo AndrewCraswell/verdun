@@ -20,7 +20,9 @@ const DESTROYED = [
   /^Gen_Env_Twig/,
   /^Env_Brick_Debris/,
   /^Env_Trench_Pole/,
-  /^Env_Sandbag_Wall_Long/
+  /^Env_Sandbag_Wall_Long/,
+  /^Railway_Track/,
+  /^Railway_Load/
 ]
 const SHATTERED_TREE = /^(Gen_)?Env_Tree_Dead_0\d$/
 const STUMPS = ["Env_Tree_Destroyed_01", "Env_Tree_Destroyed_02", "Env_Tree_Destroyed_03", "Env_Tree_Destroyed_04"]
@@ -51,7 +53,8 @@ export interface BattleDamage {
 
 /**
  * Shell damage to the dressed battlefield. The simulation craters the ground itself; this keeps the props in step:
- * wire, duckboards and stores go, trees are shot down to stumps, and trench sections fill with blown-in earth.
+ * wire, duckboards, stores and lengths of the railway's track go, trees are shot down to stumps, and trench sections
+ * fill with blown-in earth.
  */
 export function createBattleDamage(
   scenery: SceneryBatches,

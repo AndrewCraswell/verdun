@@ -62,6 +62,54 @@ export function backdropTrees(map: BattlefieldMap, surroundings: Surroundings): 
 }
 
 /**
+ * The backdrop's height at one of its vertices, at world (x, z). Next to the sector it eases from the sector's edge
+ * into the survey; well inside the sector it sinks out of sight; on and near the edge it runs just under the sector's
+ * own ground.
+ */
+function vertexHeight(map: BattlefieldMap, surroundings: Surroundings, x: number, z: number): number {
+  const { elevation, sectorBase, sectorOrigin } = surroundings
+  const edgeX = Math.min(mapWidth(map), Math.max(0, x))
+  const edgeZ = Math.min(mapDepth(map), Math.max(0, z))
+  const outside = Math.hypot(x - edgeX, z - edgeZ)
+  const inset = Math.min(x, z, mapWidth(map) - x, mapDepth(map) - z)
+  const edge = heightAt(map, edgeX, edgeZ) - UNDERLAP
+  if (inset > STEP) {
+    return edge - 6
+  }
+  const surveyed = elevation.base + elevationAt(elevation, x + sectorOrigin.x, z + sectorOrigin.z) - sectorBase
+  return edge + (surveyed - edge) * smoothstep(0, BLEND, outside)
+}
+
+/**
+ * The height of the backdrop's ground as drawn, at any world (x, z) it covers: between its vertices, across the
+ * triangles it's drawn with, so what stands on it meets the ground the camera sees.
+ */
+export function backdropGround(map: BattlefieldMap, surroundings: Surroundings): (x: number, z: number) => number {
+  const { elevation, sectorOrigin } = surroundings
+  const columns = Math.floor((elevation.columns * elevation.cellSize) / STEP)
+  const rows = Math.floor((elevation.rows * elevation.cellSize) / STEP)
+  const corner = (column: number, row: number) =>
+    vertexHeight(map, surroundings, column * STEP - sectorOrigin.x, row * STEP - sectorOrigin.z)
+  return (x, z) => {
+    const across = Math.min(columns, Math.max(0, (x + sectorOrigin.x) / STEP))
+    const along = Math.min(rows, Math.max(0, (z + sectorOrigin.z) / STEP))
+    const column = Math.min(columns - 1, Math.floor(across))
+    const row = Math.min(rows - 1, Math.floor(along))
+    const u = across - column
+    const v = along - row
+    const nearRight = corner(column + 1, row)
+    const farLeft = corner(column, row + 1)
+    // Each square is split from its near right corner to its far left one (see createBackdrop).
+    if (u + v <= 1) {
+      const nearLeft = corner(column, row)
+      return nearLeft + u * (nearRight - nearLeft) + v * (farLeft - nearLeft)
+    }
+    const farRight = corner(column + 1, row + 1)
+    return farRight + (1 - u) * (farLeft - farRight) + (1 - v) * (nearRight - farRight)
+  }
+}
+
+/**
  * The ground round the sector, out to the horizon: the real hills and ravines round Fleury, from IGN's survey at a 5 m
  * grid, drawn every 10 m with the sector's own ground material. Next to the sector it eases from the sector's edge
  * heights into the survey, so the two meet without a step, and under the sector it sinks out of sight. Shelled earth
@@ -73,11 +121,9 @@ export function createBackdrop(
   surroundings: Surroundings,
   material: Material
 ): Mesh {
-  const { elevation, sectorBase, sectorOrigin } = surroundings
+  const { elevation, sectorOrigin } = surroundings
   const width = elevation.columns * elevation.cellSize
   const depth = elevation.rows * elevation.cellSize
-  const sectorWidth = mapWidth(map)
-  const sectorDepth = mapDepth(map)
   const columns = Math.floor(width / STEP)
   const rows = Math.floor(depth / STEP)
   const count = (columns + 1) * (rows + 1)
@@ -86,8 +132,6 @@ export function createBackdrop(
   const uvs = new Float32Array(count * 2)
   const splat = new Float32Array(count * 4)
   const wetness = new Float32Array(count)
-  const surveyed = (x: number, z: number) =>
-    elevation.base + elevationAt(elevation, x + sectorOrigin.x, z + sectorOrigin.z) - sectorBase
 
   let vertex = 0
   for (let row = 0; row <= rows; row++) {
@@ -95,14 +139,7 @@ export function createBackdrop(
       // World position: the sector's south-west corner is the world's origin.
       const x = column * STEP - sectorOrigin.x
       const z = row * STEP - sectorOrigin.z
-      const edgeX = Math.min(sectorWidth, Math.max(0, x))
-      const edgeZ = Math.min(sectorDepth, Math.max(0, z))
-      const outside = Math.hypot(x - edgeX, z - edgeZ)
-      // Only well inside does it sink out of sight: on and near the edge it runs just under the sector's own ground.
-      const inset = Math.min(x, z, sectorWidth - x, sectorDepth - z)
-      const edge = heightAt(map, edgeX, edgeZ) - UNDERLAP
-      const ground = inset > STEP ? edge - 6 : edge + (surveyed(x, z) - edge) * smoothstep(0, BLEND, outside)
-      positions.set([x, ground, z], vertex * 3)
+      positions.set([x, vertexHeight(map, surroundings, x, z), z], vertex * 3)
       uvs.set([x / 8, z / 8], vertex * 2)
       // Shelled along the front's line, grass returning behind it, in broken patches.
       const patch = valueNoise(PATCH_SEED, x, z, 90)

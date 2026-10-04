@@ -43,12 +43,13 @@ export interface Atmosphere {
 const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, cameraHeight: 190 } as const
 /**
  * Pieces not worth drawing again for every cascade: too small or flat for a shadow that reads (grass, the litter of
- * battle, planks and tiles), or, like the trench kit, already shadowed by the carved ground beneath them, whose trench
- * walls cast the same shadow. And the ground beyond the sector with its far woods (see dress-battlefield.ts), further
- * off than shadows reach: spread over three kilometres, they were seven tenths of every cascade's triangles.
+ * battle, planks, tiles and the railway's track), or, like the trench kit, already shadowed by the carved ground
+ * beneath them, whose trench walls cast the same shadow. And the ground beyond the sector with its far woods (see
+ * dress-battlefield.ts), further off than shadows reach: spread over three kilometres, they were seven tenths of every
+ * cascade's triangles.
  */
 const NO_SHADOW =
-  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|^backdrop$|^backdrop-far-/
+  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|Railway_Track|^backdrop$|^backdrop-far-/
 
 /** Wind out of the west, carrying smoke and mist east, until the weather's wind takes over (see `environment/`). */
 const WIND = new Vector3(0.12, 0, 0.03)

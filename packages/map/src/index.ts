@@ -26,10 +26,12 @@ export {
 export { type ChangedArea, type Crater, mergeAreas, slumpGround, stampCrater } from "./craters.ts"
 export { decodeElevation, type Elevation, elevationAt } from "./elevation.ts"
 export { generateFleurySector } from "./fleury.ts"
+export { railwayCourse } from "./railways.ts"
 export {
   footprintRadius,
   SCENERY_FOOTPRINTS,
   SCENERY_KINDS,
+  type Railway,
   type Scenery,
   type SceneryFootprint,
   type SceneryKind,

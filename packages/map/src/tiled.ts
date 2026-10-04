@@ -1,5 +1,12 @@
 import type { BattlefieldMap } from "./format.ts"
-import { type Objective, SCENERY_KINDS, type Scenery, type SceneryKind, type WireBelt } from "./scenery.ts"
+import {
+  type Objective,
+  type Railway,
+  SCENERY_KINDS,
+  type Scenery,
+  type SceneryKind,
+  type WireBelt
+} from "./scenery.ts"
 import { TRENCH_GRID } from "./trench-trace.ts"
 import type { GroundPoint, Trench } from "./trenches.ts"
 
@@ -17,7 +24,13 @@ export const TILED_PIXELS_PER_METRE = 10
 const TILE_METRES = 1
 
 /** Layer names, as Tiled shows them. */
-const TILED_LAYERS = { trenches: "trenches", wire: "wire", scenery: "scenery", objectives: "objectives" } as const
+const TILED_LAYERS = {
+  trenches: "trenches",
+  wire: "wire",
+  scenery: "scenery",
+  objectives: "objectives",
+  railways: "railways"
+} as const
 
 /** Positions are written to the nearest millimetre, headings to a hundredth of a degree and scales to 1/10000. */
 const PIXEL_DECIMALS = 2
@@ -32,6 +45,8 @@ export interface TiledLayout {
   readonly scenery: readonly Scenery[]
   /** The ground both sides fight over; absent from maps saved before there was a layer for it. */
   readonly objectives?: readonly Objective[]
+  /** Field railways, each a line along its track; absent from maps saved before there was a layer for them. */
+  readonly railways?: readonly Railway[]
 }
 
 /** A layout read back from Tiled, with any places the trench kit can't line as drawn. */
@@ -99,7 +114,7 @@ export interface TiledMap {
 
 type TiledSource = Pick<
   BattlefieldMap,
-  "name" | "cellSize" | "columns" | "rows" | "trenches" | "wire" | "scenery" | "objectives"
+  "name" | "cellSize" | "columns" | "rows" | "trenches" | "wire" | "scenery" | "objectives" | "railways"
 >
 
 function round(value: number, decimals: number): number {
@@ -156,6 +171,7 @@ export function toTiledMap(map: TiledSource): TiledMap {
     ])
   )
   const wire = map.wire.map((belt) => polylineObject(belt.points))
+  const railways = map.railways.map((railway) => polylineObject(railway.points))
   const scenery = map.scenery.map((item): TiledObject => ({
     height: 0,
     id: nextId++,
@@ -204,15 +220,16 @@ export function toTiledMap(map: TiledSource): TiledMap {
     compressionlevel: -1,
     height,
     infinite: false,
-    // Tiled draws the first layer lowest: trenches under wire, then scenery and objectives on top, where their pins are
-    // easy to pick.
+    // Tiled draws the first layer lowest: trenches under wire and railways, then scenery and objectives on top, where
+    // their pins are easy to pick.
     layers: [
       layer(1, TILED_LAYERS.trenches, trenches),
       layer(2, TILED_LAYERS.wire, wire),
+      layer(5, TILED_LAYERS.railways, railways),
       layer(3, TILED_LAYERS.scenery, scenery),
       layer(4, TILED_LAYERS.objectives, objectives)
     ],
-    nextlayerid: 5,
+    nextlayerid: 6,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -443,6 +460,12 @@ export function fromTiledMap(json: unknown): TiledImport {
   const objectives = hasObjectives
     ? readLayer(layers, TILED_LAYERS.objectives, (object, label) => readObjective(frame, object, label)).items
     : undefined
+  // And before railways had one, the generated railways.
+  const hasRailways = layers.some((layer) => isRecord(layer) && layer.name === TILED_LAYERS.railways)
+  const railways = hasRailways
+    ? readLayer(layers, TILED_LAYERS.railways, (object, label) => ({ points: polylinePoints(frame, object, label) }))
+        .items
+    : undefined
 
   const warnings = checkTrenchKit(trenches.items).map(({ trench, message }) => `${trenches.ids[trench]!}: ${message}`)
   return {
@@ -450,6 +473,7 @@ export function fromTiledMap(json: unknown): TiledImport {
     wire: wire.items,
     scenery: scenery.items,
     ...(objectives ? { objectives } : {}),
+    ...(railways ? { railways } : {}),
     warnings
   }
 }

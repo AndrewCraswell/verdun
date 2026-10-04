@@ -12,6 +12,7 @@ import { surfaceColors } from "../palette.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
 import { dressBattlefield, dressLevel, placementMatrix, woodsStanding } from "./dress-battlefield.ts"
 import { type LevelKit, loadLevelKit } from "./level-kit.ts"
+import { RAILWAY_PIECES } from "./railway.ts"
 import { TRENCH_PIECES } from "./trench-dressing.ts"
 
 vi.mock("./level-kit.ts", () => ({ loadLevelKit: vi.fn<(scene: Scene) => Promise<LevelKit | null>>() }))
@@ -155,6 +156,33 @@ describe("dressBattlefield", () => {
     expect(swayOf(trees)).toEqual(new Set([0.25]))
     const straight = trench.scenery.batches.find((batch) => batch.piece === TRENCH_PIECES.straights[0])
     expect(straight?.mesh.metadata).toBeNull()
+  })
+
+  it("lays the map's railways, keeping the grass off their track, and runs them on beyond the sector given the ground", () => {
+    const grass = ["Gen_Env_Grass_01", "Gen_Env_Grass_02", "Gen_Env_Grass_03"]
+    const { kit } = kitOf([...grass, RAILWAY_PIECES.track, RAILWAY_PIECES.worn])
+    // A meadow with a line across it from its west edge.
+    const meadow = {
+      ...createFlatMap({ name: "meadow", cellSize: 0.5, columns: 160, rows: 160 }, 5, Surface.Grass),
+      railways: [
+        {
+          points: [
+            [0, 40],
+            [70, 40]
+          ] as const
+        }
+      ]
+    }
+    const dressing = dressBattlefield(meadow, kit)
+    const tufts = dressing.placements.filter((placement) => grass.includes(placement.piece))
+    const track = (placements: readonly { readonly piece: string; readonly x: number }[]) =>
+      placements.filter((placement) => placement.piece.startsWith("Railway_Track"))
+
+    expect(tufts.length).toBeGreaterThan(100)
+    expect(tufts.every((tuft) => tuft.x > 71.2 || Math.abs(tuft.z - 40) > 1.2)).toBe(true)
+    expect(track(dressing.placements)).toHaveLength(28)
+    const runOn = track(dressBattlefield(meadow, kit, () => 4).placements)
+    expect(Math.min(...runOn.map((panel) => panel.x))).toBeLessThan(-290)
   })
 
   it("stands pieces modelled off their middle on their middle", () => {

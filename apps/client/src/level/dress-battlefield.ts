@@ -9,7 +9,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import type { WireField } from "@verdun/sim"
 import type { BattleSoundFiles } from "../audio/battle-sounds.ts"
-import { backdropTrees, createBackdrop, type Surroundings } from "../terrain/backdrop.ts"
+import { backdropGround, backdropTrees, createBackdrop, type Surroundings } from "../terrain/backdrop.ts"
 import { GroundSplatPlugin } from "../terrain/ground-splat-plugin.ts"
 import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
@@ -20,6 +20,14 @@ import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
 import { airLight, lightParticles, litByAir, setInFog } from "./particle-light.ts"
 import { hashOf, type Placement } from "./placement.ts"
 import { createPostProcess, type PostProcess } from "./post-process.ts"
+import {
+  createRailwayPieces,
+  distanceToTracks,
+  layOutRailways,
+  RAILWAY_LOADS,
+  RAILWAY_PIECES,
+  railwayTracks
+} from "./railway.ts"
 import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
 import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
 import { createScorchMap, type ScorchMap } from "./scorch-map.ts"
@@ -63,13 +71,26 @@ export function placementMatrix(placement: Placement, pivot?: Vector3): Matrix {
   return transform.multiply(Matrix.Translation(placement.x, placement.y, placement.z))
 }
 
+/** Props scattered over the ground keep this many metres clear of a railway's middle: the track lies there. */
+const TRACK_CLEAR = 1.2
+
 /**
- * Dresses the battlefield with the level kit: the trench kit along every trench, and the art for the map's scenery and
- * wire. Every placement is drawn as a thin instance of its kit piece, batched with the same piece nearby (see
- * scenery-batches.ts).
+ * Dresses the battlefield with the level kit: the trench kit along every trench, the art for the map's scenery and
+ * wire, and its railways. Every placement is drawn as a thin instance of its kit piece, batched with the same piece
+ * nearby (see scenery-batches.ts). Given the height of the ground beyond the sector, a railway running off it runs on
+ * over that ground.
  */
-export function dressBattlefield(map: BattlefieldMap, kit: LevelKit): BattlefieldDressing {
-  const placements = [...layOutTrenchKit(map), ...layOutScenery(map)]
+export function dressBattlefield(
+  map: BattlefieldMap,
+  kit: LevelKit,
+  beyond?: (x: number, z: number) => number
+): BattlefieldDressing {
+  const tracks = railwayTracks(map, false)
+  const placements = [
+    ...layOutTrenchKit(map),
+    ...layOutScenery(map).filter(({ x, z }) => distanceToTracks(tracks, x, z) > TRACK_CLEAR),
+    ...layOutRailways(map, beyond)
+  ]
   const missing = new Set<string>()
 
   // Pieces modelled with their origin at a corner are moved to turn and stand on their middle.
@@ -173,6 +194,8 @@ const DRAW_DISTANCE: Readonly<Record<string, number>> = {
   Prop_Rubble_House_Tile_01: 110,
   Prop_Rubble_House_Tile_02: 110,
   Prop_Fireplace_01: 160,
+  [RAILWAY_PIECES.track]: 260,
+  [RAILWAY_PIECES.worn]: 260,
   Chr_Attach_French_Helmet_01: 60,
   Chr_Attach_German_Helmet_2: 60,
   Wep_German_Rifle_01: 70,
@@ -209,17 +232,22 @@ export function woodsStanding(beyond: number): number {
   return 1 - (1 - WOODS.least) * thinning
 }
 
+/** Backdrop trees stand at least this many metres from a railway running on beyond the sector. */
+const TREES_OFF_TRACK = 4
+
 /**
- * Trees on the ground beyond the sector (see backdropTrees). There are thousands and all of them far off, so each kind
- * is a mesh of its decimated far copy drawn as thin instances, a mesh for each cell of the woods. The few hundred near
- * the sector are a mesh of their own for each kind, which throws shadows; the rest, `backdrop-far-`, don't.
+ * Trees on the ground beyond the sector (see backdropTrees), clear of the railways run on over it. There are thousands
+ * and all of them far off, so each kind is a mesh of its decimated far copy drawn as thin instances, a mesh for each
+ * cell of the woods. The few hundred near the sector are a mesh of their own for each kind, which throws shadows; the
+ * rest, `backdrop-far-`, don't.
  */
 function plantBackdrop(map: BattlefieldMap, surroundings: Surroundings, pieces: ReadonlyMap<string, Mesh>): Mesh[] {
   const byName = new Map<string, { piece: string; matrices: number[] }>()
+  const tracks = railwayTracks(map, true)
   for (const { x, y, z } of backdropTrees(map, surroundings)) {
     const beyond = Math.hypot(Math.max(0, -x, x - mapWidth(map)), Math.max(0, -z, z - mapDepth(map)))
     const standing = woodsStanding(beyond)
-    if (hashOf(x, z, 43) > standing) {
+    if (hashOf(x, z, 43) > standing || distanceToTracks(tracks, x, z) < TREES_OFF_TRACK) {
       continue
     }
     const kinds = beyond > WOODS.plain ? PLAIN_TREES : BACKDROP_TREES
@@ -356,11 +384,26 @@ export async function dressLevel(
   const curtain = createGasCurtain(view.scene)
   const stovepipe = createStovepipe(view.scene)
   const laundry = createLaundryLine(view.scene)
+  const railway = createRailwayPieces(view.scene)
   const pieces = new Map(kit.pieces)
     .set(curtain.name, curtain)
     .set(stovepipe.name, stovepipe)
     .set(laundry.name, laundry)
-  const dressed = dressBattlefield(map, { ...kit, pieces })
+  for (const piece of railway) {
+    pieces.set(piece.name, piece)
+  }
+  // The wagons' loads, drawn as far off as the wagons.
+  for (const [load, piece] of Object.entries(RAILWAY_LOADS)) {
+    const mesh = kit.pieces.get(piece)
+    if (mesh) {
+      pieces.set(load, mesh)
+    }
+  }
+  const dressed = dressBattlefield(
+    map,
+    { ...kit, pieces },
+    surroundings ? backdropGround(map, surroundings) : undefined
+  )
   const woods = surroundings ? plantBackdrop(map, surroundings, pieces) : []
   const life = createTrenchLife(
     view.scene,
@@ -389,7 +432,9 @@ export async function dressLevel(
     }),
     materials: [
       ...kit.materials,
-      ...[curtain.material, stovepipe.material, laundry.material].filter((material) => material !== null)
+      ...[curtain.material, stovepipe.material, laundry.material, railway[0]?.material ?? null].filter(
+        (material) => material !== null
+      )
     ],
     ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
     sfx: kit.sfx,

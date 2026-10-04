@@ -133,6 +133,34 @@ describe("generateFleurySector", () => {
     expect(standing.every((item) => distanceToTrenches(item.x, item.z) > TRENCH_PROFILE.parapetOuter)).toBe(true)
   })
 
+  it("runs a field railway up from the rear behind the French lines to the communication trenches, its track clear", () => {
+    expect(map.railways).toHaveLength(1)
+    const [railway] = map.railways
+    const points = railway?.points ?? []
+    // In from the sector's south edge, behind the French lines.
+    expect(points[0]?.[1]).toBe(0)
+    expect(points.every(([, z]) => z < 35)).toBe(true)
+    // Every metre of it: clear of the trenches and of everything placed but the dumps beside it, on a level bed.
+    const along: GroundPoint[] = []
+    for (let index = 1; index < points.length; index++) {
+      const [ax, az] = points[index - 1] ?? [0, 0]
+      const [bx, bz] = points[index] ?? [0, 0]
+      const steps = Math.ceil(Math.hypot(bx - ax, bz - az))
+      for (let step = 0; step < steps; step++) {
+        along.push([ax + ((bx - ax) * step) / steps, az + ((bz - az) * step) / steps])
+      }
+    }
+    expect(along.every(([x, z]) => distanceToTrenches(x, z) > TRENCH_PROFILE.parapetOuter + 1)).toBe(true)
+    const nearest = (x: number, z: number) => Math.min(...along.map(([px, pz]) => Math.hypot(px - x, pz - z)))
+    expect(map.scenery.every((item) => nearest(item.x, item.z) > 1.8)).toBe(true)
+    const heights = along.map(([x, z]) => heightAt(map, x, z))
+    const steepest = Math.max(...heights.slice(1).map((height, index) => Math.abs(height - (heights[index] ?? 0))))
+    expect(steepest).toBeLessThan(0.05)
+    // The dumps at the heads of the communication trenches it serves, beside the line.
+    const dumps = map.scenery.filter((item) => item.kind === "stores" && nearest(item.x, item.z) < 10)
+    expect(dumps.length).toBeGreaterThanOrEqual(2)
+  })
+
   it("lines Fleury's streets with houses facing them, the farm's great barn among them", () => {
     // The main street, from the German line to the French: (471, 270) to (533, 160).
     const along = (x: number, z: number) => {
@@ -216,6 +244,10 @@ describe("generateFleurySector", () => {
     expect(edited.objectives).toEqual(drawn.objectives)
     const { objectives: _, ...withoutObjectives } = layout
     expect(generateFleurySector({ cellSize: 1, layout: withoutObjectives }).objectives).toEqual(map.objectives)
+    // Railways likewise: those drawn, or the generated line for a layout without any.
+    expect(edited.railways).toEqual(drawn.railways)
+    const { railways: __, ...withoutRailways } = layout
+    expect(generateFleurySector({ cellSize: 1, layout: withoutRailways }).railways).toEqual(map.railways)
     expect(edited.scenery.some((item) => item.kind === "pool")).toBe(true)
     expect(edited.scenery.filter((item) => item.kind === "ruin")).toHaveLength(
       map.scenery.filter((item) => item.kind === "ruin").length

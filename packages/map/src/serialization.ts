@@ -1,5 +1,14 @@
 import { type BattlefieldMap, isSurface, MAP_FORMAT_VERSION, sampleCount, Surface, SURFACE_COUNT } from "./format.ts"
-import { isObjective, isScenery, isWireBelt, type Objective, type Scenery, type WireBelt } from "./scenery.ts"
+import {
+  isObjective,
+  isRailway,
+  isScenery,
+  isWireBelt,
+  type Objective,
+  type Railway,
+  type Scenery,
+  type WireBelt
+} from "./scenery.ts"
 import type { GroundPoint, Trench } from "./trenches.ts"
 
 /** JSON-safe form of a map, as written to a map file. */
@@ -22,6 +31,8 @@ export interface MapDocument {
   readonly objectives?: readonly Objective[]
   /** Added in version 5. */
   readonly weatherRegion?: string
+  /** Added in version 6. */
+  readonly railways?: readonly Railway[]
 }
 
 export function toMapDocument(map: BattlefieldMap): MapDocument {
@@ -37,7 +48,8 @@ export function toMapDocument(map: BattlefieldMap): MapDocument {
     scenery: map.scenery,
     wire: map.wire,
     objectives: map.objectives,
-    ...(map.weatherRegion === undefined ? {} : { weatherRegion: map.weatherRegion })
+    ...(map.weatherRegion === undefined ? {} : { weatherRegion: map.weatherRegion }),
+    railways: map.railways
   }
 }
 
@@ -73,8 +85,8 @@ function isSurfaceArray(value: unknown): value is number[] {
 
 /**
  * Validates a parsed map file and migrates older versions. Throws with the reason when the document is not a readable
- * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches, and versions 1 to 3
- * no scenery or wire.
+ * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches, versions 1 to 3
+ * no scenery or wire, and versions 1 to 5 no railways.
  */
 export function fromMapDocument(document: unknown): BattlefieldMap {
   if (!isRecord(document)) {
@@ -92,7 +104,8 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     scenery,
     wire,
     objectives,
-    weatherRegion
+    weatherRegion,
+    railways
   } = document
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > MAP_FORMAT_VERSION) {
     throw new TypeError(`Unsupported map format version ${String(version)}; expected 1 to ${MAP_FORMAT_VERSION}`)
@@ -148,6 +161,13 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
   if (weatherRegion !== undefined && typeof weatherRegion !== "string") {
     throw new TypeError("Map weather region must be a string")
   }
+  let railwayLines: readonly Railway[] = []
+  if (version >= 6) {
+    if (!Array.isArray(railways) || !railways.every(isRailway)) {
+      throw new TypeError("Map railways must be a list of lines, each of at least two points")
+    }
+    railwayLines = railways
+  }
 
   return {
     version: MAP_FORMAT_VERSION,
@@ -161,6 +181,7 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     scenery: sceneryItems,
     wire: wireBelts,
     objectives: objectiveList,
-    ...(typeof weatherRegion === "string" ? { weatherRegion } : {})
+    ...(typeof weatherRegion === "string" ? { weatherRegion } : {}),
+    railways: railwayLines
   }
 }

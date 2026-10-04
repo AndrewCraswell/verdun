@@ -1,6 +1,7 @@
 import { type BattlefieldMap, sampleIndex, Surface } from "./format.ts"
 import { valueNoise } from "./noise.ts"
-import type { Scenery, SceneryKind } from "./scenery.ts"
+import { railwayCourse } from "./railways.ts"
+import type { Railway, Scenery, SceneryKind } from "./scenery.ts"
 import { type GroundPoint, TRENCH_PROFILE } from "./trenches.ts"
 
 /**
@@ -174,6 +175,152 @@ export function sculptForScenery(map: BattlefieldMap, scenery: readonly Scenery[
             map.surfaces[index] = Surface.Churned
           }
         }
+      }
+    }
+  }
+}
+
+/**
+ * A field railway's bed: the ground under its sleepers levelled `halfWidth` metres either side of the track, easing
+ * back into the land over `blend`, to the run of the ground along it: the middle height across the bed every `step`
+ * metres, averaged over `smoothing` metres either way, so the track neither dives into shell holes nor humps over the
+ * crests between them. It climbs and falls no steeper than `grade`, 1 in 25, about as steep as the 60 cm lines' little
+ * engines and the horses and men who hauled their wagons could manage: where the ground is steeper, the bed is cut into
+ * it and banked over it.
+ */
+const RAILWAY_BED = { halfWidth: 1.1, blend: 1.4, step: 1, smoothing: 8, grade: 0.04 } as const
+
+/**
+ * The run of a bed along heights sampled `spacing` metres apart, rising and falling no more than `grade`: midway
+ * between the highest such run nowhere above the heights and the lowest nowhere below them. Of all the runs that keep
+ * to the grade, it strays least from the heights at its worst.
+ */
+function graded(heights: readonly number[], spacing: number, grade: number): number[] {
+  const climb = grade * spacing
+  const bound = (pick: (a: number, b: number) => number, toward: number) => {
+    const run = [...heights]
+    for (let index = 1; index < run.length; index++) {
+      run[index] = pick(run[index] ?? 0, (run[index - 1] ?? 0) + toward * climb)
+    }
+    for (let index = run.length - 2; index >= 0; index--) {
+      run[index] = pick(run[index] ?? 0, (run[index + 1] ?? 0) + toward * climb)
+    }
+    return run
+  }
+  const under = bound(Math.min, 1)
+  const over = bound(Math.max, -1)
+  return under.map((height, index) => (height + (over[index] ?? height)) / 2)
+}
+
+/** The nearest point of a line: how far off it, and how far along it from its start, in metres. */
+function nearestAlong(points: readonly GroundPoint[], x: number, z: number): { distance: number; along: number } {
+  let best = { distance: Infinity, along: 0 }
+  let start = 0
+  for (let index = 1; index < points.length; index++) {
+    const [ax, az] = points[index - 1] ?? [0, 0]
+    const [bx, bz] = points[index] ?? [0, 0]
+    const abx = bx - ax
+    const abz = bz - az
+    const length = Math.hypot(abx, abz)
+    const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * abx + (z - az) * abz) / (length * length)))
+    const distance = Math.hypot(x - (ax + abx * t), z - (az + abz * t))
+    if (distance < best.distance) {
+      best = { distance, along: start + length * t }
+    }
+    start += length
+  }
+  return best
+}
+
+/** The point of a line `along` metres from its start, or its end if it's shorter. */
+function pointAlong(points: readonly GroundPoint[], along: number): GroundPoint {
+  let left = along
+  for (let index = 1; index < points.length; index++) {
+    const [ax, az] = points[index - 1] ?? [0, 0]
+    const [bx, bz] = points[index] ?? [0, 0]
+    const length = Math.hypot(bx - ax, bz - az)
+    if (left <= length) {
+      const t = length === 0 ? 0 : left / length
+      return [ax + (bx - ax) * t, az + (bz - az) * t]
+    }
+    left -= length
+  }
+  return points.at(-1) ?? [0, 0]
+}
+
+/**
+ * Lays the bed of every field railway (see RAILWAY_BED) along its course (see railwayCourse), trodden to mud, in the
+ * map's own heights and surfaces, so the ground the track lies on is the ground the soldiers walk. Never within a
+ * couple of metres of a trench.
+ */
+export function sculptForRailways(map: BattlefieldMap, railways: readonly Railway[]): void {
+  const segments = map.trenches.flatMap((trench) =>
+    trench.points.slice(1).map((b, index): readonly [GroundPoint, GroundPoint] => [trench.points[index] ?? b, b])
+  )
+  const reach = RAILWAY_BED.halfWidth + RAILWAY_BED.blend
+  for (const railway of railways) {
+    const points = railwayCourse(railway)
+    let length = 0
+    for (let index = 1; index < points.length; index++) {
+      const [ax, az] = points[index - 1] ?? [0, 0]
+      const [bx, bz] = points[index] ?? [0, 0]
+      length += Math.hypot(bx - ax, bz - az)
+    }
+    // The ground's middle height across the bed, every metre along it, then its run, smoothed.
+    const steps = Math.max(1, Math.ceil(length / RAILWAY_BED.step))
+    const across = Array.from({ length: steps + 1 }, (_, index) => {
+      const [x, z] = pointAlong(points, (index / steps) * length)
+      return levelOf(map, x, z, RAILWAY_BED.halfWidth)
+    })
+    const span = Math.round(RAILWAY_BED.smoothing / RAILWAY_BED.step)
+    const smoothed = across.map((_, index) => {
+      const from = Math.max(0, index - span)
+      const to = Math.min(across.length - 1, index + span)
+      let sum = 0
+      for (let other = from; other <= to; other++) {
+        sum += across[other] ?? 0
+      }
+      return sum / (to - from + 1)
+    })
+    const run = graded(smoothed, length / steps, RAILWAY_BED.grade)
+    const bedAt = (along: number) => {
+      const position = Math.max(0, Math.min(steps, (along / length) * steps))
+      const below = Math.floor(position)
+      const above = Math.min(steps, below + 1)
+      return (run[below] ?? 0) + ((run[above] ?? 0) - (run[below] ?? 0)) * (position - below)
+    }
+
+    // Every sample within reach of the course, once, though it's near more than one of its legs.
+    const near = new Map<number, readonly [column: number, row: number]>()
+    for (let index = 1; index < points.length; index++) {
+      const [ax, az] = points[index - 1] ?? [0, 0]
+      const [bx, bz] = points[index] ?? [0, 0]
+      const minColumn = Math.max(0, Math.floor((Math.min(ax, bx) - reach) / map.cellSize))
+      const maxColumn = Math.min(map.columns, Math.ceil((Math.max(ax, bx) + reach) / map.cellSize))
+      const minRow = Math.max(0, Math.floor((Math.min(az, bz) - reach) / map.cellSize))
+      const maxRow = Math.min(map.rows, Math.ceil((Math.max(az, bz) + reach) / map.cellSize))
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let column = minColumn; column <= maxColumn; column++) {
+          near.set(sampleIndex(map, column, row), [column, row])
+        }
+      }
+    }
+    for (const [index, [column, row]] of near) {
+      const x = column * map.cellSize
+      const z = row * map.cellSize
+      const { distance, along } = nearestAlong(points, x, z)
+      if (distance > reach) {
+        continue
+      }
+      const guard = smoothstep(TRENCH_GUARD, TRENCH_FADE, trenchDistance(segments, x, z))
+      if (guard <= 0) {
+        continue
+      }
+      const ground = map.heights[index] ?? 0
+      const weight = (1 - smoothstep(RAILWAY_BED.halfWidth, reach, distance)) * guard
+      map.heights[index] = ground + (bedAt(along) - ground) * weight
+      if (distance < RAILWAY_BED.halfWidth && guard >= 1) {
+        map.surfaces[index] = Surface.Mud
       }
     }
   }
