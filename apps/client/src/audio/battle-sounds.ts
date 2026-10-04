@@ -33,7 +33,14 @@ const SPACE_INTERVAL = 10
 /** Breathing in the mask, as loud as. */
 const BREATHING_VOLUME = 0.3
 /** The looping beds at full: rain, wind and the distant front (see atmosphere-model.ts). */
-const BED_VOLUMES = { rain: 0.45, wind: 0.35, "front-roar": 0.8, fire: 0.5 } as const
+const BED_VOLUMES = {
+  rain: 0.45,
+  wind: 0.35,
+  "front-roar": 0.8,
+  fire: 0.5,
+  "night-warm": 0.4,
+  "night-cold": 0.35
+} as const
 /** Beds are re-levelled this often, in steps. */
 const BED_INTERVAL = 10
 
@@ -175,7 +182,14 @@ async function startBattleSounds(
     const buffer = decoded.get(cue)?.[0]
     return buffer ? mixer.bed(buffer) : null
   }
-  const beds = { rain: bed("rain"), wind: bed("wind"), "front-roar": bed("front-roar"), fire: bed("fire") }
+  const beds = {
+    rain: bed("rain"),
+    wind: bed("wind"),
+    "front-roar": bed("front-roar"),
+    fire: bed("fire"),
+    "night-warm": bed("night-warm"),
+    "night-cold": bed("night-cold")
+  }
   const level = options.level ? createLevelSoundModel(options.level) : null
   const ruins = ambienceZones(sim.map).ruins
   const footsteps = createFootstepModel(sim, ruins)
@@ -225,6 +239,9 @@ async function startBattleSounds(
         beds.wind?.setLevel(levels.wind * tuned("wind"))
         beds["front-roar"]?.setLevel(levels.roar * tuned("front-roar"))
         beds.fire?.setLevel(options.level ? fireLevel(options.level, listener) * tuned("fire") : 0)
+        beds["night-warm"]?.setLevel(levels.nightWarm * tuned("night-warm"))
+        beds["night-cold"]?.setLevel(levels.nightCold * tuned("night-cold"))
+        mixer.daylight = levels.daylight
       }
       const shock = model.takeShock()
       if (shock > 0) {

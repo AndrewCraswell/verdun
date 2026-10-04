@@ -12,8 +12,13 @@ const GROUPS: readonly (readonly [string, readonly string[]])[] = [
       "ambience:guns-far"
     ]
   ],
-  ["Weather and front", ["rain", "wind", "thunder", "front-roar"]],
-  ["Battle", SOUND_CUES.filter((cue) => !["rain", "wind", "thunder", "front-roar", "fire", "crow"].includes(cue))],
+  ["Weather, night and front", ["rain", "wind", "thunder", "night-warm", "night-cold", "front-roar"]],
+  [
+    "Battle",
+    SOUND_CUES.filter(
+      (cue) => !["rain", "wind", "thunder", "night-warm", "night-cold", "front-roar", "fire", "crow"].includes(cue)
+    )
+  ],
   ["Level", ["fire", "crow"]]
 ]
 /** Sliders run from silent to four times as loud (+12 dB). */

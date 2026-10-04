@@ -277,6 +277,14 @@ CUES = {
     # from far off, heard as the camera climbs.
     "rain": dict(sources=[(GDC, "rain_shower of rain_steady rain_forest_leaves.wav")], take=1, bed=(0, 19, 3)),
     "wind": dict(sources=[(GDC, "wind_blustery_08_loop.wav")], take=1, bed=(0, None, 0)),
+    # Night: crickets and owls on a warm night (Ivo Vicic, a European summer night), wind through dark woods on a
+    # cold one (Systematic Sound).
+    "night-warm": dict(sources=[(GDC, "05 Crickets_owls_summer night.WAV")], take=1, bed=(10, 90, 4)),
+    "night-cold": dict(
+        sources=[(GDC, "AMBForst_Nighttime-Woodlands Windy Trees Rustling Quiet_SYSO_SYSO009.wav")],
+        take=1,
+        bed=(20, 90, 4),
+    ),
     "front-roar": dict(
         sources=[(WARFARE, "VAR DISTANT FIRING 01 - AB - MKH8020.wav")], take=1, bed=(10, 100, 4)
     ),

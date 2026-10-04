@@ -43,6 +43,21 @@ describe("atmosphereLevels", () => {
   })
 })
 
+describe("night", () => {
+  it("brings crickets and owls on a warm, dry night, the wind in dark woods on a cold one, and nothing by day", () => {
+    const sim = battle()
+    sim.environment.illuminance = 50000
+    weather(sim, { temperature: 20, precipitation: 0 })
+    expect(atmosphereLevels(sim, CLOSE, 0)).toMatchObject({ nightWarm: 0, nightCold: 0, daylight: 1 })
+    sim.environment.illuminance = 0.001
+    expect(atmosphereLevels(sim, CLOSE, 0)).toMatchObject({ nightWarm: 1, nightCold: 0, daylight: 0 })
+    weather(sim, { temperature: 2 })
+    expect(atmosphereLevels(sim, CLOSE, 0)).toMatchObject({ nightWarm: 0, nightCold: 1 })
+    weather(sim, { temperature: 20, precipitation: 3 })
+    expect(atmosphereLevels(sim, CLOSE, 0).nightWarm).toBe(0)
+  })
+})
+
 describe("createAtmosphereModel", () => {
   it("measures the fighting from the bursts and shots of each step", () => {
     const sim = battle()

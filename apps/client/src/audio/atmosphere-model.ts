@@ -1,4 +1,5 @@
 import { type SimEvent, type Simulation, TICK_RATE, WeatherPattern } from "@verdun/sim"
+import { lightLevel } from "../environment/daylight.ts"
 import { type Listener, placeSound, type SoundCall } from "./battle-sound-model.ts"
 
 /** How loud each looping bed is, from 0 to 1, before the mixer's own levels. */
@@ -9,6 +10,12 @@ export interface AtmosphereLevels {
   readonly wind: number
   /** The whole front's guns from far off, heard as the camera climbs and as the fighting gets heavier. */
   readonly roar: number
+  /** Crickets and owls: a warm, dry night. */
+  readonly nightWarm: number
+  /** Wind in dark woods: a cold night. */
+  readonly nightCold: number
+  /** How light it is, from 0 (night) to 1 (day). */
+  readonly daylight: number
 }
 
 /**
@@ -22,6 +29,9 @@ const WIND_FULL = 10
 /** The roar fades in as the camera climbs from ROAR_FROM to ROAR_FULL metres. */
 const ROAR_FROM = 90
 const ROAR_FULL = 260
+/** Crickets sing on nights warmer than CRICKETS_FROM °C, fully from CRICKETS_FULL, and fall quiet in rain. */
+const CRICKETS_FROM = 10
+const CRICKETS_FULL = 16
 /** How much roar a quiet front still makes: the guns never quite stop. */
 const ROAR_QUIET = 0.3
 /** Fighting is measured over about this many seconds. */
@@ -39,11 +49,17 @@ function clamp01(value: number): number {
 
 /** The beds' levels for a listener, given how heavy the fighting is (0 to 1). */
 export function atmosphereLevels(sim: Simulation, listener: Listener, intensity: number): AtmosphereLevels {
-  const { precipitation, snowFraction, wind } = sim.environment.weather
+  const { precipitation, snowFraction, wind, temperature } = sim.environment.weather
   const zoom = clamp01((listener.height - ROAR_FROM) / (ROAR_FULL - ROAR_FROM))
+  // Snow falls silently.
+  const rain = Math.sqrt(clamp01(precipitation / RAIN_FULL)) * (1 - snowFraction)
+  const daylight = lightLevel(sim.environment.illuminance)
+  const warm = clamp01((temperature - CRICKETS_FROM) / (CRICKETS_FULL - CRICKETS_FROM))
   return {
-    // Snow falls silently.
-    rain: Math.sqrt(clamp01(precipitation / RAIN_FULL)) * (1 - snowFraction),
+    rain,
+    nightWarm: (1 - daylight) * warm * (1 - rain),
+    nightCold: (1 - daylight) * (1 - warm),
+    daylight,
     wind: clamp01((Math.hypot(wind.x, wind.z) - WIND_CALM) / (WIND_FULL - WIND_CALM)),
     roar: zoom * (ROAR_QUIET + (1 - ROAR_QUIET) * intensity)
   }

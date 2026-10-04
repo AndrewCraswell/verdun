@@ -76,6 +76,8 @@ export interface Mixer {
   readonly tuning: Tuning
   /** The latest sounds to start, newest last. */
   readonly recent: readonly Played[]
+  /** How light it is, 0 (night) to 1 (day), set from the sky for the ambience's daytime beds. */
+  daylight: number
 }
 
 /** More voices than this at once is mud: the quietest gives way. */
@@ -238,6 +240,7 @@ function createMixer(context: AudioContext): Mixer {
     },
     tuning,
     recent,
+    daylight: 1,
     play(voice) {
       if (voice.bus === "battle" && active.length >= MAX_VOICES) {
         let quietest = 0

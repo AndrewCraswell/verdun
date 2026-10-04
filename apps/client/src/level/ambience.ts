@@ -71,6 +71,8 @@ export interface Ambience {
 
 interface Bed {
   readonly name: string
+  /** How much of the bed is left at night: birds and crows fall silent, the wind goes on. */
+  readonly night: number
   readonly gain: GainNode
   readonly level: number
   readonly weight: (x: number, z: number) => number
@@ -111,10 +113,22 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
     return gain
   }
   const beds: Bed[] = [
-    { name: "no-mans-land", gain: loop(noMansLand), level: BED_LEVELS["no-mans-land"], weight: zones.noMansLand },
-    { name: "wood", gain: loop(wood), level: BED_LEVELS.wood, weight: zones.wood },
-    { name: "rear", gain: loop(rear), level: BED_LEVELS.rear, weight: (x, z) => 1 - zones.noMansLand(x, z) },
-    { name: "ruins", gain: loop(ruins), level: BED_LEVELS.ruins, weight: zones.ruins }
+    {
+      name: "no-mans-land",
+      night: 1,
+      gain: loop(noMansLand),
+      level: BED_LEVELS["no-mans-land"],
+      weight: zones.noMansLand
+    },
+    { name: "wood", night: 0.6, gain: loop(wood), level: BED_LEVELS.wood, weight: zones.wood },
+    {
+      name: "rear",
+      night: 0.25,
+      gain: loop(rear),
+      level: BED_LEVELS.rear,
+      weight: (x, z) => 1 - zones.noMansLand(x, z)
+    },
+    { name: "ruins", night: 0.15, gain: loop(ruins), level: BED_LEVELS.ruins, weight: zones.ruins }
   ]
   const guns = [gun1, gun2].filter((gun): gun is AudioBuffer => gun !== undefined)
   let untilGun = GUNS.minGap
@@ -123,7 +137,8 @@ export async function createAmbience(map: BattlefieldMap, audio: AmbienceAudio):
     update(x, z, frameSeconds) {
       const fade = Math.min(1, frameSeconds * FADE_RATE)
       for (const bed of beds) {
-        const target = bed.level * bed.weight(x, z) * mixer.tuning.level(`ambience:${bed.name}`)
+        const light = bed.night + (1 - bed.night) * mixer.daylight
+        const target = bed.level * bed.weight(x, z) * light * mixer.tuning.level(`ambience:${bed.name}`)
         bed.gain.gain.value += (target - bed.gain.gain.value) * fade
       }
       untilGun -= frameSeconds
