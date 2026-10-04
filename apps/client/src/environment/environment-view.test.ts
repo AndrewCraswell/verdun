@@ -150,6 +150,8 @@ describe("the environment view", () => {
     expect(view?.precipitation.rain.emitRate).toBe(0)
     const dryGround = ground.diffuseColor.r
 
+    const strikes: number[] = []
+    view?.onLightning.add((distance) => strikes.push(distance))
     const storm = { ...typicalWeather(WeatherPattern.Storm, { x: 4, z: 0 }), wetness: 1 }
     enqueueCommand(sim, { type: "forecast", forecast: { kind: "steady", weather: storm } })
     stepSimulation(sim)
@@ -163,6 +165,12 @@ describe("the environment view", () => {
     expect(smoke.gravity.x).toBeGreaterThan(0)
     expect(mist.emitRate).toBeGreaterThan(4)
     expect(sky.intensity).toBeGreaterThan(0)
+    // Lightning flashed through the storm, each strike a few kilometres off.
+    expect(strikes.length).toBeGreaterThan(0)
+    expect(strikes.every((distance) => distance >= 1500 && distance <= 8000)).toBe(true)
+    // An overcast storm throws no cloud shadows; the cloud pattern drifts east on the wind.
+    expect(view?.surface.shadowDepth).toBeLessThan(0.1)
+    expect(view?.surface.cloudOffsetX).toBeLessThan(0)
     view?.dispose()
   })
 
@@ -175,6 +183,7 @@ describe("the environment view", () => {
     stepSimulation(sim)
     view?.update(0.016)
     expect(view?.precipitation.snow.emitRate).toBeGreaterThan(0)
+    expect(view?.surface.snow).toBe(0)
     expect(view?.precipitation.rain.emitRate).toBe(0)
     view?.dispose()
   })

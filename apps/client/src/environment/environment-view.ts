@@ -6,11 +6,13 @@ import type { Material } from "@babylonjs/core/Materials/material"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import type { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Observable } from "@babylonjs/core/Misc/observable"
 import type { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import type { Scene } from "@babylonjs/core/scene"
 import { type Simulation, WeatherPattern } from "@verdun/sim"
 import { createDaylight, type Daylight, lightLevel } from "./daylight.ts"
 import { createPrecipitation, type Precipitation } from "./precipitation.ts"
+import { createCloudTexture, type WeatherSurface, WeatherSurfacePlugin } from "./weather-surface-plugin.ts"
 
 /** The level's own atmosphere: shadows from the key light, and smoke and mist that drift on the wind. */
 export interface LevelAir {
@@ -28,6 +30,10 @@ export interface EnvironmentViewOptions {
 export interface EnvironmentView {
   readonly daylight: Daylight
   readonly precipitation: Precipitation
+  /** Cloud shadows and lying snow, as the ground and props are drawn with them now. */
+  readonly surface: Readonly<WeatherSurface>
+  /** Fires on each lightning flash with how far off it struck, in metres: thunder follows at 3 s a kilometre. */
+  readonly onLightning: Observable<number>
   /** Draws the simulation's time of day and weather. Call once a frame. */
   update(frameSeconds: number): void
   dispose(): void
@@ -38,7 +44,13 @@ const WET = { darken: 0.38, propDarken: 0.2, shine: 0.14, power: 48 } as const
 /** Particle drift per metre a second of wind: what made smoke and mist drift right on a 2 m/s westerly. */
 const DRIFT = { smoke: 0.09, mist: 0.024 } as const
 /** Seconds between lightning flashes in a thunderstorm, and how long one lights the field. */
-const LIGHTNING = { minGap: 6, maxGap: 22, flash: 0.18 } as const
+const LIGHTNING = { minGap: 6, maxGap: 22, flash: 0.18, nearest: 1500, farthest: 8000 } as const
+/** Clouds drift with the wind aloft, this many times the wind near the ground, and never slower than `least`, in m/s. */
+const CLOUD_DRIFT = { aloft: 3, least: 3 } as const
+/** Cloud shadows are this dark at most, on a half-cloudy day with the sun high. */
+const CLOUD_SHADOW = 0.45
+/** Snow lying this deep, in millimetres of water, covers the ground. */
+const SNOW_COVERS = 8
 
 const isSun = (light: unknown): light is DirectionalLight => light instanceof DirectionalLight
 const isSky = (light: unknown): light is HemisphericLight => light instanceof HemisphericLight
@@ -98,6 +110,17 @@ export function createEnvironmentView(
   const daylight = createDaylight(scene, sim.environment, key, sky)
   const precipitation = createPrecipitation(scene)
   const wetness = createWetness(materials)
+  const surface: WeatherSurface = {
+    cloudOffsetX: 0,
+    cloudOffsetZ: 0,
+    shadowedShare: 0,
+    shadowDepth: 0,
+    snow: 0,
+    snowBrightness: 1
+  }
+  const clouds = createCloudTexture(scene)
+  const surfaced = materials.map((material) => new WeatherSurfacePlugin(material, clouds, surface))
+  const onLightning = new Observable<number>()
   const mistRate = air?.mist.emitRate ?? 0
   let untilLightning = LIGHTNING.maxGap
   let flash = 0
@@ -105,6 +128,8 @@ export function createEnvironmentView(
   return {
     daylight,
     precipitation,
+    surface,
+    onLightning,
     update(frameSeconds) {
       const { environment } = sim
       const { weather } = environment
@@ -114,11 +139,24 @@ export function createEnvironmentView(
       precipitation.update(weather, target, light)
       wetness(weather.wetness)
 
+      // Broken cloud throws drifting shadows while the sun is up; a clear or an overcast sky throws none.
+      const windSpeed = Math.sqrt(sim.wind.x ** 2 + sim.wind.z ** 2)
+      const drift = Math.max(CLOUD_DRIFT.least, windSpeed * CLOUD_DRIFT.aloft) * frameSeconds
+      // Becalmed, the clouds still come in from the west.
+      surface.cloudOffsetX -= (windSpeed > 0 ? sim.wind.x / windSpeed : 1) * drift
+      surface.cloudOffsetZ -= (windSpeed > 0 ? sim.wind.z / windSpeed : 0) * drift
+      const sunUp = Math.min(1, Math.max(0, environment.sky.sun.altitude / 10))
+      surface.shadowedShare = weather.cloudCover
+      surface.shadowDepth = CLOUD_SHADOW * sunUp * Math.sin(Math.PI * weather.cloudCover)
+      surface.snow = Math.min(1, weather.snowCover / SNOW_COVERS)
+      surface.snowBrightness = 0.15 + 0.85 * light
+
       if (weather.pattern === WeatherPattern.Storm) {
         untilLightning -= frameSeconds
         if (untilLightning <= 0) {
           untilLightning = LIGHTNING.minGap + Math.random() * (LIGHTNING.maxGap - LIGHTNING.minGap)
           flash = LIGHTNING.flash
+          onLightning.notifyObservers(LIGHTNING.nearest + Math.random() * (LIGHTNING.farthest - LIGHTNING.nearest))
         }
       }
       if (flash > 0) {
@@ -137,6 +175,9 @@ export function createEnvironmentView(
     dispose() {
       daylight.dispose()
       precipitation.dispose()
+      surfaced.forEach((plugin) => plugin.dispose())
+      clouds.dispose()
+      onLightning.clear()
     }
   }
 }

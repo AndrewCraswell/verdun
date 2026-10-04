@@ -262,7 +262,7 @@ Both armies kept the same routine, and the bots now keep it too (`packages/sim/s
 | Fog         | Sight range closes to tens of metres                                                                                                                                                                                                | Cover for surprise attacks, as at Douaumont on 24 October 1916; artillery observation fails |
 | Rain, mud   | Sodden mud slows men by up to 45% (trenches 25%, grass and chalk 15%); shells bursting in it lose 30% of their reach; rain washes gas out (half-life 5 min in 1 mm/h) and beats smoke down                                          | Routes that avoid the worst mud                                                             |
 | Wind        | Gas and shell smoke drift with it                                                                                                                                                                                                   | Gas attacks wait for a wind toward the enemy                                                |
-| Snow, frost | Snow falls; deep lying snow slows men by up to a quarter; frozen ground goes like dry                                                                                                                                               | Tracks give patrols away; snow drawn lying                                                  |
+| Snow, frost | Snow falls and lies, drawn on level ground; deep lying snow slows men by up to a quarter; frozen ground goes like dry                                                                                                               | Tracks give patrols away                                                                    |
 
 ## Rendering
 
@@ -280,8 +280,15 @@ In `apps/client/src/environment/`:
   camera, but real fog lies near the ground, and the camera looks down through it from 50–260 m.
 - **Rain and snow** (`precipitation.ts`): particles falling around the camera's target, blown by the wind, as dense as
   the rate, drawn wider than real drops so they show from above.
-- **Wet ground and props** darken and catch the light; **thunderstorms** flash; the level's **smoke and mist** drift on
-  the weather's wind, and mist thickens as visibility falls (`environment-view.ts`).
+- **Wet ground and props** darken and catch the light; **thunderstorms** flash, and `onLightning` reports each strike's
+  distance (1.5–8 km) so thunder can follow at 3 s a kilometre; the level's **smoke and mist** drift on the weather's
+  wind, and mist thickens as visibility falls (`environment-view.ts`).
+- **Cloud shadows and lying snow** (`weather-surface-plugin.ts`): a material plugin on the ground and every prop, in
+  GLSL and WGSL. A tileable cloud pattern, about 700 m to a cell and generated on the CPU, drifts with the wind aloft
+  (three times the ground wind, at least 3 m/s) and darkens the ground beneath it by up to 45% when the sun is up and
+  the sky half cloudy; a clear or an overcast sky throws none. Snow lies on level ground and the tops of things, patchy
+  at first and covering the field from about 8 mm of water; its brightness follows the light, blue-grey by moonlight.
+  All are uniforms, so the weather changes without recompiling a shader.
 
 ## Saves and networking
 

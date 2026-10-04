@@ -26,7 +26,7 @@ function heldForecast(
   }
   if (choice === "snow") {
     const rain = typicalWeather(WeatherPattern.Rain, wind)
-    return { kind: "steady", weather: { ...rain, temperature: -2, snowFraction: 1, visibility: 1500 } }
+    return { kind: "steady", weather: { ...rain, temperature: -2, snowFraction: 1, visibility: 1500, snowCover: 15 } }
   }
   return { kind: "steady", weather: typicalWeather(choice, wind) }
 }
