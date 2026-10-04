@@ -1,6 +1,15 @@
 import { carveTrenches, createFlatMap, heightAt, layOutFront, mapDepth, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { addAmmunition, DEFENSIVE_BARRAGE_DELAY, frontLineZ, Shell, SHELLS, UNLIMITED } from "./artillery.ts"
+import {
+  addAmmunition,
+  DEFENSIVE_BARRAGE_DELAY,
+  defensiveBarrageDelay,
+  frontLineZ,
+  observation,
+  Shell,
+  SHELLS,
+  UNLIMITED
+} from "./artillery.ts"
 import { Side } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
@@ -14,6 +23,7 @@ import {
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad, isAlive } from "./squads.ts"
+import { typicalWeather, WeatherPattern } from "./weather.ts"
 
 const opened: LineOfSight[] = []
 afterEach(() => {
@@ -90,6 +100,44 @@ describe("fire missions", () => {
     expect(within(zs, stats.rangeError)).toBeLessThan(0.6)
     expect(within(xs, stats.deflectionError)).toBeGreaterThan(0.4)
     expect(within(xs, stats.deflectionError)).toBeLessThan(0.6)
+  })
+
+  it("misses the same way every round of an observed shoot in fog, and is corrected where observers can see", async () => {
+    /** The mean landing of six observed missions' rounds, off their aim, in metres along z. */
+    const missedBy = async (pattern: WeatherPattern) => {
+      const sim = await field()
+      enqueueCommand(sim, {
+        type: "forecast",
+        forecast: { kind: "steady", weather: typicalWeather(pattern, sim.wind) }
+      })
+      stepSimulation(sim)
+      const offsets: number[] = []
+      for (let mission = 0; mission < 6; mission++) {
+        enqueueCommand(sim, {
+          type: "fire-mission",
+          plan: {
+            side: Side.French,
+            shell: Shell.FieldHighExplosive,
+            fromX: 100,
+            toX: 100,
+            z: 100,
+            band: 0,
+            roundsPerMinute: 600,
+            delay: 0,
+            duration: 6,
+            observed: true
+          }
+        })
+        const landings: number[] = []
+        stepFor(sim, 26, (events) => landings.push(...bursts(events).map((burst) => burst.at.z - 100)))
+        offsets.push(landings.reduce((sum, z) => sum + z, 0) / landings.length)
+      }
+      return offsets.reduce((sum, offset) => sum + Math.abs(offset), 0) / offsets.length
+    }
+    const clear = await missedBy(WeatherPattern.Clear)
+    const fog = await missedBy(WeatherPattern.Fog)
+    expect(fog).toBeGreaterThan(clear * 2)
+    expect(fog).toBeGreaterThan(20)
   })
 
   it("lands after the ordered delay plus the shells' flight time from batteries far behind the lines", async () => {
@@ -355,6 +403,29 @@ describe("defensive barrage", () => {
     expect(explosive?.z).toBeGreaterThan(frenchLine)
     expect(frontLineZ([], Side.French)).toBeNull()
     expect(mapDepth(map)).toBe(200)
+  })
+})
+
+describe("observation", () => {
+  it("is good on a clear day, poor at night and in fog, and slows the SOS barrage in fog", async () => {
+    const sim = await field()
+    const hold = (pattern: WeatherPattern) => {
+      enqueueCommand(sim, {
+        type: "forecast",
+        forecast: { kind: "steady", weather: typicalWeather(pattern, sim.wind) }
+      })
+      stepSimulation(sim)
+    }
+    hold(WeatherPattern.Clear)
+    expect(observation(sim)).toBeGreaterThan(0.9)
+    expect(defensiveBarrageDelay(sim)).toBe(DEFENSIVE_BARRAGE_DELAY)
+    hold(WeatherPattern.Fog)
+    expect(observation(sim)).toBeLessThan(0.1)
+    expect(defensiveBarrageDelay(sim)).toBeGreaterThan(DEFENSIVE_BARRAGE_DELAY * 2)
+    hold(WeatherPattern.Clear)
+    enqueueCommand(sim, { type: "clock", at: Date.UTC(1916, 5, 23, 23) })
+    stepSimulation(sim)
+    expect(observation(sim)).toBeLessThan(0.35)
   })
 })
 

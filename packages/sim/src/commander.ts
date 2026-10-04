@@ -134,7 +134,9 @@ function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan): voi
     z: (front.forward + front.rear) / 2,
     band: Math.abs(front.forward - front.rear) + 20,
     delay: 0,
-    duration: PREPARATION.seconds
+    duration: PREPARATION.seconds,
+    // A hasty shoot on ground just lost, corrected by observers who can see it, or not.
+    observed: true
   }
   applyCommand(sim, {
     type: "fire-mission",

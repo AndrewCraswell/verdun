@@ -171,6 +171,16 @@ const SIGHT_REBUILD_INTERVAL = 40
  * battery is telephoned, the guns are laid. Historically one to two minutes.
  */
 export const DEFENSIVE_BARRAGE_DELAY = 60
+/**
+ * In fog the SOS rockets go unseen and the call goes back by telephone, if the line holds, or by runner: up to this many
+ * times the delay in the thickest fog.
+ */
+const SOS_IN_FOG = 3
+/**
+ * Where nobody can watch the fall of shot, nobody corrects it: an observed shoot keeps the error its guns were laid with,
+ * the same for every round. Probable errors of that uncorrected aim, in metres, for map shooting in 1916.
+ */
+const UNCORRECTED = { range: 70, deflection: 30 } as const
 /** How long the defensive barrage keeps firing, in seconds. */
 const DEFENSIVE_BARRAGE_DURATION = 240
 /** Ahead of the defenders' wire, where the defensive barrage drops, as a fraction of the gap between the lines. */
@@ -215,6 +225,11 @@ export interface FireMissionPlan {
   /** Seconds of fire once it starts. Creeping barrages end when they reach `creep.stopZ` instead. */
   readonly duration: number
   readonly creep?: Creep
+  /**
+   * Fired on what observers can see, a hasty shoot rather than a registered barrage: in fog or darkness its fall of shot
+   * goes uncorrected (`observation`), and every round misses the same way.
+   */
+  readonly observed?: boolean
 }
 
 export interface FireMission extends FireMissionPlan {
@@ -329,11 +344,50 @@ function batteryZ(sim: Simulation, side: Side): number {
   return side === Side.French ? -BATTERY_DISTANCE : mapDepth(sim.map) + BATTERY_DISTANCE
 }
 
+/**
+ * How well a side's artillery observers can see the fall of shot now, from 0 (blind) to 1: fog hides the bursts beyond a
+ * few hundred metres, and by night a burst is a flash that can't be placed against the ground it hit.
+ */
+export function observation(sim: Simulation): number {
+  const clear = smoothstep(300, 2500, sim.environment.weather.visibility)
+  const daylight = smoothstep(0, 2, Math.log10(Math.max(sim.environment.illuminance, 1e-6)))
+  return clear * (0.25 + 0.75 * daylight)
+}
+
+/** Seconds from the first enemy seen in no man's land to the defensive barrage landing: longer in fog. */
+export function defensiveBarrageDelay(sim: Simulation): number {
+  const hidden = 1 - smoothstep(200, 1500, sim.environment.weather.visibility)
+  return DEFENSIVE_BARRAGE_DELAY * (1 + (SOS_IN_FOG - 1) * hidden)
+}
+
+function smoothstep(from: number, to: number, value: number): number {
+  const t = Math.min(1, Math.max(0, (value - from) / (to - from)))
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * A mission's own steady error, in probable errors: the same for every round, from its id alone, so it draws nothing
+ * from the simulation's random numbers.
+ */
+function steadyError(id: number, axis: number): number {
+  const hash = (salt: number) => {
+    let h = Math.imul(id * 2_654_435_761 + axis * 40_503 + salt * 97_531, 1_274_126_177)
+    h = Math.imul(h ^ (h >>> 13), 1_103_515_245)
+    return (((h ^ (h >>> 16)) >>> 0) + 0.5) / 4_294_967_296
+  }
+  return (Math.sqrt(-2 * Math.log(hash(1))) * Math.cos(2 * Math.PI * hash(2))) / 0.6745
+}
+
 /** Fires one round of a mission: aims somewhere in the target band and adds dispersion, then sends it on its flight. */
 function fireRound(sim: Simulation, mission: FireMission): void {
   const stats = SHELLS[mission.shell]
-  const aimX = mission.fromX + sim.rng.next() * (mission.toX - mission.fromX)
-  const aimZ = mission.lineZ + (sim.rng.next() - 0.5) * mission.band
+  const blind = mission.observed ? 1 - observation(sim) : 0
+  const aimX =
+    mission.fromX +
+    sim.rng.next() * (mission.toX - mission.fromX) +
+    blind * steadyError(mission.id, 0) * UNCORRECTED.deflection
+  const aimZ =
+    mission.lineZ + (sim.rng.next() - 0.5) * mission.band + blind * steadyError(mission.id, 1) * UNCORRECTED.range
   // Batteries fire north or south, so range error falls along z and deflection along x.
   const x = Math.min(mapWidth(sim.map), Math.max(0, aimX + gaussian(sim, stats.deflectionError)))
   const z = Math.min(mapDepth(sim.map), Math.max(0, aimZ + gaussian(sim, stats.rangeError)))
@@ -556,7 +610,7 @@ function callDefensiveBarrage(sim: Simulation): void {
       toX: mapWidth(sim.map),
       z,
       band: 40,
-      delay: DEFENSIVE_BARRAGE_DELAY,
+      delay: defensiveBarrageDelay(sim),
       duration: DEFENSIVE_BARRAGE_DURATION
     }
     orderFireMission(sim, { ...common, shell: Shell.FieldHighExplosive, roundsPerMinute: 40 })
