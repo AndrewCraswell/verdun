@@ -1,6 +1,6 @@
-import { createFlatMap, type Scenery } from "@verdun/map"
+import { createFlatMap, sampleIndex, type Scenery, Surface } from "@verdun/map"
 import { describe, expect, it } from "vitest"
-import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
+import { CENTRED_PIECES, layOutGroundCover, layOutScenery } from "./scenery-dressing.ts"
 
 const flat = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5)
 const item = (kind: Scenery["kind"], overrides: Partial<Scenery> = {}): Scenery => ({
@@ -85,5 +85,24 @@ describe("layOutScenery", () => {
   it("lists the pieces modelled off their middle", () => {
     expect(CENTRED_PIECES.has("Bld_City_Destroyed_01")).toBe(true)
     expect(CENTRED_PIECES.has("Env_Trench_Deep_Straight_01")).toBe(false)
+  })
+})
+
+describe("layOutGroundCover", () => {
+  it("grows tufts of grass on grass, thickest where it's unbroken, and none on mud", () => {
+    const meadow = createFlatMap({ name: "meadow", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
+    // Shell the eastern half to mud.
+    for (let row = 0; row <= meadow.rows; row++) {
+      for (let column = 100; column <= meadow.columns; column++) {
+        meadow.surfaces[sampleIndex(meadow, column, row)] = Surface.Mud
+      }
+    }
+    const tufts = layOutGroundCover(meadow)
+
+    expect(tufts.length).toBeGreaterThan(200)
+    expect(tufts.every((tuft) => tuft.x < 50.5)).toBe(true)
+    expect(tufts.every((tuft) => Math.abs(tuft.y - 4.95) < 0.01)).toBe(true)
+    expect(tufts.some((tuft) => tuft.piece.startsWith("Gen_Env_Grass_Tall"))).toBe(true)
+    expect(layOutGroundCover(flat)).toHaveLength(0)
   })
 })

@@ -79,18 +79,18 @@ const SUNKEN_ROAD: readonly GroundPoint[] = [
   [405, 195],
   [352, 189]
 ]
+/**
+ * Fleury's main street, where the survey still shows it a century on: a smooth band running down the plateau from the
+ * German line in the north-west to the French line in the south-east.
+ */
+const MAIN_STREET: readonly GroundPoint[] = [
+  [471, 270],
+  [502, 215],
+  [533, 160]
+]
 /** Chalk roads: through the village from the French rear to the German rear, and the lateral supply roads. */
 const ROADS: readonly (readonly GroundPoint[])[] = [
-  [
-    [468, 0],
-    [478, 60],
-    [492, 120],
-    [500, 165],
-    [505, 205],
-    [512, 250],
-    [520, 320],
-    [528, 400]
-  ],
+  [[468, 0], [478, 60], [505, 112], ...MAIN_STREET.toReversed(), [480, 330], [510, 400]],
   [
     [0, 20],
     [150, 27],
@@ -104,12 +104,21 @@ const ROADS: readonly (readonly GroundPoint[])[] = [
     [600, 384]
   ]
 ]
-/** The village street, running east from the sunken road across the main road. */
-const VILLAGE_STREET: readonly GroundPoint[] = [
-  [446, 201],
-  [505, 207],
-  [575, 216]
+/** The village's other streets: the cross street the survey shows meeting the main street near the French line, and
+ * the lane out to the sunken road. */
+const SIDE_STREETS: readonly (readonly GroundPoint[])[] = [
+  [
+    [480, 152],
+    [526, 174],
+    [595, 207]
+  ],
+  [
+    [452, 200],
+    [507, 207]
+  ]
 ]
+/** Where the cross street meets the main street. */
+const CROSSROADS: GroundPoint = [526, 174]
 /** Roads behind the lines keep their surface; the one through no man's land and the village is shelled to nothing. */
 const REAR_ROAD_LIMITS = { french: 110, german: 300 } as const
 const ROAD_HALF_WIDTH = 2.4
@@ -510,7 +519,7 @@ function wireBelts(
 }
 
 /** Ground each kind of scenery keeps clear of other scenery, in metres. Pools use their radius; the rest 1.5 m. */
-const FOOTPRINTS: Partial<Record<SceneryKind, number>> = { ruin: 6 }
+const FOOTPRINTS: Partial<Record<SceneryKind, number>> = { ruin: 6, landmark: 11 }
 
 interface Placer {
   readonly scenery: Scenery[]
@@ -591,45 +600,128 @@ function placeRoadsideTrees(seed: number, placer: Placer, random: () => number):
   }
 }
 
-/** Houses and garden walls either side of a street, every couple of metres along it. */
-function lineStreet(placer: Placer, street: readonly GroundPoint[], random: () => number): void {
+/** House plots front the streets this far apart: a cottage, its barn door and a yard. */
+const PLOT_WIDTH = 11
+/** From the middle of the street to the middle of a house fronting it. */
+const HOUSE_SETBACK = 7.5
+/** A point beside a street: `along` metres from its start, `offset` metres to its right (negative: left). */
+function besideStreet(
+  street: readonly GroundPoint[],
+  along: number,
+  offset: number
+): { x: number; z: number; heading: number } | null {
+  let remaining = along
   for (let index = 1; index < street.length; index++) {
     const [ax, az] = street[index - 1]
     const [bx, bz] = street[index]
     const length = Math.hypot(bx - ax, bz - az)
-    const heading = Math.atan2(bx - ax, bz - az)
-    // Perpendicular to the street: to its right for positive offsets.
-    const acrossX = (bz - az) / length
-    const acrossZ = -(bx - ax) / length
-    for (let along = 0; along < length; along += 2) {
-      const x = ax + ((bx - ax) * along) / length
-      const z = az + ((bz - az) * along) / length
-      for (const side of [-1, 1]) {
-        const wall = side * (5.5 + random() * 1.5)
-        if (random() < 0.12 && placer.isClear(x + acrossX * wall, z + acrossZ * wall, 1.5)) {
-          placer.place("wall", x + acrossX * wall, z + acrossZ * wall, heading + (random() - 0.5) * 0.2)
+    if (remaining <= length) {
+      const t = remaining / length
+      return {
+        x: ax + (bx - ax) * t + ((bz - az) / length) * offset,
+        z: az + (bz - az) * t - ((bx - ax) / length) * offset,
+        heading: Math.atan2(bx - ax, bz - az)
+      }
+    }
+    remaining -= length
+  }
+  return null
+}
+
+function streetLength(street: readonly GroundPoint[]): number {
+  return street.slice(1).reduce((total, [bx, bz], index) => {
+    const [ax, az] = street[index]
+    return total + Math.hypot(bx - ax, bz - az)
+  }, 0)
+}
+
+/** True when a shell hole big enough to have taken a house lies within `reach` of a point. */
+function shelledOut(craters: readonly Crater[], x: number, z: number, reach: number): boolean {
+  return craters.some((crater) => crater.radius > 2.5 && Math.hypot(crater.x - x, crater.z - z) < crater.radius + reach)
+}
+
+/**
+ * Houses on their plots either side of a street, gable to the street, with garden walls between the plots. A plot a
+ * big shell hole has taken holds only a heap of rubble; a few were yards and gardens to begin with.
+ */
+function lineStreet(
+  placer: Placer,
+  street: readonly GroundPoint[],
+  craters: readonly Crater[],
+  random: () => number
+): void {
+  const length = streetLength(street)
+  for (let along = PLOT_WIDTH / 2; along < length; along += PLOT_WIDTH) {
+    for (const side of [-1, 1]) {
+      const plot = besideStreet(street, along, side * (HOUSE_SETBACK + random() * 1.5))
+      if (!plot) {
+        continue
+      }
+      const facing = plot.heading - (side * Math.PI) / 2
+      if (random() < 0.15) {
+        // A yard: only its wall along the street is left.
+        const front = besideStreet(street, along, side * 4)
+        if (front && placer.isClear(front.x, front.z, 1.5)) {
+          placer.place("wall", front.x, front.z, plot.heading + (random() - 0.5) * 0.2)
         }
-        const house = side * (12 + random() * 3)
-        if (random() < 0.5 && placer.isClear(x + acrossX * house, z + acrossZ * house, 6)) {
-          placer.place("ruin", x + acrossX * house, z + acrossZ * house, heading + (side * Math.PI) / 2)
+      } else if (shelledOut(craters, plot.x, plot.z, 2)) {
+        if (placer.isClear(plot.x, plot.z, 2)) {
+          placer.place("rubble", plot.x, plot.z, random() * Math.PI * 2, { scale: 0.9 + random() * 0.4 })
         }
+      } else if (placer.isClear(plot.x, plot.z, 4.5)) {
+        placer.place("ruin", plot.x, plot.z, facing)
+      }
+      // The garden wall between this plot and the next, running back from the street.
+      const boundary = besideStreet(street, along + PLOT_WIDTH / 2, side * (HOUSE_SETBACK + 6))
+      if (boundary && random() < 0.55 && placer.isClear(boundary.x, boundary.z, 1.5)) {
+        placer.place("wall", boundary.x, boundary.z, boundary.heading + Math.PI / 2 + (random() - 0.5) * 0.25)
       }
     }
   }
 }
 
-function placeVillage(placer: Placer, random: () => number): void {
-  const [mainRoad] = ROADS
-  const inVillage = mainRoad.filter(([x, z]) => Math.hypot(x - VILLAGE.x, z - VILLAGE.z) < VILLAGE.radius * 1.2)
-  lineStreet(placer, inVillage, random)
-  lineStreet(placer, VILLAGE_STREET, random)
+/** How deep into big shell holes a site reaches: 0 when none comes within `reach`. */
+function shellDamage(craters: readonly Crater[], x: number, z: number, reach: number): number {
+  return craters
+    .filter((crater) => crater.radius > 2.5)
+    .reduce((damage, crater) => damage + Math.max(0, crater.radius + reach - Math.hypot(crater.x - x, crater.z - z)), 0)
+}
+
+/**
+ * The village's landmark: the great barn of the farm on the main street, its chimney stack still standing, seen from
+ * anywhere in the sector. It takes the plot beside the street, near the middle of the village, that big shell holes
+ * have reached least.
+ */
+function placeLandmark(placer: Placer, craters: readonly Crater[]): void {
+  const length = streetLength(MAIN_STREET)
+  let best: { x: number; z: number; heading: number; damage: number } | null = null
+  for (let step = 0; step < 40 && best?.damage !== 0; step++) {
+    const along = length / 2 + (step % 2 === 0 ? 1 : -1) * Math.ceil(step / 2) * 3
+    const site = besideStreet(MAIN_STREET, along, -(HOUSE_SETBACK + 4))
+    if (site && placer.isClear(site.x, site.z, 8)) {
+      const damage = shellDamage(craters, site.x, site.z, 6)
+      if (!best || damage < best.damage) {
+        best = { ...site, damage }
+      }
+    }
+  }
+  if (best) {
+    placer.place("landmark", best.x, best.z, best.heading + Math.PI / 2, { variant: 0 })
+  }
+}
+
+function placeVillage(placer: Placer, craters: readonly Crater[], random: () => number): void {
+  placeLandmark(placer, craters)
+  for (const street of [MAIN_STREET, ...SIDE_STREETS]) {
+    lineStreet(placer, street, craters, random)
+  }
   // Houses off the streets, and rubble thrown everywhere.
   for (let attempt = 0; attempt < 300; attempt++) {
     const angle = random() * Math.PI * 2
     const distance = Math.sqrt(random()) * VILLAGE.radius
     const x = VILLAGE.x + Math.cos(angle) * distance
     const z = VILLAGE.z + Math.sin(angle) * distance
-    if (attempt % 6 === 0 && placer.isClear(x, z, 6)) {
+    if (attempt % 6 === 0 && !shelledOut(craters, x, z, 2) && placer.isClear(x, z, 6)) {
       placer.place("ruin", x, z, Math.round(random() * 4) * (Math.PI / 2) + 0.12)
     } else if (placer.isClear(x, z, 2)) {
       placer.place("rubble", x, z, random() * Math.PI * 2, { scale: 0.6 + random() * 0.4 })
@@ -810,7 +902,7 @@ function ravineCrossing(seed: number): number {
 /** The ground both sides fight over. */
 function objectivesOf(seed: number): Objective[] {
   const [mouthX, mouthZ] = RAVINE[RAVINE.length - 1] ?? [250, 182]
-  const [crossroadsX, crossroadsZ] = SUNKEN_ROAD[0] ?? [452, 200]
+  const [crossroadsX, crossroadsZ] = CROSSROADS
   const head = ravineCrossing(seed)
   return [
     { name: "Fleury", x: VILLAGE.x, z: VILLAGE.z, radius: 28 },
@@ -880,7 +972,7 @@ export function generateFleurySector({
     return { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives }
   }
 
-  placeVillage(placer, sceneryRandom)
+  placeVillage(placer, craters, sceneryRandom)
   placeBattery(
     placer,
     [

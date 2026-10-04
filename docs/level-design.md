@@ -46,6 +46,18 @@ craters on the ridge throw up rims of chalk, and shelling tapers off behind the 
 **Objectives**, the ground worth fighting for: Fleury, the Fleury crossroads, the mine craters, the Ravin de la Dame and
 the ravine head. They're data for the capture rules; holding them is up to the simulation.
 
+### The village
+
+Fleury stands where the survey still shows it. A century of forest hasn't hidden its streets: the main street is a
+smooth band running down the plateau from the German line in the north-west to the French line in the south-east, met by
+a cross street near the French wire, with a lane out to the sunken road. The village is laid out on them
+([fleury.ts](../packages/map/src/fleury.ts), `placeVillage`): a house on each 11 m plot either side, gable to the
+street, with garden walls between the plots; a plot a big shell hole has taken holds only a heap of rubble, and a few
+were yards to begin with. Rubble lies heaped against the ruins' walls. The landmark, seen from anywhere in the sector,
+is the great barn of the farm on the main street with its chimney stack still standing, on the plot the shells reached
+least. Fleury had a church, but the kit has none, and a barn and chimney read better from above than a church improvised
+from house ruins. The village is all in no man's land, as it was in July 1916; the crossroads is an objective.
+
 ### Playing the ground
 
 `node scripts/analyze-sector.mjs` marches sight lines over the height field from every defending machine gun and
@@ -93,10 +105,14 @@ The client lines every trench in [trench-dressing.ts](../apps/client/src/level/t
 scaled to fit each run, corners at turns, T junctions where a trench ends on another, end caps, fire steps along the
 front wall of bays, duckboards, dugout entrances in the rear lines, ladders in the front line, a course of sandbags
 along about half the bays' parapets (kept below the eye line of a man on the fire step, so the art matches line of
-sight), stores and tools against the walls, and telephone poles beside the communication trenches. A 0.5 m height grid
-can't follow vertical revetments, so once the kit is placed the terrain is drawn slightly differently from the
-simulation's heights ([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's
-walls, floor and lips, and darkened on the spoil so the seams between pieces read as shadow.
+sight), stores and tools against the walls, and telephone poles beside the communication trenches. The lines are lived
+in: rainwater stands on the floor under the duckboards wherever the floor dips and in about a third of the rest, every
+dugout's doorway has a gas curtain (a damp blanket, made in code since the kit has none), braziers made from oil drums
+burn beside about half the dugouts with sparks rising from them, and a signboard stands where each communication trench
+joins a fire trench. A 0.5 m height grid can't follow vertical revetments, so once the kit is placed the terrain is
+drawn slightly differently from the simulation's heights
+([render-heights.ts](../apps/client/src/terrain/render-heights.ts)): pulled down under the kit's walls, floor and lips,
+and darkened on the spoil so the seams between pieces read as shadow.
 
 **Shellfire wrecks the props** ([battle-damage.ts](../apps/client/src/level/battle-damage.ts)). Every burst that makes a
 crater reaches a little past the crater's bowl: wire, duckboards, ladders, stores, poles and parapet sandbags within it
@@ -106,12 +122,45 @@ art will follow it.
 
 ## Ground
 
+The terrain is drawn from the simulation's height grid in 64 m chunks, one vertex a metre. The chunks around where the
+camera looks, within about 90 m, are drawn at every 0.5 m sample instead, so the survey's full detail shows up close:
+old shell holes, the lip of every crater, the ruts of the old streets. They are rebuilt a chunk a frame as the camera
+pans, and a short skirt hangs below every chunk's edges to close the slivers where a detailed chunk meets a coarser one.
+
 The terrain is textured with four Synty ground layers (grass, mud, chalk, churned earth) blended per vertex by surface
 ([ground-splat-plugin.ts](../apps/client/src/terrain/ground-splat-plugin.ts), GLSL and WGSL). Layers blend by their
 textures' brightness as well as their weights, so pebbles and clods poke through a neighbouring layer and edges come out
 ragged; a second, rotated lookup breaks up the repeat. Each layer's normal map bends the light across the ground, and
 muddy ground lying well below its surroundings is drawn darker and cooler, wet. The spoil beside trenches is darkened to
-match the trench kit's earth.
+match the trench kit's earth. Steep ground (crater walls, the ravine's banks, the sunken road's sides) takes its colour
+from a second lookup projected sideways, so textures don't smear down the slope. Grass tufts grow where the shelling
+spared the grass, thickest where it's unbroken.
+
+## Shellfire's marks
+
+What a shell leaves once the flash and the column of earth have gone
+([shell-aftermath.ts](../apps/client/src/level/shell-aftermath.ts)):
+
+- **Scorch**: the ground blackened in a faceted blot about the burst, a black core and a browner ring, with ragged
+  splashes thrown out around it. Scorch is painted into a one-byte-per-metre texture over the whole map
+  ([scorch-map.ts](../apps/client/src/level/scorch-map.ts)) that the ground material darkens by, so it survives the
+  terrain being rebuilt under it.
+- **Smoke** left hanging over shelled ground for half a minute, drifting with the simulation's wind.
+- **Clods of earth** thrown out and falling back.
+- **Fires**, now and then, burning for a minute or so with sparks rising: four times likelier where there's timber to
+  catch (trees, ruins, stores, guns, wrecks).
+- **A jolt of the camera** when a shell lands near what it's looking at, fading over most of a second.
+- **Crows** on the wire in no man's land go up and circle when shells land near them, then settle on another stretch of
+  wire ([trench-life.ts](../apps/client/src/level/trench-life.ts)).
+
+## The miniature look
+
+[post-process.ts](../apps/client/src/level/post-process.ts) runs the image through Babylon's default rendering pipeline:
+4x multisampling, bloom on whatever burns brighter than lit chalk (flames, flashes, sparks), a little animated film
+grain, and a depth of field that makes the battlefield read as a model on a table: sharp where the camera looks, soft
+nearer and further off, which at the game's oblique angle is a tilt-shift band across the screen. No real lens blurs a
+field 60 m away, so its focal length scales with the camera's distance, keeping the same shallow focus at every zoom.
+The colour grade runs in the pipeline's image processing pass.
 
 ## Light and air
 
@@ -138,6 +187,38 @@ Fleury's ruins and birdsong behind the lines, plus a distant gun every few secon
 the player's first click or key press, as browsers require. The beds come from the Sonniss GDC bundles, cut, crossfaded
 at their ends so they loop without a seam, and encoded as Opus by the kit build.
 
+The battle itself is heard through [battle-sound-model.ts](../apps/client/src/audio/battle-sound-model.ts), which turns
+each simulation step into sounds placed relative to the camera: louder close by, panned to their side of the screen, and
+delayed by the speed of sound, so a distant burst is seen before it is heard.
+
+- **Rifles** by side, close or distant recordings by range: the Mosin-Nagant 1891 stands in for the Lebel and the M1917
+  Enfield's Mauser-pattern action for the Gewehr 98 (BOOM's World War I Firearms).
+- **Machine guns** round by round up close (Browning M1919, the Hotchkiss and MG 08's rate of fire), and a whole
+  recorded burst every 1.5 s from afar. Rounds landing near the listener from more than 40 m away **crack** past, and
+  rounds striking within 15 m thud into the ground. Grenades are heard leaving the thrower's hand.
+- **Shells** by type: field shells' crack and burst together, with no warning, as whizz-bangs arrived; heavy 155 mm
+  shells, slow enough to be heard coming, **rush in** for the last 2 s before landing within 150 m; shrapnel airbursts;
+  the quiet pop and hiss of a gas shell; grenades. Each has a near and a distant recording. Earth **rains down** after a
+  cratering burst within 35 m.
+- **Shell shock**: a burst within 15 m of the controlled soldier sets his ears ringing and muffles the battle (its own
+  audio bus) by up to 80%, coming back over 3 s.
+- **The batteries** firing 4 km behind each line as their shells leave, about 12 s late.
+- **Men falling** within 120 m, and the **gas alarm** (a struck shell case) when men nearby start masking. The
+  controlled soldier breathes through his mask while it's on.
+
+The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms, Super Thump's Weapons of World War II
+and the Sonniss GDC bundles; the incoming rush is the run-up of two designed Bluezone sounds (no designed explosion is
+used), and the ringing is generated. `scripts/build-sound-effects.py` finds each take in the long source recordings,
+cuts it until it dies away, and matches the variations of each sound in loudness, a limiter catching the peaks:
+
+```
+blender -b --factory-startup -P scripts/build-sound-effects.py -- vendor/audio .asset-cache/level
+```
+
+It writes mono Opus files and a manifest to `.asset-cache/level/sfx/` (about 2.5 MB), which the asset pack encrypts with
+the rest of the kit. Still missing, for want of recordings: the trench whistle, French and German voices, footsteps,
+digging and wire cutting (see the [sound effects report](research/ww1-sound-effects-report.md)).
+
 ## Level kit
 
 `scripts/build-level-kit.py` builds the kit from the converted Synty packs (see the
@@ -147,11 +228,11 @@ at their ends so they loop without a seam, and encoded as Opus by the kit build.
 blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level
 ```
 
-It writes `.asset-cache/level/kit.glb`: about 85 pieces from War Map WWI, War Pack and the generic props, joined one
-mesh per piece, sharing 1K palettes, with a decimated far-distance copy of every piece over 700 triangles. It also
-writes four ground textures from the Nature pack with their normal maps, graded so their mean colours match the
-terrain's flat palette colours; smoke and mist sprites from the Particle FX pack; and the ambience, cut and encoded with
-Blender's audio module.
+It writes `.asset-cache/level/kit.glb`: about 100 pieces from War Map WWI, War Pack, Nature and the generic props,
+joined one mesh per piece, sharing 1K palettes, with a decimated far-distance copy of every piece over 700 triangles. It
+also writes four ground textures from the Nature pack with their normal maps, graded so their mean colours match the
+terrain's flat palette colours; effect sprites from the Particle FX pack (smoke, mist, a flipbook of flames, a spark,
+and a faceted dark blot for scorch and flying earth); and the ambience, cut and encoded with Blender's audio module.
 
 The dev server serves the raw kit at `/level-kit/`. **Production builds never ship it raw**: paid assets ship only
 inside the encrypted asset pack below ([licensing](assets/licensing.md)). Without the kit the game falls back to the

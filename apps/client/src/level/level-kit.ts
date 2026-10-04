@@ -7,10 +7,18 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import type { Scene } from "@babylonjs/core/scene"
+import { type BattleSoundFiles, loadBattleSoundFiles } from "../audio/battle-sounds.ts"
 import type { GroundLayers } from "../terrain/ground-splat-plugin.ts"
 import { AMBIENCE_FILES, type AmbienceAudio } from "./ambience.ts"
 import type { EffectSprites } from "./atmosphere.ts"
 import { type KitFiles, openKitFiles } from "./kit-files.ts"
+import type { AftermathSprites } from "./shell-aftermath.ts"
+
+/** Every effect sprite in the kit: smoke and mist for the air, flames, sparks and scorch for shellfire. */
+export interface KitEffects extends EffectSprites, AftermathSprites {
+  /** Splotches of grunge, for ragged scorch. */
+  readonly grunge: Texture
+}
 
 export interface LevelKit {
   /** Kit meshes by piece name, baked in place and disabled: the sources every prop is instanced from. */
@@ -19,10 +27,12 @@ export interface LevelKit {
   readonly materials: readonly Material[]
   /** The ground textures for the terrain splat material. */
   readonly ground: GroundLayers
-  /** Smoke and mist sprites. */
-  readonly fx: EffectSprites
+  /** Effect sprites. */
+  readonly fx: KitEffects
   /** Ambience, or null when this kit was built without it. */
   readonly audio: AmbienceAudio | null
+  /** The battle's sound effects, or null when this kit was built without them (scripts/build-sound-effects.py). */
+  readonly sfx: BattleSoundFiles | null
 }
 
 /** Reads the kit's ambience, all of it or none. */
@@ -165,7 +175,8 @@ export async function loadLevelKit(scene: Scene, files: KitFiles | null = openKi
       albedo: await loadTexture(scene, files, `ground/${name}.png`),
       normal: await loadTexture(scene, files, `ground/${name}_normal.png`, true)
     })
-    const [container, grass, mud, chalk, churned, smoke, mist, audio] = await Promise.all([
+    const sprite = (name: string) => loadTexture(scene, files, `fx/${name}.png`)
+    const [container, grass, mud, chalk, churned, fx, audio, sfx] = await Promise.all([
       files
         .read("kit.glb")
         .then((glb) => LoadAssetContainerAsync(new Uint8Array(glb), scene, { pluginExtension: ".glb" })),
@@ -173,13 +184,15 @@ export async function loadLevelKit(scene: Scene, files: KitFiles | null = openKi
       layer("mud"),
       layer("chalk"),
       layer("churned"),
-      loadTexture(scene, files, "fx/smoke.png"),
-      loadTexture(scene, files, "fx/mist.png"),
-      loadAudio(files)
+      Promise.all(["smoke", "mist", "fire", "ember", "scorch", "grunge"].map(sprite)).then(
+        ([smoke, mist, fire, ember, scorch, grunge]) => ({ smoke, mist, fire, ember, scorch, grunge })
+      ),
+      loadAudio(files),
+      loadBattleSoundFiles(files)
     ])
     files.close?.()
     container.addAllToScene()
-    return { ...prepareKitPieces(scene, container), ground: { grass, mud, chalk, churned }, fx: { smoke, mist }, audio }
+    return { ...prepareKitPieces(scene, container), ground: { grass, mud, chalk, churned }, fx, audio, sfx }
   } catch (error) {
     files.close?.()
     console.warn(

@@ -6,6 +6,7 @@ import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { fallenIds, type Simulation } from "@verdun/sim"
+import { registerBindings } from "../ui/bindings.ts"
 
 /** Where soldiers have fallen, kept across reloads so a playtest builds up a picture of the killing ground. */
 const STORAGE_KEY = "verdun.deathMap"
@@ -39,6 +40,7 @@ function save(points: readonly [number, number][]): void {
  * `clear()` to start a fresh playtest, or `points()` to export it.
  */
 export function installDeathMap(scene: Scene, sim: Simulation) {
+  registerBindings({ title: "Development tools", devOnly: true, bindings: [{ keys: "J", action: "Death map" }] })
   const points = load()
   const seen = new Set<number>()
   const disc = CreateDisc("death-map", { radius: DISC_RADIUS, tessellation: 12 }, scene)

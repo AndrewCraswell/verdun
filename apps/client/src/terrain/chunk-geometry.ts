@@ -48,13 +48,15 @@ function heightOf(map: BattlefieldMap, heights: Float32Array, column: number, ro
  * Surface normal from the height field by central differences. It depends only on the map, never on which chunk asks,
  * so lighting is continuous across chunk seams.
  */
-function normalAt(
+function writeNormal(
   map: BattlefieldMap,
   heights: Float32Array,
   column: number,
   row: number,
-  step: number
-): [number, number, number] {
+  step: number,
+  out: Float32Array,
+  offset: number
+): void {
   const left = Math.max(0, column - step)
   const right = Math.min(map.columns, column + step)
   const near = Math.max(0, row - step)
@@ -64,26 +66,48 @@ function normalAt(
   const slopeZ =
     (heightOf(map, heights, column, far) - heightOf(map, heights, column, near)) / ((far - near) * map.cellSize)
   const length = Math.sqrt(slopeX * slopeX + 1 + slopeZ * slopeZ)
-  return [-slopeX / length, 1 / length, -slopeZ / length]
+  out[offset] = -slopeX / length
+  out[offset + 1] = 1 / length
+  out[offset + 2] = -slopeZ / length
 }
 
+/** Samples the blend reads along each axis: every `BLEND_STRIDE` within `BLEND_RADIUS`. */
+const BLEND_SAMPLES = (2 * BLEND_RADIUS) / BLEND_STRIDE + 1
+
 /**
- * Share of each surface around a sample, in `Surface` order. Reads the map by global sample
- * position, never by chunk, so neighbouring chunks agree along their shared edge.
+ * Share of each surface around every vertex of a chunk, four floats per vertex in `Surface` order. Reads the map by
+ * global sample position, never by chunk, so neighbouring chunks agree along their shared edge. Counts along rows
+ * first, then sums the rows, which reads each sample once per row instead of once per vertex around it.
  */
-function surfaceWeights(map: BattlefieldMap, column: number, row: number): number[] {
-  const weights = Array.from({ length: SURFACE_COUNT }, () => 0)
-  let total = 0
-  for (let dz = -BLEND_RADIUS; dz <= BLEND_RADIUS; dz += BLEND_STRIDE) {
-    for (let dx = -BLEND_RADIUS; dx <= BLEND_RADIUS; dx += BLEND_STRIDE) {
-      const sampleColumn = Math.min(map.columns, Math.max(0, column + dx))
-      const sampleRow = Math.min(map.rows, Math.max(0, row + dz))
-      const stored = map.surfaces[sampleIndex(map, sampleColumn, sampleRow)]
-      weights[isSurface(stored) ? stored : Surface.Mud] += 1
-      total += 1
+function surfaceShares(map: BattlefieldMap, columns: readonly number[], rows: readonly number[]): Float32Array {
+  const width = columns.length * SURFACE_COUNT
+  const share = 1 / (BLEND_SAMPLES * BLEND_SAMPLES)
+  // Every map row the blend reads, from the first vertex row's reach to the last's, counted once.
+  const firstRow = Math.max(0, (rows[0] ?? 0) - BLEND_RADIUS)
+  const lastRow = Math.min(map.rows, (rows.at(-1) ?? 0) + BLEND_RADIUS)
+  const counts = new Float32Array((lastRow - firstRow + 1) * width)
+  for (let row = firstRow; row <= lastRow; row++) {
+    const rowStart = (row - firstRow) * width
+    for (let index = 0; index < columns.length; index++) {
+      const column = columns[index] ?? 0
+      for (let dx = -BLEND_RADIUS; dx <= BLEND_RADIUS; dx += BLEND_STRIDE) {
+        const stored = map.surfaces[sampleIndex(map, Math.min(map.columns, Math.max(0, column + dx)), row)]
+        counts[rowStart + index * SURFACE_COUNT + (isSurface(stored) ? stored : Surface.Mud)] += share
+      }
     }
   }
-  return weights.map((weight) => weight / total)
+  const shares = new Float32Array(rows.length * width)
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex] ?? 0
+    const out = rowIndex * width
+    for (let dz = -BLEND_RADIUS; dz <= BLEND_RADIUS; dz += BLEND_STRIDE) {
+      const from = (Math.min(map.rows, Math.max(0, row + dz)) - firstRow) * width
+      for (let index = 0; index < width; index++) {
+        shares[out + index] += counts[from + index] ?? 0
+      }
+    }
+  }
+  return shares
 }
 
 /** Brightness multiplier: broad 40 m patches of lighter and darker ground, plus slight per-vertex jitter. */
@@ -123,71 +147,144 @@ export interface ChunkGeometry {
 }
 
 /**
+ * The grid's vertices along each edge of the chunk that faces another chunk (not the map's own edge), in order. Skirts
+ * hang from these.
+ */
+function innerEdges(map: BattlefieldMap, bounds: ChunkBounds, columnCount: number, rowCount: number): number[][] {
+  const edges: number[][] = []
+  const along = (count: number, vertex: (index: number) => number) => Array.from({ length: count }, (_, i) => vertex(i))
+  if (bounds.firstRow > 0) {
+    edges.push(along(columnCount, (i) => i))
+  }
+  if (bounds.lastRow < map.rows) {
+    edges.push(along(columnCount, (i) => (rowCount - 1) * columnCount + i))
+  }
+  if (bounds.firstColumn > 0) {
+    edges.push(along(rowCount, (i) => i * columnCount))
+  }
+  if (bounds.lastColumn < map.columns) {
+    edges.push(along(rowCount, (i) => i * columnCount + columnCount - 1))
+  }
+  return edges
+}
+
+/**
  * Builds one terrain chunk: positions, height-field normals, world-space UVs, vertex colours that blend the surface
  * palette across patch edges with a gentle brightness variation, and the same blend as texture weights. `step` thins
  * the 0.5 m simulation grid for rendering. `ground` replaces the map's heights for drawing and darkens some samples;
  * see render-heights.ts.
+ *
+ * `skirtDepth` hangs a curtain of ground that deep below every edge shared with another chunk. A neighbour drawn at a
+ * coarser step cuts its edge straight across where this one follows every sample, leaving slivers of sky between them;
+ * the skirt fills them.
  */
 export function buildChunkGeometry(
   map: BattlefieldMap,
   bounds: ChunkBounds,
   step: number,
   surfaceColors: SurfaceColors,
-  ground?: { readonly heights: Float32Array; readonly shade: Float32Array }
+  ground?: { readonly heights: Float32Array; readonly shade: Float32Array },
+  skirtDepth = 0
 ): ChunkGeometry {
   const heights = ground?.heights ?? map.heights
   const columns = sampleSteps(bounds.firstColumn, bounds.lastColumn, step)
   const rows = sampleSteps(bounds.firstRow, bounds.lastRow, step)
+  const edges = skirtDepth > 0 ? innerEdges(map, bounds, columns.length, rows.length) : []
+  const vertexCount = columns.length * rows.length + edges.reduce((total, edge) => total + edge.length, 0)
 
-  const positions: number[] = []
-  const normals: number[] = []
-  const uvs: number[] = []
-  const colors: number[] = []
-  const splat = new Float32Array(columns.length * rows.length * 4)
-  const wetness = new Float32Array(columns.length * rows.length)
+  // Typed arrays filled in place: a detailed chunk is 17,000 vertices, rebuilt while the camera pans.
+  const positions = new Float32Array(vertexCount * 3)
+  const normals = new Float32Array(vertexCount * 3)
+  const uvs = new Float32Array(vertexCount * 2)
+  const colors = new Float32Array(vertexCount * 4)
+  const splat = new Float32Array(vertexCount * 4)
+  const wetness = new Float32Array(vertexCount)
   const palette = [Surface.Grass, Surface.Mud, Surface.Chalk, Surface.Churned].map((surface) => surfaceColors[surface])
+  const shares = surfaceShares(map, columns, rows)
+  let vertex = 0
   for (const row of rows) {
     for (const column of columns) {
       const x = column * map.cellSize
       const z = row * map.cellSize
       const index = sampleIndex(map, column, row)
-      positions.push(x, heights[index], z)
-      normals.push(...normalAt(map, heights, column, row, step))
-      uvs.push(x / UV_TILE_METERS, z / UV_TILE_METERS)
+      positions[vertex * 3] = x
+      positions[vertex * 3 + 1] = heights[index] ?? 0
+      positions[vertex * 3 + 2] = z
+      writeNormal(map, heights, column, row, step, normals, vertex * 3)
+      uvs[vertex * 2] = x / UV_TILE_METERS
+      uvs[vertex * 2 + 1] = z / UV_TILE_METERS
       const shade = shadeAt(column, row, x, z) * (ground?.shade[index] ?? 1)
-      const weights = surfaceWeights(map, column, row)
+      const shared = vertex * SURFACE_COUNT
       let r = 0
       let g = 0
       let b = 0
-      weights.forEach((weight, surface) => {
+      for (let surface = 0; surface < SURFACE_COUNT; surface++) {
         const color = palette[surface]
+        const weight = shares[shared + surface] ?? 0
         if (color && weight > 0) {
           r += color.r * weight
           g += color.g * weight
           b += color.b * weight
         }
-      })
-      colors.push(r * shade, g * shade, b * shade, 1)
-      const vertex = colors.length - 4
-      splat[vertex] = weights[Surface.Grass] ?? 0
-      splat[vertex + 1] = weights[Surface.Mud] ?? 0
-      splat[vertex + 2] = weights[Surface.Chalk] ?? 0
-      splat[vertex + 3] = shade
-      const muddy = (weights[Surface.Mud] ?? 0) + (weights[Surface.Churned] ?? 0)
-      wetness[vertex / 4] = wetnessAt(map, column, row) * muddy
+      }
+      colors[vertex * 4] = r * shade
+      colors[vertex * 4 + 1] = g * shade
+      colors[vertex * 4 + 2] = b * shade
+      colors[vertex * 4 + 3] = 1
+      splat[vertex * 4] = shares[shared + Surface.Grass] ?? 0
+      splat[vertex * 4 + 1] = shares[shared + Surface.Mud] ?? 0
+      splat[vertex * 4 + 2] = shares[shared + Surface.Chalk] ?? 0
+      splat[vertex * 4 + 3] = shade
+      const muddy = (shares[shared + Surface.Mud] ?? 0) + (shares[shared + Surface.Churned] ?? 0)
+      wetness[vertex] = wetnessAt(map, column, row) * muddy
+      vertex += 1
     }
   }
 
   // Rows run toward +z, so triangles wind to face up in Babylon's left-handed system.
   const rowLength = columns.length
-  const indices: number[] = []
+  const gridQuads = (rowLength - 1) * (rows.length - 1)
+  const skirtQuads = edges.reduce((total, edge) => total + edge.length - 1, 0)
+  const indices = new Uint32Array(gridQuads * 6 + skirtQuads * 12)
+  let corner = 0
   for (let row = 0; row < rows.length - 1; row++) {
     for (let column = 0; column < rowLength - 1; column++) {
       const nearLeft = row * rowLength + column
       const nearRight = nearLeft + 1
       const farLeft = nearLeft + rowLength
       const farRight = farLeft + 1
-      indices.push(nearRight, farRight, farLeft, nearLeft, nearRight, farLeft)
+      indices[corner++] = nearRight
+      indices[corner++] = farRight
+      indices[corner++] = farLeft
+      indices[corner++] = nearLeft
+      indices[corner++] = nearRight
+      indices[corner++] = farLeft
+    }
+  }
+
+  // Skirt vertices copy their edge vertex, lowered. Both windings, so the skirt shows from either side.
+  for (const edge of edges) {
+    const first = vertex
+    for (const top of edge) {
+      positions.set(positions.subarray(top * 3, top * 3 + 3), vertex * 3)
+      positions[vertex * 3 + 1] = (positions[vertex * 3 + 1] ?? 0) - skirtDepth
+      normals.set(normals.subarray(top * 3, top * 3 + 3), vertex * 3)
+      uvs.set(uvs.subarray(top * 2, top * 2 + 2), vertex * 2)
+      colors.set(colors.subarray(top * 4, top * 4 + 4), vertex * 4)
+      splat.set(splat.subarray(top * 4, top * 4 + 4), vertex * 4)
+      wetness[vertex] = wetness[top] ?? 0
+      vertex += 1
+    }
+    for (let index = 0; index < edge.length - 1; index++) {
+      const top = edge[index] ?? 0
+      const nextTop = edge[index + 1] ?? 0
+      const bottom = first + index
+      const nextBottom = bottom + 1
+      indices.set(
+        [top, nextTop, nextBottom, top, nextBottom, bottom, top, nextBottom, nextTop, top, bottom, nextBottom],
+        corner
+      )
+      corner += 12
     }
   }
 

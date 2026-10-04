@@ -1,4 +1,12 @@
-import { type BattlefieldMap, heightAt, type Scenery, type SceneryKind, type WireBelt } from "@verdun/map"
+import {
+  type BattlefieldMap,
+  heightAt,
+  sampleIndex,
+  type Scenery,
+  type SceneryKind,
+  Surface,
+  type WireBelt
+} from "@verdun/map"
 import { hashOf, type Placement, upForSlope, yawAlong } from "./placement.ts"
 
 /** A piece of a scenery item, relative to the item: offsets are in metres along its heading (z) and to its right (x). */
@@ -22,10 +30,26 @@ const RUINS = [
   "Bld_TownHouse_Rubble_02"
 ]
 const SANDBAGS = ["Env_Sandbag_Wall_Curved_01"]
+/** Brick and plaster brought down against a ruin's walls. */
+const HEAPS = ["Env_Rubble_Pile_Corner", "Env_Rubble_Pile_Small", "Env_Rubble_Pile_Big"]
 
 /** The art for each kind of scenery: one or more parts, picked between by the item's variant. */
 const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part[])[]>> = {
-  ruin: RUINS.map((piece) => [{ pieces: [piece], lift: -0.3 }]),
+  ruin: RUINS.map((piece) => [
+    { pieces: [piece], lift: -0.3 },
+    { pieces: HEAPS, right: 2.5, forward: 3.2, turn: 0.4, tilt: true, lift: -0.1 },
+    { pieces: HEAPS, right: -3, forward: -2.6, turn: 2.6, tilt: true, lift: -0.1 }
+  ]),
+  // The great barn of the farm on Fleury's main street, its chimney stack still standing.
+  landmark: [
+    [
+      { pieces: ["Bld_Barn_Broken_01"], lift: -0.4 },
+      { pieces: ["Prop_Chimney_01"], right: -8.5, forward: -4, lift: -0.2 },
+      { pieces: ["Env_Rubble_Pile_Big"], right: 4, forward: 8, turn: 0.3, tilt: true, lift: -0.1 },
+      { pieces: ["Env_Rubble_Pile_Corner"], right: -7.5, forward: 5, turn: -0.8, tilt: true, lift: -0.1 },
+      { pieces: ["Env_StoneWall_Rubble_02"], right: 9, forward: 6, turn: 1.57, lift: -0.1 }
+    ]
+  ],
   rubble: [
     [
       {
@@ -233,10 +257,61 @@ function wirePlacements(map: BattlefieldMap, belt: WireBelt): Placement[] {
   return placements
 }
 
-/** Places the art for every scenery item and wire belt on the map. */
+/** Tufts of coarse grass, short and tall. */
+const TUFTS = ["Gen_Env_Grass_01", "Gen_Env_Grass_02", "Gen_Env_Grass_03"]
+const TALL_TUFTS = ["Gen_Env_Grass_Tall_01", "Gen_Env_Grass_Tall_02"]
+/** Ground cover is considered every this many metres, jittered within the square. */
+const COVER_SPACING = 2.5
+
+/**
+ * Tufts of grass where the shelling spared the ground: on the grass surface, thickest where the grass is unbroken all
+ * round, and never on mud, chalk or churned ground.
+ */
+export function layOutGroundCover(map: BattlefieldMap): Placement[] {
+  const placements: Placement[] = []
+  const isGrass = (x: number, z: number) => {
+    const column = Math.round(Math.min(map.columns, Math.max(0, x / map.cellSize)))
+    const row = Math.round(Math.min(map.rows, Math.max(0, z / map.cellSize)))
+    return map.surfaces[sampleIndex(map, column, row)] === Surface.Grass
+  }
+  for (let gz = COVER_SPACING / 2; gz < map.rows * map.cellSize; gz += COVER_SPACING) {
+    for (let gx = COVER_SPACING / 2; gx < map.columns * map.cellSize; gx += COVER_SPACING) {
+      const x = gx + (hashOf(gx, gz, 30) - 0.5) * COVER_SPACING
+      const z = gz + (hashOf(gx, gz, 31) - 0.5) * COVER_SPACING
+      if (!isGrass(x, z)) {
+        continue
+      }
+      // Unbroken grass a few metres round grows thicker and taller.
+      const unbroken = [
+        [3, 0],
+        [-3, 0],
+        [0, 3],
+        [0, -3]
+      ].filter(([dx = 0, dz = 0]) => isGrass(x + dx, z + dz)).length
+      if (hashOf(x, z, 32) > 0.2 + unbroken * 0.12) {
+        continue
+      }
+      const tall = unbroken === 4 && hashOf(x, z, 33) < 0.3
+      const size = 1.3 + hashOf(x, z, 34) * 0.9
+      placements.push({
+        piece: pick(tall ? TALL_TUFTS : TUFTS, x, z, 35),
+        x,
+        y: heightAt(map, x, z) - 0.05,
+        z,
+        yaw: hashOf(x, z, 36) * Math.PI * 2,
+        up: groundNormal(map, x, z),
+        scale: [size, size * (0.8 + hashOf(x, z, 37) * 0.4), size]
+      })
+    }
+  }
+  return placements
+}
+
+/** Places the art for every scenery item and wire belt on the map, and the grass on the ground the shells spared. */
 export function layOutScenery(map: BattlefieldMap): Placement[] {
   return [
     ...map.scenery.flatMap((item) => sceneryPlacements(map, item)),
-    ...map.wire.flatMap((belt) => wirePlacements(map, belt))
+    ...map.wire.flatMap((belt) => wirePlacements(map, belt)),
+    ...layOutGroundCover(map)
   ]
 }

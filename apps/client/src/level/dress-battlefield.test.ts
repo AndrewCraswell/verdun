@@ -50,8 +50,9 @@ function kitOf(pieces: readonly string[]): { kit: LevelKit; scene: Scene } {
         chalk: { albedo: ground, normal: ground },
         churned: { albedo: ground, normal: ground }
       },
-      fx: { smoke: ground, mist: ground },
-      audio: null
+      fx: { smoke: ground, mist: ground, fire: ground, ember: ground, scorch: ground, grunge: ground },
+      audio: null,
+      sfx: null
     }
   }
 }

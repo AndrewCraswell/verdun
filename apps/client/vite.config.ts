@@ -6,7 +6,12 @@ import { defineConfig, type Plugin } from "vite"
 
 /** Where scripts/build-level-kit.py writes the level kit. Git-ignored: paid Synty art that must never ship raw. */
 const LEVEL_KIT_DIR = resolve(import.meta.dirname, "../../.asset-cache/level")
-const CONTENT_TYPES: Record<string, string> = { ".glb": "model/gltf-binary", ".png": "image/png", ".ogg": "audio/ogg" }
+const CONTENT_TYPES: Record<string, string> = {
+  ".glb": "model/gltf-binary",
+  ".png": "image/png",
+  ".ogg": "audio/ogg",
+  ".json": "application/json"
+}
 
 /**
  * Serves the raw level kit at /level-kit/ from the dev server only. Production builds get the kit from the encrypted

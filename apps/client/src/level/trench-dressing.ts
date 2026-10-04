@@ -53,8 +53,21 @@ export const TRENCH_PIECES = {
   /** Stores and tools left along the floor against the rear wall. */
   clutter: ["Gen_Prop_Crate_02", "Gen_Prop_Barrel_Wood_01", "Gen_Prop_Sack_Stack_01"],
   /** Things leant against the rear wall. */
-  leaning: ["Prop_Iron_Sheet_01", "Prop_Iron_Sheet_02", "Gen_Wep_Spade_01"]
+  leaning: ["Prop_Iron_Sheet_01", "Prop_Iron_Sheet_02", "Gen_Wep_Spade_01"],
+  /** Rainwater standing on the trench floor, under the duckboards: a flat plane of the kit's muddy water. */
+  water: "Env_Crater_Water_02",
+  /** A blanket hung across a dugout's doorway, damped against gas (made in code: see trench-life.ts). */
+  gasCurtain: "Gas_Curtain",
+  /** An oil drum pierced for a brazier, burning by a dugout. */
+  brazier: "Gen_Prop_Barrel_Metal_01",
+  /** A signboard where a communication trench meets a fire trench. */
+  sign: "Prop_RoadSign_01"
 } as const
+
+/** The kit's water plane is this many metres square. */
+const WATER_SIZE = 7.64
+/** Dugout doorways open in the dugout section's -x wall, `along` metres up its z axis from its middle. */
+const DUGOUT_DOOR = { across: 0.98, along: 1.1, height: 0.8 } as const
 
 /** Sandbags laid along the parapet crest: one course, kept below the eye line of a man on the fire step. */
 const SANDBAGS = { length: 8.78, offset: 1.55, height: 2.05, course: 0.4, depth: 0.8 } as const
@@ -161,6 +174,9 @@ export function layOutTrenchKit(map: BattlefieldMap): Placement[] {
         const y = floorAt(end.x, end.z) + KIT.floorOffset
         placements.push({ piece: TRENCH_PIECES.tee, x: end.x, y, z: end.z, yaw: yawAlong(end.inX, end.inZ) })
         end.segment[end.atStart ? "start" : "end"] = KIT.teeArm
+        if (trench.kind === "communication") {
+          placements.push(signAt(map, end.x, end.z, end.inX, end.inZ))
+        }
       } else {
         const x = end.x + end.inX * (KIT.end / 2)
         const z = end.z + end.inZ * (KIT.end / 2)
@@ -202,8 +218,10 @@ export function layOutTrenchKit(map: BattlefieldMap): Placement[] {
       const towardX = -segment.dz * enemySide
       const towardZ = segment.dx * enemySide
       for (const run of freeRuns(segment)) {
-        placements.push(...straights(segment, run, trench.kind === "fire" && !front, floorAt))
+        const sections = straights(segment, run, trench.kind === "fire" && !front, floorAt)
+        placements.push(...sections, ...sections.flatMap(dugoutLife))
         placements.push(...duckboards(segment, run, bay, towardX, towardZ, floorAt))
+        placements.push(...standingWater(segment, run, bay, towardX, towardZ, floorAt))
         placements.push(...clutter(segment, run, bay, towardX, towardZ, front, floorAt))
         if (bay) {
           placements.push(...fireSteps(segment, run, towardX, towardZ, floorAt))
@@ -304,6 +322,93 @@ function straights(
       up: upForSlope(segment.dx, segment.dz, slope),
       scale: [1, 1, length / KIT.straight]
     }
+  })
+}
+
+/**
+ * What goes with a dugout: a gas curtain hung across its doorway and, at about half of them, a brazier burning beside
+ * it. Other sections get nothing.
+ */
+function dugoutLife(section: Placement): Placement[] {
+  if (section.piece !== TRENCH_PIECES.dugout) {
+    return []
+  }
+  // The section's -x axis, turned by its yaw: toward the doorway's wall. Its z axis runs along the trench.
+  const doorX = -Math.cos(section.yaw)
+  const doorZ = Math.sin(section.yaw)
+  const alongX = Math.sin(section.yaw)
+  const alongZ = Math.cos(section.yaw)
+  const floor = section.y - KIT.floorOffset
+  const life: Placement[] = [
+    {
+      piece: TRENCH_PIECES.gasCurtain,
+      x: section.x + doorX * DUGOUT_DOOR.across + alongX * DUGOUT_DOOR.along,
+      y: floor + DUGOUT_DOOR.height,
+      z: section.z + doorZ * DUGOUT_DOOR.across + alongZ * DUGOUT_DOOR.along,
+      yaw: section.yaw
+    }
+  ]
+  if (hashOf(section.x, section.z, 21) < 0.5) {
+    // Beside the doorway, against the same wall.
+    life.push({
+      piece: TRENCH_PIECES.brazier,
+      x: section.x + doorX * 0.62 - alongX * 0.6,
+      y: floor + 0.04,
+      z: section.z + doorZ * 0.62 - alongZ * 0.6,
+      yaw: hashOf(section.x, section.z, 22) * Math.PI * 2,
+      scale: [0.85, 0.75, 0.85]
+    })
+  }
+  return life
+}
+
+/** A signboard on the parados where a communication trench joins a fire trench, pointing the way up it. */
+function signAt(map: BattlefieldMap, x: number, z: number, inX: number, inZ: number): Placement {
+  const sx = x + inX * (KIT.teeArm + 1.5) - inZ * 2.4
+  const sz = z + inZ * (KIT.teeArm + 1.5) + inX * 2.4
+  return {
+    piece: TRENCH_PIECES.sign,
+    x: sx,
+    y: heightAt(map, sx, sz) - 0.1,
+    z: sz,
+    yaw: yawAlong(inX, inZ) + (hashOf(sx, sz, 23) - 0.5) * 0.3
+  }
+}
+
+/**
+ * Rainwater lying on the floor under the duckboards: wherever the floor dips below the trench either side of it, and
+ * in about a third of the rest, Verdun being Verdun.
+ */
+function standingWater(
+  segment: Segment,
+  run: { from: number; to: number },
+  bay: boolean,
+  towardX: number,
+  towardZ: number,
+  floorAt: (x: number, z: number) => number
+): Placement[] {
+  const width = bay ? FIRE_STEP.inner + WALL - 0.1 : 2 * WALL - 0.1
+  const offset = bay ? (FIRE_STEP.inner - WALL) / 2 : 0
+  return tile(run, KIT.duckboard).flatMap(({ centre, length }) => {
+    const { x, z, floor, slope } = along(segment, centre, length, floorAt)
+    const either = Math.min(
+      floorAt(x - segment.dx * 6, z - segment.dz * 6),
+      floorAt(x + segment.dx * 6, z + segment.dz * 6)
+    )
+    if (floor > either - 0.05 && hashOf(x, z, 20) > 0.33) {
+      return []
+    }
+    return [
+      {
+        piece: TRENCH_PIECES.water,
+        x: x + towardX * offset,
+        y: floor + 0.07,
+        z: z + towardZ * offset,
+        yaw: yawAlong(segment.dx, segment.dz),
+        up: upForSlope(segment.dx, segment.dz, slope),
+        scale: [width / WATER_SIZE, 1, length / WATER_SIZE]
+      }
+    ]
   })
 }
 

@@ -24,6 +24,11 @@ export interface TerrainChunksOptions {
    * shape. Defaults to 1.
    */
   readonly trenchStep?: number
+  /**
+   * Chunks near the camera's target render every sample too, so the survey's 0.5 m detail shows up close: those whose
+   * middle lies within this many metres of the point given to `refine`. Defaults to 90.
+   */
+  readonly detailRadius?: number
 }
 
 export interface TerrainChunks {
@@ -38,14 +43,31 @@ export interface TerrainChunks {
    * every chunk, trench chunks too at the coarser render step. See render-heights.ts.
    */
   shapeForTrenchKit(): void
+  /**
+   * Draws the chunks around a point, usually the camera's target, at every sample, and those further away at the render
+   * step again. Rebuilds at most `budget` chunks a call, nearest first, so panning spreads the work over frames.
+   * Returns how many chunks were rebuilt.
+   */
+  refine(x: number, z: number, budget?: number): number
   dispose(): void
 }
 
 interface Chunk {
   readonly mesh: Mesh
   readonly bounds: ChunkBounds
+  /** Middle of the chunk, in metres. */
+  readonly x: number
+  readonly z: number
+  /** Its step away from the camera: the render step, or every sample for trench chunks drawn without the kit. */
+  baseStep: number
+  /** The step it's built at now. */
   step: number
 }
+
+/** Deep enough to close the gap between a chunk's every-sample edge and its coarser neighbour's, in metres. */
+const SKIRT_DEPTH = 1.5
+/** A detailed chunk goes back to the render step only this far beyond the detail radius, so it doesn't flicker. */
+const DETAIL_HYSTERESIS = 16
 
 /** World-space boxes around each trench segment, wide enough to include its parapet. */
 function trenchBoxes(map: BattlefieldMap): { minX: number; minZ: number; maxX: number; maxZ: number }[] {
@@ -66,7 +88,7 @@ function trenchBoxes(map: BattlefieldMap): { minX: number; minZ: number; maxX: n
 export function createTerrainChunks(
   scene: Scene,
   map: BattlefieldMap,
-  { material, surfaceColors, renderStep = 2, trenchStep = 1 }: TerrainChunksOptions
+  { material, surfaceColors, renderStep = 2, trenchStep = 1, detailRadius = 90 }: TerrainChunksOptions
 ): TerrainChunks {
   const chunkCells = Math.round(CHUNK_SIZE_METERS / map.cellSize)
   if (!Number.isInteger(renderStep) || renderStep < 1 || chunkCells % renderStep !== 0) {
@@ -95,7 +117,8 @@ export function createTerrainChunks(
       const hasTrench = boxes.some(
         (box) => box.maxX >= minX && box.minX <= maxX && box.maxZ >= minZ && box.minZ <= maxZ
       )
-      chunks.push({ mesh, bounds, step: hasTrench ? trenchStep : renderStep })
+      const step = hasTrench ? trenchStep : renderStep
+      chunks.push({ mesh, bounds, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, baseStep: step, step })
     }
   }
 
@@ -106,7 +129,8 @@ export function createTerrainChunks(
       chunk.bounds,
       chunk.step,
       surfaceColors,
-      renderHeights
+      renderHeights,
+      SKIRT_DEPTH
     )
     vertexData.applyToMesh(chunk.mesh, true)
     chunk.mesh.setVerticesData(SPLAT_ATTRIBUTE, splat, true, 4)
@@ -139,9 +163,29 @@ export function createTerrainChunks(
       renderHeights = createRenderHeights(map, true)
       // The kit stands in for the trench's own shape, so trench chunks no longer need every sample.
       for (const chunk of chunks) {
+        chunk.baseStep = renderStep
         chunk.step = renderStep
         build(chunk)
       }
+    },
+    refine(x, z, budget = 1) {
+      const distanceTo = (chunk: Chunk) => Math.hypot(chunk.x - x, chunk.z - z)
+      const wanted = (chunk: Chunk) => {
+        const distance = distanceTo(chunk)
+        if (distance < detailRadius) {
+          return 1
+        }
+        return distance > detailRadius + DETAIL_HYSTERESIS ? chunk.baseStep : chunk.step
+      }
+      const stale = chunks
+        .filter((chunk) => wanted(chunk) !== chunk.step)
+        .sort((a, b) => distanceTo(a) - distanceTo(b))
+        .slice(0, budget)
+      for (const chunk of stale) {
+        chunk.step = wanted(chunk)
+        build(chunk)
+      }
+      return stale.length
     },
     dispose() {
       for (const chunk of chunks) {

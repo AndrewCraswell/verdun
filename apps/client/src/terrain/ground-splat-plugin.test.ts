@@ -21,7 +21,8 @@ function setup() {
   const material = new StandardMaterial("ground", new Scene(engine))
   const layer = () => ({ albedo: new Texture(null, null), normal: new Texture(null, null) })
   const layers = { grass: layer(), mud: layer(), chalk: layer(), churned: layer() }
-  return { layers, plugin: new GroundSplatPlugin(material, layers) }
+  const scorch = { texture: new Texture(null, null), width: 600, depth: 400 }
+  return { layers, plugin: new GroundSplatPlugin(material, layers, scorch) }
 }
 
 describe("GroundSplatPlugin", () => {
@@ -44,7 +45,8 @@ describe("GroundSplatPlugin", () => {
       "groundGrassNormal",
       "groundMudNormal",
       "groundChalkNormal",
-      "groundChurnedNormal"
+      "groundChurnedNormal",
+      "groundScorch"
     ])
     for (const language of [ShaderLanguage.GLSL, ShaderLanguage.WGSL]) {
       expect(plugin.getCustomCode("vertex", language)?.CUSTOM_VERTEX_MAIN_END).toContain("vGroundSplat")
@@ -52,6 +54,8 @@ describe("GroundSplatPlugin", () => {
       expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("groundChurned")
       expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("normalW = normalize(")
       expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("vGroundWetness")
+      // Steep ground takes a sideways lookup.
+      expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toMatch(/groundSideUv.*(select\(|\?)/)
       expect(fragment?.CUSTOM_FRAGMENT_DEFINITIONS).toContain("groundGrass")
     }
     expect(plugin.getCustomCode("compute")).toBeNull()
@@ -65,14 +69,17 @@ describe("GroundSplatPlugin", () => {
     plugin.getActiveTextures(textures as never[])
     const uniforms = {
       updateFloat4: vi.fn<(name: string, x: number, y: number, z: number, w: number) => void>(),
+      updateFloat2: vi.fn<(name: string, x: number, y: number) => void>(),
       setTexture: vi.fn<(name: string, texture: unknown) => void>()
     }
     plugin.bindForSubMesh(uniforms as unknown as UniformBuffer)
 
-    expect(textures).toHaveLength(8)
+    // Four layers' colour and normal maps, and the scorch.
+    expect(textures).toHaveLength(9)
     expect(plugin.hasTexture(layers.chalk.normal)).toBe(true)
     expect(plugin.hasTexture(new Texture(null, null))).toBe(false)
-    expect(uniforms.setTexture).toHaveBeenCalledTimes(8)
+    expect(uniforms.setTexture).toHaveBeenCalledTimes(9)
+    expect(uniforms.updateFloat2).toHaveBeenCalledWith("groundScorchParams", 1 / 600, 1 / 400)
     expect(uniforms.updateFloat4).toHaveBeenCalledWith(
       "groundSplatParams",
       expect.any(Number),

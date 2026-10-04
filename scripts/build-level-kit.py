@@ -13,8 +13,14 @@ textures are loaded.
 Output is git-ignored and must never ship raw (paid assets; see docs/assets/licensing.md). The dev server serves it at
 /level-kit/; production builds load nothing and fall back to greybox.
 
+Soldiers come from the retargeted animation GLB (retarget-animations.py) beside the converted packs: the Synty WW1
+bodies recoloured per side, with helmets, a rifle, a gas mask and machine guns, as soldier.glb.
+
 Usage (headless Blender):
   blender -b --factory-startup -P scripts/build-level-kit.py -- <converted unity dir> <vendor unity dir> <output dir>
+      [section ...]
+
+Sections (all by default): kit, ground, fx, audio, soldier.
 
 Example:
   blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level
@@ -27,6 +33,7 @@ from pathlib import Path
 
 import bpy
 import numpy as np
+from mathutils import Matrix, Vector
 
 WAR_MAP = "POLYGON - War Map WWI - Art by Synty"
 WAR_PACK = "POLYGON - War Pack - Art by Synty"
@@ -73,6 +80,9 @@ PIECES = [
         ]
     ],
     (WAR_MAP, "SM_Env_Crater_Water_01"),
+    (WAR_MAP, "SM_Env_Crater_Water_02"),
+    # Life in the line: the brazier's drum, a trench signboard, and tufts of grass on the slopes the shells spared.
+    (NATURE, "SM_Prop_RoadSign_01"),
     (WAR_MAP, "SM_Env_Tree_Dead_04"),
     *[
         (WAR_MAP, f"SM_Gen_{name}")
@@ -90,8 +100,14 @@ PIECES = [
             "Prop_Crate_01",
             "Prop_Crate_02",
             "Prop_Barrel_Wood_01",
+            "Prop_Barrel_Metal_01",
             "Prop_Sack_Stack_01",
             "Wep_Spade_01",
+            "Env_Grass_01",
+            "Env_Grass_02",
+            "Env_Grass_03",
+            "Env_Grass_Tall_01",
+            "Env_Grass_Tall_02",
         ]
     ],
     *[
@@ -114,9 +130,14 @@ PIECES = [
             "Bld_City_Destroyed_03",
             "Bld_TownHouse_Rubble_01",
             "Bld_TownHouse_Rubble_02",
+            "Bld_Barn_Broken_01",
+            "Prop_Chimney_01",
             "Bld_Bunker_01",
             "Env_Rubble_Pile_01",
             "Env_Rubble_Pile_02",
+            "Env_Rubble_Pile_Big",
+            "Env_Rubble_Pile_Corner",
+            "Env_Rubble_Pile_Small",
             "Env_Brick_Debris_01",
             "Env_Brick_Debris_02",
             "Env_Brick_Debris_03",
@@ -190,9 +211,20 @@ AUDIO_RATE = 48000
 AUDIO_BITRATE = 64000
 
 PARTICLE_FX = "POLYGON - Particle FX Pack - Art by Synty"
-# Effect sprites: (output name, Particle FX pack texture). Synty's flat, faceted smoke puff and a soft spot for mist.
-FX = [("smoke", "PolygonParticles_Smoke_01"), ("mist", "PolygonParticles_Soft_Spot_01")]
+# Effect sprites: (output name, Particle FX pack texture, largest size kept). Synty's flat, faceted smoke puff, a soft
+# spot for mist, a flipbook of flames (10 x 10 frames) for fires and braziers, a spark for embers, and a faceted dark
+# blot and grunge splotches for the scorch shells leave on the ground.
+FX = [
+    ("smoke", "PolygonParticles_Smoke_01", 1024),
+    ("mist", "PolygonParticles_Soft_Spot_01", 1024),
+    ("fire", "Gen_FireFrames_Grey_01", 1280),
+    ("ember", "PolygonParticles_Sparkle_01", 128),
+    ("scorch", "PolygonParticles_Circle_Dark_01", 256),
+    ("grunge", "Generic_Decal_Grunge_01", 512),
+]
 
+# What the build can be limited to, naming them after the output directory; all of them by default.
+SECTIONS = ["kit", "ground", "fx", "audio", "soldier"]
 DUPLICATE_SUFFIX = re.compile(r"\.\d{3}$")
 # Pieces heavier than this get a decimated far-distance copy, named "<piece>_LOD1", aiming for LOD1_TRIANGLES.
 LOD1_FROM_TRIANGLES = 700
@@ -202,9 +234,9 @@ LOD1_MIN_RATIO = 0.3
 
 def parse_args():
     args = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
-    if len(args) != 3:
+    if len(args) < 3 or any(section not in SECTIONS for section in args[3:]):
         sys.exit(__doc__)
-    return Path(args[0]).resolve(), Path(args[1]).resolve(), Path(args[2]).resolve()
+    return Path(args[0]).resolve(), Path(args[1]).resolve(), Path(args[2]).resolve(), args[3:] or SECTIONS
 
 
 def find_model(converted, pack, name):
@@ -362,11 +394,19 @@ def build_ground(vendor, output):
 
 
 def build_fx(vendor, output):
-    source_dir = vendor / PARTICLE_FX / "Synty" / "PolygonParticleFX" / "Textures"
+    source_dir = vendor / PARTICLE_FX / "Synty"
     fx_dir = output / "fx"
     fx_dir.mkdir(parents=True, exist_ok=True)
-    for name, source in FX:
-        shutil.copyfile(source_dir / f"{source}.png", fx_dir / f"{name}.png")
+    for name, source, size in FX:
+        path = next(source_dir.rglob(f"{source}.png"))
+        image = bpy.data.images.load(str(path))
+        if image.size[0] > size:
+            image.scale(size, size * image.size[1] // image.size[0])
+            image.filepath_raw = str(fx_dir / f"{name}.png")
+            image.file_format = "PNG"
+            image.save()
+        else:
+            shutil.copyfile(path, fx_dir / f"{name}.png")
         print(f"[level-kit] fx {name} <- {source}", flush=True)
 
 
@@ -401,12 +441,252 @@ def build_audio(vendor, output):
         print(f"[level-kit] audio {name} <- {path.name}", flush=True)
 
 
+# Soldiers: the Synty WW1 characters with the animations scripts/retarget-animations.py baked onto their rig (in the
+# asset cache, beside the converted packs). Each side's body gets its helmet bound to the head and its own copy of the
+# palette with the uniform recoloured; a rifle and a gas mask are bound to the hand and head as separate skinned meshes,
+# and each side's machine gun stands on its tripod in front of the gunner. One GLB, every clip kept.
+SOLDIER_ANIMATIONS = Path("animations") / "synty-soldier.glb"
+SOLDIER_MODELS = Path(WAR_MAP) / "Synty" / "PolygonWarMap" / "Models"
+# Palette swaps, source hex to target hex. Horizon blue for the French (#7d8fa6 the tunic) on the British body, with
+# brown leather for the webbing and a horizon-blue Adrian helmet; feldgrau for the Germans, Stahlhelm included, a
+# shade lighter than the cloth (#5e6450) since the battlefield's light and grade darken it toward black.
+FRENCH_UNIFORM = {
+    "8d7254": "7d8fa6",
+    "7d644c": "6d7e95",
+    "9b7c5b": "8a9cb2",
+    "a88662": "97a8bd",
+    "55452d": "4d5a6c",
+    "cdad8b": "5c4532",
+    "9b7156": "6e5a45",
+    "444a4e": "5f6e81",
+    "586065": "71819a",
+}
+GERMAN_UNIFORM = {
+    "4c514e": "737862",
+    "5c625e": "7f846d",
+    "69706b": "8b907a",
+    "586065": "62675a",
+    "3a3e36": "4c4f42",
+    "444a36": "5c6150",
+}
+# (body name, Synty character, helmet, palette swap).
+SOLDIER_BODIES = [
+    ("Soldier_French", "Character_British_WW1_01", "SM_Chr_Attach_French_Helmet_01", FRENCH_UNIFORM),
+    ("Soldier_German", "Character_German_WW1_01", "SM_Chr_Attach_German_Helmet_2", GERMAN_UNIFORM),
+]
+# The Gewehr 98 for both sides: closer to the long Lebel than the Lee-Enfield is.
+SOLDIER_RIFLE = ("Soldier_Rifle", "SM_Wep_German_Rifle_01")
+SOLDIER_MASK = ("Soldier_Mask", "SM_Chr_Attach_Mask_Gas_01")
+# The rifle is fitted to this clip and frame, the standing aim: from the right palm toward the left hand, sights up.
+RIFLE_POSE = ("idle_6", 0)
+# (output name, gun and tripod). The Vickers stands in for the French Hotchkiss, the German MG 08 for itself.
+SOLDIER_GUNS = [
+    ("MachineGun_French", ["SM_Wep_British_HeavyMachineGun_01", "SM_Wep_British_HeavyMachineGun_Tripod_01"]),
+    ("MachineGun_German", ["SM_Wep_German_HeavyMachineGun_01", "SM_Wep_German_HeavyMachineGun_Tripod_01"]),
+]
+# How far in front of the gunner's feet the gun stands, in metres.
+GUN_DISTANCE = 0.9
+
+
+def load_joined(path):
+    """Imports a model and joins its meshes into one object, keeping where the source placed them."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    imported = [obj for obj in bpy.data.objects if obj not in before]
+    others = [obj.name for obj in imported if obj.type != "MESH"]
+    meshes = [obj for obj in imported if obj.type == "MESH"]
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in meshes:
+        world = obj.matrix_world.copy()
+        obj.parent = None
+        obj.matrix_world = world
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = meshes[0]
+    if len(meshes) > 1:
+        bpy.ops.object.join()
+    for name in others:
+        bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+    return bpy.context.view_layer.objects.active
+
+
+def authored(obj):
+    """A model's authored orientation and scale (the converter's 1/100 and axis turn), without its position."""
+    return obj.matrix_world.to_3x3().to_4x4()
+
+
+def place_in_armature(obj, armature, world):
+    """Bakes `world` into a model's vertices in the armature's space and parents it there, like the bodies."""
+    obj.data.transform(armature.matrix_world.inverted() @ world)
+    obj.parent = armature
+    obj.matrix_parent_inverse = Matrix()
+    obj.matrix_basis = Matrix()
+
+
+def skin_to_bone(obj, armature, bone):
+    group = obj.vertex_groups.new(name=bone)
+    group.add(range(len(obj.data.vertices)), 1.0, "REPLACE")
+    modifier = obj.modifiers.new("Armature", "ARMATURE")
+    modifier.object = armature
+
+
+def rifle_world(armature):
+    """Where the rifle sits at rest so that, skinned to the right hand, it lies along the aim in RIFLE_POSE."""
+    clip, frame = RIFLE_POSE
+    animation = armature.animation_data
+    muted = [track.mute for track in animation.nla_tracks]
+    for track in animation.nla_tracks:
+        track.mute = True
+    animation.action = bpy.data.actions[clip]
+    if len(animation.action.slots):
+        animation.action_slot = animation.action.slots[0]
+    bpy.context.scene.frame_set(frame)
+    bones = armature.pose.bones
+    hand = armature.matrix_world @ bones["Hand_R"].matrix
+    fingers = (armature.matrix_world @ bones["IndexFinger_01.001"].matrix).translation
+    palm = (hand.translation + fingers) / 2
+    forward = ((armature.matrix_world @ bones["Hand_L"].matrix).translation - palm).normalized()
+    side = forward.cross(Vector((0, 0, 1))).normalized()
+    up = side.cross(forward)
+    # Synty weapons lie along the character's forward (-Y), sights up (+Z): turn that frame onto the aim.
+    aim = Matrix((side, forward, up)).transposed() @ Matrix(((-1, 0, 0), (0, -1, 0), (0, 0, 1)))
+    posed = Matrix.Translation(palm) @ aim.to_4x4()
+    rest = armature.matrix_world @ armature.data.bones["Hand_R"].matrix_local
+    animation.action = None
+    for track, mute in zip(animation.nla_tracks, muted):
+        track.mute = mute
+    for pose_bone in bones:
+        pose_bone.matrix_basis = Matrix()
+    return rest @ hand.inverted() @ posed
+
+
+def hex_rgb(value):
+    return [int(value[i : i + 2], 16) for i in (0, 2, 4)]
+
+
+def swap_palette(material, name, swaps):
+    """A copy of the material on a copy of its palette, with the swapped colours replaced."""
+    source = next(node.image for node in material.node_tree.nodes if node.type == "TEX_IMAGE" and node.image)
+    image = source.copy()
+    image.name = f"{name}_Palette"
+    width, height = image.size
+    pixels = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4)
+    rgb = np.round(pixels[:, :, :3] * 255)
+    for before, after in swaps.items():
+        match = np.all(np.abs(rgb - hex_rgb(before)) <= 2, axis=2)
+        pixels[match, :3] = np.array(hex_rgb(after)) / 255
+    image.pixels[:] = pixels.ravel()
+    image.pack()
+    copy = material.copy()
+    copy.name = name
+    for node in copy.node_tree.nodes:
+        if node.type == "TEX_IMAGE":
+            node.image = image
+    return copy
+
+
+def strip_vertex_extras(obj):
+    """The bodies carry vertex colours and a second UV set the game never reads."""
+    for attribute in list(obj.data.color_attributes):
+        obj.data.color_attributes.remove(attribute)
+    for layer in list(obj.data.uv_layers)[1:]:
+        obj.data.uv_layers.remove(layer)
+
+
+def one_material(obj):
+    """Every face on the object's first palette material (the gas mask's glass lenses too): one primitive, one draw."""
+    materials = obj.data.materials
+    keep = next((material for material in materials if "Glass" not in material.name), materials[0])
+    for polygon in obj.data.polygons:
+        polygon.material_index = 0
+    while len(materials) > 1:
+        materials.pop()
+    materials[0] = keep
+
+
+def join_into(target, others):
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in [target, *others]:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = target
+    if others:
+        bpy.ops.object.join()
+    return target
+
+
+def build_soldier(converted, output):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    animations = converted.parent / SOLDIER_ANIMATIONS
+    if not animations.exists():
+        raise FileNotFoundError(f"{animations} not found; run retarget-animations.py first")
+    bpy.ops.import_scene.gltf(filepath=str(animations))
+    armature = next(obj for obj in bpy.data.objects if obj.type == "ARMATURE")
+    keep = {armature.name} | {character for _, character, _, _ in SOLDIER_BODIES}
+    for obj in [obj for obj in bpy.data.objects if obj.name not in keep]:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    models = converted / SOLDIER_MODELS
+    head = Matrix.Translation(armature.matrix_world @ armature.data.bones["Head"].head_local)
+
+    for name, character, helmet_model, swaps in SOLDIER_BODIES:
+        body = bpy.data.objects[character]
+        helmet = load_joined(models / f"{helmet_model}.glb")
+        place_in_armature(helmet, armature, head @ authored(helmet))
+        skin_to_bone(helmet, armature, "Head")
+        # One material on both before joining, so the joined body keeps one slot: one draw.
+        material = swap_palette(body.data.materials[0], name, swaps)
+        for slot in [*body.material_slots, *helmet.material_slots]:
+            slot.material = material
+        join_into(body, [helmet])
+        body.name = name
+        body.data.name = name
+
+    rifle_name, rifle_model = SOLDIER_RIFLE
+    rifle = load_joined(models / f"{rifle_model}.glb")
+    place_in_armature(rifle, armature, rifle_world(armature) @ authored(rifle))
+    skin_to_bone(rifle, armature, "Hand_R")
+    mask_name, mask_model = SOLDIER_MASK
+    mask = load_joined(models / f"{mask_model}.glb")
+    place_in_armature(mask, armature, head @ authored(mask))
+    skin_to_bone(mask, armature, "Head")
+    for obj, name in [(rifle, rifle_name), (mask, mask_name)]:
+        obj.name = name
+        obj.data.name = name
+
+    for name, parts in SOLDIER_GUNS:
+        guns = [load_joined(models / f"{part}.glb") for part in parts]
+        gun = join_into(guns[0], guns[1:])
+        gun.location += Vector((0, -GUN_DISTANCE, 0))
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        gun.name = name
+        gun.data.name = name
+
+    merge_duplicate_materials()
+    for obj in bpy.data.objects:
+        if obj.type == "MESH":
+            strip_vertex_extras(obj)
+            one_material(obj)
+    output.mkdir(parents=True, exist_ok=True)
+    bpy.ops.export_scene.gltf(
+        filepath=str(output / "soldier.glb"),
+        export_format="GLB",
+        export_yup=True,
+        export_animation_mode="NLA_TRACKS",
+        export_image_format="AUTO",
+    )
+    print(f"[level-kit] soldier: {len(bpy.data.actions)} clips -> {output / 'soldier.glb'}", flush=True)
+
+
 def main():
-    converted, vendor, output = parse_args()
-    build_kit(converted, vendor, output)
-    build_ground(vendor, output)
-    build_fx(vendor, output)
-    build_audio(vendor, output)
+    converted, vendor, output, sections = parse_args()
+    if "kit" in sections:
+        build_kit(converted, vendor, output)
+    if "ground" in sections:
+        build_ground(vendor, output)
+    if "fx" in sections:
+        build_fx(vendor, output)
+    if "audio" in sections:
+        build_audio(vendor, output)
+    if "soldier" in sections:
+        build_soldier(converted, output)
 
 
 main()

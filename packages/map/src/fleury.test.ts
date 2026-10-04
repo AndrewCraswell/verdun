@@ -129,6 +129,24 @@ describe("generateFleurySector", () => {
     expect(standing.every((item) => distanceToTrenches(item.x, item.z) > TRENCH_PROFILE.parapetOuter)).toBe(true)
   })
 
+  it("lines Fleury's streets with houses facing them, the farm's great barn among them", () => {
+    // The main street, from the German line to the French: (471, 270) to (533, 160).
+    const along = (x: number, z: number) => {
+      const [dx, dz] = [62, -110]
+      const t = Math.max(0, Math.min(1, ((x - 471) * dx + (z - 270) * dz) / (dx * dx + dz * dz)))
+      return Math.hypot(x - (471 + dx * t), z - (270 + dz * t))
+    }
+    const onMainStreet = map.scenery.filter((item) => item.kind === "ruin" && along(item.x, item.z) < 10)
+    expect(onMainStreet.length).toBeGreaterThanOrEqual(4)
+    // Gable to the street: its houses face across it, square to its run. (A few odd ruins stand off the streets.)
+    const street = Math.atan2(62, -110)
+    const facing = onMainStreet.filter((house) => Math.abs(Math.cos(house.heading - street)) < 0.05)
+    expect(facing.length / onMainStreet.length).toBeGreaterThan(0.7)
+    const landmarks = map.scenery.filter((item) => item.kind === "landmark")
+    expect(landmarks).toHaveLength(1)
+    expect(along(landmarks[0]?.x ?? 0, landmarks[0]?.z ?? 0)).toBeLessThan(14)
+  })
+
   it("stakes wire in front of both front lines, each belt on its own side of no man's land", () => {
     const french = meanZ(frontLine("north"))
     const german = meanZ(frontLine("south"))

@@ -48,6 +48,34 @@ describe("buildChunkGeometry", () => {
     expect(quads(data)).toHaveLength(9)
   })
 
+  it("hangs a skirt below the edges shared with other chunks, seen from either side", () => {
+    const map = createFlatMap({ name: "test", cellSize: 0.5, columns: 8, rows: 8 }, 2)
+    // The south-west chunk: it shares its north and east edges, and the map's own edges need no skirt.
+    const { vertexData, splat, wetness } = buildChunkGeometry(
+      map,
+      { firstColumn: 0, lastColumn: 4, firstRow: 0, lastRow: 4 },
+      2,
+      surfaceColors,
+      undefined,
+      1.5
+    )
+    const positions = triples(vertexData, "positions")
+
+    expect(positions).toHaveLength(9 + 3 + 3)
+    expect(positions.slice(9)).toEqual([
+      [0, 0.5, 2],
+      [1, 0.5, 2],
+      [2, 0.5, 2],
+      [2, 0.5, 0],
+      [2, 0.5, 1],
+      [2, 0.5, 2]
+    ])
+    expect(splat).toHaveLength(15 * 4)
+    expect(wetness).toHaveLength(15)
+    // Two quads per edge, each drawn with both windings.
+    expect(vertexData.indices).toHaveLength(4 * 6 + 2 * 2 * 12)
+  })
+
   it("matches its neighbour exactly along a shared edge, so there are no seams", () => {
     const map = generateRollingTerrain({
       name: "test",

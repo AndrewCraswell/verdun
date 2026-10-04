@@ -7,6 +7,8 @@ import type { GroundPoint } from "./trenches.ts"
 export const SCENERY_KINDS = [
   /** A shell-wrecked house. */
   "ruin",
+  /** The ruin the village is known by, standing out from everywhere in the sector. */
+  "landmark",
   /** A heap of brick and stone. */
   "rubble",
   /** The broken remains of a field or garden wall. */

@@ -11,6 +11,13 @@ export interface GroundLayer {
   readonly normal: BaseTexture
 }
 
+/** Where shells have blackened the ground: a single-channel texture spread over the map, `width` by `depth` metres. */
+export interface GroundScorch {
+  readonly texture: BaseTexture
+  readonly width: number
+  readonly depth: number
+}
+
 /** The ground layers, in the order their weights are stored: churned ground takes whatever share is left. */
 export interface GroundLayers {
   readonly grass: GroundLayer
@@ -32,8 +39,18 @@ const HEIGHT_INFLUENCE = 0.6
 const BLEND_DEPTH = 0.2
 /** How strongly the normal maps bend the ground's normal: Synty's are painted bold for close-up props. */
 const NORMAL_STRENGTH = 0.7
+/**
+ * Steep ground (crater walls, the ravine's banks, the sunken road's sides) takes its colour from a second lookup
+ * projected sideways, so textures don't smear down the slope. It fades in as the ground's normal tilts from
+ * `STEEP_START` to `STEEP_FULL` (the normal's upward component).
+ */
+const STEEP_START = 0.8
+const STEEP_FULL = 0.55
 /** Colour of wet ground relative to dry: darker, a little cooler. */
 const WET_TINT = [0.62, 0.64, 0.68] as const
+/** Colour of burnt ground relative to unburnt, where the scorch is full. */
+const SCORCH_TINT = [0.26, 0.22, 0.19] as const
+const SCORCH_SAMPLER = "groundScorch"
 
 const LAYERS = ["Grass", "Mud", "Chalk", "Churned"] as const
 const ALBEDO_SAMPLERS = LAYERS.map((layer) => `ground${layer}`)
@@ -47,9 +64,12 @@ interface ShaderSyntax {
   /** Samples a texture: `sample(sampler, uv)`. */
   sample(sampler: string, uv: string): string
   readonly position: string
+  /** Picks `b` where `condition` holds, else `a`. */
+  select(a: string, b: string, condition: string): string
   readonly splat: string
   readonly wetness: string
   readonly params: string
+  readonly scorchParams: string
 }
 
 const GLSL: ShaderSyntax = {
@@ -59,9 +79,11 @@ const GLSL: ShaderSyntax = {
   float: "float",
   sample: (sampler, uv) => `texture2D(${sampler}, ${uv})`,
   position: "vPositionW",
+  select: (a, b, condition) => `((${condition}) ? ${b} : ${a})`,
   splat: "vGroundSplat",
   wetness: "vGroundWetness",
-  params: "groundSplatParams"
+  params: "groundSplatParams",
+  scorchParams: "groundScorchParams"
 }
 
 const WGSL: ShaderSyntax = {
@@ -71,9 +93,11 @@ const WGSL: ShaderSyntax = {
   float: "f32",
   sample: (sampler, uv) => `textureSample(${sampler}, ${sampler}Sampler, ${uv})`,
   position: "fragmentInputs.vPositionW",
+  select: (a, b, condition) => `select(${a}, ${b}, ${condition})`,
   splat: "fragmentInputs.vGroundSplat",
   wetness: "fragmentInputs.vGroundWetness",
-  params: "uniforms.groundSplatParams"
+  params: "uniforms.groundSplatParams",
+  scorchParams: "uniforms.groundScorchParams"
 }
 
 /** Declares a local: `var x: vec3f = ...` in WGSL, `vec3 x = ...` in GLSL. */
@@ -85,7 +109,8 @@ function declare(syntax: ShaderSyntax, type: string, name: string, value: string
 function groundCode(s: ShaderSyntax): string {
   const albedo = (index: number) => {
     const sampler = ALBEDO_SAMPLERS[index] ?? ""
-    return `mix(${s.sample(sampler, "groundUv")}.rgb, ${s.sample(sampler, "groundBreakupUv")}.rgb, 0.35)`
+    const top = `mix(${s.sample(sampler, "groundUv")}.rgb, ${s.sample(sampler, "groundBreakupUv")}.rgb, 0.35)`
+    return `mix(${top}, ${s.sample(sampler, "groundSideUv")}.rgb, groundSteep)`
   }
   const normal = (index: number) => `${s.sample(NORMAL_SAMPLERS[index] ?? "", "groundUv")}.rgb`
   return [
@@ -96,6 +121,19 @@ function groundCode(s: ShaderSyntax): string {
       s.vec2,
       "groundBreakupUv",
       `${s.vec2}(groundXz.x * ${s.params}.z - groundXz.y * ${s.params}.w, groundXz.x * ${s.params}.w + groundXz.y * ${s.params}.z) * ${s.params}.y`
+    ),
+    // The sideways lookup faces whichever of east or north the slope faces more.
+    declare(
+      s,
+      s.vec2,
+      "groundSideUv",
+      `${s.select(`${s.position}.xy`, `${s.position}.zy`, "abs(normalW.x) > abs(normalW.z)")} * ${s.params}.x`
+    ),
+    declare(
+      s,
+      s.float,
+      "groundSteep",
+      `clamp((${STEEP_START.toFixed(2)} - abs(normalW.y)) / ${(STEEP_START - STEEP_FULL).toFixed(2)}, 0.0, 1.0)`
     ),
     ...LAYERS.map((_, index) => declare(s, s.vec3, `groundLayer${index}`, albedo(index))),
     declare(
@@ -137,6 +175,8 @@ function groundCode(s: ShaderSyntax): string {
     declare(s, s.vec3, "groundBitangent", "cross(groundTangent, normalW)"),
     `normalW = normalize(groundTangent * groundNormal.x * ${NORMAL_STRENGTH.toFixed(2)} + groundBitangent * groundNormal.y * ${NORMAL_STRENGTH.toFixed(2)} + normalW * groundNormal.z);`,
     `groundColor = mix(groundColor, groundColor * ${s.vec3}(${WET_TINT.join(", ")}), ${s.wetness});`,
+    declare(s, s.float, "groundScorch", `${s.sample(SCORCH_SAMPLER, `groundXz * ${s.scorchParams}.xy`)}.r`),
+    `groundColor = mix(groundColor, groundColor * ${s.vec3}(${SCORCH_TINT.join(", ")}), groundScorch);`,
     s === WGSL
       ? `baseColor = vec4f(groundColor * ${s.splat}.w, baseColor.a);`
       : `baseColor.rgb = groundColor * ${s.splat}.w;`
@@ -146,20 +186,23 @@ function groundCode(s: ShaderSyntax): string {
 /**
  * Textures the terrain with the Synty ground layers, in place of the flat vertex colours. Layers blend per vertex by
  * the chunk's splat weights, sharpened by each texture's brightness so edges come out ragged; their normal maps bend
- * the ground's normal, and muddy hollows darken where water stands. Texture coordinates come from world position, so
- * layers line up across chunks. Works in both GLSL (WebGL2) and WGSL (WebGPU).
+ * the ground's normal, muddy hollows darken where water stands, steep ground takes a sideways lookup, and the ground
+ * blackens where the scorch map says shells burst. Texture coordinates come from world position, so layers line up
+ * across chunks. Works in both GLSL (WebGL2) and WGSL (WebGPU).
  */
 export class GroundSplatPlugin extends MaterialPluginBase {
   private readonly layers: GroundLayers
+  private readonly scorch: GroundScorch
 
-  constructor(material: Material, layers: GroundLayers) {
+  constructor(material: Material, layers: GroundLayers, scorch: GroundScorch) {
     super(material, "GroundSplat", 150, undefined, true, true)
     this.layers = layers
+    this.scorch = scorch
   }
 
   private textures(): BaseTexture[] {
     const { grass, mud, chalk, churned } = this.layers
-    return [grass, mud, chalk, churned].flatMap((layer) => [layer.albedo, layer.normal])
+    return [...[grass, mud, chalk, churned].flatMap((layer) => [layer.albedo, layer.normal]), this.scorch.texture]
   }
 
   override getClassName(): string {
@@ -179,7 +222,7 @@ export class GroundSplatPlugin extends MaterialPluginBase {
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push(...ALBEDO_SAMPLERS, ...NORMAL_SAMPLERS)
+    samplers.push(...ALBEDO_SAMPLERS, ...NORMAL_SAMPLERS, SCORCH_SAMPLER)
   }
 
   override getActiveTextures(activeTextures: BaseTexture[]): void {
@@ -195,8 +238,14 @@ export class GroundSplatPlugin extends MaterialPluginBase {
     fragment: string
   } {
     return {
-      ubo: [{ name: "groundSplatParams", size: 4, type: "vec4" }],
-      fragment: shaderLanguage === ShaderLanguage.GLSL ? "uniform vec4 groundSplatParams;" : ""
+      ubo: [
+        { name: "groundSplatParams", size: 4, type: "vec4" },
+        { name: "groundScorchParams", size: 2, type: "vec2" }
+      ],
+      fragment:
+        shaderLanguage === ShaderLanguage.GLSL
+          ? "uniform vec4 groundSplatParams;\nuniform vec2 groundScorchParams;"
+          : ""
     }
   }
 
@@ -208,11 +257,13 @@ export class GroundSplatPlugin extends MaterialPluginBase {
       Math.cos(BREAKUP_ANGLE),
       Math.sin(BREAKUP_ANGLE)
     )
+    uniformBuffer.updateFloat2("groundScorchParams", 1 / this.scorch.width, 1 / this.scorch.depth)
     const { grass, mud, chalk, churned } = this.layers
     for (const [index, layer] of [grass, mud, chalk, churned].entries()) {
       uniformBuffer.setTexture(ALBEDO_SAMPLERS[index] ?? "", layer.albedo)
       uniformBuffer.setTexture(NORMAL_SAMPLERS[index] ?? "", layer.normal)
     }
+    uniformBuffer.setTexture(SCORCH_SAMPLER, this.scorch.texture)
   }
 
   override getCustomCode(
@@ -247,7 +298,7 @@ export class GroundSplatPlugin extends MaterialPluginBase {
     if (shaderType !== "fragment") {
       return null
     }
-    const samplers = [...ALBEDO_SAMPLERS, ...NORMAL_SAMPLERS]
+    const samplers = [...ALBEDO_SAMPLERS, ...NORMAL_SAMPLERS, SCORCH_SAMPLER]
     if (wgsl) {
       return {
         CUSTOM_FRAGMENT_DEFINITIONS: [

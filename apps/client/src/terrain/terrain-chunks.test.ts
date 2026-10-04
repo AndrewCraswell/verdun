@@ -31,11 +31,12 @@ describe("createTerrainChunks", () => {
 
     expect(CHUNK_SIZE_METERS).toBe(64)
     expect(terrain.meshes).toHaveLength(70)
-    // A full chunk at 1 m vertices is 65 x 65; the last column of chunks is 600 - 576 = 24 m wide.
-    expect(terrain.meshes[0]?.getTotalVertices()).toBe(65 * 65)
-    expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65)
+    // A full chunk at 1 m vertices is 65 x 65, plus skirts along the two edges it shares, north and east; the last
+    // column of chunks is 600 - 576 = 24 m wide, with skirts north and west.
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(65 * 65 + 2 * 65)
+    expect(terrain.meshes[9]?.getTotalVertices()).toBe(25 * 65 + 25 + 65)
     // Every vertex carries its surface colour.
-    expect(terrain.meshes[0]?.getVerticesData("color")).toHaveLength(65 * 65 * 4)
+    expect(terrain.meshes[0]?.getVerticesData("color")).toHaveLength((65 * 65 + 2 * 65) * 4)
   })
 
   it("renders chunks with trenches at full 0.5 m detail, so trench steps keep their shape", () => {
@@ -49,9 +50,9 @@ describe("createTerrainChunks", () => {
     }
     const { terrain } = setup(128, 128, 2, [trench])
 
-    // The trench chunk at every sample: 129 x 129. Its neighbour to the north at 1 m: 65 x 65.
-    expect(terrain.meshes[0]?.getTotalVertices()).toBe(129 * 129)
-    expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65)
+    // The trench chunk at every sample: 129 x 129. Its neighbour to the north at 1 m: 65 x 65. Both skirted.
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(129 * 129 + 2 * 129)
+    expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65 + 2 * 65)
   })
 
   it("rebuilds only the chunks a change touches", () => {
@@ -84,6 +85,43 @@ describe("createTerrainChunks", () => {
     terrain.shapeForTrenchKit()
 
     expect(lowest()).toBeLessThan(before)
+  })
+
+  it("draws the chunks near a point at every sample, a few a call, and lets them go again further away", () => {
+    // 384 m x 64 m: six chunks in a row, their middles at x = 32, 96, ... 352.
+    const { terrain } = setup(384, 64)
+    const vertices = () => terrain.meshes.map((mesh) => mesh.getTotalVertices())
+    const coarse = vertices()
+
+    expect(terrain.refine(32, 32, 1)).toBe(1)
+    expect(vertices()[0]).toBeGreaterThan(coarse[0] ?? 0)
+    // The second chunk, 64 m away, is within the 90 m detail radius; the third, 128 m away, isn't.
+    expect(terrain.refine(32, 32)).toBe(1)
+    expect(terrain.refine(32, 32)).toBe(0)
+    expect(vertices().slice(2)).toEqual(coarse.slice(2))
+
+    // Moving on a little keeps the first chunk detailed; moving well away lets it go.
+    terrain.refine(130, 32, 10)
+    expect(vertices()[0]).toBeGreaterThan(coarse[0] ?? 0)
+    terrain.refine(300, 32, 10)
+    expect(vertices().slice(0, 3)).toEqual(coarse.slice(0, 3))
+  })
+
+  it("keeps trench chunks drawn without the kit at every sample however far away", () => {
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [10, 20],
+        [50, 20]
+      ],
+      facing: "north"
+    }
+    const { terrain } = setup(256, 64, 2, [trench])
+    const detailed = terrain.meshes[0]?.getTotalVertices()
+
+    terrain.refine(250, 32, 10)
+
+    expect(terrain.meshes[0]?.getTotalVertices()).toBe(detailed)
   })
 
   it("rejects render steps that don't divide a chunk", () => {

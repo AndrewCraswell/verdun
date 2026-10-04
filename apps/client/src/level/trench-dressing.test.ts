@@ -153,4 +153,41 @@ describe("layOutTrenchKit", () => {
     expect(poles.length).toBeGreaterThan(0)
     expect(poles.every((pole) => Math.abs(Math.abs(pole.x - 40) - 3.4) < 0.01)).toBe(true)
   })
+
+  it("hangs a gas curtain in every dugout's doorway, with a brazier burning beside some", () => {
+    const dugouts = of(TRENCH_PIECES.dugout)
+    const curtains = of(TRENCH_PIECES.gasCurtain)
+    const braziers = of(TRENCH_PIECES.brazier)
+
+    expect(curtains).toHaveLength(dugouts.length)
+    for (const [index, curtain] of curtains.entries()) {
+      const dugout = dugouts[index]
+      // In the doorway's wall, a metre to the dugout section's -x side and a metre along it.
+      const [sideX, sideZ] = turned(curtain, -1, 0)
+      const offsetX = curtain.x - (dugout?.x ?? 0)
+      const offsetZ = curtain.z - (dugout?.z ?? 0)
+      expect(offsetX * sideX + offsetZ * sideZ).toBeCloseTo(0.98)
+      expect(curtain.yaw).toBe(dugout?.yaw)
+    }
+    expect(braziers.length).toBeLessThanOrEqual(dugouts.length)
+    expect(braziers.every((brazier) => brazier.z > 18 && brazier.z < 22)).toBe(true)
+  })
+
+  it("leaves rainwater standing on the floor under the duckboards here and there", () => {
+    const water = of(TRENCH_PIECES.water)
+    const boards = of(TRENCH_PIECES.duckboard)
+
+    expect(water.length).toBeGreaterThan(0)
+    expect(water.length).toBeLessThan(boards.length)
+    // Just under the boards.
+    expect(water.every((plane) => boards.some((board) => Math.abs(board.y - plane.y - 0.03) < 0.05))).toBe(true)
+  })
+
+  it("puts up a signboard where the communication trench joins the front line", () => {
+    const signs = of(TRENCH_PIECES.sign)
+
+    expect(signs).toHaveLength(1)
+    expect(Math.abs((signs[0]?.x ?? 0) - 40)).toBeCloseTo(2.4)
+    expect(signs[0]?.z).toBeLessThan(60)
+  })
 })
