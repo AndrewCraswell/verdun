@@ -83,8 +83,8 @@ Each side's sector garrison draws from a **manpower pool** the war map refills d
   stage 2. Players replace bots one squad at a time; they don't add soldiers. See
   [population balance](balance.md#population).
 - Every soldier **killed or captured** comes out of the pool. Wounded men the stretcher bearers bring to the
-  [aid post](soldier-and-squad.md#wounds-stretcher-bearers-and-the-aid-post-in-progress) come back: about two-thirds of
-  a man each, on average.
+  [aid post](soldier-and-squad.md#wounds-stretcher-bearers-and-the-aid-post) come back: about two-thirds of a man each,
+  on average.
 - While the pool is healthy the line stays full. As it runs low, redeploys slow, squads arrive understrength and bot
   squads stop being replaced, so the force in the line shrinks. Attrition is visible on the ground.
 - An empty pool never locks a player out: they still deploy, with whatever men can be found, usually 3 or 4.

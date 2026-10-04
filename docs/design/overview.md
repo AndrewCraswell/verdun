@@ -7,20 +7,21 @@ these docs say how each mechanic works, why it is fun, and how it stays balanced
 Numbers in these docs are **starting values for tuning**, not promises. Where the simulation already implements a
 mechanic, the number is the one in the code today.
 
-| Doc                                                       | Covers                                                                               |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [Soldier and squad](soldier-and-squad.md)                 | Direct control, soldier state, weapons, squad types, orders, death, deploy           |
-| [Roles and loadouts](roles-and-loadouts.md)               | Five roles, four squad types, AI services, loadouts and kit by year                  |
-| [Morale and stamina](morale-and-stamina.md)               | Suppression, morale, rally, shell shock, stamina for running, fatigue                |
-| [Sector battle](sector-battle.md)                         | The continuous battle: territory, consolidation, operations, quiet war               |
-| [Operations](operations.md)                               | Scheduled attacks: who decides, where men assemble, zero hour, the defender's answer |
-| [Logistics](logistics.md)                                 | Supply lines, dumps, ammunition, reinforcements, communications                      |
-| [Artillery and air](artillery-and-air.md)                 | Guns and shells by year, batteries, observation, balloons, aircraft                  |
-| [Field works](field-works.md)                             | Digging and building: saps, trenches, repairs, nests, dugouts, bunkers, wire, mining |
-| [Armour](armour.md)                                       | Tanks, armoured cars and anti-tank                                                   |
-| [War map and season](war-map-and-season.md)               | Sectors on the front, the daily turn, resources, the season arc, victory             |
-| [Balance](balance.md)                                     | Population, factions, time zones, snowballing, tuning levers, test harness           |
-| [Progression and community](progression-and-community.md) | Onboarding, service record, ranks, veterans, regiments, conduct, rewards             |
+| Doc                                                       | Covers                                                                                                   |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [Soldier and squad](soldier-and-squad.md)                 | Direct control, soldier state, weapons, squad types, orders, death, deploy                               |
+| [Roles and loadouts](roles-and-loadouts.md)               | Five roles, four squad types, AI services, loadouts and kit by year                                      |
+| [Morale and stamina](morale-and-stamina.md)               | Suppression, morale, rally, shell shock, stamina for running, fatigue                                    |
+| [Sector battle](sector-battle.md)                         | The continuous battle: territory, consolidation, operations, quiet war                                   |
+| [Operations](operations.md)                               | Scheduled attacks: who decides, where men assemble, zero hour, the defender's answer                     |
+| [Logistics](logistics.md)                                 | Supply lines, dumps, ammunition, reinforcements, communications                                          |
+| [Artillery and air](artillery-and-air.md)                 | Guns and shells by year, batteries, observation, balloons, aircraft                                      |
+| [Field works](field-works.md)                             | Digging and building: saps, trenches, repairs, nests, dugouts, bunkers, wire, mining                     |
+| [Armour](armour.md)                                       | Tanks, armoured cars and anti-tank                                                                       |
+| [War map and season](war-map-and-season.md)               | Sectors on the front, the daily turn, resources, the season arc, victory                                 |
+| [Balance](balance.md)                                     | Population, factions, time zones, snowballing, tuning levers, test harness                               |
+| [How systems interact](interactions.md)                   | Weather, light, ground, shellfire, gas, supply and the soldier's state acting on each other, with limits |
+| [Progression and community](progression-and-community.md) | Onboarding, service record, ranks, veterans, regiments, conduct, rewards                                 |
 
 ## Pillars
 
