@@ -13,7 +13,7 @@ import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { type ShotEvent, type Simulation, Weapon } from "@verdun/sim"
-import { airLight, lightParticles } from "../level/particle-light.ts"
+import { airLight, lightParticles, setInFog } from "../level/particle-light.ts"
 import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 
 /** A rifle or machine-gun bullet's speed, in m/s: fast, but slow enough to watch cross a few hundred metres. */
@@ -251,6 +251,7 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
   dirt.color2 = new Color4(0.33, 0.28, 0.22, 0.6)
   dirt.colorDead = new Color4(0.3, 0.26, 0.2, 0)
   const relight = lightParticles([smoke, dirt])
+  setInFog([smoke, dirt])
   const airLit = new Color3(1, 1, 1)
 
   // Where the next puffs start, one entry a particle, taken in turn as Babylon emits them.

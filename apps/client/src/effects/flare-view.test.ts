@@ -59,6 +59,9 @@ describe("the flare view", () => {
   it("draws a flare climbing from the trench, its star bright enough to bloom", () => {
     const { view, launch, state, scene } = setup()
     const flare = launch(100, 120)
+    expect(
+      scene.particleSystems.filter((system) => system.name.startsWith("flare-smoke")).every((s) => s.applyFog)
+    ).toBe(true)
     state.tick = 1 * TICKS
     view.update(0.016)
     expect(view.drawn).toHaveLength(1)

@@ -60,6 +60,8 @@ describe("gunfire", () => {
     tracers.onStrike.add((strike) => strikes.push(strike.time))
     tracers.add(Array.from({ length: 10 }, () => shot(rifleman, false, 60)))
     expect(tracers.rounds).toBe(10)
+    // Smoke and dirt fade into fog like the level's own.
+    expect(tracers.dirt.applyFog && tracers.smoke.applyFog).toBe(true)
     for (let frame = 0; frame < 30; frame++) {
       tracers.update(1 / 60)
     }

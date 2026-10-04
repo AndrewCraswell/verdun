@@ -17,6 +17,7 @@ import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, type Simulation } from "@verdun/sim"
+import { setInFog } from "../level/particle-light.ts"
 
 /**
  * Very lights as the eye saw them over no man's land at night: a streak of sparks climbing from the trench, a pop as
@@ -228,6 +229,8 @@ function createVisual(
   smoke.minAngularSpeed = -0.3
   smoke.maxAngularSpeed = 0.3
   smoke.emitRate = 0
+  // In the fog, like the level's smoke, so a trail drifting off into mist fades with it rather than standing out.
+  setInFog([smoke])
   smoke.start()
 
   return {
