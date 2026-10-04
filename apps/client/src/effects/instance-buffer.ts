@@ -3,15 +3,23 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 
 /**
- * Instances are drawn in buckets of this many: a mesh drawing 37 draws 64, the last 27 collapsed to nothing. The
- * number drawn then changes only now and then, which keeps a recorded frame (snapshot rendering) valid for longer,
- * for the cost of a few empty instances.
+ * With snapshot rendering, instances are drawn in buckets of this many: a mesh drawing 37 draws 64, the last 27
+ * collapsed to nothing. The number drawn then changes only now and then, which keeps a recorded frame valid for longer.
+ * Without it the empty instances are only cost: each still runs its vertices through every pass that draws it, the
+ * shadow cascades included, so counts are then exact.
  */
 export const INSTANCE_BUCKET = 32
 
+let bucket = 1
+
+/** Draws instance counts in whole buckets (for snapshot rendering) or exactly. */
+export function bucketInstanceCounts(bucketed: boolean): void {
+  bucket = bucketed ? INSTANCE_BUCKET : 1
+}
+
 /** How many instances to draw for this many live ones: rounded up to a whole bucket, no more than there's room for. */
 export function drawnCount(count: number, capacity: number): number {
-  return Math.min(capacity, Math.ceil(count / INSTANCE_BUCKET) * INSTANCE_BUCKET)
+  return Math.min(capacity, Math.ceil(count / bucket) * bucket)
 }
 
 /**

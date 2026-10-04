@@ -19,6 +19,7 @@ import {
   Weapon
 } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { bucketInstanceCounts } from "../effects/instance-buffer.ts"
 import { type BakedClip, CLIPS, type ClipName, CROUCH_WALKS, deathClip } from "./soldier-animation.ts"
 import { createSoldierCrowd, type SoldierCrowd } from "./soldier-crowd.ts"
 import type { SoldierKit } from "./soldier-kit.ts"
@@ -168,7 +169,7 @@ function step(sim: Simulation, steps: number): void {
 }
 
 describe("createSoldierCrowd", () => {
-  it("draws whole buckets of instances, the spare ones collapsed to nothing, so the count drawn rarely changes", () => {
+  it("draws as many instances as men, or whole buckets of them for snapshot rendering", () => {
     const sim = createSimulation({ map, seed: 1 })
     for (let index = 0; index < 3; index++) {
       spawnSoldier(sim, { side: Side.French, x: 10 + index * 4, z: 10 })
@@ -179,13 +180,17 @@ describe("createSoldierCrowd", () => {
 
     const bodies = kit.bodies[Side.French]
     expect(drawn(bodies)).toBe(3)
+    expect(bodies.thinInstanceCount).toBe(3)
+    // Bucketed, a man fewer draws the same number of instances, one more of them collapsed.
+    bucketInstanceCounts(true)
+    crowd.update()
     expect(bodies.thinInstanceCount).toBe(32)
-    // A man fewer draws the same number of instances, one more of them collapsed.
     sim.soldiers.health.value[0] = 0
     step(sim, 1)
     crowd.sync()
     crowd.update()
     expect(bodies.thinInstanceCount).toBe(32)
+    bucketInstanceCounts(false)
   })
 
   it("draws each side's men standing on the ground, with rifles, and a machine gun before a still gunner", () => {

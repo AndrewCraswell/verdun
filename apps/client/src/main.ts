@@ -24,6 +24,7 @@ import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createDebugStats } from "./debug/stats.ts"
 import { createExplosions } from "./effects/explosions.ts"
 import { createFlareView } from "./effects/flare-view.ts"
+import { bucketInstanceCounts } from "./effects/instance-buffer.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
@@ -99,6 +100,7 @@ async function start(): Promise<void> {
     ? createSnapshotDirector(engine, view.scene)
     : null
   stats.watchSnapshots(snapshots)
+  bucketInstanceCounts(snapshots !== null)
   const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
   const kitFiles = openKitFiles()

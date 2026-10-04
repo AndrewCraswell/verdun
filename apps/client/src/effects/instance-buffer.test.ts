@@ -2,10 +2,11 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { afterEach, describe, expect, it } from "vitest"
-import { drawnCount, INSTANCE_BUCKET, instanceBuffer } from "./instance-buffer.ts"
+import { bucketInstanceCounts, drawnCount, INSTANCE_BUCKET, instanceBuffer } from "./instance-buffer.ts"
 
 const engines: NullEngine[] = []
 afterEach(() => {
+  bucketInstanceCounts(false)
   for (const engine of engines.splice(0)) {
     engine.dispose()
   }
@@ -28,7 +29,13 @@ function place(data: Float32Array, index: number, x: number) {
 }
 
 describe("instanceBuffer", () => {
+  it("draws exactly as many as live, unless bucketing for snapshot rendering", () => {
+    expect(drawnCount(0, 100)).toBe(0)
+    expect(drawnCount(37, 100)).toBe(37)
+  })
+
   it("draws whole buckets, never more than there's room for", () => {
+    bucketInstanceCounts(true)
     expect(drawnCount(0, 100)).toBe(0)
     expect(drawnCount(1, 100)).toBe(INSTANCE_BUCKET)
     expect(drawnCount(INSTANCE_BUCKET + 1, 100)).toBe(INSTANCE_BUCKET * 2)
@@ -37,6 +44,7 @@ describe("instanceBuffer", () => {
   })
 
   it("collapses the bucket's spare instances, and those left from a busier frame, to nothing", () => {
+    bucketInstanceCounts(true)
     const box = mesh()
     const buffer = instanceBuffer(box, 64)
     for (let index = 0; index < 40; index++) {

@@ -123,6 +123,11 @@ interface Track {
   masked: boolean
   /** How much higher the ground is under a gunner's gun than under him. */
   gunLift: number
+  /**
+   * Whether, standing where he was last asked about, he sees over the parapet: dozens of height samples round him, so
+   * worked out again only once he has moved.
+   */
+  parapet: { x: number; z: number; sees: boolean } | null
 }
 
 /** One mesh drawn as thin instances: a matrix each and, when animated, a baked-animation setting each. */
@@ -317,7 +322,8 @@ export function createSoldierCrowd(
       poseStart: now,
       phase: idFraction(id),
       masked: false,
-      gunLift: 0
+      gunLift: 0,
+      parapet: null
     }
   }
 
@@ -347,6 +353,13 @@ export function createSoldierCrowd(
     track.action = action
     track.actionUntil =
       now + poseSeconds(clipOf(ACTION_CLIPS[action]), { clip: ACTION_CLIPS[action], mode: "once", rate: 1 })
+  }
+
+  function overParapet(track: Track, id: EntityId, x: number, z: number): boolean {
+    if (track.parapet?.x !== x || track.parapet.z !== z) {
+      track.parapet = { x, z, sees: seesOverParapet(sim, id) }
+    }
+    return track.parapet.sees
   }
 
   function visit(
@@ -451,7 +464,7 @@ export function createSoldierCrowd(
         track.stance === Stance.Standing &&
         track.speed < MOVING_SPEED &&
         soldiers.target.id[id] < 0 &&
-        seesOverParapet(sim, id),
+        overParapet(track, id, x, z),
       pinned: soldiers.suppression.value[id] >= PINNED,
       broken: soldiers.morale.value[id] < BROKEN_MORALE,
       action: track.action,
@@ -488,6 +501,12 @@ export function createSoldierCrowd(
       visit(id, "captured", ticks, now)
     }
     for (const id of fallenIds(sim)) {
+      const track = tracks[id]
+      if (track?.status === "fallen" && track.tilt) {
+        // Laid down already, and the dead don't move: only drawn.
+        drawn.push(track)
+        continue
+      }
       visit(id, "fallen", ticks, now)
     }
   }
