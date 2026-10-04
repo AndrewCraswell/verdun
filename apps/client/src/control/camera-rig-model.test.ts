@@ -38,6 +38,29 @@ describe("camera rig", () => {
     expect(model.following).toBe(true)
   })
 
+  it("looks ahead of the soldier the way they face, further when pulled back, and swings round with the aim", () => {
+    const model = createCameraRigModel(bounds, start)
+    model.follow(300, 200, { x: 0, z: 1 })
+    const ahead = settle(model, 4)
+    // 28% of the 60 m zoom ahead of him: he sits low on the screen, the ground he faces fills it.
+    expect(ahead.focusX).toBeCloseTo(300, 1)
+    expect(ahead.focusZ).toBeCloseTo(200 + 0.28 * 60, 0)
+
+    model.follow(300, 200, { x: 1, z: 0 })
+    const swinging = model.step(1 / 60, flat)
+    expect(swinging.focusZ).toBeGreaterThan(210)
+    const turned = settle(model, 4)
+    expect(turned.focusX).toBeCloseTo(300 + 0.28 * 60, 0)
+    expect(turned.focusZ).toBeCloseTo(200, 0)
+
+    model.setDistance(400)
+    const far = settle(model, 4)
+    expect(far.focusX).toBeCloseTo(300 + 70, 0)
+
+    model.follow(300, 200)
+    expect(settle(model, 4).focusX).toBeCloseTo(300, 0)
+  })
+
   it("pans freely with held keys, letting go of the soldier, and Space brings it back", () => {
     const model = createCameraRigModel(bounds, start)
     model.follow(300, 200)

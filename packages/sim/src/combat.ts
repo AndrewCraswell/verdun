@@ -308,6 +308,38 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   if (!isAlive(sim, shooter) || sim.soldiers.weapon.cooldown[shooter] > 0) {
     return false
   }
+  const best = aimedTarget(sim, shooter)
+  if (best >= 0) {
+    fireAt(sim, shooter, best)
+    return true
+  }
+  const x = sim.soldiers.position.x[shooter]
+  const z = sim.soldiers.position.z[shooter]
+  const facingX = sim.soldiers.facing.x[shooter]
+  const facingZ = sim.soldiers.facing.z[shooter]
+  const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+  sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
+  sim.soldiers.weapon.firedAt[shooter] = sim.tick
+  const from = soldierEye(sim, shooter)
+  sim.events.push({
+    type: "shot",
+    shooter,
+    target: -1,
+    hit: false,
+    from,
+    to: eyeAt(sim.map, x + facingX * 80, z + facingZ * 80)
+  })
+  return true
+}
+
+/**
+ * Who a soldier's aimed shot would strike now: the nearest enemy within about 4 degrees of where they face that they
+ * can see and reach, or -1. The player's sight picture, and what `fireAimed` shoots at.
+ */
+export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
+  if (!isAlive(sim, shooter)) {
+    return -1
+  }
   const x = sim.soldiers.position.x[shooter]
   const z = sim.soldiers.position.z[shooter]
   const facingX = sim.soldiers.facing.x[shooter]
@@ -333,23 +365,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
       bestDistance = distance
     }
   }
-  if (best >= 0) {
-    fireAt(sim, shooter, best)
-    return true
-  }
-  const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
-  sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
-  sim.soldiers.weapon.firedAt[shooter] = sim.tick
-  const from = soldierEye(sim, shooter)
-  sim.events.push({
-    type: "shot",
-    shooter,
-    target: -1,
-    hit: false,
-    from,
-    to: eyeAt(sim.map, x + facingX * 80, z + facingZ * 80)
-  })
-  return true
+  return best
 }
 
 /** Lowers the morale of a fallen soldier's squadmates. Call when a soldier dies. */

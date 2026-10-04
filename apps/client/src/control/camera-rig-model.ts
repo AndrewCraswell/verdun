@@ -10,7 +10,7 @@ export const ZOOM_RANGE = { min: 8, max: 450 } as const
  * Angle down from straight overhead (ArcRotateCamera's beta), close in and far out. Close in, the view drops toward a
  * soldier's-eye angle; pulled back, it tips over toward a map view.
  */
-const PITCH = { close: 1.15, far: 0.5 } as const
+const PITCH = { close: 1.15, far: 0.5, curve: 1.6 } as const
 /** How far the player can tilt either side of the zoom's natural angle, in radians. */
 const TILT_RANGE = 0.3
 /** Never steeper than this from overhead, nor shallower: the ground stays in view. */
@@ -23,6 +23,14 @@ const PAN_SPEED = 0.5
 const GROUND_CLEARANCE = 2.5
 /** What the camera looks at sits this far above the ground: a man's chest, not his boots. */
 const FOCUS_HEIGHT = 1.2
+/**
+ * While following, the view leads the soldier toward where they face by this share of the zoom distance, up to a
+ * limit in metres: he sits in the lower part of the screen and most of it shows what lies ahead of him, as in a
+ * top-down shooter.
+ */
+const LOOK_AHEAD = { share: 0.28, max: 70 } as const
+/** How quickly the lead swings round after the aim, per second: slower than the aim, so flicking it doesn't jolt. */
+const LEAD_RATE = 2.5
 
 export interface RigView {
   readonly focusX: number
@@ -45,8 +53,11 @@ export interface CameraRigModel {
   readonly view: RigView
   /** Whether the camera is following the soldier under control. Panning lets go; recentring takes hold again. */
   readonly following: boolean
-  /** Where the followed soldier is now. Call every frame; ignored while panning freely. */
-  follow(x: number, z: number): void
+  /**
+   * Where the followed soldier is now, and the way they face on the ground (a unit vector, or none). Call every frame;
+   * ignored while panning freely.
+   */
+  follow(x: number, z: number, facing?: { readonly x: number; readonly z: number }): void
   /** Goes back to following the soldier. */
   recenter(): void
   /** Holds a pan, from -1 to 1 right and forward relative to the view, until changed. Zero stops. */
@@ -74,10 +85,14 @@ function ease(rate: number, seconds: number): number {
   return 1 - Math.exp(-rate * seconds)
 }
 
-/** The natural angle down from overhead at a zoom distance: lower close in, steeper far out. */
+/**
+ * The natural angle down from overhead at a zoom distance: lower close in, steeper far out. It stays low through the
+ * middle distances a soldier is followed from, so the top of the screen reaches out across no man's land, and only
+ * tips over into a map view well out.
+ */
 export function pitchForDistance(distance: number): number {
   const along = Math.log(distance / ZOOM_RANGE.min) / Math.log(ZOOM_RANGE.max / ZOOM_RANGE.min)
-  return PITCH.close + (PITCH.far - PITCH.close) * clamp(along, 0, 1)
+  return PITCH.close + (PITCH.far - PITCH.close) * clamp(along, 0, 1) ** PITCH.curve
 }
 
 /** Turning speed at full deflection of the turn keys, in radians a second. */
@@ -90,6 +105,8 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
   let following = true
   let target = { x: start.focusX, z: start.focusZ }
   let followed = { x: start.focusX, z: start.focusZ }
+  let facing = { x: 0, z: 0 }
+  let lead = { x: 0, z: 0 }
   let distance = start.distance
   let yaw = start.yaw
   let tilt = start.pitch - pitchForDistance(start.distance)
@@ -115,8 +132,9 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     get following() {
       return following
     },
-    follow(x, z) {
+    follow(x, z, toward) {
       followed = { x, z }
+      facing = toward ? { x: toward.x, z: toward.z } : { x: 0, z: 0 }
     },
     recenter() {
       following = true
@@ -171,7 +189,13 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
         z: velocity.z + (wanted.z - velocity.z) * accelerate
       }
       if (following) {
-        target = { ...followed }
+        const reach = Math.min(LOOK_AHEAD.max, LOOK_AHEAD.share * view.distance)
+        const swing = ease(LEAD_RATE, seconds)
+        lead = {
+          x: lead.x + (facing.x * reach - lead.x) * swing,
+          z: lead.z + (facing.z * reach - lead.z) * swing
+        }
+        target = { x: followed.x + lead.x, z: followed.z + lead.z }
         velocity = { x: 0, z: 0 }
       } else {
         target = { x: target.x + velocity.x * seconds, z: target.z + velocity.z * seconds }

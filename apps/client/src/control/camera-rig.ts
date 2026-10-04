@@ -6,8 +6,11 @@ import { type CameraRigModel, createCameraRigModel, ZOOM_RANGE } from "./camera-
 
 export interface CameraRig {
   readonly model: CameraRigModel
-  /** Where the soldier under control is now; the camera tracks them while following. Call every frame. */
-  follow(x: number, z: number): void
+  /**
+   * Where the soldier under control is now, and the way they face; the camera tracks them, looking ahead, while
+   * following. Call every frame.
+   */
+  follow(x: number, z: number, facing?: { readonly x: number; readonly z: number }): void
   /** Goes back to following the soldier under control. */
   recenter(): void
   dispose(): void
@@ -206,8 +209,8 @@ export function createCameraRig(
 
   const rig: CameraRig = {
     model,
-    follow(x, z) {
-      model.follow(x, z)
+    follow(x, z, facing) {
+      model.follow(x, z, facing)
     },
     recenter() {
       model.recenter()

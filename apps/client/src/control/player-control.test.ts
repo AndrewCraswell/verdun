@@ -4,6 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, Surface } from "@verdun/map"
 import {
+  createLineOfSight,
   createSimulation,
   createSquad,
   CRAWL_FACTOR,
@@ -300,5 +301,27 @@ describe("createSquadMarkers", () => {
 
     expect(markers.leader.isEnabled()).toBe(false)
     expect(markers.members.thinInstanceCount).toBe(0)
+  })
+
+  it("rings the enemy a shot would strike and runs the aim line out to him", async () => {
+    const { scene, sim, squad, soldier } = setup()
+    const lineOfSight = await createLineOfSight(sim.map)
+    sim.lineOfSight = lineOfSight
+    const markers = createSquadMarkers(scene, sim, squad)
+    const enemy = spawnSoldier(sim, { side: Side.German, x: 50, z: 80 })
+    sim.soldiers.facing.x[soldier] = 1
+    sim.soldiers.facing.z[soldier] = 0
+    markers.update()
+    expect(markers.target.isEnabled()).toBe(false)
+
+    sim.soldiers.facing.x[soldier] = 0
+    sim.soldiers.facing.z[soldier] = 1
+    markers.update()
+    expect(markers.target.isEnabled()).toBe(true)
+    expect(markers.target.position.x).toBe(sim.soldiers.position.x[enemy])
+    expect(markers.target.position.z).toBe(sim.soldiers.position.z[enemy])
+    const line = markers.leader.getChildMeshes().find((mesh) => mesh.name === "squad-leader-aim")
+    expect(line?.scaling.z).toBeGreaterThan(25)
+    lineOfSight.dispose()
   })
 })

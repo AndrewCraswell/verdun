@@ -242,7 +242,7 @@ export function createPlayerControl(
           rig.recenter()
         }
         followedSoldier = soldier
-        rig.follow(x, z)
+        rig.follow(x, z, { x: sim.soldiers.facing.x[soldier], z: sim.soldiers.facing.z[soldier] })
         return
       }
       const blend = 1 - Math.exp(-FOLLOW_RATE * frameSeconds)

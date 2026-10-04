@@ -18,6 +18,7 @@ export {
 export type { EntityId } from "bitecs"
 export {
   BROKEN_MORALE,
+  aimedTarget,
   fireAimed,
   GRENADE_RANGE,
   hitChance,
