@@ -182,13 +182,18 @@ function createSmoke(scene: Scene, texture: Texture, sources: readonly Vector3[]
   smoke.particleTexture = texture
   smoke.emitter = Vector3.Zero()
   emitFrom(smoke, sources, 3, [0, 1.5])
-  smoke.color1 = new Color4(0.3, 0.29, 0.27, 0.55)
-  smoke.color2 = new Color4(0.44, 0.42, 0.4, 0.45)
-  smoke.colorDead = new Color4(0.55, 0.55, 0.54, 0)
-  smoke.minSize = 2
-  smoke.maxSize = 3.5
-  smoke.addSizeGradient(0, 0.6)
-  smoke.addSizeGradient(1, 3.2)
+  smoke.color1 = new Color4(0.22, 0.21, 0.2, 0.42)
+  smoke.color2 = new Color4(0.3, 0.29, 0.27, 0.36)
+  smoke.colorDead = new Color4(0.45, 0.45, 0.44, 0)
+  // Thickest just above the fire, thinning and greying as it climbs and spreads.
+  smoke.addColorGradient(0, new Color4(0.2, 0.19, 0.18, 0))
+  smoke.addColorGradient(0.1, new Color4(0.22, 0.21, 0.2, 0.42))
+  smoke.addColorGradient(0.6, new Color4(0.34, 0.33, 0.31, 0.24))
+  smoke.addColorGradient(1, new Color4(0.45, 0.45, 0.44, 0))
+  smoke.minSize = 2.5
+  smoke.maxSize = 4
+  smoke.addSizeGradient(0, 0.5)
+  smoke.addSizeGradient(1, 3.6)
   smoke.minLifeTime = 9
   smoke.maxLifeTime = 15
   smoke.emitRate = 1.4 * sources.length
@@ -250,7 +255,8 @@ export function createAtmosphere(
   grade(scene)
 
   const shadows = createShadows(scene, map, sun, camera)
-  const smoke = createSmoke(scene, sprites.smoke, smokeSources(map))
+  // The soft spot rather than Synty's faceted puff: drawn many times over, the puff's hard edges show as discs.
+  const smoke = createSmoke(scene, sprites.mist, smokeSources(map))
   const mist = createMist(scene, sprites.mist, mistSpots(map))
   smoke.start()
   mist.start()
