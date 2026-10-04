@@ -14,6 +14,13 @@ export interface SoldierComponents {
   readonly speed: { readonly value: Float32Array }
   /** Present while the soldier is walking to an ordered point. */
   readonly moveOrder: { readonly x: Float32Array; readonly z: Float32Array }
+  /** Unit vector the soldier faces and aims along. */
+  readonly facing: { readonly x: Float32Array; readonly z: Float32Array }
+  /**
+   * Present while a player steers the soldier directly: a direction with length up to 1, as a fraction of walking speed.
+   * Steering overrides any move order.
+   */
+  readonly steer: { readonly x: Float32Array; readonly z: Float32Array }
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -21,6 +28,8 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     position: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     side: { value: new Uint8Array(capacity) },
     speed: { value: new Float32Array(capacity) },
-    moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity) }
+    moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    steer: { x: new Float32Array(capacity), z: new Float32Array(capacity) }
   }
 }

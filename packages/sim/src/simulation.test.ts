@@ -94,3 +94,81 @@ describe("move-to command", () => {
     expect(sim.tick).toBe(1)
   })
 })
+
+describe("steer command", () => {
+  it("walks a directly controlled soldier in the pushed direction until told to stop", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 50, z: 25, speed: 2 })
+    enqueueCommand(sim, { type: "steer", soldier, x: 1, z: 0 })
+    stepFor(sim, 1)
+
+    expect(sim.soldiers.position.x[soldier]).toBeCloseTo(52)
+    enqueueCommand(sim, { type: "steer", soldier, x: 0, z: 0 })
+    stepFor(sim, 1)
+    expect(sim.soldiers.position.x[soldier]).toBeCloseTo(52)
+    expect(hasComponent(sim.world, soldier, sim.soldiers.steer)).toBe(false)
+  })
+
+  it("caps diagonal input at walking speed, and allows slower creeping", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const fast = spawnSoldier(sim, { side: Side.French, x: 10, z: 10, speed: 2 })
+    const slow = spawnSoldier(sim, { side: Side.French, x: 60, z: 10, speed: 2 })
+    enqueueCommand(sim, { type: "steer", soldier: fast, x: 1, z: 1 })
+    enqueueCommand(sim, { type: "steer", soldier: slow, x: 0.5, z: 0 })
+    stepFor(sim, 1)
+
+    expect(Math.hypot(sim.soldiers.position.x[fast] - 10, sim.soldiers.position.z[fast] - 10)).toBeCloseTo(2)
+    expect(sim.soldiers.position.x[slow]).toBeCloseTo(61)
+  })
+
+  it("overrides a move order and stays on the map", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 1, z: 25, speed: 2 })
+    enqueueCommand(sim, { type: "move-to", soldier, x: 90, z: 25 })
+    stepSimulation(sim)
+    enqueueCommand(sim, { type: "steer", soldier, x: -1, z: 0 })
+    stepFor(sim, 2)
+
+    expect(hasComponent(sim.world, soldier, sim.soldiers.moveOrder)).toBe(false)
+    expect(sim.soldiers.position.x[soldier]).toBe(0)
+  })
+
+  it("ignores steering for entities that are not soldiers", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    enqueueCommand(sim, { type: "steer", soldier: 999, x: 1, z: 0 })
+
+    expect(() => stepSimulation(sim)).not.toThrow()
+  })
+})
+
+describe("facing", () => {
+  it("starts toward the enemy: north for the French, south for the Germans", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const french = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const german = spawnSoldier(sim, { side: Side.German, x: 10, z: 40 })
+
+    expect([sim.soldiers.facing.x[french], sim.soldiers.facing.z[french]]).toEqual([0, 1])
+    expect([sim.soldiers.facing.x[german], sim.soldiers.facing.z[german]]).toEqual([0, -1])
+  })
+
+  it("turns to an aimed direction, normalised, ignoring zero vectors", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    enqueueCommand(sim, { type: "face", soldier, x: 3, z: 4 })
+    enqueueCommand(sim, { type: "face", soldier, x: 0, z: 0 })
+    enqueueCommand(sim, { type: "face", soldier: 999, x: 1, z: 0 })
+    stepSimulation(sim)
+
+    expect(sim.soldiers.facing.x[soldier]).toBeCloseTo(0.6)
+    expect(sim.soldiers.facing.z[soldier]).toBeCloseTo(0.8)
+  })
+
+  it("follows the direction of travel under a move order", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    enqueueCommand(sim, { type: "move-to", soldier, x: 30, z: 10 })
+    stepSimulation(sim)
+
+    expect([sim.soldiers.facing.x[soldier], sim.soldiers.facing.z[soldier]]).toEqual([1, 0])
+  })
+})

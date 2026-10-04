@@ -19,8 +19,8 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 - **ECS:** game state lives in components (typed arrays); systems are functions over queries.
 - **Narrow with type guards, not `as`.**
 - **Verify UX changes in the built-in browser** before calling them done; tests alone aren't enough. The dev build
-  exposes `window.verdun` (`engine`, `sim`, `view`) for inspecting the running game, and the backquote key toggles
-  Babylon's Inspector.
+  exposes `window.verdun` (`engine`, `sim`, `view`, `control`) for inspecting the running game, and the backquote key
+  toggles Babylon's Inspector.
 - **No Fluent UI in our own UI.** Babylon's Inspector v2 uses Fluent internally; that's acceptable because it is a
   dev-only tool that never ships to players.
 - **Babylon imports are deep** (`@babylonjs/core/Meshes/mesh`), never the `@babylonjs/core` barrel, which defeats

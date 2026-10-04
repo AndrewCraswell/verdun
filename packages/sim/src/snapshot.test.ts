@@ -12,6 +12,10 @@ function skirmish(seed: number): Simulation {
   for (let index = 0; index < 8; index++) {
     const french = spawnSoldier(sim, { side: Side.French, x: 20 + index * 3, z: 20 + sim.rng.next() * 5 })
     const german = spawnSoldier(sim, { side: Side.German, x: 20 + index * 3, z: 180 - sim.rng.next() * 5 })
+    if (index === 1) {
+      enqueueCommand(sim, { type: "steer", soldier: french, x: 0.3, z: 0.7 })
+      enqueueCommand(sim, { type: "face", soldier: german, x: 1, z: 0 })
+    }
     if (index % 2 === 0) {
       enqueueCommand(sim, { type: "move-to", soldier: french, x: 20 + index * 3, z: 150 })
       enqueueCommand(sim, { type: "move-to", soldier: german, x: 100, z: 100 })
@@ -46,6 +50,8 @@ describe("snapshots", () => {
     expect(snapshot.soldiers).toHaveLength(16)
     expect(snapshot.soldiers.filter((soldier) => soldier.side === Side.German)).toHaveLength(8)
     expect(snapshot.soldiers.filter((soldier) => soldier.moveOrder !== null)).toHaveLength(8)
+    expect(snapshot.soldiers.filter((soldier) => soldier.steer !== null)).toHaveLength(1)
+    expect(snapshot.soldiers.find((soldier) => soldier.side === Side.German && soldier.facing.x === 1)).toBeDefined()
   })
 
   it("survive JSON and resume exactly where the original continues", () => {

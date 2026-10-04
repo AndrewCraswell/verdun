@@ -1,5 +1,5 @@
 export type { EntityId } from "bitecs"
-export type { Command, MoveToCommand } from "./commands.ts"
+export type { Command, FaceCommand, MoveToCommand, SteerCommand } from "./commands.ts"
 export { Side } from "./components.ts"
 export {
   createSimulation,

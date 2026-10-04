@@ -1,7 +1,7 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, query, type QueryResult, type World } from "bitecs"
 import { applyCommand, type Command } from "./commands.ts"
-import { createSoldierComponents, type Side, type SoldierComponents } from "./components.ts"
+import { createSoldierComponents, Side, type SoldierComponents } from "./components.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { movementSystem } from "./systems/movement.ts"
 
@@ -56,14 +56,16 @@ export interface SoldierSpawn {
   readonly x: number
   readonly z: number
   readonly speed?: number
+  /** Initial facing; defaults toward the enemy: north for the French, south for the Germans. */
+  readonly facing?: { readonly x: number; readonly z: number }
 }
 
-export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEED }: SoldierSpawn): EntityId {
+export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEED, facing }: SoldierSpawn): EntityId {
   const soldier = addEntity(sim.world)
   if (soldier >= sim.capacity) {
     throw new RangeError(`Soldier id ${soldier} exceeds simulation capacity ${sim.capacity}`)
   }
-  const { position, side: sideStore, speed: speedStore } = sim.soldiers
+  const { position, side: sideStore, speed: speedStore, facing: facingStore } = sim.soldiers
   addComponent(sim.world, soldier, position)
   addComponent(sim.world, soldier, sideStore)
   addComponent(sim.world, soldier, speedStore)
@@ -72,6 +74,9 @@ export function spawnSoldier(sim: Simulation, { side, x, z, speed = WALKING_SPEE
   position.z[soldier] = clamped.z
   sideStore.value[soldier] = side
   speedStore.value[soldier] = speed
+  const towardEnemy = side === Side.French ? 1 : -1
+  facingStore.x[soldier] = facing?.x ?? 0
+  facingStore.z[soldier] = facing?.z ?? towardEnemy
   return soldier
 }
 

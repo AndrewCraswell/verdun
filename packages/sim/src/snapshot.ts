@@ -4,7 +4,7 @@ import { Side } from "./components.ts"
 import { createSimulation, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 1
+export const SIM_STATE_VERSION = 2
 
 export interface SoldierState {
   readonly id: number
@@ -13,6 +13,8 @@ export interface SoldierState {
   readonly z: number
   readonly speed: number
   readonly moveOrder: { readonly x: number; readonly z: number } | null
+  readonly facing: { readonly x: number; readonly z: number }
+  readonly steer: { readonly x: number; readonly z: number } | null
 }
 
 /** Everything needed to resume a simulation exactly: the basis of save files and crash recovery. */
@@ -28,7 +30,7 @@ function toSide(value: number): Side {
 }
 
 export function takeSnapshot(sim: Simulation): SimulationSnapshot {
-  const { position, side, speed, moveOrder } = sim.soldiers
+  const { position, side, speed, moveOrder, facing, steer } = sim.soldiers
   const soldiers = Array.from(soldierIds(sim))
     .sort((a, b) => a - b)
     .map((id): SoldierState => ({
@@ -37,7 +39,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       x: position.x[id],
       z: position.z[id],
       speed: speed.value[id],
-      moveOrder: hasComponent(sim.world, id, moveOrder) ? { x: moveOrder.x[id], z: moveOrder.z[id] } : null
+      moveOrder: hasComponent(sim.world, id, moveOrder) ? { x: moveOrder.x[id], z: moveOrder.z[id] } : null,
+      facing: { x: facing.x[id], z: facing.z[id] },
+      steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id] } : null
     }))
   return { version: SIM_STATE_VERSION, tick: sim.tick, rngState: sim.rng.state, soldiers }
 }
@@ -50,7 +54,13 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   const sim = createSimulation({ map, seed: snapshot.rngState })
   sim.tick = snapshot.tick
   for (const soldier of snapshot.soldiers) {
-    const id = spawnSoldier(sim, { side: soldier.side, x: soldier.x, z: soldier.z, speed: soldier.speed })
+    const id = spawnSoldier(sim, {
+      side: soldier.side,
+      x: soldier.x,
+      z: soldier.z,
+      speed: soldier.speed,
+      facing: soldier.facing
+    })
     if (id !== soldier.id) {
       throw new Error(`Snapshot soldier ids must be contiguous from 1; expected ${soldier.id}, got ${id}`)
     }
@@ -58,6 +68,11 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.moveOrder)
       sim.soldiers.moveOrder.x[id] = soldier.moveOrder.x
       sim.soldiers.moveOrder.z[id] = soldier.moveOrder.z
+    }
+    if (soldier.steer) {
+      addComponent(sim.world, id, sim.soldiers.steer)
+      sim.soldiers.steer.x[id] = soldier.steer.x
+      sim.soldiers.steer.z[id] = soldier.steer.z
     }
   }
   return sim
