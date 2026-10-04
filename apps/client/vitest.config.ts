@@ -8,6 +8,8 @@ export default defineConfig({
     // A runaway test dies at 4 GB with "heap out of memory" instead of eating the machine: a time limit can't stop a
     // loop that never yields.
     execArgv: ["--max-old-space-size=4096"],
+    // Building terrain and dressing the level take seconds under coverage on CI's slower machines, past the 5 s default.
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
