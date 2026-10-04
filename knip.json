@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {},
+    "apps/client": {
+      "ignoreDependencies": ["@verdun/oxlint-config"]
+    },
+    "packages/map": {
+      "ignoreDependencies": ["@verdun/oxlint-config"]
+    },
+    "packages/sim": {
+      "ignoreDependencies": ["@verdun/oxlint-config"]
+    }
+  }
+}

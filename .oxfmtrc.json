@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "semi": false,
+  "trailingComma": "none",
+  "proseWrap": "always",
+  "sortImports": {
+    "enabled": true,
+    "newlinesBetween": false,
+    "sortSpecifiers": true
+  },
+  "sortPackageJson": false,
+  "ignorePatterns": ["**/dist/**", "**/coverage/**", "docs/research/**", "pnpm-lock.yaml"]
+}

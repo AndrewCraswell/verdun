@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+engineStrict: true
+verifyDepsBeforeRun: error
+# Versions locked once for the whole monorepo. Reference them with "catalog:".
+catalog:
+  "@babylonjs/core": 9.28.0
+  "@babylonjs/inspector": 9.28.0
+  "@vitest/coverage-v8": 5.0.2
+  bitecs: 0.4.0
+  typescript: 7.0.2
+  vite: 8.3.1
+  vitest: 5.0.2
+allowBuilds:
+  lefthook: true

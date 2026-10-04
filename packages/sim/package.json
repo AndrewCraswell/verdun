@@ -1,0 +1,28 @@
+{
+  "name": "@verdun/sim",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Pure, deterministic game simulation: ECS world, fixed-timestep stepping, commands and snapshots.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check:types": "tsc --noEmit",
+    "lint": "oxlint --max-warnings=0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@verdun/map": "workspace:*",
+    "bitecs": "catalog:"
+  },
+  "devDependencies": {
+    "@verdun/oxlint-config": "workspace:*",
+    "@verdun/typescript-config": "workspace:*",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

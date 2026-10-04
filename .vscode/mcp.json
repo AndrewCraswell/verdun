@@ -1,0 +1,23 @@
+{
+  "servers": {
+    "babylonjs-node-material": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@babylonjs/mcp-servers", "nme"]
+    },
+    "babylonjs-node-particle": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@babylonjs/mcp-servers", "npe"]
+    },
+    "babylonjs-node-geometry": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@babylonjs/mcp-servers", "nge"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}

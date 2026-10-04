@@ -1,0 +1,31 @@
+{
+  "name": "@verdun/client",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Browser game client: Babylon.js renderer, camera and input over the shared simulation.",
+  "scripts": {
+    "build": "vite build",
+    "check:types": "tsc --noEmit",
+    "dev": "vite --clearScreen false",
+    "lint": "oxlint --max-warnings=0",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@babylonjs/core": "catalog:",
+    "@verdun/map": "workspace:*",
+    "@verdun/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@babylonjs/inspector": "catalog:",
+    "@verdun/oxlint-config": "workspace:*",
+    "@verdun/typescript-config": "workspace:*",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

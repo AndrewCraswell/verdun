@@ -1,0 +1,50 @@
+# AGENTS.md
+
+Guidance for coding agents working in this repository. Read [README.md](README.md) and the docs it links before making
+changes; they record decisions already made. Don't re-litigate them; propose changes in
+[open questions](docs/open-questions.md).
+
+## Project
+
+Browser-based massively multiplayer WW1 trench warfare game (Verdun). Solo developer. Currently stage 1: single-player
+prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
+
+## Conventions
+
+- **TypeScript everywhere.** pnpm (>=11) on Node (>=24), Turborepo for tasks.
+- **Lint:** oxlint (not eslint). **Format:** oxfmt (not prettier). **Test:** Vitest. **Build:** Vite.
+- **Renderer:** Babylon.js 9. Use ES module imports from `@babylonjs/*`.
+- **Simulation is pure:** `packages/sim` has no DOM, rendering or networking imports. Fixed timestep, deterministic
+  within a tick, everything driven by commands, world state serializable and versioned.
+- **ECS:** game state lives in components (typed arrays); systems are functions over queries.
+- **Narrow with type guards, not `as`.**
+- **Verify UX changes in the built-in browser** before calling them done; tests alone aren't enough. The dev build
+  exposes `window.verdun` (`engine`, `sim`, `view`) for inspecting the running game, and the backquote key toggles
+  Babylon's Inspector.
+- **No Fluent UI in our own UI.** Babylon's Inspector v2 uses Fluent internally; that's acceptable because it is a
+  dev-only tool that never ships to players.
+- **Babylon imports are deep** (`@babylonjs/core/Meshes/mesh`), never the `@babylonjs/core` barrel, which defeats
+  tree-shaking.
+- **Only install a dependency when code uses it**; knip fails the verify loop on unused dependencies and exports.
+
+## Commands
+
+- `pnpm dev`: run the client at http://localhost:5173
+- `pnpm verify`: format check, lint, types, knip, tests with coverage, build. Must pass before finishing.
+- `pnpm format`: apply oxfmt
+- Git hooks (lefthook): pre-commit runs `oxlint --fix` and `oxfmt` on staged files; pre-push runs `check:types`. Don't
+  use `--no-verify`.
+
+## Assets
+
+- **Never commit vendor source files.** Raw purchases live in `vendor/` (git-ignored).
+- **Never ship raw glTF/textures from paid stores.** Paid assets go through the [pipeline](docs/assets/pipeline.md) into
+  the encrypted runtime pack. Only CC0 may ship raw; CC-BY ships raw with credit.
+- **Never use TurboSquid or Reallusion assets.** See [licensing](docs/assets/licensing.md).
+- **Add every shipped third-party asset to the [register](docs/assets/register.md).**
+- Never upload purchased assets to AI generation services.
+
+## MCP servers
+
+See [tooling](docs/tooling.md). Babylon.js MCP servers for node materials, particles and geometry; MCP for Blender for
+asset processing (it runs arbitrary Python: only use it on project files); Context7 for current Babylon.js docs.

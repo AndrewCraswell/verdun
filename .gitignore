@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+*.log
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# Raw vendor assets (FBX, .blend, .uasset, source textures). Never commit: license and size.
+vendor/
+
+# Intermediate asset pipeline output
+.asset-cache/
+
+# Unreal export project
+unreal/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS and editor
+.DS_Store
+Thumbs.db

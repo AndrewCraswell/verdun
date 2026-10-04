@@ -1,0 +1,41 @@
+{
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.fixAll.oxc": "explicit",
+    "source.addMissingImports": "explicit"
+  },
+  "oxc.enable": true,
+  "explorer.compactFolders": false,
+  "files.associations": {
+    "*.json": "jsonc" // Render JSON files as .jsonc files.
+  },
+  "files.saveConflictResolution": "askUser",
+  "files.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/tsconfig.tsbuildinfo": true,
+    "**/coverage": true,
+    "**/.turbo": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/tsconfig.tsbuildinfo": true,
+    "**/coverage": true,
+    "**/.turbo": true,
+    "**/pnpm-lock.yaml": true,
+    "docs/research/**": true
+  },
+  "npm.packageManager": "pnpm",
+  "npm.enableRunFromFolder": true,
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  // TypeScript 7 is the native (Go) compiler and has no classic tsserver. Use the
+  // "TypeScript (Native Preview)" extension's language service so the editor
+  // resolves modules exactly like `pnpm check:types` does.
+  "js/ts.experimental.useTsgo": true
+}

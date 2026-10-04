@@ -1,0 +1,20 @@
+# Lefthook manages Git hooks for this monorepo.
+# Docs: https://lefthook.dev
+# Hooks are installed automatically via the root "prepare" script (lefthook install).
+
+pre-commit:
+  parallel: false
+  commands:
+    lint:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: pnpm oxlint --fix --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    format:
+      glob: "*.{js,jsx,ts,tsx,json,css,yaml,yml,md}"
+      run: pnpm oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+
+pre-push:
+  commands:
+    types:
+      run: pnpm run check:types
