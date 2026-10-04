@@ -6,7 +6,7 @@ import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"
 import { CascadedShadowGenerator } from "@babylonjs/core/Lights/Shadows/cascadedShadowGenerator"
 import { ColorCurves } from "@babylonjs/core/Materials/colorCurves"
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
+import { Color4 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
@@ -31,19 +31,6 @@ export interface Atmosphere {
 }
 
 /**
- * A grey autumn afternoon: a low, warm sun through thin overcast, about 30 degrees up in the west-south-west, and a
- * cool, dim sky. A low sun is what makes trench walls, craters and the shattered woods read from above: their shadows.
- */
-const LIGHT = {
-  sunDirection: new Vector3(-0.78, -0.55, 0.3),
-  sunColor: Color3.FromHexString("#fff0d6"),
-  sunIntensity: 1.15,
-  skyColor: Color3.FromHexString("#d3d9e0"),
-  groundColor: Color3.FromHexString("#6b5e4f"),
-  skyIntensity: 0.75
-} as const
-
-/**
  * Shadows only near the camera, where they show, from the pieces big enough to cast one that reads: trench walls,
  * trees, ruins, guns, soldiers, the ground itself. Above `cameraHeight` the sector is too small on screen for shadows
  * to show, so none are drawn.
@@ -56,7 +43,7 @@ const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, cameraHe
 const NO_SHADOW =
   /Env_Trench_Deep|Sandbag_Wall_Long|Planks|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map/
 
-/** Wind out of the west, carrying smoke and mist east. */
+/** Wind out of the west, carrying smoke and mist east, until the weather's wind takes over (see `environment/`). */
 const WIND = new Vector3(0.12, 0, 0.03)
 
 const isSun = (light: unknown): light is DirectionalLight => light instanceof DirectionalLight
@@ -245,8 +232,9 @@ function createMist(scene: Scene, texture: Texture, spots: readonly Vector3[]): 
 }
 
 /**
- * The sector's light and air: a low sun casting cascaded shadows, one colour grade, smoke drifting from burning ruins
- * and wrecks, and mist lying in the hollows. Adjusts the scene's existing sun and sky lights.
+ * The sector's air: cascaded shadows from the sun (or moon), one colour grade, smoke drifting from burning ruins and
+ * wrecks, and mist lying in the hollows. Where the sun and moon are, and how bright the light, the fog and the shadows
+ * are, follow the simulation's clock and weather each frame (see `environment/daylight.ts`).
  */
 export function createAtmosphere(
   scene: Scene,
@@ -259,12 +247,6 @@ export function createAtmosphere(
   if (!sun || !sky) {
     return null
   }
-  sun.direction = LIGHT.sunDirection.normalizeToNew()
-  sun.diffuse = LIGHT.sunColor
-  sun.intensity = LIGHT.sunIntensity
-  sky.diffuse = LIGHT.skyColor
-  sky.groundColor = LIGHT.groundColor
-  sky.intensity = LIGHT.skyIntensity
   grade(scene)
 
   const shadows = createShadows(scene, map, sun, camera)

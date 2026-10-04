@@ -6,6 +6,7 @@ import { combatSystem, type ShotEvent, type ThrowEvent, Weapon } from "./combat.
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
+import { createEnvironment, type Environment, environmentSystem, type EnvironmentOptions } from "./environment.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
@@ -50,6 +51,8 @@ export interface Simulation {
   readonly wire: WireField
   /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
   readonly wind: { x: number; z: number }
+  /** The date and time of day, the weather and the light. The weather sets the wind each second. */
+  readonly environment: Environment
   /** Each side's commander: whether it has lost its front line and counter-attacked. */
   readonly commanders: Record<Side, CommanderState>
   /** The map's objectives and who holds them. */
@@ -76,14 +79,18 @@ export interface SimulationOptions {
   readonly capacity?: number
   /** Wind near the ground, in metres per second. Defaults to a light westerly, Verdun's prevailing wind. */
   readonly wind?: { readonly x: number; readonly z: number }
+  /** When the battle starts, how fast days pass and where the weather comes from. Defaults to fair weather held. */
+  readonly environment?: EnvironmentOptions
 }
 
 export function createSimulation({
   map,
   seed,
   capacity = DEFAULT_CAPACITY,
-  wind = { x: 2, z: 0.5 }
+  wind = { x: 2, z: 0.5 },
+  environment: environmentOptions
 }: SimulationOptions): Simulation {
+  const environment = createEnvironment({ ...environmentOptions, wind })
   return {
     map,
     world: createWorld(),
@@ -97,7 +104,8 @@ export function createSimulation({
     gas: createGasField(map),
     smoke: createGasField(map),
     wire: createWireField(map),
-    wind: { x: wind.x, z: wind.z },
+    wind: { x: environment.weather.wind.x, z: environment.weather.wind.z },
+    environment,
     commanders: createCommanders(),
     objectives: createObjectives(map),
     events: [],
@@ -197,6 +205,7 @@ export function stepSimulation(sim: Simulation): void {
   for (const command of sim.pendingCommands.splice(0)) {
     applyCommand(sim, command)
   }
+  environmentSystem(sim, STEP_SECONDS)
   commanderSystem(sim)
   squadSystem(sim)
   stanceSystem(sim)

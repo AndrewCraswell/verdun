@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@babylonjs/addons": "catalog:",
     "@babylonjs/core": "catalog:",
     "@babylonjs/loaders": "catalog:",
     "@verdun/map": "workspace:*",

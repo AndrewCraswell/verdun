@@ -167,7 +167,9 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   const stats = WEAPONS[sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
-  if (dx * dx + dz * dz > stats.range * stats.range) {
+  // Darkness, fog and falling rain or snow hide men well inside a weapon's range.
+  const reach = Math.min(stats.range, sim.environment.sightRange)
+  if (dx * dx + dz * dz > reach * reach) {
     return false
   }
   const eye = soldierEye(sim, shooter)

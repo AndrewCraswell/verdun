@@ -38,6 +38,8 @@ export type {
   SteerCommand,
   ThrowGrenadeCommand,
   WindCommand,
+  ClockCommand,
+  ForecastCommand,
   TakeCommandCommand
 } from "./commands.ts"
 export { MaskState, Side, Stance } from "./components.ts"
@@ -86,3 +88,14 @@ export {
 export { SMOKE_EXTINCTION, seesThroughSmoke, smokeBetween } from "./smoke.ts"
 export { type ObjectiveState, type ObjectiveTakenEvent, sectorControl } from "./objectives.ts"
 export { WIRE_CELL, wireAt, type WireCutEvent, type WireField, wirePace } from "./wire.ts"
+export {
+  DEFAULT_MINUTES_PER_DAY,
+  DEFAULT_START,
+  type Environment,
+  type EnvironmentOptions,
+  type EnvironmentState,
+  timeScale,
+  type WorldClock
+} from "./environment.ts"
+export { FLEURY, type GeoLocation, type Sky, type SkyPosition } from "./sky.ts"
+export { type Forecast, type ForecastSpec, typicalWeather, type Weather, WeatherPattern } from "./weather.ts"

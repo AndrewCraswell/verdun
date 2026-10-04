@@ -73,7 +73,10 @@ textures, the trench kit along every trench, wire, craters, ruins, woods and emp
 encrypted asset pack (M7) exists. Still to come:
 
 - Level authoring: the in-game editor and Tiled import (see [tooling](tooling.md#editor-plan)), and real elevation data.
-- Lighting, smoke, weather and the global colour grade.
+- Lighting, smoke, weather and the global colour grade. Started: the sun and moon follow the 1916 calendar, the weather
+  cycles through seasonal patterns with rain, snow, fog and thunderstorms, and night and fog limit sight in combat (see
+  [architecture](architecture.md#time-of-day-and-weather)). Still to come: flares and fires lighting the night, snow
+  lying on the ground, mud slowing men, and the historical weather of 1916.
 
 ## After version 1: art remaster
 

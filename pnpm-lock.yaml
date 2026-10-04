@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@babylonjs/addons':
+      specifier: 9.28.0
+      version: 9.28.0
     '@babylonjs/core':
       specifier: 9.28.0
       version: 9.28.0
@@ -24,6 +27,9 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: 5.0.2
       version: 5.0.2
+    astronomy-engine:
+      specifier: 2.1.19
+      version: 2.1.19
     bitecs:
       specifier: 0.4.0
       version: 0.4.0
@@ -62,6 +68,9 @@ importers:
 
   apps/client:
     dependencies:
+      '@babylonjs/addons':
+        specifier: 'catalog:'
+        version: 9.28.0(@babylonjs/core@9.28.0)
       '@babylonjs/core':
         specifier: 'catalog:'
         version: 9.28.0
@@ -128,6 +137,9 @@ importers:
       '@verdun/map':
         specifier: workspace:*
         version: link:../map
+      astronomy-engine:
+        specifier: 'catalog:'
+        version: 2.1.19
       bitecs:
         specifier: 'catalog:'
         version: 0.4.0
@@ -1726,6 +1738,9 @@ packages:
 
   ast-v8-to-istanbul@1.0.7:
     resolution: {integrity: sha512-kFL68AG6ajd8fg248zwM9GQrUWEp79gsmjum34OEXjs4yHuUMZfYKwOLW9GMmB4oNvVrj+EAGxsP7ye2UR9UlA==}
+
+  astronomy-engine@2.1.19:
+    resolution: {integrity: sha512-8yWKNf7UeNbH458h3sAJ6ZgAjE5jTXp/mNNRFoC20j2SHwZIjAQeEsBB2Q3uCFRaTCCJRv33K2XhkhZQMXoX6w==}
 
   babylonjs-gltf2interface@9.28.0:
     resolution: {integrity: sha512-cNil13HFJNCefnQ0fCX3bjSkMoNwcnohW+Iy2YEzWazwrpIhAcLqCb62XlDHs5X3YiJoEM71YjdddDeuQYmw7w==}
@@ -3993,6 +4008,8 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
       js-tokens: 10.0.0
+
+  astronomy-engine@2.1.19: {}
 
   babylonjs-gltf2interface@9.28.0: {}
 

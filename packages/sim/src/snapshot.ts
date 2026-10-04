@@ -4,12 +4,13 @@ import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
+import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
 import { capturedIds, createSimulation, fallenIds, type Simulation, soldierIds, spawnSoldier } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 12
+export const SIM_STATE_VERSION = 13
 
 export interface SoldierState {
   readonly id: number
@@ -67,6 +68,8 @@ export interface SimulationSnapshot {
   readonly wireCuts: readonly (readonly [number, number])[]
   /** Who holds each of the map's objectives, in the map's order. */
   readonly objectives: readonly { readonly holder: Side | -1; readonly contested: boolean }[]
+  /** The date and time, how fast days pass, where the weather comes from, and the weather and light last read. */
+  readonly environment: EnvironmentState
 }
 
 function toSide(value: number): Side {
@@ -138,7 +141,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       [Side.German]: { ...sim.commanders[Side.German] }
     },
     wireCuts: wireCuts(sim.wire),
-    objectives: sim.objectives.map(({ holder, contested }) => ({ holder, contested }))
+    objectives: sim.objectives.map(({ holder, contested }) => ({ holder, contested })),
+    environment: saveEnvironment(sim.environment)
   }
 }
 
@@ -148,7 +152,15 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
  * index so recycled ids restore identically.
  */
 export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnapshot): Simulation {
-  const sim = createSimulation({ map, seed: snapshot.rngState, wind: snapshot.wind })
+  const sim = createSimulation({
+    map,
+    seed: snapshot.rngState,
+    wind: snapshot.wind,
+    environment: environmentOptions(snapshot.environment)
+  })
+  resumeEnvironment(sim.environment, snapshot.environment)
+  sim.wind.x = snapshot.wind.x
+  sim.wind.z = snapshot.wind.z
   sim.tick = snapshot.tick
   for (const soldier of snapshot.soldiers) {
     const id = spawnSoldier(sim, {

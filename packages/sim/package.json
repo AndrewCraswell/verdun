@@ -17,6 +17,7 @@
   "dependencies": {
     "@dimforge/rapier3d-compat": "catalog:",
     "@verdun/map": "workspace:*",
+    "astronomy-engine": "catalog:",
     "bitecs": "catalog:"
   },
   "devDependencies": {

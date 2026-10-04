@@ -2,8 +2,10 @@ import { addComponent, type EntityId, entityExists, hasComponent, removeComponen
 import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
+import { holdWeather, updateEnvironment } from "./environment.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
+import { createForecast, type ForecastSpec } from "./weather.ts"
 
 /** Orders a soldier to walk, or run, to a ground position. */
 export interface MoveToCommand {
@@ -84,11 +86,28 @@ export interface ThrowGrenadeCommand {
   readonly z: number
 }
 
-/** Sets the wind near the ground, in metres per second toward +x (east) and +z (north). */
+/**
+ * Sets the wind near the ground, in metres per second toward +x (east) and +z (north). The weather is held as it is
+ * from then on, so the wind stays put until a new forecast is given.
+ */
 export interface WindCommand {
   readonly type: "wind"
   readonly x: number
   readonly z: number
+}
+
+/** Sets the date and time, or how many real minutes a day takes, or both: for servers, game modes and testing. */
+export interface ClockCommand {
+  readonly type: "clock"
+  /** Milliseconds since 1970, UTC. */
+  readonly utc?: number
+  readonly minutesPerDay?: number
+}
+
+/** Changes where the weather comes from: a seeded cycle of patterns, one weather held steady, and later the records. */
+export interface ForecastCommand {
+  readonly type: "forecast"
+  readonly forecast: ForecastSpec
 }
 
 /** Orders a side's batteries to fire on a target: a bombardment, a call for fire, or any other barrage. */
@@ -142,6 +161,8 @@ export type Command =
   | StanceCommand
   | ThrowGrenadeCommand
   | WindCommand
+  | ClockCommand
+  | ForecastCommand
   | FireMissionCommand
   | BarrageAttackCommand
 
@@ -244,9 +265,24 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "wind": {
       if (Number.isFinite(command.x) && Number.isFinite(command.z)) {
-        sim.wind.x = command.x
-        sim.wind.z = command.z
+        holdWeather(sim, command)
       }
+      return
+    }
+    case "clock": {
+      const { clock } = sim.environment
+      if (command.utc !== undefined && Number.isFinite(command.utc)) {
+        clock.utc = command.utc
+      }
+      if (command.minutesPerDay !== undefined && command.minutesPerDay > 0 && Number.isFinite(command.minutesPerDay)) {
+        clock.minutesPerDay = command.minutesPerDay
+      }
+      updateEnvironment(sim)
+      return
+    }
+    case "forecast": {
+      sim.environment.forecast = createForecast(command.forecast)
+      updateEnvironment(sim)
       return
     }
     case "fire-mission": {

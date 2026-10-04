@@ -58,15 +58,16 @@ describe("createAtmosphere", () => {
     expect(createAtmosphere(scene, map, camera, sprites)).toBeNull()
   })
 
-  it("lowers the sun, grades the image and lets smoke and mist drift, shadowless where the engine can't", () => {
+  it("grades the image and lets smoke and mist drift, shadowless where the engine can't", () => {
     const { map, scene, camera, sprites } = field()
     const sun = new DirectionalLight("sun", new Vector3(0, -1, 0), scene)
     const sky = new HemisphericLight("sky", Vector3.Up(), scene)
 
     const atmosphere = createAtmosphere(scene, map, camera, sprites)
 
-    expect(sun.direction.y).toBeGreaterThan(-0.6)
-    expect(sky.intensity).toBeCloseTo(0.75)
+    // The sun's place and the light's strength follow the clock and weather, in `environment/`, not the level.
+    expect(sun.direction.y).toBe(-1)
+    expect(sky.intensity).toBe(1)
     expect(scene.imageProcessingConfiguration.colorCurvesEnabled).toBe(true)
     // The null engine has no texture arrays for cascades.
     expect(atmosphere?.shadows).toBeNull()
