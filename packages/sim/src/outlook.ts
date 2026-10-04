@@ -56,12 +56,6 @@ export function dayOutlook(forecast: Forecast, day: number): DayOutlook {
   }
 }
 
-/** The weather to come, day by day: the week a daily turn will fight in, from `from` (00:00 UTC on its first day). */
-export function weekOutlook(forecast: Forecast, from: number, days = 7): DayOutlook[] {
-  const start = Math.floor(from / DAY) * DAY
-  return Array.from({ length: days }, (_, index) => dayOutlook(forecast, start + index * DAY))
-}
-
 /**
  * A day's weather as the staff's forecast gave it: exact for the day it's issued, a forecaster's call for the days after,
  * vaguer and more often wrong the further ahead it looks, as forecasts in 1916 were. Players plan attacks round fog and

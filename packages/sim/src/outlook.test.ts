@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { dayOutlook, forecastDay, forecastFrom, weekOutlook, windFrom } from "./outlook.ts"
+import { dayOutlook, forecastDay, forecastFrom, windFrom } from "./outlook.ts"
 import { createForecast, typicalWeather, WeatherPattern } from "./weather.ts"
 
 describe("the weather to come", () => {
@@ -19,14 +19,12 @@ describe("the weather to come", () => {
     expect(day.windSpeed).toBeCloseTo(4)
   })
 
-  it("gives history's week: the fog the French took Douaumont under, and the rain", () => {
+  it("sums up history's day: the fog the French took Douaumont under, and the rain", () => {
     const history = createForecast({ kind: "records", seed: 1916 })
-    const week = weekOutlook(history, Date.UTC(1916, 9, 24, 15))
-    expect(week).toHaveLength(7)
-    expect(week[0]!.day).toBe(Date.UTC(1916, 9, 24))
-    expect(week[0]!.fog).toBe(true)
-    expect(week[0]!.precipitation).toBeGreaterThan(2)
-    expect(week[0]!.high).toBeGreaterThan(week[0]!.low)
+    const day = dayOutlook(history, Date.UTC(1916, 9, 24))
+    expect(day.fog).toBe(true)
+    expect(day.precipitation).toBeGreaterThan(2)
+    expect(day.high).toBeGreaterThan(day.low)
   })
 
   it("gives the staff's forecast: exact for the day it's issued, a forecaster's call after", () => {

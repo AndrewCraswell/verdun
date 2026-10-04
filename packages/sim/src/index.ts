@@ -164,13 +164,5 @@ export {
   warWeekOf,
   type WarSchedule
 } from "./war-calendar.ts"
-export {
-  type DayOutlook,
-  dayOutlook,
-  type ForecastDay,
-  forecastDay,
-  forecastFrom,
-  weekOutlook,
-  windFrom
-} from "./outlook.ts"
+export { type DayOutlook, dayOutlook, type ForecastDay, forecastDay, forecastFrom, windFrom } from "./outlook.ts"
 export { loadWeatherRegion, WEATHER_REGIONS, type WeatherRegion } from "./records.ts"
