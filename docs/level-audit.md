@@ -84,4 +84,9 @@ In order, each verified in the browser and committed on its own:
 - **Done**: the ground worked for what stands on it (1); shelled craters, slumping and the better triangle split (2);
   cavity and contact shading, greyer chalk (3); the world beyond the sector, with its woods (4); and the shell bursts
   rebuilt (see [level design](level-design.md#shellfire)), which the audit hadn't covered.
-- **Next**: ruins composed from parts (5), then the dressing of no man's land, the woods and the parapets (6).
+- **Done since**: ruins composed from parts, most razed to a chimney stack over mounds of rubble (5); the litter of
+  battle across no man's land, woods stripped and felled by the shelling with deadwood under them, and parapets broken
+  up with sandbag courses, breaches and the clutter of a lived-in line (6).
+- **Performance**: the 14,500 props are drawn as about 700 thin-instance batches instead of one mesh each, which cut the
+  time Babylon spends choosing visible meshes from about 20 ms a frame to under 3 ms (see
+  [level design](level-design.md#level-kit)).
