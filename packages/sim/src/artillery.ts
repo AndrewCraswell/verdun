@@ -10,7 +10,7 @@ import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 import { cutWire } from "./wire.ts"
-import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
+import { casualty, type CasualtyCause, KILLED_OUTRIGHT, recordFallen } from "./wounds.ts"
 
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
@@ -406,10 +406,15 @@ function casualtyChance(distance: number, halfLethal: number): number {
   return halfLethal > 0 ? Math.exp(-Math.LN2 * (distance / halfLethal) ** 2) : 0
 }
 
-function wound(sim: Simulation, soldier: EntityId, severity: number): void {
+/** Who fired a shell or threw a grenade, and which it was. */
+function causeOf(landed: ShellInFlight): CasualtyCause {
+  return { kind: landed.shell === Shell.Grenade ? "grenade" : "shell", by: landed.side }
+}
+
+function wound(sim: Simulation, soldier: EntityId, severity: number, landed: ShellInFlight): void {
   sim.soldiers.health.value[soldier] -= severity * (0.6 + sim.rng.next() * 0.8)
   if (sim.soldiers.health.value[soldier] <= 0) {
-    casualty(sim, soldier, KILLED_OUTRIGHT.shell)
+    casualty(sim, soldier, KILLED_OUTRIGHT.shell, causeOf(landed))
   }
 }
 
@@ -473,8 +478,9 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     if (distance < halfLethal / 3) {
       // Close enough that blast alone kills.
       applyCommand(sim, { type: "kill", soldier })
+      recordFallen(sim, soldier, true, causeOf(landed))
     } else if (sim.rng.next() < casualtyChance(distance, halfLethal)) {
-      wound(sim, soldier, landed.shell === Shell.HeavyHighExplosive ? 1.4 : 1)
+      wound(sim, soldier, landed.shell === Shell.HeavyHighExplosive ? 1.4 : 1, landed)
     }
   }
   shake(sim, at, stats.suppressionRadius)
@@ -523,7 +529,7 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
       (shielded(sim, at, soldier) ? 0.1 : 1) *
       (SHRAPNEL_BY_STANCE[stance] ?? 1)
     if (sim.rng.next() < chance) {
-      wound(sim, soldier, 0.8)
+      wound(sim, soldier, 0.8, landed)
     }
   }
   shake(sim, at, stats.suppressionRadius)

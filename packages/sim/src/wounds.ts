@@ -40,6 +40,33 @@ const WOUNDED_PRISONER_HEALTH = 0.1
 /** Wounds are seen to every second (steps per second, as a literal: importing TICK_RATE here would be circular). */
 const STEPS_PER_SECOND = 20
 
+/** What knocked a soldier down. */
+export type CasualtyKind = "rifle" | "machine-gun" | "shell" | "grenade" | "gas" | "other"
+
+/** What knocked a soldier down, and whose it was: the side that fired it, or -1 when no side can be named (gas). */
+export interface CasualtyCause {
+  readonly kind: CasualtyKind
+  readonly by: Side | -1
+}
+
+const UNKNOWN_CAUSE: CasualtyCause = { kind: "other", by: -1 }
+
+/**
+ * A soldier put out of the fight, killed or wounded, and what did it: for battle reports, balance runs and the
+ * attribution of losses to their causes (own shells among them).
+ */
+export interface FallenEvent {
+  readonly type: "fallen"
+  readonly soldier: EntityId
+  readonly killed: boolean
+  readonly cause: CasualtyCause
+}
+
+/** Reports a soldier put out of the fight. Draws no random numbers, so it never changes how a battle plays out. */
+export function recordFallen(sim: Simulation, soldier: EntityId, killed: boolean, cause: CasualtyCause): void {
+  sim.events.push({ type: "fallen", soldier, killed, cause })
+}
+
 /** A soldier knocked out of the fight but still alive, for the battle report and renderers. */
 export interface WoundedEvent {
   readonly type: "wounded"
@@ -59,12 +86,18 @@ export interface CasualtyEvent {
  * A soldier out of the fight: killed outright with the given chance, otherwise wounded, lying where he fell until the
  * stretcher-bearers come for him or his wound kills him. Either way he falls (his squad is shaken as for any loss).
  */
-export function casualty(sim: Simulation, soldier: EntityId, killedShare: number): void {
+export function casualty(
+  sim: Simulation,
+  soldier: EntityId,
+  killedShare: number,
+  cause: CasualtyCause = UNKNOWN_CAUSE
+): void {
   if (hasComponent(sim.world, soldier, sim.soldiers.dead)) {
     return
   }
   const killed = sim.rng.next() < killedShare
   applyCommand(sim, { type: "kill", soldier })
+  recordFallen(sim, soldier, killed, cause)
   if (!killed) {
     addComponent(sim.world, soldier, sim.soldiers.wounded)
     sim.soldiers.casualty.evacuateAt[soldier] = -1

@@ -320,7 +320,7 @@ function breathe(sim: Simulation, seconds: number): void {
     if (gasDose.value[soldier] >= gasTolerance(soldier)) {
       health.value[soldier] -= seconds / GAS_DECLINE_SECONDS
       if (health.value[soldier] <= 0) {
-        casualty(sim, soldier, KILLED_OUTRIGHT.gas)
+        casualty(sim, soldier, KILLED_OUTRIGHT.gas, { kind: "gas", by: -1 })
       }
     }
   }

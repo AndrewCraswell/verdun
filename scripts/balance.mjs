@@ -22,7 +22,8 @@ import {
   Side,
   soldierIds,
   stepSimulation,
-  TICK_RATE
+  TICK_RATE,
+  Weapon
 } from "../packages/sim/src/index.ts"
 
 /** Writes a line of the report. */
@@ -45,8 +46,17 @@ const FRONT_BAND = 15
 const SCENARIOS = [
   { name: "no artillery", bombardments: 0, assaultSeconds: 360, success: [0, 0] },
   { name: "one bombardment", bombardments: 1, assaultSeconds: 600, success: [0, 0.4] },
-  { name: "three bombardments", bombardments: 3, assaultSeconds: 600, success: [0.6, 0.9], losses: [0.35, 0.6] }
+  {
+    name: "three bombardments",
+    bombardments: 3,
+    assaultSeconds: 600,
+    success: [0.6, 0.9],
+    losses: [0.35, 0.6],
+    ownFire: [0.05, 0.15]
+  }
 ]
+/** What knocks men down, in the order the report lists them. "own" is the attackers' own shells and grenades. */
+const CAUSES = ["machine-gun", "rifle", "shell", "own", "grenade", "gas", "other"]
 /** Attacking from either side should come out within this share of the seeds of each other. */
 const SIDE_TOLERANCE = 0.2
 
@@ -79,10 +89,24 @@ async function battle({ mapName, seed, scenario, attacker }) {
   const defender = attacker === Side.French ? Side.German : Side.French
   const started = countSide(soldierIds(sim), sim, attacker)
   const outOfShells = []
+  // The attackers' men put out of the fight, by what did it.
+  const causes = Object.fromEntries(CAUSES.map((cause) => [cause, 0]))
+  // The defenders' fire, by weapon: shots and hits.
+  const fire = { rifle: { shots: 0, hits: 0 }, "machine-gun": { shots: 0, hits: 0 } }
   const run = (seconds) => {
     for (let step = 0; step < seconds * TICK_RATE; step++) {
       stepSimulation(sim)
       for (const event of sim.events) {
+        if (event.type === "fallen" && sim.soldiers.side.value[event.soldier] === attacker) {
+          const { kind, by } = event.cause
+          const own = by === attacker && (kind === "shell" || kind === "grenade")
+          causes[own ? "own" : kind] += 1
+        }
+        if (event.type === "shot" && sim.soldiers.side.value[event.shooter] === defender) {
+          const weapon = sim.soldiers.weapon.kind[event.shooter] === Weapon.MachineGun ? "machine-gun" : "rifle"
+          fire[weapon].shots += 1
+          fire[weapon].hits += event.hit ? 1 : 0
+        }
         if (event.type === "out-of-shells") {
           outOfShells.push(`${event.side === Side.French ? "French" : "German"} shell ${event.shell}`)
         }
@@ -116,6 +140,9 @@ async function battle({ mapName, seed, scenario, attacker }) {
   return {
     held,
     losses: lost / started,
+    causes,
+    defenderFire: fire,
+    captured: countSide(capturedIds(sim), sim, attacker),
     defendersCaptured: countSide(capturedIds(sim), sim, defender),
     attackersLeft: countSide(soldierIds(sim), sim, attacker),
     inFront: [inFront[attacker], inFront[defender]],
@@ -176,7 +203,18 @@ async function main() {
       const success = runs.filter((result) => result.held).length / runs.length
       const losses = runs.reduce((sum, result) => sum + result.losses, 0) / runs.length
       shares[attacker] = success
-      const checks = [inBand(success, scenario.success), scenario.losses ? inBand(losses, scenario.losses) : true]
+      // Shares of the attackers' losses (killed, wounded and captured) by cause.
+      const fallen = Object.fromEntries(
+        CAUSES.map((cause) => [cause, runs.reduce((sum, result) => sum + result.causes[cause], 0)])
+      )
+      const captured = runs.reduce((sum, result) => sum + result.captured, 0)
+      const allLost = CAUSES.reduce((sum, cause) => sum + fallen[cause], 0) + captured
+      const ownFire = allLost > 0 ? fallen.own / allLost : 0
+      const checks = [
+        inBand(success, scenario.success),
+        scenario.losses ? inBand(losses, scenario.losses) : true,
+        scenario.ownFire ? inBand(ownFire, scenario.ownFire) : true
+      ]
       const pass = checks.every(Boolean)
       failed ||= !pass
       const detail = runs
@@ -188,7 +226,15 @@ async function main() {
           (scenario.losses
             ? `, losses ${percent(losses)} (band ${percent(scenario.losses[0])}-${percent(scenario.losses[1])})`
             : "") +
-          `\n     ${detail}`
+          (scenario.ownFire
+            ? `, own fire ${percent(ownFire)} of losses (band ${percent(scenario.ownFire[0])}-${percent(scenario.ownFire[1])})`
+            : "") +
+          `\n     ${detail}` +
+          `\n     losses by cause: ${[...CAUSES.filter((cause) => fallen[cause] > 0), "captured"]
+            .map(
+              (cause) => `${cause} ${percent((cause === "captured" ? captured : fallen[cause]) / Math.max(1, allLost))}`
+            )
+            .join(", ")}`
       )
     }
     if (sides.length === 2) {

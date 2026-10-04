@@ -105,6 +105,19 @@ describe("casualties", () => {
     expect(sim.events.filter((event) => event.type === "wounded")).toEqual([{ type: "wounded", soldier: wounded }])
     expect(KILLED_OUTRIGHT.shell).toBeLessThan(0.5)
   })
+
+  it("report every man put out of the fight with what did it, and whether he was killed", () => {
+    const sim = sector()
+    const killed = spawnSoldier(sim, { side: Side.French, x: 60, z: 150 })
+    const wounded = spawnSoldier(sim, { side: Side.French, x: 70, z: 150 })
+    casualty(sim, killed, 1, { kind: "machine-gun", by: Side.German })
+    casualty(sim, wounded, 0)
+
+    expect(sim.events.filter((event) => event.type === "fallen")).toEqual([
+      { type: "fallen", soldier: killed, killed: true, cause: { kind: "machine-gun", by: Side.German } },
+      { type: "fallen", soldier: wounded, killed: false, cause: { kind: "other", by: -1 } }
+    ])
+  })
 })
 
 describe("aid posts", () => {

@@ -1,6 +1,6 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { Shell } from "./artillery.ts"
-import { MaskState, Stance } from "./components.ts"
+import { MaskState, Side, Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut } from "./sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
@@ -238,11 +238,16 @@ function weaponOf(sim: Simulation, soldier: EntityId): WeaponStats {
 }
 
 /** A bullet strikes a soldier: a wound he may fight on with, or one that puts him out of the fight. */
-function strike(sim: Simulation, soldier: EntityId): void {
+function strike(sim: Simulation, soldier: EntityId, shooter: EntityId): void {
   sim.soldiers.health.value[soldier] -= 0.5 + sim.rng.next() * 0.6
   if (sim.soldiers.health.value[soldier] <= 0) {
-    casualty(sim, soldier, KILLED_OUTRIGHT.bullet)
+    const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? "machine-gun" : "rifle"
+    casualty(sim, soldier, KILLED_OUTRIGHT.bullet, { kind, by: sideOf(sim, shooter) })
   }
+}
+
+function sideOf(sim: Simulation, soldier: EntityId): Side {
+  return sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French
 }
 
 /**
@@ -285,14 +290,14 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
   const { suppression } = sim.soldiers
   suppression.value[target] = Math.min(1, suppression.value[target] + stats.suppression * (hit ? 2 : 1))
   if (hit) {
-    strike(sim, target)
+    strike(sim, target, shooter)
   } else if (kind === Weapon.MachineGun) {
     // A machine gun's misses still fall among the men around its target.
     const other = inBeatenZone(sim, shooter, target)
     if (other >= 0) {
       suppression.value[other] = Math.min(1, suppression.value[other] + stats.suppression)
       if (sim.rng.next() < hitChance(sim, shooter, other) * BEATEN_ZONE.share) {
-        strike(sim, other)
+        strike(sim, other, shooter)
       }
     }
   }

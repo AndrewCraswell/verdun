@@ -28,7 +28,7 @@ import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
 import { movementSystem } from "./systems/movement.ts"
 import { createWireField, type WireCutEvent, type WireField } from "./wire.ts"
-import { type CasualtyEvent, type WoundedEvent, woundSystem } from "./wounds.ts"
+import { type CasualtyEvent, type FallenEvent, type WoundedEvent, woundSystem } from "./wounds.ts"
 
 /** Simulation steps per second. */
 export const TICK_RATE = 20
@@ -100,6 +100,7 @@ export type SimEvent =
   | FlareEvent
   | OutOfShellsEvent
   | WoundedEvent
+  | FallenEvent
   | CasualtyEvent
 
 export interface SimulationOptions {

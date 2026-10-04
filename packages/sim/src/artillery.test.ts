@@ -241,6 +241,10 @@ describe("high-explosive bursts", () => {
     stepSimulation(sim)
 
     expect(isAlive(sim, french)).toBe(false)
+    // Recorded as killed by his own side's shell, for counting losses to own fire.
+    expect(sim.events.filter((event) => event.type === "fallen")).toEqual([
+      { type: "fallen", soldier: french, killed: true, cause: { kind: "shell", by: Side.French } }
+    ])
   })
 })
 

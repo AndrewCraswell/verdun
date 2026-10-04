@@ -76,7 +76,10 @@ export {
   aidPost,
   BEARER_TEAMS,
   casualty,
+  type CasualtyCause,
   type CasualtyEvent,
+  type CasualtyKind,
+  type FallenEvent,
   KILLED_OUTRIGHT,
   type WoundedEvent
 } from "./wounds.ts"
