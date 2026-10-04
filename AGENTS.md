@@ -38,6 +38,17 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 - Git hooks (lefthook): pre-commit runs `oxlint --fix` and `oxfmt` on staged files; pre-push runs `check:types`. Don't
   use `--no-verify`.
 
+## Shared working tree
+
+Several agents work in this checkout at once, all on `main`.
+
+- **Commit only your own changes.** Stage by path, never `git add -A` or `git add .`.
+- **Never partially stage a file another agent is also editing.** Lefthook hides unstaged changes as a patch while the
+  hooks run; if a hook then reformats the staged part, the patch can't reapply and the other agent's edits vanish from
+  the working tree. Leave such files for their owner, or coordinate.
+- **Don't stash, reset, check out or restore files you didn't change.**
+- Before pushing, `git fetch` and rebase if `main` moved.
+
 ## Assets
 
 - **Never commit vendor source files.** Raw purchases live in `vendor/` (git-ignored).
