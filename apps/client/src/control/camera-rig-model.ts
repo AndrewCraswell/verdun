@@ -76,6 +76,18 @@ export interface CameraRigModel {
   step(seconds: number, ground: (x: number, z: number) => number): RigView
 }
 
+/**
+ * Easing that's this close to where it's going, in metres or radians, arrives: exponential damping would otherwise creep
+ * on by fractions of a millimetre for seconds, and a view that never quite stops can't be replayed (snapshot rendering).
+ */
+const ARRIVED = 0.0005
+
+/** Moves `from` toward `to` by a share, landing on it once within `ARRIVED`. */
+function approach(from: number, to: number, share: number): number {
+  const next = from + (to - from) * share
+  return Math.abs(to - next) < ARRIVED ? to : next
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -203,8 +215,8 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
       clampTarget()
 
       const moveFocus = ease(RATES.focus, seconds)
-      const focusX = view.focusX + (target.x - view.focusX) * moveFocus
-      const focusZ = view.focusZ + (target.z - view.focusZ) * moveFocus
+      const focusX = approach(view.focusX, target.x, moveFocus)
+      const focusZ = approach(view.focusZ, target.z, moveFocus)
       // Average the ground around the focus, so the view glides over craters and trench lips instead of bobbing.
       const reach = 4
       const groundHere =
@@ -214,11 +226,11 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
           ground(focusX, focusZ + reach) +
           ground(focusX, focusZ - reach)) /
         6
-      const focusY = view.focusY + (groundHere + FOCUS_HEIGHT - view.focusY) * ease(RATES.height, seconds)
-      const nextDistance = view.distance + (distance - view.distance) * ease(RATES.distance, seconds)
-      const nextYaw = view.yaw + (yaw - view.yaw) * ease(RATES.yaw, seconds)
+      const focusY = approach(view.focusY, groundHere + FOCUS_HEIGHT, ease(RATES.height, seconds))
+      const nextDistance = approach(view.distance, distance, ease(RATES.distance, seconds))
+      const nextYaw = approach(view.yaw, yaw, ease(RATES.yaw, seconds))
       let pitch = clamp(
-        view.pitch + (pitchForDistance(nextDistance) + tilt - view.pitch) * ease(RATES.pitch, seconds),
+        approach(view.pitch, pitchForDistance(nextDistance) + tilt, ease(RATES.pitch, seconds)),
         PITCH_LIMITS.min,
         PITCH_LIMITS.max
       )

@@ -148,6 +148,17 @@ describe("camera rig", () => {
     expect(view.pitch).toBeLessThan(pitchForDistance(60))
   })
 
+  it("comes to a dead stop once it's arrived, rather than creeping on", () => {
+    const model = createCameraRigModel(bounds, start)
+    model.follow(320, 220)
+    const settled = settle(model, 5)
+    const after = model.step(1 / 60, flat)
+
+    expect(settled.focusX).toBe(320)
+    expect(settled.focusZ).toBe(220)
+    expect(after).toEqual(settled)
+  })
+
   it("moves the same at any frame rate", () => {
     const slow = createCameraRigModel(bounds, start)
     const fast = createCameraRigModel(bounds, start)
