@@ -39,6 +39,12 @@ const SUN_COLORS: readonly (readonly [number, Color3])[] = [
 /** Moonlight as the dark-adapted eye sees it: cool and grey. */
 const MOON_COLOR = Color3.FromHexString("#9fb2d8")
 const DAY_SKY = Color3.FromHexString("#d3d9e0")
+/**
+ * A full moon high up as a key light, against the sun's 1: a quarter million times fainter in truth, but drawn bright
+ * enough that a moonlit night reads clearly brighter than a moonless one, with shadows, as eyes adapted to the dark see
+ * it.
+ */
+const MOONLIGHT = 0.6
 const NIGHT_SKY = Color3.FromHexString("#6f87b5")
 const DAY_GROUND = Color3.FromHexString("#6b5e4f")
 const NIGHT_GROUND = Color3.FromHexString("#2a2c33")
@@ -110,7 +116,7 @@ export function lightingFor(environment: Environment): Lighting {
   // Cloud takes the direct beam first: under a full overcast there is no sun to cast a shadow, only grey sky.
   const direct = 1 - 0.92 * weather.cloudCover ** 1.6
   const sunUp = smoothstep(-2, 6, sky.sun.altitude)
-  const moonUp = smoothstep(0, 10, sky.moon.altitude) * sky.moon.phase * 0.3
+  const moonUp = smoothstep(0, 10, sky.moon.altitude) * sky.moon.phase * MOONLIGHT
   const moonlit = moonUp > sunUp
   const key = moonlit ? sky.moon : sky.sun
   const keyStrength = Math.max(sunUp, moonUp) * direct
