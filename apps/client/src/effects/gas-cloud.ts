@@ -179,8 +179,8 @@ function puffTexture(scene: Scene): Texture {
 
 /**
  * Puffs drawn as sprites: soft round billows that always face the camera, so a cloud of them reads as smoke rather than
- * a heap of balls. Every sprite is made at the start and none is ever removed; puffs not showing shrink to nothing.
- * The number drawn so never changes, which keeps a recorded frame valid (snapshot rendering).
+ * a heap of balls. Every sprite is made at the start and none is ever removed; puffs not showing are hidden, so Babylon
+ * writes no vertices for them.
  */
 function createCloudPuffs(
   scene: Scene,
@@ -196,8 +196,7 @@ function createCloudPuffs(
   sprites.disableDepthWrite = true
   const pool = Array.from({ length: MAX_PUFFS }, (_, index) => {
     const sprite = new Sprite(`${look.name}-${index}`, sprites)
-    sprite.width = 0
-    sprite.height = 0
+    sprite.isVisible = false
     return sprite
   })
   const strengths = new Float32Array(field.columns * field.rows)
@@ -229,6 +228,7 @@ function createCloudPuffs(
         if (!sprite) {
           return
         }
+        sprite.isVisible = true
         const x = ((cell % field.columns) + 0.5 + jitter(cell, 0x51) * 0.8) * GAS_CELL
         const z = (Math.floor(cell / field.columns) + 0.5 + jitter(cell, 0xa3) * 0.8) * GAS_CELL
         const radius = GAS_CELL * (0.55 + 0.35 * strength + jitter(cell, 0x7d) * 0.3)
@@ -248,8 +248,7 @@ function createCloudPuffs(
       for (let index = shown.length; index < count; index++) {
         const sprite = pool[index]
         if (sprite) {
-          sprite.width = 0
-          sprite.height = 0
+          sprite.isVisible = false
         }
       }
       count = shown.length

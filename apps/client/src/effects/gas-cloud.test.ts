@@ -84,8 +84,9 @@ describe("createGasCloud", () => {
     sim.gas.active = false
     cloud.update()
     expect(cloud.puffs.count).toBe(0)
-    // Shrunk to nothing, not removed.
-    expect(puff?.width).toBe(0)
+    // Hidden, so nothing is drawn for it, not removed.
+    expect(puff?.isVisible).toBe(false)
+    expect(cloud.puffs.sprites.sprites.every((sprite) => !sprite.isVisible)).toBe(true)
     cloud.update()
     expect(cloud.puffs.count).toBe(0)
   })
