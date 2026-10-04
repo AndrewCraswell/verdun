@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "catalog:",
     "@verdun/map": "workspace:*",
     "bitecs": "catalog:"
   },

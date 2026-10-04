@@ -2,11 +2,19 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
 import { generatePrototypeSector } from "@verdun/map"
-import { createFixedStepper, createSimulation, STEP_SECONDS, stepSimulation } from "@verdun/sim"
+import {
+  createFixedStepper,
+  createLineOfSight,
+  createSimulation,
+  Side,
+  STEP_SECONDS,
+  stepSimulation
+} from "@verdun/sim"
 import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { createBrowserInput } from "./control/browser-input.ts"
 import { createPlayerControl } from "./control/player-control.ts"
 import { createSoldierMarker } from "./control/soldier-marker.ts"
+import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { setupSkirmish } from "./skirmish.ts"
 import "./style.css"
 
@@ -49,10 +57,16 @@ async function start(): Promise<void> {
   }
   const control = createPlayerControl(sim, player, view.camera, createBrowserInput(view.scene, view.terrain.meshes))
   const marker = createSoldierMarker(view.scene, sim, player)
+  const lineOfSight = await createLineOfSight(map)
+  const fog = createFogOfWar(view.scene, sim, lineOfSight, {
+    viewer: player,
+    side: Side.French,
+    groundMaterial: view.groundMaterial
+  })
   view.camera.radius = 60
   if (import.meta.env.DEV) {
     // Dev-only handle for inspecting the running game from the browser console and automated checks.
-    Object.assign(window, { verdun: { engine, sim, view, control } })
+    Object.assign(window, { verdun: { engine, sim, view, control, fog, lineOfSight } })
     const { installInspectorToggle } = await import("./dev/inspector.ts")
     installInspectorToggle(view.scene)
   }
@@ -64,8 +78,9 @@ async function start(): Promise<void> {
     for (let step = 0; step < steps; step++) {
       stepSimulation(sim)
     }
-    if (steps > 0) {
-      view.syncSoldiers()
+    const sightChanged = fog.update(frameSeconds)
+    if (steps > 0 || sightChanged) {
+      view.syncSoldiers(fog.isShown)
     }
     marker.update()
     view.scene.render()

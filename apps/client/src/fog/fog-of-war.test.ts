@@ -1,0 +1,192 @@
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage"
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
+import { Texture } from "@babylonjs/core/Materials/Textures/texture"
+import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer"
+import { Scene } from "@babylonjs/core/scene"
+import { carveTrenches, createFlatMap, sampleIndex, TRENCH_PROFILE, type Trench } from "@verdun/map"
+import { createLineOfSight, createSimulation, EYE_HEIGHT, type LineOfSight, Side, spawnSoldier } from "@verdun/sim"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
+import { createFogOfWar } from "./fog-of-war.ts"
+import { computeViewshed, createFogGrid, type FogGrid } from "./viewshed.ts"
+
+function seen(grid: FogGrid, x: number, z: number): boolean {
+  return grid.values[Math.floor(z / grid.cellSize) * grid.columns + Math.floor(x / grid.cellSize)] === 255
+}
+
+/** Flat ground 100 m square with a 4 m high ridge running east-west at z = 50. */
+function ridgeMap() {
+  const map = createFlatMap({ name: "ridge", cellSize: 0.5, columns: 200, rows: 200 })
+  for (let row = 96; row <= 104; row++) {
+    for (let column = 0; column <= 200; column++) {
+      map.heights[sampleIndex(map, column, row)] = 4
+    }
+  }
+  return map
+}
+
+describe("computeViewshed", () => {
+  it("covers the map in coarse fog cells", () => {
+    const grid = createFogGrid(createFlatMap({ name: "m", cellSize: 0.5, columns: 1200, rows: 800 }))
+
+    expect([grid.columns, grid.rows, grid.values.length]).toEqual([300, 200, 60_000])
+  })
+
+  it("sees open ground out to its range and nothing beyond", () => {
+    const map = createFlatMap({ name: "flat", cellSize: 0.5, columns: 200, rows: 200 })
+    const grid = createFogGrid(map)
+    computeViewshed(map, { x: 50, y: EYE_HEIGHT, z: 50 }, 30, grid)
+
+    expect(seen(grid, 50, 50)).toBe(true)
+    expect(seen(grid, 75, 50)).toBe(true)
+    expect(seen(grid, 50, 25)).toBe(true)
+    expect(seen(grid, 90, 50)).toBe(false)
+  })
+
+  it("hides the dead ground behind a ridge but sees the ridge itself", () => {
+    const map = ridgeMap()
+    const grid = createFogGrid(map)
+    computeViewshed(map, { x: 50, y: EYE_HEIGHT, z: 20 }, 100, grid)
+
+    expect(seen(grid, 50, 40)).toBe(true)
+    expect(seen(grid, 50, 49)).toBe(true)
+    expect(seen(grid, 50, 60)).toBe(false)
+    expect(seen(grid, 50, 90)).toBe(false)
+  })
+
+  it("clears previous results and stops at the map edge", () => {
+    const map = createFlatMap({ name: "flat", cellSize: 0.5, columns: 200, rows: 200 })
+    const grid = createFogGrid(map)
+    computeViewshed(map, { x: 10, y: EYE_HEIGHT, z: 10 }, 20, grid)
+    computeViewshed(map, { x: 99, y: EYE_HEIGHT, z: 99 }, 20, grid)
+
+    expect(seen(grid, 10, 10)).toBe(false)
+    expect(seen(grid, 99, 99)).toBe(true)
+  })
+})
+
+const engines: NullEngine[] = []
+const sightLines: LineOfSight[] = []
+afterEach(() => {
+  for (const engine of engines.splice(0)) {
+    engine.dispose()
+  }
+  for (const lineOfSight of sightLines.splice(0)) {
+    lineOfSight.dispose()
+  }
+})
+
+function scene(): Scene {
+  const engine = new NullEngine()
+  engines.push(engine)
+  return new Scene(engine)
+}
+
+describe("FogOfWarPlugin", () => {
+  it("darkens unseen ground in both shader languages, before distance fog", () => {
+    const material = new StandardMaterial("ground", scene())
+    const texture = new Texture(null, null)
+    const plugin = new FogOfWarPlugin(material, { texture, mapWidth: 200, mapDepth: 100 })
+    const samplers: string[] = []
+    const textures: unknown[] = []
+    plugin.getSamplers(samplers)
+    plugin.getActiveTextures(textures as never[])
+
+    expect(plugin.getClassName()).toBe("FogOfWarPlugin")
+    expect(plugin.isCompatible(ShaderLanguage.WGSL)).toBe(true)
+    expect(plugin.isCompatible(ShaderLanguage.GLSL)).toBe(true)
+    expect(samplers).toEqual(["fogOfWar"])
+    expect(textures).toEqual([texture])
+    expect(plugin.hasTexture(texture)).toBe(true)
+    for (const language of [ShaderLanguage.GLSL, ShaderLanguage.WGSL]) {
+      expect(plugin.getCustomCode("fragment", language)?.CUSTOM_FRAGMENT_BEFORE_FOG).toContain("fogOfWarParams")
+    }
+    expect(plugin.getCustomCode("vertex")).toBeNull()
+    expect(plugin.getUniforms(ShaderLanguage.GLSL).fragment).toContain("uniform vec4 fogOfWarParams;")
+    expect(plugin.getUniforms(ShaderLanguage.WGSL).fragment).toBe("")
+  })
+
+  it("binds the map scale and how dark unseen ground is", () => {
+    const material = new StandardMaterial("ground", scene())
+    const texture = new Texture(null, null)
+    const plugin = new FogOfWarPlugin(material, { texture, mapWidth: 200, mapDepth: 100, unseenBrightness: 0.3 })
+    const buffer = {
+      updateFloat4: vi.fn<UniformBuffer["updateFloat4"]>(),
+      setTexture: vi.fn<UniformBuffer["setTexture"]>()
+    }
+    plugin.bindForSubMesh(buffer as unknown as UniformBuffer)
+
+    expect(buffer.updateFloat4).toHaveBeenCalledWith("fogOfWarParams", 0.005, 0.01, 0.3, 0)
+    expect(buffer.setTexture).toHaveBeenCalledWith("fogOfWar", texture)
+  })
+})
+
+describe("createFogOfWar", () => {
+  async function trenchSetup() {
+    const map = createFlatMap({ name: "trench", cellSize: 0.5, columns: 200, rows: 200 })
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [10, 30],
+        [90, 30]
+      ],
+      facing: "north"
+    }
+    carveTrenches(map, [trench])
+    const sim = createSimulation({ map, seed: 1 })
+    const player = spawnSoldier(sim, { side: Side.French, x: 50, z: 30 })
+    const friend = spawnSoldier(sim, { side: Side.French, x: 20, z: 30 })
+    const enemyInOpen = spawnSoldier(sim, { side: Side.German, x: 55, z: 80 })
+    const lineOfSight = await createLineOfSight(map)
+    sightLines.push(lineOfSight)
+    const fog = createFogOfWar(scene(), sim, lineOfSight, {
+      viewer: player,
+      side: Side.French,
+      groundMaterial: new StandardMaterial("ground", scene())
+    })
+    return { sim, player, friend, enemyInOpen, fog }
+  }
+
+  it("hides enemies from a soldier down in the trench, but always shows friends", async () => {
+    const { friend, enemyInOpen, fog } = await trenchSetup()
+
+    expect(fog.update(0)).toBe(true)
+    expect(fog.visibleEnemies.has(enemyInOpen)).toBe(false)
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+    expect(fog.isShown(friend)).toBe(true)
+  })
+
+  it("shows an enemy in the open once the player steps up onto the fire step", async () => {
+    const { sim, player, enemyInOpen, fog } = await trenchSetup()
+    sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    fog.update(0)
+
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+    expect(fog.plugin.getClassName()).toBe("FogOfWarPlugin")
+  })
+
+  it("only recomputes a few times a second", async () => {
+    const { fog } = await trenchSetup()
+
+    expect(fog.update(0)).toBe(true)
+    expect(fog.update(0.1)).toBe(false)
+    expect(fog.update(0.2)).toBe(true)
+  })
+
+  it("doesn't see enemies beyond its range", async () => {
+    const { sim, player, enemyInOpen } = await trenchSetup()
+    const lineOfSight = await createLineOfSight(sim.map)
+    sightLines.push(lineOfSight)
+    sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    const shortSighted = createFogOfWar(scene(), sim, lineOfSight, {
+      viewer: player,
+      side: Side.French,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      range: 20
+    })
+    shortSighted.update(0)
+
+    expect(shortSighted.isShown(enemyInOpen)).toBe(false)
+  })
+})

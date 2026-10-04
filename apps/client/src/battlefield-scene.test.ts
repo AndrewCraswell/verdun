@@ -76,6 +76,19 @@ describe("createBattlefieldScene", () => {
     expect(moved?.getTranslation().z).toBeGreaterThan(10)
   })
 
+  it("leaves out soldiers that aren't shown, such as enemies out of sight", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const hidden = spawnSoldier(sim, { side: Side.German, x: 50, z: 70 })
+    spawnSoldier(sim, { side: Side.German, x: 60, z: 70 })
+    const view = render(sim)
+    view.syncSoldiers((soldier) => soldier !== hidden)
+
+    expect(view.soldierMeshes[Side.French].thinInstanceCount).toBe(1)
+    expect(view.soldierMeshes[Side.German].thinInstanceCount).toBe(1)
+    expect(view.groundMaterial.name).toBe("ground")
+  })
+
   it("grows its instance buffers when more soldiers join", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })

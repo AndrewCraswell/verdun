@@ -12,6 +12,9 @@ catalogs:
     '@babylonjs/inspector':
       specifier: 9.28.0
       version: 9.28.0
+    '@dimforge/rapier3d-compat':
+      specifier: 0.21.0
+      version: 0.21.0
     '@vitest/coverage-v8':
       specifier: 5.0.2
       version: 5.0.2
@@ -107,6 +110,9 @@ importers:
 
   packages/sim:
     dependencies:
+      '@dimforge/rapier3d-compat':
+        specifier: 'catalog:'
+        version: 0.21.0
       '@verdun/map':
         specifier: workspace:*
         version: link:../map
@@ -251,6 +257,9 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@dimforge/rapier3d-compat@0.21.0':
+    resolution: {integrity: sha512-tCl1HPGwOhn5aCQbgqWbOH+Nx/5fnr3IPAnzQuR7zIhC/raqi2yxC6LhvZqjdI2El5hQgY5RDAwDrAjAi2FdPA==}
 
   '@emnapi/core@1.11.2':
     resolution: {integrity: sha512-TC8MkTuZUtcTSiFeuC0ksCh9QIJ5+F21MvZ4Wn4ORfYaFJ/0dsiudv5tVkejgwZlwQ39jL9WWDe2lz8x0WglOA==}
@@ -2328,6 +2337,8 @@ snapshots:
       babylonjs-gltf2interface: 9.28.0
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@dimforge/rapier3d-compat@0.21.0': {}
 
   '@emnapi/core@1.11.2':
     dependencies:

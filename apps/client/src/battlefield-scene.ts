@@ -10,7 +10,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { Scene } from "@babylonjs/core/scene"
 import { heightAt, mapDepth, mapWidth } from "@verdun/map"
-import { Side, type Simulation, soldierIds } from "@verdun/sim"
+import { type EntityId, Side, type Simulation, soldierIds } from "@verdun/sim"
 import { palette } from "./palette.ts"
 import { createGroundMaterial, loadGroundLayers } from "./terrain/ground-material.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
@@ -25,10 +25,15 @@ export interface BattlefieldView {
   readonly scene: Scene
   readonly camera: ArcRotateCamera
   readonly terrain: TerrainChunks
+  /** The ground material, for effects layered on the terrain such as fog of war. */
+  readonly groundMaterial: StandardMaterial
   /** Placeholder soldier meshes, one per side, drawn as thin instances. */
   readonly soldierMeshes: Readonly<Record<Side, Mesh>>
-  /** Copies soldier positions from the simulation into the render meshes. Call after stepping. */
-  syncSoldiers(): void
+  /**
+   * Copies soldier positions from the simulation into the render meshes. Call after stepping, or when what is visible
+   * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
+   */
+  syncSoldiers(isShown?: (soldier: EntityId) => boolean): void
 }
 
 export interface BattlefieldViewOptions {
@@ -104,7 +109,7 @@ export function createBattlefieldScene(
     [Side.German]: new Float32Array(0)
   }
 
-  function syncSoldiers(): void {
+  function syncSoldiers(isShown?: (soldier: EntityId) => boolean): void {
     const { position, side } = sim.soldiers
     const ids = soldierIds(sim)
     const counts: Record<Side, number> = { [Side.French]: 0, [Side.German]: 0 }
@@ -116,6 +121,9 @@ export function createBattlefieldScene(
     }
 
     for (const soldier of ids) {
+      if (isShown && !isShown(soldier)) {
+        continue
+      }
       const soldierSide = side.value[soldier] === Side.German ? Side.German : Side.French
       const x = position.x[soldier]
       const z = position.z[soldier]
@@ -141,5 +149,5 @@ export function createBattlefieldScene(
   }
 
   syncSoldiers()
-  return { scene, camera, terrain, soldierMeshes, syncSoldiers }
+  return { scene, camera, terrain, groundMaterial: ground.material, soldierMeshes, syncSoldiers }
 }

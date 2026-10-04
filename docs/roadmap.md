@@ -34,8 +34,9 @@ Scope:
 - [ ] **M1b Gameplay trenches (greybox)**: trench polylines in the map format, carved into the height grid with a fire
       step and parapet, so they give cover and block sight. Plain geometry, no revetments or props. Soldiers spawn in
       the lines.
-- [ ] **M2 One soldier**: player-controlled soldier with movement, aiming, line of sight (Rapier ray casts against
-      chunked terrain colliders), fog of war.
+- [x] **M2 One soldier**: player-controlled soldier (WASD relative to the camera, mouse aim, camera follow), line of
+      sight as Rapier ray casts against a map-wide heightfield, fog of war that darkens unseen ground and hides enemies
+      out of sight. Trench floors hide you; the fire step lets you see out.
 - [ ] **M3 Squad**: 8 soldiers, orders, switching, death moves control to the next soldier.
 - [ ] **M4 Combat and bots**: rifles and MG, suppression, morale, bot squads on both sides, flow-field movement. Profile
       line of sight with 400 soldiers.

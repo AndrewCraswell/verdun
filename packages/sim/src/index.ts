@@ -22,3 +22,4 @@ export {
   takeSnapshot
 } from "./snapshot.ts"
 export { createFixedStepper, type FixedStepper } from "./stepper.ts"
+export { createLineOfSight, EYE_HEIGHT, eyeAt, type LineOfSight, type WorldPoint } from "./line-of-sight.ts"

@@ -18,11 +18,11 @@ export interface Trench {
 export const TRENCH_PROFILE = {
   floorHalfWidth: 0.6,
   floorDepth: 2,
-  /** A soldier standing on the fire step sees, and shoots, over the parapet. */
+  /** A soldier standing on the fire step sees, and shoots, over the parapet: eye height 1.65 m clears it by 0.25 m. */
   fireStepOuter: 1.1,
-  fireStepDepth: 1.3,
+  fireStepDepth: 1,
   parapetOuter: 2.6,
-  parapetHeight: 0.5,
+  parapetHeight: 0.4,
   paradosOuter: 1.8,
   paradosHeight: 0.25,
   communicationDepth: 1.8

@@ -107,8 +107,14 @@ tools but is still pre-1.0 (1.0.0-rc.1 as of October 2026), and its task runner 
 
 ### Physics
 
-- **Rapier holds static colliders**: the terrain as heightfield chunks matching the render chunks (32–64 m), plus
-  colliders for structures from the objects layer. A crater rebuilds only the chunk it hits.
+- **Rapier holds static colliders**: the terrain as **one heightfield for the whole map** at the 0.5 m simulation
+  resolution, plus colliders for structures from the objects layer. Per-chunk heightfields were tried at M2 and dropped:
+  with Rapier 0.21, rays entering a chunk's heightfield through its side sometimes missed the ground, letting soldiers
+  see through hills (a regression test covers it). A crater rebuilds the whole heightfield, about a million heights on
+  the 600 × 400 m map; measure that cost at M5 and revisit if barrages make it hurt.
+- **Fog of war is presentation only**: the client sweeps a radial viewshed over the height grid a few times a second
+  into a 2 m texture that darkens unseen ground. Whether an enemy is visible, and later whether a shot can land, is
+  always a Rapier sight line.
 - **Line of sight and line of fire are ray casts** against those colliders. Smoke and gas block sight through their
   density grids, not through colliders.
 - **Soldiers are not physics bodies.** They move on the grid in plain TypeScript. That keeps WebAssembly out of the
