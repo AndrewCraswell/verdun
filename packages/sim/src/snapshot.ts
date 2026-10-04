@@ -12,7 +12,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 16
+export const SIM_STATE_VERSION = 17
 
 export interface SoldierState {
   readonly id: number
@@ -239,6 +239,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   sim.artillery.shells.push(...artillery.shells)
   sim.artillery.pendingSightRebuild = artillery.pendingSightRebuild
   Object.assign(sim.artillery.sosCalledAt, artillery.sosCalledAt)
+  Object.assign(sim.artillery.ammunition, artillery.ammunition)
   sim.gas.concentration.set(snapshot.gas)
   sim.gas.active = snapshot.gas.some((value) => value > 0)
   sim.smoke.concentration.set(snapshot.smoke)

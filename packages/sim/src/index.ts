@@ -4,13 +4,16 @@ export {
   type Creep,
   DEFENSIVE_BARRAGE_DELAY,
   type FireMission,
+  addAmmunition,
   type FireMissionPlan,
   frontLineSpan,
   frontLineZ,
   type LineSpan,
   Shell,
   SHELLS,
-  type ShellInFlight
+  type OutOfShellsEvent,
+  type ShellInFlight,
+  UNLIMITED
 } from "./artillery.ts"
 export type { EntityId } from "bitecs"
 export {
@@ -26,6 +29,7 @@ export {
   WEAPONS
 } from "./combat.ts"
 export type {
+  AmmunitionCommand,
   Command,
   BarrageAttackCommand,
   FireCommand,

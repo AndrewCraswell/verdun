@@ -40,6 +40,11 @@
   background: none;
 }
 
+.hud-clock {
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+
 .hud-title {
   font-weight: 600;
   margin-bottom: 4px;

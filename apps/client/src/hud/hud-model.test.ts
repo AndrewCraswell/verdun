@@ -10,7 +10,8 @@ import {
   Stance,
   stepSimulation,
   surrender,
-  TICK_RATE
+  TICK_RATE,
+  Shell
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { createBattleLog, hudModel, LOG_LENGTH } from "./hud-model.ts"
@@ -93,6 +94,31 @@ describe("hudModel", () => {
     expect(hudModel(sim, squad, TICK_RATE).squad).toBe("Squad 8 of 8")
     expect(hudModel(sim, squad, TICK_RATE).reserves).toBe("Reserves: 32 men")
     expect(log.messages.map((message) => message.text)).toContain("Replacements up in the rear trench: 8 men")
+  })
+})
+
+describe("hudModel's battery and clock", () => {
+  it("counts the side's shells left once a scenario limits them, and shows the week and hour", () => {
+    const { sim, squad } = battle()
+    expect(hudModel(sim, squad, TICK_RATE).shells).toBeNull()
+
+    sim.artillery.ammunition[Side.French][Shell.FieldHighExplosive] = 7420
+    sim.artillery.ammunition[Side.French][Shell.FieldGas] = 500
+    const model = hudModel(sim, squad, TICK_RATE)
+    expect(model.shells).toBe("Shells: 7,420 field, 500 gas")
+    expect(model.week).toMatch(/^Week of \d+ \w+ 191\d$/)
+    expect(model.hour).toMatch(/^\d\d:\d\d$/)
+  })
+
+  it("logs the batteries running dry, but only our own", () => {
+    const { sim, squad } = battle()
+    const log = createBattleLog(sim, squad, TICK_RATE)
+    log.record([
+      { type: "out-of-shells", side: Side.French, shell: Shell.HeavyHighExplosive },
+      { type: "out-of-shells", side: Side.German, shell: Shell.FieldGas }
+    ])
+
+    expect(log.messages.map((message) => message.text)).toEqual(["The batteries are out of heavy shells"])
   })
 })
 

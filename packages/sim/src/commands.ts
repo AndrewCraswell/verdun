@@ -90,6 +90,14 @@ export interface ThrowGrenadeCommand {
  * Sets the wind near the ground, in metres per second toward +x (east) and +z (north). The weather is held as it is
  * from then on, so the wind stays put until a new forecast is given.
  */
+/** Sets how many rounds of a kind of shell a side's batteries have left: a scenario's ammunition allotment. */
+export interface AmmunitionCommand {
+  readonly type: "ammunition"
+  readonly side: Side
+  readonly shell: Shell
+  readonly rounds: number
+}
+
 export interface WindCommand {
   readonly type: "wind"
   readonly x: number
@@ -171,6 +179,7 @@ export type Command =
   | FireCommand
   | StanceCommand
   | ThrowGrenadeCommand
+  | AmmunitionCommand
   | WindCommand
   | ClockCommand
   | ForecastCommand
@@ -271,6 +280,12 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "throw-grenade": {
       if (isSoldier(sim, command.soldier) && Number.isFinite(command.x) && Number.isFinite(command.z)) {
         throwGrenade(sim, command.soldier, command.x, command.z)
+      }
+      return
+    }
+    case "ammunition": {
+      if (Number.isInteger(command.rounds) && command.rounds >= 0) {
+        sim.artillery.ammunition[command.side][command.shell] = command.rounds
       }
       return
     }

@@ -11,8 +11,11 @@ import {
   type SimEvent,
   type Simulation,
   type Squad,
-  Stance
+  Stance,
+  Shell,
+  UNLIMITED
 } from "@verdun/sim"
+import { battleHour, weekLabel } from "../environment/calendar.ts"
 
 /** How many messages the battle log keeps on screen. */
 export const LOG_LENGTH = 6
@@ -51,6 +54,11 @@ export interface HudModel {
   readonly losses: readonly { readonly side: string; readonly killed: number; readonly captured: number }[]
   /** The sector's objectives and who holds each. */
   readonly objectives: readonly { readonly name: string; readonly holder: string; readonly contested: boolean }[]
+  /** Shells the side's batteries have left, or nothing when the scenario sets no limit. */
+  readonly shells: string | null
+  /** The week of the war, and the battle's hour by French civil time. */
+  readonly week: string
+  readonly hour: string
 }
 
 function stanceName(stance: number): string {
@@ -110,8 +118,27 @@ export function hudModel(sim: Simulation, squad: Squad, tickRate: number): HudMo
       name: objective.name,
       holder: objective.holder === -1 ? "No one" : SIDE_NAMES[objective.holder],
       contested: objective.contested
-    }))
+    })),
+    shells: shellsLine(sim, squad.side),
+    week: weekLabel(sim.environment.clock.week),
+    hour: battleHour(sim.environment.clock)
   }
+}
+
+const SHELL_NAMES: readonly (readonly [Shell, string])[] = [
+  [Shell.FieldHighExplosive, "field"],
+  [Shell.FieldShrapnel, "shrapnel"],
+  [Shell.HeavyHighExplosive, "heavy"],
+  [Shell.FieldGas, "gas"]
+]
+
+/** "Shells: 7,420 field, 960 shrapnel, 380 heavy, 500 gas", leaving out kinds with no limit. */
+function shellsLine(sim: Simulation, side: Side): string | null {
+  const stock = sim.artillery.ammunition[side]
+  const counted = SHELL_NAMES.filter(([shell]) => (stock[shell] ?? UNLIMITED) < UNLIMITED).map(
+    ([shell, name]) => `${(stock[shell] ?? 0).toLocaleString("en-GB")} ${name}`
+  )
+  return counted.length > 0 ? `Shells: ${counted.join(", ")}` : null
 }
 
 /** The battle log: what a soldier on the player's side hears about, as it happens. */
@@ -152,6 +179,9 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number)
           )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
           say(`Replacements up in the rear trench: ${event.men} men`, false)
+        } else if (event.type === "out-of-shells" && event.side === side) {
+          const name = SHELL_NAMES.find(([shell]) => shell === event.shell)?.[1] ?? "artillery"
+          say(`The batteries are out of ${name} shells`, true)
         } else if (event.type === "capture") {
           if (sim.soldiers.side.value[event.soldier] === enemy) {
             prisoners++

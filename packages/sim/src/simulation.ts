@@ -1,6 +1,12 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
-import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryState } from "./artillery.ts"
+import {
+  type ArtilleryState,
+  artillerySystem,
+  type BurstEvent,
+  createArtilleryState,
+  type OutOfShellsEvent
+} from "./artillery.ts"
 import { captureSystem, type CaptureEvent } from "./capture.ts"
 import { combatSystem, type ShotEvent, type ThrowEvent, Weapon } from "./combat.ts"
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
@@ -84,6 +90,7 @@ export type SimEvent =
   | ObjectiveTakenEvent
   | ReinforcementEvent
   | FlareEvent
+  | OutOfShellsEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap

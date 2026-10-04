@@ -89,6 +89,26 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number, p
  * player commands the squad in the middle of the French line. Each side holds `reinforcementsPerSide` men back behind
  * the sector to replace squads that are wiped out.
  */
+/**
+ * Each side's shells for the day's battle: enough for one prepared attack, so every bombardment spent on the wire is a
+ * barrage not fired later. The French have the guns for an offensive; the Germans hold more shrapnel and gas for
+ * defence.
+ */
+export const SHELL_ALLOTMENT: Readonly<Record<Side, readonly (readonly [Shell, number])[]>> = {
+  [Side.French]: [
+    [Shell.FieldHighExplosive, 8000],
+    [Shell.FieldShrapnel, 1000],
+    [Shell.HeavyHighExplosive, 400],
+    [Shell.FieldGas, 500]
+  ],
+  [Side.German]: [
+    [Shell.FieldHighExplosive, 5000],
+    [Shell.FieldShrapnel, 2000],
+    [Shell.HeavyHighExplosive, 400],
+    [Shell.FieldGas, 1000]
+  ]
+}
+
 export function setupSkirmish(
   sim: Simulation,
   soldiersPerSide = 200,
@@ -115,6 +135,11 @@ export function setupSkirmish(
   }
   allotReinforcements(sim, Side.French, reinforcementsPerSide)
   allotReinforcements(sim, Side.German, reinforcementsPerSide)
+  for (const side of [Side.French, Side.German]) {
+    for (const [shell, rounds] of SHELL_ALLOTMENT[side]) {
+      enqueueCommand(sim, { type: "ammunition", side, shell, rounds })
+    }
+  }
   const playerSquad = frenchSquads.find((squad) => squad.controller === "player")
   if (!playerSquad) {
     throw new Error("The French line has no squads to command")

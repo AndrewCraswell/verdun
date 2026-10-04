@@ -1,6 +1,6 @@
 import { carveTrenches, createFlatMap, heightAt, layOutFront, mapDepth, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { DEFENSIVE_BARRAGE_DELAY, frontLineZ, Shell, SHELLS } from "./artillery.ts"
+import { addAmmunition, DEFENSIVE_BARRAGE_DELAY, frontLineZ, Shell, SHELLS, UNLIMITED } from "./artillery.ts"
 import { Side } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
@@ -391,5 +391,47 @@ describe("artillery state", () => {
     stepFor(sim, 5)
     stepFor(restored, 5)
     expect(takeSnapshot(restored)).toEqual(takeSnapshot(sim))
+  })
+})
+
+describe("ammunition", () => {
+  it("is unlimited unless a scenario sets it, and runs out round by round", async () => {
+    const sim = await field()
+    expect(sim.artillery.ammunition[Side.French][Shell.FieldHighExplosive]).toBe(UNLIMITED)
+    enqueueCommand(sim, { type: "ammunition", side: Side.French, shell: Shell.FieldHighExplosive, rounds: 5 })
+    enqueueCommand(sim, {
+      type: "fire-mission",
+      plan: {
+        side: Side.French,
+        shell: Shell.FieldHighExplosive,
+        fromX: 60,
+        toX: 140,
+        z: 150,
+        band: 20,
+        roundsPerMinute: 120,
+        delay: 0,
+        duration: 60
+      }
+    })
+    const outOfShells: unknown[] = []
+    stepFor(sim, 10, (events) => outOfShells.push(...events.filter((event) => event.type === "out-of-shells")))
+
+    expect(sim.artillery.ammunition[Side.French][Shell.FieldHighExplosive]).toBe(0)
+    expect(sim.artillery.missions[0]?.finished).toBe(true)
+    expect(outOfShells).toEqual([{ type: "out-of-shells", side: Side.French, shell: Shell.FieldHighExplosive }])
+    expect(sim.artillery.shells.length + bursts(sim.events).length).toBeLessThanOrEqual(5)
+  })
+
+  it("is topped up by allotments, never below none nor above unlimited, and ignores nonsense", async () => {
+    const sim = await field()
+    enqueueCommand(sim, { type: "ammunition", side: Side.German, shell: Shell.FieldGas, rounds: 10 })
+    enqueueCommand(sim, { type: "ammunition", side: Side.German, shell: Shell.FieldGas, rounds: -3 })
+    stepSimulation(sim)
+    addAmmunition(sim, Side.German, Shell.FieldGas, 40)
+    expect(sim.artillery.ammunition[Side.German][Shell.FieldGas]).toBe(50)
+    addAmmunition(sim, Side.German, Shell.FieldGas, -100)
+    expect(sim.artillery.ammunition[Side.German][Shell.FieldGas]).toBe(0)
+    addAmmunition(sim, Side.German, Shell.HeavyHighExplosive, 5)
+    expect(sim.artillery.ammunition[Side.German][Shell.HeavyHighExplosive]).toBe(UNLIMITED)
   })
 })

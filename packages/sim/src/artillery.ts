@@ -230,6 +230,35 @@ export interface ArtilleryState {
   pendingSightRebuild: ChangedArea | null
   /** Tick at which a side first saw attackers in no man's land and called for its defensive barrage, or -1. */
   readonly sosCalledAt: Record<Side, number>
+  /**
+   * Rounds each side's batteries have left, by `Shell`. Shells were always short: at Verdun every round came up the
+   * one road from Bar-le-Duc. Missions stop when their kind runs out.
+   */
+  readonly ammunition: Record<Side, number[]>
+}
+
+/** Rounds of every kind when a scenario sets no limit. */
+export const UNLIMITED = 1_000_000_000
+
+/** A side's ammunition with no limit on any kind of shell. */
+function unlimited(): number[] {
+  return Object.values(Shell).map(() => UNLIMITED)
+}
+
+/**
+ * Adds rounds of a kind of shell to a side's stock: a day's allotment coming up the line, or a dump reached. Negative
+ * rounds take shells away, never below none.
+ */
+export function addAmmunition(sim: Simulation, side: Side, shell: Shell, rounds: number): void {
+  const stock = sim.artillery.ammunition[side]
+  stock[shell] = Math.min(UNLIMITED, Math.max(0, (stock[shell] ?? 0) + rounds))
+}
+
+/** A side running out of a kind of shell, for the battle report. */
+export interface OutOfShellsEvent {
+  readonly type: "out-of-shells"
+  readonly side: Side
+  readonly shell: Shell
 }
 
 export function createArtilleryState(): ArtilleryState {
@@ -237,7 +266,8 @@ export function createArtilleryState(): ArtilleryState {
     missions: [],
     shells: [],
     pendingSightRebuild: null,
-    sosCalledAt: { [Side.French]: -1, [Side.German]: -1 }
+    sosCalledAt: { [Side.French]: -1, [Side.German]: -1 },
+    ammunition: { [Side.French]: unlimited(), [Side.German]: unlimited() }
   }
 }
 
@@ -254,7 +284,8 @@ export function copyArtilleryState(state: ArtilleryState): ArtilleryState {
     })),
     shells: state.shells.map((shell) => ({ ...shell })),
     pendingSightRebuild: state.pendingSightRebuild ? { ...state.pendingSightRebuild } : null,
-    sosCalledAt: { ...state.sosCalledAt }
+    sosCalledAt: { ...state.sosCalledAt },
+    ammunition: { [Side.French]: [...state.ammunition[Side.French]], [Side.German]: [...state.ammunition[Side.German]] }
   }
 }
 
@@ -557,9 +588,19 @@ export function artillerySystem(sim: Simulation): void {
       continue
     }
     mission.owed += mission.roundsPerMinute / 60 / TICK_RATE
+    const stock = sim.artillery.ammunition[mission.side]
     while (mission.owed >= 1) {
       mission.owed -= 1
+      if ((stock[mission.shell] ?? 0) <= 0) {
+        // The guns fall silent: nothing left of this kind.
+        mission.finished = true
+        break
+      }
+      stock[mission.shell] = (stock[mission.shell] ?? 0) - 1
       fireRound(sim, mission)
+      if (stock[mission.shell] === 0) {
+        sim.events.push({ type: "out-of-shells", side: mission.side, shell: mission.shell })
+      }
     }
   }
 

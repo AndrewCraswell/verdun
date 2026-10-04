@@ -56,6 +56,8 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
       ...(model.reserves ? [line(model.reserves, "hud-muted")] : [])
     )
     sectorPanel.replaceChildren(
+      line(model.week, "hud-title"),
+      line(model.hour, "hud-clock"),
       line("Sector", "hud-title"),
       ...model.objectives.map((objective) =>
         line(
@@ -63,7 +65,10 @@ export function createHud(parent: HTMLElement, sim: Simulation, squad: Squad, ti
           objective.contested ? "hud-alarm" : undefined
         )
       ),
-      ...model.losses.map((loss) => line(`${loss.side}: ${loss.killed} killed, ${loss.captured} captured`, "hud-muted"))
+      ...model.losses.map((loss) =>
+        line(`${loss.side}: ${loss.killed} killed, ${loss.captured} captured`, "hud-muted")
+      ),
+      ...(model.shells ? [line(model.shells, "hud-muted")] : [])
     )
     logPanel.replaceChildren(
       ...log.messages.map((message) => line(message.text, message.alarm ? "hud-alarm" : undefined))
