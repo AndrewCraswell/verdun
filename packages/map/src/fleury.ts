@@ -920,12 +920,14 @@ function objectivesOf(seed: number): Objective[] {
 
 /**
  * A layout drawn by hand, for example in Tiled (see tiled.ts): trenches, wire and scenery to use in place of the
- * generated ones. Pools and bridges follow the generated craters and roads, so they are always regenerated.
+ * generated ones, and objectives if it has them. Pools and bridges follow the generated craters and roads, so they are
+ * always regenerated.
  */
 export interface SectorLayout {
   readonly trenches: readonly Trench[]
   readonly wire: readonly WireBelt[]
   readonly scenery: readonly Scenery[]
+  readonly objectives?: readonly Objective[]
 }
 
 /** Generates the Fleury sector: 600 m by 400 m, French to the south and Germans to the north. */
@@ -971,7 +973,7 @@ export function generateFleurySector({
   const placer = createPlacer(segments, sceneryRandom)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)
-  const objectives = objectivesOf(seed)
+  const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf(seed)
   if (layout) {
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
     const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives }

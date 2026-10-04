@@ -1,5 +1,5 @@
 import type { BattlefieldMap } from "./format.ts"
-import { SCENERY_KINDS, type Scenery, type SceneryKind, type WireBelt } from "./scenery.ts"
+import { type Objective, SCENERY_KINDS, type Scenery, type SceneryKind, type WireBelt } from "./scenery.ts"
 import { TRENCH_GRID } from "./trench-trace.ts"
 import type { GroundPoint, Trench } from "./trenches.ts"
 
@@ -17,7 +17,7 @@ export const TILED_PIXELS_PER_METRE = 10
 const TILE_METRES = 1
 
 /** Layer names, as Tiled shows them. */
-const TILED_LAYERS = { trenches: "trenches", wire: "wire", scenery: "scenery" } as const
+const TILED_LAYERS = { trenches: "trenches", wire: "wire", scenery: "scenery", objectives: "objectives" } as const
 
 /** Positions are written to the nearest millimetre, headings to a hundredth of a degree and scales to 1/10000. */
 const PIXEL_DECIMALS = 2
@@ -30,6 +30,8 @@ export interface TiledLayout {
   readonly trenches: readonly Trench[]
   readonly wire: readonly WireBelt[]
   readonly scenery: readonly Scenery[]
+  /** The ground both sides fight over; absent from maps saved before there was a layer for it. */
+  readonly objectives?: readonly Objective[]
 }
 
 /** A layout read back from Tiled, with any places the trench kit can't line as drawn. */
@@ -95,7 +97,10 @@ export interface TiledMap {
   readonly width: number
 }
 
-type TiledSource = Pick<BattlefieldMap, "name" | "cellSize" | "columns" | "rows" | "trenches" | "wire" | "scenery">
+type TiledSource = Pick<
+  BattlefieldMap,
+  "name" | "cellSize" | "columns" | "rows" | "trenches" | "wire" | "scenery" | "objectives"
+>
 
 function round(value: number, decimals: number): number {
   const factor = 10 ** decimals
@@ -111,7 +116,7 @@ function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180
 }
 
-/** Writes a battlefield's trenches, wire and scenery as a Tiled map, one object layer each. */
+/** Writes a battlefield's trenches, wire, scenery and objectives as a Tiled map, one object layer each. */
 export function toTiledMap(map: TiledSource): TiledMap {
   const ppm = TILED_PIXELS_PER_METRE
   const tile = TILE_METRES * ppm
@@ -168,6 +173,20 @@ export function toTiledMap(map: TiledSource): TiledMap {
     x: pixelX(item.x),
     y: pixelY(item.z)
   }))
+  // An objective is a named point; the ground held round it, its radius.
+  const objectives = map.objectives.map((objective): TiledObject => ({
+    height: 0,
+    id: nextId++,
+    name: objective.name,
+    point: true,
+    properties: [{ name: "radius", type: "float", value: round(objective.radius, METRE_DECIMALS) }],
+    rotation: 0,
+    type: "",
+    visible: true,
+    width: 0,
+    x: pixelX(objective.x),
+    y: pixelY(objective.z)
+  }))
 
   const layer = (id: number, name: string, objects: readonly TiledObject[]): TiledObjectLayer => ({
     draworder: "index",
@@ -185,13 +204,15 @@ export function toTiledMap(map: TiledSource): TiledMap {
     compressionlevel: -1,
     height,
     infinite: false,
-    // Tiled draws the first layer lowest: trenches under wire, scenery on top where its pins are easy to pick.
+    // Tiled draws the first layer lowest: trenches under wire, then scenery and objectives on top, where their pins are
+    // easy to pick.
     layers: [
       layer(1, TILED_LAYERS.trenches, trenches),
       layer(2, TILED_LAYERS.wire, wire),
-      layer(3, TILED_LAYERS.scenery, scenery)
+      layer(3, TILED_LAYERS.scenery, scenery),
+      layer(4, TILED_LAYERS.objectives, objectives)
     ],
-    nextlayerid: 4,
+    nextlayerid: 5,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -337,6 +358,23 @@ function readScenery(frame: Frame, object: Record<string, unknown>, label: strin
   return { kind, x: mapX, z: mapZ, heading: toRadians(heading), variant, scale }
 }
 
+function readObjective(frame: Frame, object: Record<string, unknown>, label: string): Objective {
+  if (object.point !== true) {
+    throw new TypeError(`${label} must be a point object`)
+  }
+  const { name } = object
+  if (typeof name !== "string" || name.trim() === "") {
+    throw new TypeError(`${label} needs a name`)
+  }
+  const radius = propertiesOf(object, label).get("radius")
+  if (!isPositiveNumber(radius)) {
+    throw new TypeError(`${label} needs a positive radius in metres, got ${JSON.stringify(radius)}`)
+  }
+  const { x, y } = objectPosition(object, label)
+  const [mapX, mapZ] = toGround(frame, x, y)
+  return { name, x: mapX, z: mapZ, radius }
+}
+
 /** The objects of the named top-level object layer. */
 function layerObjects(layers: readonly unknown[], name: string): { objects: unknown[] } {
   const matches = layers.filter((layer) => isRecord(layer) && layer.name === name)
@@ -400,9 +438,20 @@ export function fromTiledMap(json: unknown): TiledImport {
     points: polylinePoints(frame, object, label)
   }))
   const scenery = readLayer(layers, TILED_LAYERS.scenery, (object, label) => readScenery(frame, object, label))
+  // Maps saved before objectives had a layer keep the generated ones.
+  const hasObjectives = layers.some((layer) => isRecord(layer) && layer.name === TILED_LAYERS.objectives)
+  const objectives = hasObjectives
+    ? readLayer(layers, TILED_LAYERS.objectives, (object, label) => readObjective(frame, object, label)).items
+    : undefined
 
   const warnings = checkTrenchKit(trenches.items).map(({ trench, message }) => `${trenches.ids[trench]!}: ${message}`)
-  return { trenches: trenches.items, wire: wire.items, scenery: scenery.items, warnings }
+  return {
+    trenches: trenches.items,
+    wire: wire.items,
+    scenery: scenery.items,
+    ...(objectives ? { objectives } : {}),
+    warnings
+  }
 }
 
 /** A place where the trench kit can't line a trench as drawn. */

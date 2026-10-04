@@ -54,6 +54,7 @@ if (args[0] === "--check") {
   report(layout.warnings)
   process.stdout.write(
     `${path}: ${layout.trenches.length} trenches, ${layout.wire.length} wire belts, ${layout.scenery.length} scenery, ` +
+      `${layout.objectives ? `${layout.objectives.length} objectives` : "the generated objectives"}, ` +
       `${layout.warnings.length} warnings\n`
   )
 } else {

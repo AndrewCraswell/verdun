@@ -33,7 +33,8 @@ const layout = {
   scenery: [
     { kind: "tree", x: 12.3456, z: 7.891, heading: 1.234, variant: 2, scale: 1.25 },
     { kind: "gun", x: 0, z: 40, heading: -0.5, variant: 0, scale: 0.8 }
-  ]
+  ],
+  objectives: [{ name: "The crossroads", x: 25.25, z: 21.5, radius: 12 }]
 } satisfies TiledLayout
 
 const map = { ...createFlatMap({ name: "test sector", cellSize: 0.5, columns: 120, rows: 80 }), ...layout }
@@ -112,7 +113,15 @@ describe("Tiled maps", () => {
     }
     expectWireClose(read.wire, layout.wire)
     expectSceneryClose(read.scenery, layout.scenery)
+    expect(read.objectives).toEqual(layout.objectives)
     expect(read.warnings).toEqual([])
+  })
+
+  it("keeps the generated objectives for a map saved before it had a layer for them", () => {
+    const tiled = exported()
+    tiled.layers = tiled.layers.filter((layer) => layer.name !== "objectives")
+
+    expect(fromTiledMap(tiled).objectives).toBeUndefined()
   })
 
   it("is an orthogonal map of one-metre tiles with a layer per kind of thing", () => {
@@ -123,11 +132,13 @@ describe("Tiled maps", () => {
     expect(tiled.layers.map((layer) => [layer.name, layer.type, layer.objects.length])).toEqual([
       ["trenches", "objectgroup", 2],
       ["wire", "objectgroup", 1],
-      ["scenery", "objectgroup", 2]
+      ["scenery", "objectgroup", 2],
+      ["objectives", "objectgroup", 1]
     ])
     const ids = tiled.layers.flatMap((layer) => layer.objects.map((object) => object.id))
-    expect(ids).toEqual([1, 2, 3, 4, 5])
-    expect(tiled.nextobjectid).toBe(6)
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6])
+    expect(tiled.nextobjectid).toBe(7)
+    expect(tiled.layers[3]?.objects[0]).toMatchObject({ name: "The crossroads", point: true, x: 252.5, y: 185 })
   })
 
   it("flips z so north is up, and stores headings in degrees", () => {
@@ -343,7 +354,10 @@ describe("Tiled maps", () => {
         "scenery",
         (object) => ({ ...object, properties: [{ name: "scale", value: -2 }] }),
         /positive scale, got -2/
-      ]
+      ],
+      ["a nameless objective", "objectives", (object) => ({ ...object, name: " " }), /objectives" needs a name/],
+      ["an objective without a radius", "objectives", (object) => ({ ...object, properties: [] }), /positive radius/],
+      ["an objective that isn't a point", "objectives", ({ point: _, ...rest }) => rest, /must be a point object/]
     ]
     it.each(objectCases)("%s, naming the object", (_, layer, edit, message) => {
       const tiled = exported()

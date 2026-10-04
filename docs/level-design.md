@@ -414,11 +414,12 @@ is up on screen. The exporter rounds positions to the millimetre, headings to 0.
 keys in Tiled's alphabetical order with one object per line, so a moved tree is a one-line diff. Once Tiled re-saves the
 file it uses its own layout.
 
-| Layer      | Objects   | Data                                                                                         |
-| ---------- | --------- | -------------------------------------------------------------------------------------------- |
-| `trenches` | Polylines | String properties `kind` (`fire` or `communication`) and `facing` (`north`, `south`, `none`) |
-| `wire`     | Polylines | One belt each                                                                                |
-| `scenery`  | Points    | Class (Tiled's object type) is the kind; float `heading`, float `scale`, int `variant`       |
+| Layer        | Objects   | Data                                                                                         |
+| ------------ | --------- | -------------------------------------------------------------------------------------------- |
+| `trenches`   | Polylines | String properties `kind` (`fire` or `communication`) and `facing` (`north`, `south`, `none`) |
+| `wire`       | Polylines | One belt each                                                                                |
+| `scenery`    | Points    | Class (Tiled's object type) is the kind; float `heading`, float `scale`, int `variant`       |
+| `objectives` | Points    | The object's name is the objective's; float `radius` in metres, the ground held round it     |
 
 Headings are in **degrees** clockwise from north, which is clockwise on screen (the map format stores radians). A
 scenery point without properties gets heading 0, scale 1 and variant 0. Communication trenches may leave `facing` out.
@@ -438,9 +439,10 @@ A trench whose end lies within 5 cm of another trench's centre line joins it the
 warnings, and a test keeps it that way.
 
 **Using an edited layout.** `generateFleurySector({ layout: fromTiledMap(json) })` builds the sector around a Tiled
-layout: its trenches, wire and scenery replace the generated ones, while heights, surfaces, roads and craters stay
-seeded. Pools and bridges follow the craters and roads, so they are always regenerated. Each side's front line must
-still span the map from west to east. Client and simulation must load the same layout.
+layout: its trenches, wire, scenery and objectives replace the generated ones, while heights, surfaces, roads and
+craters stay seeded. A map saved before there was an `objectives` layer keeps the generated objectives. Pools and
+bridges follow the craters and roads, so they are always regenerated. Each side's front line must still span the map
+from west to east. Client and simulation must load the same layout.
 
 ## Dev tools
 

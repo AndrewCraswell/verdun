@@ -208,6 +208,10 @@ describe("generateFleurySector", () => {
 
     expect(edited.trenches).toHaveLength(map.trenches.length + 1)
     expect(edited.wire).toEqual(drawn.wire)
+    // The objectives drawn with it, and the generated ones for a layout without any.
+    expect(edited.objectives).toEqual(drawn.objectives)
+    const { objectives: _, ...withoutObjectives } = layout
+    expect(generateFleurySector({ cellSize: 1, layout: withoutObjectives }).objectives).toEqual(map.objectives)
     expect(edited.scenery.some((item) => item.kind === "pool")).toBe(true)
     expect(edited.scenery.filter((item) => item.kind === "ruin")).toHaveLength(
       map.scenery.filter((item) => item.kind === "ruin").length
