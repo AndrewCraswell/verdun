@@ -21,6 +21,7 @@ import {
   frontLineSpan,
   Side,
   soldierIds,
+  enqueueCommand,
   stepSimulation,
   TICK_RATE,
   Weapon
@@ -44,7 +45,10 @@ const FRONT_BAND = 15
  * with.
  */
 const SCENARIOS = [
-  { name: "no artillery", bombardments: 0, assaultSeconds: 360, success: [0, 0] },
+  // Infantry alone: every squad advances on the enemy line, walking, with no barrage of any kind.
+  { name: "no artillery", bombardments: 0, barrage: false, assaultSeconds: 360, success: [0, 0] },
+  // The creeping and standing barrages without any preparatory bombardment.
+  { name: "barrage only", bombardments: 0, assaultSeconds: 600, success: [0, 0.4] },
   { name: "one bombardment", bombardments: 1, assaultSeconds: 600, success: [0, 0.4] },
   {
     name: "three bombardments",
@@ -113,12 +117,23 @@ async function battle({ mapName, seed, scenario, attacker }) {
       }
     }
   }
-  const { bombardments, assaultSeconds } = SCENARIOS.find((candidate) => candidate.name === scenario)
+  const { bombardments, assaultSeconds, barrage = true } = SCENARIOS.find((candidate) => candidate.name === scenario)
   for (let round = 0; round < bombardments; round++) {
     bombardEnemyLine(sim, attacker)
     run(BOMBARDMENT_SECONDS)
   }
-  attackBehindBarrage(sim, attacker)
+  const target = frontLineSpan(map.trenches, defender)
+  if (barrage) {
+    attackBehindBarrage(sim, attacker)
+  } else {
+    // Over the top with no guns behind them: each squad walks straight for the stretch of enemy trench ahead of it.
+    for (const squad of sim.squads) {
+      if (squad.side === attacker && squad.leader >= 0) {
+        const x = sim.soldiers.position.x[squad.leader]
+        enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x, z: target.rear } })
+      }
+    }
+  }
   run(assaultSeconds)
 
   const span = frontLineSpan(map.trenches, defender)
