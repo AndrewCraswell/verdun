@@ -44,12 +44,22 @@ import "./style.css"
 import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
 import { createMenu } from "./ui/menu.ts"
 
-/** WebGPU first, WebGL2 where the browser lacks it. Dev builds take `?webgl` to force WebGL2, for testing it. */
+/**
+ * WebGPU first, WebGL2 where the browser lacks it. Dev builds take `?webgl` to force WebGL2, for testing it. `?gputime`
+ * times each frame's passes on the GPU, where the browser allows timestamp queries (see scripts/perf.mjs): asked for at
+ * the start, since each render target takes its timer as it's made.
+ */
 async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
-  const forceWebGL = import.meta.env.DEV && new URLSearchParams(location.search).has("webgl")
+  const parameters = new URLSearchParams(location.search)
+  const forceWebGL = import.meta.env.DEV && parameters.has("webgl")
   if (!forceWebGL && (await WebGPUEngine.IsSupportedAsync)) {
-    const engine = new WebGPUEngine(canvas, { antialias: true })
+    const gpuTime = parameters.has("gputime")
+    const engine = new WebGPUEngine(canvas, {
+      antialias: true,
+      ...(gpuTime ? { deviceDescriptor: { requiredFeatures: ["timestamp-query"] } } : {})
+    })
     await engine.initAsync()
+    engine.enableGPUTimingMeasurements = gpuTime
     return engine
   }
   return new Engine(canvas, true)
