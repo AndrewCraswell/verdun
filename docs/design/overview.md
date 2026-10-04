@@ -124,7 +124,7 @@ What the simulation already does, and where everything else lands. Stages are th
 | Night fighting: flares and muzzle flashes                                               | Built                            |
 | Squad wipe, redeploy from the manpower pool                                             | Built                            |
 | Shell stocks by type                                                                    | In progress (gameplay session)   |
-| Wounded and killed, stretcher bearers                                                   | In progress (gameplay session)   |
+| Wounded and killed, AI stretcher bearers, the aid post                                  | Built                            |
 | Stamina, morale additions, rally, shell shock                                           | Stage 1, next                    |
 | Territory cells, consolidation, the day's line                                          | Stage 1, headless                |
 | Operations: planning, assembly, waves, counter-preparation                              | Stage 1 (single player), stage 2 |
