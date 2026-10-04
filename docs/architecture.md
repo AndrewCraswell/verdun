@@ -187,6 +187,13 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - **Daylight** (`apps/client/src/environment/`): the key light follows the sun, or the moon at night, coloured by
   Babylon's physically based `Atmosphere` add-on; night drawn dim and blue; fog thinned for the camera's height; rain
   and snow around the camera; wet ground; lightning. See [time and weather](time-and-weather.md#rendering).
+- **Gunfire** (`apps/client/src/effects/tracers.ts`): every round a faint streak flying out at 750 m/s to where it
+  stops, and every fourth machine-gun round a bright tracer that blooms at night; a flash at each muzzle, bigger for
+  machine guns, and a wisp of smoke; dirt kicked up where a miss strikes the ground. A miss scatters past its man, most
+  of them low into the ground round his feet, from a hash of the shot rather than the simulation's dice, so a machine
+  gun's fire shows its beaten zone. Streaks and flashes are camera-facing thin instances at least a couple of pixels
+  wide; smoke and dirt are lit by the air like the level's other particles and kicked up only near the camera. A point
+  light flashes at the nearest muzzle after dark (`level/night-light.ts`).
 - Clustered lighting (Babylon 9) for flares and muzzle flashes.
 - WebGPU first with automatic WebGL2 fallback. WebGPU saves CPU, not GPU, so it won't rescue an over-budget crowd.
 

@@ -180,7 +180,11 @@ async function start(): Promise<void> {
     : null
   const lineOfSight = await createLineOfSight(map)
   sim.lineOfSight = lineOfSight
-  const tracers = createTracers(view.scene)
+  const tracers = createTracers(view.scene, {
+    sim,
+    camera: view.camera,
+    light: () => lightLevel(sim.environment.illuminance)
+  })
   const explosions = createExplosions(view.scene)
   // Fog starts off while artillery and the attack are being tuned; O turns it on.
   const fog = createFogOfWar(view.scene, sim, lineOfSight, {
@@ -212,6 +216,7 @@ async function start(): Promise<void> {
         night,
         war,
         flares,
+        tracers,
         trace: stats.tracer,
         snapshots
       }
