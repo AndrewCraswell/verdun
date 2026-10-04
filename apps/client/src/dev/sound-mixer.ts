@@ -17,7 +17,7 @@ const WEATHER_AND_LEVEL: readonly string[] = [
 
 /** The panel's groups: what each slider sets, under a heading. */
 const GROUPS: readonly (readonly [string, readonly string[]])[] = [
-  ["Buses", ["bus:master", "bus:battle", "bus:ambience", "bus:ears"]],
+  ["Buses", ["bus:master", "bus:battle", "bus:ambience", "bus:ears", "bus:music"]],
   [
     "Ambience",
     [

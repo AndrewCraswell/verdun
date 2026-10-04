@@ -22,6 +22,7 @@ export default defineConfig({
         "src/control/browser-input.ts",
         "src/audio/battle-sounds.ts",
         "src/audio/mixer.ts",
+        "src/audio/music.ts",
         "src/hud/hud.ts",
         "src/hud/dom.ts",
         "src/hud/icons.ts",

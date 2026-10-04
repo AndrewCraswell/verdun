@@ -5,6 +5,7 @@
  *                                                            \-> reverb send -> trench/dugout/ruins -> master
  *   beds:  source -> gain -> ambience bus ----------------------------------------------------------> master
  *   ears:  source -> gain -> ears bus (the ringing, and breathing in the mask: never muffled) --------> master
+ *   music: streamed track -> gain -> music bus (never muffled: it isn't in the world) -----------------> master
  *
  * The battle and ambience buses duck after a near miss. Reverb comes from impulse responses made here, so no recording's
  * licence is involved (BOOM's forbids using its sounds as impulse responses). One mixer serves the whole game; audio
@@ -62,6 +63,8 @@ export interface Mixer {
   readonly context: AudioContext
   /** The bus ambience beds play into. */
   readonly ambience: AudioNode
+  /** The bus the soundtrack plays into. */
+  readonly music: AudioNode
   /** Plays a voice, or drops it when MAX_VOICES are sounding and it is quieter than all of them. */
   play(voice: Voice): AudioBufferSourceNode | null
   /** Starts a looping bed on the ambience bus, silent until its level is set. */
@@ -93,7 +96,7 @@ const SPACE_FADE = 0.4
 const BED_FADE = 1
 /** Sounds the mixer remembers having started, for the panel. */
 const RECENT = 24
-const BUSES = ["master", "battle", "ambience", "ears"] as const
+const BUSES = ["master", "battle", "ambience", "ears", "music"] as const
 
 interface Reverb {
   readonly seconds: number
@@ -181,7 +184,8 @@ function createMixer(context: AudioContext): Mixer {
     master: context.createGain(),
     battle: context.createGain(),
     ambience: context.createGain(),
-    ears: context.createGain()
+    ears: context.createGain(),
+    music: context.createGain()
   }
   const retrim = () => {
     for (const bus of BUSES) {
@@ -198,6 +202,8 @@ function createMixer(context: AudioContext): Mixer {
   ambience.connect(trims.ambience).connect(master)
   const ears = context.createGain()
   ears.connect(trims.ears).connect(master)
+  const music = context.createGain()
+  music.connect(trims.music).connect(master)
   const recent: Played[] = []
   const send = context.createGain()
   const reverb = (name: keyof Space, seed: number): GainNode => {
@@ -235,6 +241,7 @@ function createMixer(context: AudioContext): Mixer {
   return {
     context,
     ambience,
+    music,
     get sounding() {
       return active.length
     },

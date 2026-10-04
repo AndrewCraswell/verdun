@@ -304,9 +304,9 @@ need, and the darkened spoil and wet hollows give much of the same grounding.
 ## Sound
 
 Everything plays through one Web Audio graph, [mixer.ts](../apps/client/src/audio/mixer.ts). It has a battle bus, an
-ambience bus and an "ears" bus for what is heard inside the head (ringing, breathing in a mask). Audio starts on the
-player's first click or key press, as browsers require, and a sound that won't decode is left out with a warning rather
-than stopping the game.
+ambience bus, an "ears" bus for what is heard inside the head (ringing, breathing in a mask) and a music bus, which a
+near miss never muffles. Audio starts on the player's first click or key press, as browsers require, and a sound that
+won't decode is left out with a warning rather than stopping the game.
 
 - **Distance and space.** Each battle sound is panned to its side of the screen, quieter further off (with separate near
   and far recordings), and delayed by the speed of sound, so a distant burst is seen before it is heard.
@@ -356,6 +356,13 @@ than stopping the game.
     fighting.
 - **The level's own sounds** ([level-sound-model.ts](../apps/client/src/audio/level-sound-model.ts)): braziers and
   burning wrecks crackle as the camera nears them, and crows caw as a flock lifts off the wire.
+- **Music** ([music-model.ts](../apps/client/src/audio/music-model.ts)): the soundtrack is our own, composed for the
+  game. It opens on the theme, _La Verdun_. After that, when a track ends and 25–70 s of silence have let the front be
+  heard, the next is chosen for the player's squad's mood: _waiting_ in a quiet trench by day, _dread_ under heavy
+  fighting or after dark, _attack_ once the squad is over the top (behind the barrage, on a raid, or sent out of the
+  trench). Zero hour is the one thing that cuts a track short: the whistle fades in an attack track over 2.5 s, and
+  attack tracks follow one another without a pause until the squad is back in a trench. Each mood plays all its tracks
+  before repeating one. The tracks stream rather than decode up front.
 
 The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms, Super Thump's Weapons of World War II
 and the Sonniss GDC bundles, recorded by professionals: designed stand-ins and weak sampler sounds were taken out, and
@@ -373,8 +380,13 @@ blender -b --factory-startup -P scripts/build-sound-effects.py -- vendor/audio .
 
 It writes mono Opus files and a manifest to `.asset-cache/level/sfx/`, about 5.5 MB (long loops at a lower bitrate),
 swapping them in file by file. The asset pack encrypts them with the rest of the kit. The ambience beds come from the
-kit build's `audio` section. What's still missing (recordings, game hooks and sound design) is listed in
-[sound](sound.md).
+kit build's `audio` section.
+
+The music's WAV masters live in `vendor/audio/music/` (named for their titles: the model knows each by its slug, such as
+`trench-dread`). `pnpm sound:music` levels each to -20 LUFS with ffmpeg's two-pass loudnorm and encodes it to stereo
+Opus at 112 kbps in `.asset-cache/music/`, about 31 MB for 37 minutes. Being ours, it ships raw beside the bundle under
+`music/` rather than in the encrypted pack; without it the game plays no music. What's still missing (recordings, game
+hooks and sound design) is listed in [sound](sound.md).
 
 ## Level kit
 

@@ -17,6 +17,7 @@ import {
   stepSimulation
 } from "@verdun/sim"
 import { createBattleSounds } from "./audio/battle-sounds.ts"
+import { startMusic } from "./audio/music.ts"
 import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { createBrowserInput } from "./control/browser-input.ts"
 import { createPlayerControl } from "./control/player-control.ts"
@@ -37,7 +38,9 @@ import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
 import { openKitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
+import { useHeightFog } from "./level/particle-fog.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
+import { graphicsQuality } from "./settings/graphics.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
@@ -99,7 +102,12 @@ async function start(): Promise<void> {
   )
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
-  const hud = createHud(document.body, sim, playerSquad, TICK_RATE, { war })
+  // The war map's view shows the enemy only where the fog of war does: the men our side can see.
+  const hud = createHud(document.body, sim, playerSquad, TICK_RATE, {
+    war,
+    view,
+    seen: (soldier) => fog.isShown(soldier)
+  })
   const stats = createDebugStats(document.body, engine, view.scene, sim)
   const trace = stats.tracer.span
   sim.systemTimer = trace
@@ -151,10 +159,21 @@ async function start(): Promise<void> {
     view.useSoldierRenderer(soldiers)
   }
   const stepper = createFixedStepper(STEP_SECONDS)
+  // The graphics setting (Low drops the costliest effects), and the low-lying fog, on for now only with ?heightfog
+  // until it's been measured: it replaces Babylon's distance fog on the ground, props, soldiers and smoke together.
+  const address = new URLSearchParams(location.search)
+  const quality = graphicsQuality(browserStore(), address)
+  const lowFog = address.has("heightfog")
   const environment = createEnvironmentView(view.scene, sim, view.camera, {
     materials: [view.groundMaterial, ...(level?.materials ?? [])],
-    air: level?.atmosphere
+    fogOnlyMaterials: soldierKit?.materials ?? [],
+    air: level?.atmosphere,
+    heightFog: lowFog,
+    quality
   })
+  if (lowFog && environment) {
+    useHeightFog(view.scene, () => environment.heightFog)
+  }
   // Very lights over no man's land at night, drawn from the simulation's flares; shadows from what throws the sun's.
   const flares = createFlareView(
     view.scene,
@@ -167,7 +186,8 @@ async function start(): Promise<void> {
         return camera instanceof TargetCamera ? camera.getTarget() : view.camera.getTarget()
       }
     },
-    castsShadow
+    castsShadow,
+    { quality }
   )
 
   // The player commands the squad in the middle of the French front line.
@@ -192,12 +212,15 @@ async function start(): Promise<void> {
         lightning: environment?.onLightning
       })
     : null
+  // The soundtrack, following the player's squad, when it has been built (pnpm sound:music).
+  const music = await startMusic(view.scene, sim, playerSquad, () => sounds?.fighting() ?? 0)
   const lineOfSight = await createLineOfSight(map)
   sim.lineOfSight = lineOfSight
   const tracers = createTracers(view.scene, {
     sim,
     camera: view.camera,
-    light: () => lightLevel(sim.environment.illuminance)
+    light: () => lightLevel(sim.environment.illuminance),
+    quality
   })
   // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
   tracers.onStrike.add(({ at, time }) => sounds?.strike(at.x, at.z, time))
@@ -221,6 +244,7 @@ async function start(): Promise<void> {
         engine,
         sim,
         view,
+        hud,
         control,
         fog,
         lineOfSight,
@@ -229,6 +253,7 @@ async function start(): Promise<void> {
         environment,
         soldiers,
         sounds,
+        music,
         night,
         war,
         flares,

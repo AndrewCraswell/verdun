@@ -91,6 +91,8 @@ export interface BattleSounds {
   update(): void
   /** Plays the thud of a round striking the ground at (x, z), as its dirt flies; `time` in seconds on the strikes' clock. */
   strike(x: number, z: number, time: number): void
+  /** How heavy the fighting along the front is, 0 to 1. */
+  fighting(): number
   dispose(): void
 }
 
@@ -160,6 +162,7 @@ const SILENT: BattleSounds = {
   step: () => undefined,
   update: () => undefined,
   strike: () => undefined,
+  fighting: () => 0,
   dispose: () => undefined
 }
 
@@ -318,6 +321,7 @@ async function startBattleSounds(
         play(call)
       }
     },
+    fighting: () => atmosphere.intensity(),
     dispose() {
       breathing?.stop()
       panting?.stop()

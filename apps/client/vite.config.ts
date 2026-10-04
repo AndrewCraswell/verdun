@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { createHash } from "node:crypto"
-import { createReadStream, existsSync, readFileSync } from "node:fs"
+import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs"
 import type { ServerResponse } from "node:http"
 import { extname, resolve, sep } from "node:path"
 import { pipeline } from "node:stream"
@@ -120,8 +120,45 @@ function assetPack(): Plugin {
   }
 }
 
+/** Where scripts/build-music.mjs writes the soundtrack. Git-ignored, but our own work, so it ships raw. */
+const MUSIC_DIR = resolve(import.meta.dirname, "../../.asset-cache/music")
+const MUSIC_ROUTE = "/music"
+const MUSIC_TYPES: Record<string, string> = { ".ogg": "audio/ogg", ".json": "application/json" }
+
+/**
+ * Serves the soundtrack at /music/ in dev, and copies it into a build's music/ when it has been built
+ * (src/audio/music.ts). Without it, as in CI, the game has no music.
+ */
+function music(): Plugin {
+  return {
+    name: "verdun-music",
+    configureServer(server) {
+      server.middlewares.use(MUSIC_ROUTE, (request, response, next) => {
+        const file = resolve(MUSIC_DIR, `.${decodeURIComponent(request.url?.split("?")[0] ?? "")}`)
+        const contentType = MUSIC_TYPES[extname(file)]
+        if (!file.startsWith(MUSIC_DIR + sep) || !contentType || !existsSync(file)) {
+          next()
+          return
+        }
+        response.setHeader("Content-Type", contentType)
+        sendFile(file, response)
+      })
+    },
+    generateBundle() {
+      if (!existsSync(MUSIC_DIR)) {
+        return
+      }
+      for (const name of readdirSync(MUSIC_DIR)) {
+        if (MUSIC_TYPES[extname(name)]) {
+          this.emitFile({ type: "asset", fileName: `music/${name}`, source: readFileSync(resolve(MUSIC_DIR, name)) })
+        }
+      }
+    }
+  }
+}
+
 export default defineConfig({
-  plugins: [levelKit(), assetPack()],
+  plugins: [levelKit(), assetPack(), music()],
   server: {
     port: 5173,
     strictPort: true,
