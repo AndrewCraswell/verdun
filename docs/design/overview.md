@@ -14,6 +14,7 @@ mechanic, the number is the one in the code today.
 | [Morale and stamina](morale-and-stamina.md)               | Suppression, morale, rally, shell shock, stamina for running, fatigue                                    |
 | [Sector battle](sector-battle.md)                         | The continuous battle: territory, consolidation, operations, quiet war                                   |
 | [Operations](operations.md)                               | Scheduled attacks: who decides, where men assemble, zero hour, the defender's answer                     |
+| [Machine guns](machine-guns.md)                           | Why guns killed so few, what makes them deadly, how to knock them out, experiments                       |
 | [Logistics](logistics.md)                                 | Supply lines, dumps, ammunition, reinforcements, communications                                          |
 | [Artillery and air](artillery-and-air.md)                 | Guns and shells by year, batteries, observation, balloons, aircraft                                      |
 | [Field works](field-works.md)                             | Digging and building: saps, trenches, repairs, nests, dugouts, bunkers, wire, mining                     |
