@@ -10,7 +10,6 @@ import {
   createLineOfSight,
   shotEvents,
   createSimulation,
-  scheduleForWeek,
   STEP_SECONDS,
   TICK_RATE,
   stepSimulation
@@ -27,6 +26,7 @@ import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
 import { createWarClock } from "./environment/war-clock.ts"
+import { browserStore, localSchedule } from "./environment/war-schedule.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
 import { castsShadow } from "./level/atmosphere.ts"
@@ -65,9 +65,17 @@ async function start(): Promise<void> {
   const weatherSeed = 1916
   const sim = createSimulation({ map, seed: 1916, environment: { forecast: { kind: "records", seed: weatherSeed } } })
   const { playerSquad } = setupSkirmish(sim)
-  // The war's calendar, until the war map runs it: today's turn is the battle's week, and each daily cutoff moves the
-  // battle on a week and stands it to.
-  const war = createWarClock(sim, scheduleForWeek(sim.environment.clock.week, Date.now()))
+  // The war's calendar, until the war map runs it: kept between visits, so the war goes on a week each real day from the
+  // battle's week; each daily cutoff moves the battle on a week and stands it to. Dev: ?war=1916-02-21, ?standto=0.
+  const war = createWarClock(
+    sim,
+    localSchedule({
+      week: sim.environment.clock.week,
+      now: Date.now(),
+      store: browserStore(),
+      ...(import.meta.env.DEV ? { search: new URLSearchParams(location.search) } : {})
+    })
+  )
 
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE, { war })

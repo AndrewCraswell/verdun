@@ -125,7 +125,11 @@ war-map server, sector servers and clients all agree on the date without being t
 - **Where the war stands** at a real moment (`warDayAt`): before it, a turn (season, turn, turns, the week, whether it
   is stand-to, the next cutoff), between seasons (and when the next begins), or over.
 - **The prototype** has no war map yet, so the client schedules a war that puts the battle's week on today's turn
-  (`scheduleForWeek`): from 05:00 UTC tomorrow the battle is in the next week of 1916, and so on.
+  (`scheduleForWeek`): from 05:00 UTC tomorrow the battle is in the next week of 1916, and so on. The schedule is kept
+  in the browser's local storage (`apps/client/src/environment/war-schedule.ts`, key `verdun.war-schedule`), so the war
+  goes on between visits as it will on a server; where storage is blocked it starts afresh each visit. In development,
+  `?war=1916-02-21` puts today's turn in the week of that date (and keeps it), `?war=reset` forgets the kept schedule,
+  and `?standto=0` sets the minutes of stand-to after each cutoff, 0 to play straight through it.
 
 In the client, `apps/client/src/environment/war-clock.ts` keeps the battle on the calendar: when a turn begins it sends
 the battle to the new week with the `clock` command's `week` (the hour carries on, the weather eases into the new week),
