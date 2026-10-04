@@ -270,6 +270,35 @@ describe("creeping barrage attack", () => {
   })
 })
 
+describe("standing barrage", () => {
+  it("holds on the objective while the creeping barrage approaches, and lifts as it arrives", async () => {
+    const sim = await field()
+    enqueueCommand(sim, {
+      type: "barrage-attack",
+      side: Side.French,
+      fromX: 60,
+      toX: 140,
+      startZ: 60,
+      objectiveZ: 160,
+      roundsPerMinute: 30,
+      lift: 25,
+      interval: 20,
+      standoff: 50,
+      delay: 0,
+      standingRoundsPerMinute: 50
+    })
+    stepSimulation(sim)
+    const [creeping, fieldGuns, heavy] = sim.artillery.missions
+
+    expect(creeping?.creep).toBeDefined()
+    expect([fieldGuns?.shell, heavy?.shell]).toEqual([Shell.FieldHighExplosive, Shell.HeavyHighExplosive])
+    expect([fieldGuns?.z, heavy?.z]).toEqual([160, 160])
+    expect(heavy?.roundsPerMinute).toBe(10)
+    // Three lifts bring the creeping barrage to 135, one lift short of the objective: the standing barrage lifts then.
+    expect(fieldGuns?.duration).toBe(3 * 20)
+  })
+})
+
 describe("defensive barrage", () => {
   it("is called when defenders see attackers in no man's land, and lands after the historical delay", async () => {
     const flat = createFlatMap({ name: "sector", cellSize: 0.5, columns: 600, rows: 400 }, 5)

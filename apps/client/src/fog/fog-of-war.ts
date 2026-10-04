@@ -4,7 +4,16 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import type { Scene } from "@babylonjs/core/scene"
 import { mapDepth, mapWidth } from "@verdun/map"
-import { type EntityId, eyeAt, isAlive, type LineOfSight, type Simulation, soldierIds, type Squad } from "@verdun/sim"
+import {
+  type EntityId,
+  isAlive,
+  isSheltering,
+  type LineOfSight,
+  type Simulation,
+  soldierEye,
+  soldierIds,
+  type Squad
+} from "@verdun/sim"
 import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
 import { computeViewshed, createFogGrid } from "./viewshed.ts"
 
@@ -80,23 +89,17 @@ export function createFogOfWar(
       texture.update(grid.values)
       return
     }
-    computeViewshed(
-      sim.map,
-      eyeAt(sim.map, sim.soldiers.position.x[viewer], sim.soldiers.position.z[viewer]),
-      range,
-      grid
-    )
+    computeViewshed(sim.map, soldierEye(sim, viewer), range, grid)
     texture.update(grid.values)
 
-    const spotters = squad.members
-      .filter((member) => isAlive(sim, member))
-      .map((member) => eyeAt(sim.map, sim.soldiers.position.x[member], sim.soldiers.position.z[member]))
+    const spotters = squad.members.filter((member) => isAlive(sim, member)).map((member) => soldierEye(sim, member))
     const rangeSquared = range * range
     for (const soldier of soldierIds(sim)) {
-      if (sim.soldiers.side.value[soldier] === squad.side) {
+      // Men down a dugout can't be seen.
+      if (sim.soldiers.side.value[soldier] === squad.side || isSheltering(sim, soldier)) {
         continue
       }
-      const head = eyeAt(sim.map, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])
+      const head = soldierEye(sim, soldier)
       const spotted = spotters.some(
         (eye) => (head.x - eye.x) ** 2 + (head.z - eye.z) ** 2 <= rangeSquared && lineOfSight.isClear(eye, head)
       )

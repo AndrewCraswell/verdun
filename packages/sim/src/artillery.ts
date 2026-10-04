@@ -1,9 +1,10 @@
 import { type ChangedArea, heightAt, mapDepth, mapWidth, mergeAreas, stampCrater, type Trench } from "@verdun/map"
 import type { EntityId } from "bitecs"
 import { applyCommand } from "./commands.ts"
-import { Side } from "./components.ts"
-import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
+import { Side, Stance } from "./components.ts"
+import type { WorldPoint } from "./line-of-sight.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
+import { isInTrench, markShelled, soldierEye } from "./stance.ts"
 
 /**
  * Shells by historical type. Field guns are the French 75 mm (Mle 1897) and German 77 mm (FK 96 n.A.); the heavy
@@ -74,6 +75,18 @@ const SHRAPNEL_SPREAD = 15
 const SHRAPNEL_HIT = 0.45
 /** Shrapnel bursts this far short of its aim point, so the cone covers the target. */
 const SHRAPNEL_SHORT = 15
+/**
+ * Lying flat cuts the area in which fragments hit by about three quarters (fragments fly outward and upward from the
+ * burst), so the 50% radius roughly halves.
+ */
+const PRONE_LETHAL_FACTOR = 0.5
+/**
+ * Deep dugouts, 6 to 9 m down, shrugged off all but a direct hit from a heavy shell on the entrance; a shaft can still
+ * collapse and bury the men inside.
+ */
+const DUGOUT_LETHAL_FACTOR = 0.2
+/** Shrapnel balls can't reach men lying flat as well as men standing: they come down at a shallow angle. */
+const SHRAPNEL_PRONE_FACTOR = 0.35
 /** Batteries stand this far behind their own end of the map, out of sight. */
 const BATTERY_DISTANCE = 4000
 /** Terrain sight lines are rebuilt at most this often after craters, in steps: the rebuild costs about 14 ms. */
@@ -232,8 +245,18 @@ function wound(sim: Simulation, soldier: EntityId, severity: number): void {
 
 /** A soldier's chest, the point fragments must reach. */
 function chest(sim: Simulation, soldier: EntityId): WorldPoint {
-  const eye = eyeAt(sim.map, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])
-  return { ...eye, y: eye.y - 0.4 }
+  const eye = soldierEye(sim, soldier)
+  return { ...eye, y: eye.y - (sim.soldiers.stance.value[soldier] === Stance.Prone ? 0.15 : 0.4) }
+}
+
+/** The 50% casualty radius of a burst for one soldier, given their stance and the earth around them. */
+function halfLethalFor(sim: Simulation, stats: ShellStats, at: WorldPoint, soldier: EntityId): number {
+  const stance = sim.soldiers.stance.value[soldier]
+  if (stance === Stance.Sheltering) {
+    return stats.lethalCovered * DUGOUT_LETHAL_FACTOR
+  }
+  const radius = shielded(sim, at, soldier) ? stats.lethalCovered : stats.lethalExposed
+  return stance === Stance.Prone ? radius * PRONE_LETHAL_FACTOR : radius
 }
 
 /** Whether earth shields a soldier from a burst. Without sight lines, everyone is treated as exposed. */
@@ -249,6 +272,7 @@ function shake(sim: Simulation, at: WorldPoint, radius: number): void {
       const closeness = 1 - distance / radius
       sim.soldiers.suppression.value[soldier] = Math.min(1, sim.soldiers.suppression.value[soldier] + 0.8 * closeness)
       sim.soldiers.morale.value[soldier] = Math.max(0, sim.soldiers.morale.value[soldier] - 0.08 * closeness)
+      markShelled(sim, soldier)
     }
   }
 }
@@ -263,7 +287,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     if (distance > reach) {
       continue
     }
-    const halfLethal = shielded(sim, at, soldier) ? stats.lethalCovered : stats.lethalExposed
+    const halfLethal = halfLethalFor(sim, stats, at, soldier)
     if (distance < halfLethal / 3) {
       // Close enough that blast alone kills.
       applyCommand(sim, { type: "kill", soldier })
@@ -298,7 +322,15 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     if (along < 0 || along > SHRAPNEL_REACH || across > 2 + (SHRAPNEL_SPREAD * along) / SHRAPNEL_REACH) {
       continue
     }
-    const chance = SHRAPNEL_HIT * (1 - along / SHRAPNEL_REACH) * (shielded(sim, at, soldier) ? 0.1 : 1)
+    const stance = sim.soldiers.stance.value[soldier]
+    if (stance === Stance.Sheltering) {
+      continue
+    }
+    const chance =
+      SHRAPNEL_HIT *
+      (1 - along / SHRAPNEL_REACH) *
+      (shielded(sim, at, soldier) ? 0.1 : 1) *
+      (stance === Stance.Prone ? SHRAPNEL_PRONE_FACTOR : 1)
     if (sim.rng.next() < chance) {
       wound(sim, soldier, 0.8)
     }
@@ -333,11 +365,17 @@ function callDefensiveBarrage(sim: Simulation): void {
     if (ownLine === null || enemyLine === null) {
       continue
     }
-    const inNoMansLand = (z: number) =>
-      side === Side.German ? z > enemyLine + 10 && z < ownLine - 5 : z < enemyLine - 10 && z > ownLine + 5
+    // Out of every trench and between the lines. Front lines zigzag, so a man in a forward bay isn't in the open.
+    const inNoMansLand = (x: number, z: number) =>
+      !isInTrench(sim.map, x, z) &&
+      (side === Side.German ? z > enemyLine + 10 && z < ownLine - 5 : z < enemyLine - 10 && z > ownLine + 5)
     const spotted = Array.from(soldierIds(sim)).some((soldier) => {
       const target = sim.soldiers.target.id[soldier]
-      return sim.soldiers.side.value[soldier] === side && target >= 0 && inNoMansLand(sim.soldiers.position.z[target])
+      return (
+        sim.soldiers.side.value[soldier] === side &&
+        target >= 0 &&
+        inNoMansLand(sim.soldiers.position.x[target], sim.soldiers.position.z[target])
+      )
     })
     if (!spotted) {
       continue

@@ -10,7 +10,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { Scene } from "@babylonjs/core/scene"
 import { heightAt, mapDepth, mapWidth } from "@verdun/map"
-import { type EntityId, fallenIds, Side, type Simulation, soldierIds } from "@verdun/sim"
+import { capturedIds, type EntityId, fallenIds, Side, type Simulation, soldierIds, Stance } from "@verdun/sim"
 import { palette, surfaceColors } from "./palette.ts"
 import { createTerrainChunks, type TerrainChunks } from "./terrain/terrain-chunks.ts"
 
@@ -29,6 +29,8 @@ export interface BattlefieldView {
   readonly soldierMeshes: Readonly<Record<Side, Mesh>>
   /** The fallen, lying where they dropped, one mesh per side. */
   readonly fallenMeshes: Readonly<Record<Side, Mesh>>
+  /** Prisoners on their way to the rear, by the side they fought for. */
+  readonly prisonerMeshes: Readonly<Record<Side, Mesh>>
   /**
    * Copies soldier positions from the simulation into the render meshes. Call after stepping, or when what is visible
    * changes. Soldiers failing `isShown` (enemies out of sight) aren't drawn.
@@ -77,7 +79,7 @@ function createSoldierMesh(scene: Scene, name: string, color: Color3): Mesh {
 interface SoldierBatch {
   count: number
   reserve(capacity: number): void
-  /** Adds a soldier standing upright, or lying along the north-south axis when fallen. */
+  /** Adds a soldier standing upright, or lying along the north-south axis when prone or fallen. */
   add(x: number, y: number, z: number, lying: boolean): void
   flush(): void
 }
@@ -159,8 +161,16 @@ export function createBattlefieldScene(
     [Side.French]: createSoldierMesh(scene, "french-fallen", palette.horizonBlue.scale(0.55)),
     [Side.German]: createSoldierMesh(scene, "german-fallen", palette.feldgrau.scale(0.55))
   }
+  // Prisoners walking to the rear: their uniform, faded, so they read apart from the fighting.
+  const prisonerMeshes = {
+    [Side.French]: createSoldierMesh(scene, "french-prisoners", Color3.Lerp(palette.horizonBlue, Color3.White(), 0.55)),
+    [Side.German]: createSoldierMesh(scene, "german-prisoners", Color3.Lerp(palette.feldgrau, Color3.White(), 0.55))
+  }
   const batches = new Map<Mesh, SoldierBatch>(
-    [...Object.values(soldierMeshes), ...Object.values(fallenMeshes)].map((mesh) => [mesh, createBatch(mesh)])
+    [...Object.values(soldierMeshes), ...Object.values(fallenMeshes), ...Object.values(prisonerMeshes)].map((mesh) => [
+      mesh,
+      createBatch(mesh)
+    ])
   )
 
   function sideOf(soldier: EntityId): Side {
@@ -171,17 +181,32 @@ export function createBattlefieldScene(
     const { position } = sim.soldiers
     const living = soldierIds(sim)
     const fallen = fallenIds(sim)
+    const captured = capturedIds(sim)
     for (const batch of batches.values()) {
       batch.count = 0
-      batch.reserve(living.length + fallen.length)
+      batch.reserve(living.length + fallen.length + captured.length)
     }
 
     for (const soldier of living) {
-      if (!isShown || isShown(soldier)) {
-        const x = position.x[soldier]
-        const z = position.z[soldier]
-        batches.get(soldierMeshes[sideOf(soldier)])?.add(x, heightAt(sim.map, x, z) + SOLDIER_HEIGHT / 2, z, false)
+      const stance = sim.soldiers.stance.value[soldier]
+      // Men down a dugout are underground: nothing to draw.
+      if (stance === Stance.Sheltering || (isShown && !isShown(soldier))) {
+        continue
       }
+      const x = position.x[soldier]
+      const z = position.z[soldier]
+      const ground = heightAt(sim.map, x, z)
+      const batch = batches.get(soldierMeshes[sideOf(soldier)])
+      if (stance === Stance.Prone) {
+        batch?.add(x, ground + SOLDIER_RADIUS, z, true)
+      } else {
+        batch?.add(x, ground + SOLDIER_HEIGHT / 2, z, false)
+      }
+    }
+    for (const soldier of captured) {
+      const x = position.x[soldier]
+      const z = position.z[soldier]
+      batches.get(prisonerMeshes[sideOf(soldier)])?.add(x, heightAt(sim.map, x, z) + SOLDIER_HEIGHT / 2, z, false)
     }
     for (const soldier of fallen) {
       const x = position.x[soldier]
@@ -194,5 +219,5 @@ export function createBattlefieldScene(
   }
 
   syncSoldiers()
-  return { scene, camera, terrain, groundMaterial, soldierMeshes, fallenMeshes, syncSoldiers }
+  return { scene, camera, terrain, groundMaterial, soldierMeshes, fallenMeshes, prisonerMeshes, syncSoldiers }
 }

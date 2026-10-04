@@ -1,7 +1,7 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
 import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad } from "./combat.ts"
-import type { Side } from "./components.ts"
+import { type Side, Stance } from "./components.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 
@@ -64,6 +64,16 @@ export interface FireCommand {
   readonly soldier: EntityId
 }
 
+/**
+ * Stands a soldier up or lays them down: for the soldier a player controls, whose stance their squad doesn't decide. Prone
+ * soldiers crawl. A soldier can't be ordered down a dugout; that's their squad's call under shellfire.
+ */
+export interface StanceCommand {
+  readonly type: "stance"
+  readonly soldier: EntityId
+  readonly prone: boolean
+}
+
 /** Orders a side's batteries to fire on a target: a bombardment, a call for fire, or any other barrage. */
 export interface FireMissionCommand {
   readonly type: "fire-mission"
@@ -88,6 +98,12 @@ export interface BarrageAttackCommand {
   readonly standoff: number
   /** Seconds before the barrage opens. */
   readonly delay: number
+  /**
+   * Field-gun rounds a minute on the objective itself while the creeping barrage approaches, keeping its garrison down
+   * their dugouts; heavy howitzers add a fifth as many. The standing barrage lifts as the creeping barrage reaches the
+   * objective. Zero or absent for none.
+   */
+  readonly standingRoundsPerMinute?: number
 }
 
 /** Everything that can change the simulation from outside. Grows as mechanics land. */
@@ -99,15 +115,17 @@ export type Command =
   | TakeCommandCommand
   | KillCommand
   | FireCommand
+  | StanceCommand
   | FireMissionCommand
   | BarrageAttackCommand
 
-/** A living soldier: fallen soldiers ignore every order. */
+/** A soldier still in the fight: the fallen and prisoners ignore every order. */
 function isSoldier(sim: Simulation, entity: EntityId): boolean {
   return (
     entityExists(sim.world, entity) &&
     hasComponent(sim.world, entity, sim.soldiers.position) &&
-    !hasComponent(sim.world, entity, sim.soldiers.dead)
+    !hasComponent(sim.world, entity, sim.soldiers.dead) &&
+    !hasComponent(sim.world, entity, sim.soldiers.captured)
   )
 }
 
@@ -185,6 +203,12 @@ export function applyCommand(sim: Simulation, command: Command): void {
       }
       return
     }
+    case "stance": {
+      if (isSoldier(sim, command.soldier)) {
+        sim.soldiers.stance.value[command.soldier] = command.prone ? Stance.Prone : Stance.Standing
+      }
+      return
+    }
     case "fire-mission": {
       orderFireMission(sim, command.plan)
       return
@@ -205,6 +229,25 @@ export function applyCommand(sim: Simulation, command: Command): void {
         // Lift on past the objective onto the support lines, so the attackers can take it.
         creep: { lift: command.lift, interval: command.interval, stopZ: command.objectiveZ + direction * 80 }
       })
+      const standing = command.standingRoundsPerMinute ?? 0
+      if (standing > 0) {
+        // Lifts when the creeping barrage is one lift short of the objective, so the two never overlap.
+        const lifts = Math.max(
+          0,
+          Math.ceil((Math.abs(command.objectiveZ - command.startZ) - command.lift) / command.lift)
+        )
+        const target = {
+          side: command.side,
+          fromX: command.fromX,
+          toX: command.toX,
+          z: command.objectiveZ,
+          band: 20,
+          delay: command.delay,
+          duration: lifts * command.interval
+        }
+        orderFireMission(sim, { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: standing })
+        orderFireMission(sim, { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: standing / 5 })
+      }
       for (const squad of sim.squads) {
         if (squad.side === command.side && squad.leader >= 0) {
           squad.order = {

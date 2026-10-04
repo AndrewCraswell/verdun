@@ -1,8 +1,10 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { applyCommand } from "./commands.ts"
+import { Stance } from "./components.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { isAlive } from "./squads.ts"
+import { isSheltering, soldierEye } from "./stance.ts"
 
 export const Weapon = { Rifle: 0, MachineGun: 1 } as const
 export type Weapon = (typeof Weapon)[keyof typeof Weapon]
@@ -32,6 +34,8 @@ const CANDIDATES = 6
 /** How far below the eye a target's waist is: hidden waists mean the target is behind cover. */
 const WAIST_DROP = 0.8
 const COVER_FACTOR = 0.35
+/** A prone soldier shows a third of a standing man's height, and less again of his width end-on. */
+const PRONE_FACTOR = 0.3
 /** At or above this suppression a soldier is pinned: hugging the bottom of the trench or a crater, not firing. */
 export const PINNED = 0.6
 /** Beyond this range, soldiers left to themselves don't waste shots on a head peeking over a parapet. */
@@ -66,8 +70,8 @@ export function shotEvents(events: readonly SimEvent[]): ShotEvent[] {
 }
 
 function chest(sim: Simulation, soldier: EntityId): WorldPoint {
-  const eye = eyeAt(sim.map, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])
-  return { x: eye.x, y: eye.y - 0.3, z: eye.z }
+  const eye = soldierEye(sim, soldier)
+  return { x: eye.x, y: eye.y - (sim.soldiers.stance.value[soldier] === Stance.Prone ? 0.1 : 0.3), z: eye.z }
 }
 
 function isMoving(sim: Simulation, soldier: EntityId): boolean {
@@ -87,9 +91,11 @@ function isExposed(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   if (!sim.lineOfSight) {
     return false
   }
-  const eye = eyeAt(sim.map, sim.soldiers.position.x[shooter], sim.soldiers.position.z[shooter])
-  const head = eyeAt(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target])
-  return sim.lineOfSight.isClear(eye, { ...head, y: head.y - WAIST_DROP })
+  if (sim.soldiers.stance.value[target] !== Stance.Standing) {
+    return false
+  }
+  const head = soldierEye(sim, target)
+  return sim.lineOfSight.isClear(soldierEye(sim, shooter), { ...head, y: head.y - WAIST_DROP })
 }
 
 /** Chance that a shot hits, given range, the target's cover and movement, and the shooter's state. */
@@ -98,8 +104,10 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   let chance = stats.accuracy * Math.exp(-Math.sqrt(dx * dx + dz * dz) / stats.falloff)
-  // A pinned target is flat in the bottom of a trench or crater: as good as covered.
-  if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
+  if (sim.soldiers.stance.value[target] === Stance.Prone) {
+    chance *= PRONE_FACTOR
+  } else if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
+    // A pinned target is flat in the bottom of a trench or crater: as good as covered.
     chance *= COVER_FACTOR
   }
   if (isMoving(sim, target)) {
@@ -115,7 +123,8 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
 
 /** Whether `shooter` can see and reach `target` right now. */
 function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolean {
-  if (!isAlive(sim, target) || !sim.lineOfSight) {
+  // Men down a dugout are out of sight and out of reach.
+  if (!isAlive(sim, target) || !sim.lineOfSight || isSheltering(sim, target)) {
     return false
   }
   const stats = WEAPONS[sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
@@ -124,8 +133,7 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   if (dx * dx + dz * dz > stats.range * stats.range) {
     return false
   }
-  const eye = eyeAt(sim.map, sim.soldiers.position.x[shooter], sim.soldiers.position.z[shooter])
-  return sim.lineOfSight.isClear(eye, eyeAt(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target]))
+  return sim.lineOfSight.isClear(soldierEye(sim, shooter), soldierEye(sim, target))
 }
 
 /**
@@ -171,7 +179,7 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): vo
     shooter,
     target,
     hit,
-    from: eyeAt(sim.map, sim.soldiers.position.x[shooter], sim.soldiers.position.z[shooter]),
+    from: soldierEye(sim, shooter),
     to: chest(sim, target)
   })
 }
@@ -215,7 +223,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   }
   const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
   sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval
-  const from = eyeAt(sim.map, x, z)
+  const from = soldierEye(sim, shooter)
   sim.events.push({
     type: "shot",
     shooter,
@@ -255,7 +263,7 @@ export function combatSystem(sim: Simulation): void {
     suppression.value[soldier] = Math.max(0, suppression.value[soldier] - SUPPRESSION_DECAY * STEP_SECONDS)
     morale.value[soldier] = Math.min(1, morale.value[soldier] + MORALE_RECOVERY * STEP_SECONDS)
     weapon.cooldown[soldier] = Math.max(0, weapon.cooldown[soldier] - STEP_SECONDS)
-    if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED) {
+    if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED || isSheltering(sim, soldier)) {
       continue
     }
     if ((sim.tick + soldier) % THINK_INTERVAL === 0) {

@@ -49,6 +49,7 @@ with coverage, and the production build.
 | B                        | Bombard the German front line for two minutes                 |
 | V                        | Call artillery onto the point under the pointer               |
 | O                        | Turn fog of war on or off (off for now)                       |
+| Z                        | Lie down and crawl, or get back up                            |
 | K                        | Dev builds only: kill the soldier you control                 |
 | \`                       | Dev builds only: open Babylon's Inspector                     |
 

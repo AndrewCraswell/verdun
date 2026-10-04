@@ -45,7 +45,11 @@ Scope:
       not under a player's control picks and engages targets on their own, holding fire on covered targets beyond 100 m
       so quiet lines stay quiet. The whistle (G) sends the French over the top. 400 soldiers in combat hold 60 fps.
       Flow-field navigation is still to come: soldiers walk straight lines.
-- [ ] **M5 Artillery**: barrages, crater stamping, chunk re-meshing and collider rebuilds.
+- [x] **M5 Artillery**: field and heavy guns with historical dispersion and flight times; bombardments, calls for fire,
+      creeping and standing barrages, and the defenders' SOS barrage. Craters reshape the terrain, its meshes and the
+      sight lines. Soldiers lie prone in the open, garrisons shelter in dugouts under shellfire and race back to the
+      parapet when it lifts, and men caught below or broken and outnumbered surrender. A barrage attack on the prototype
+      sector takes the German trench for about half the attackers, with most of the garrison captured.
 - [ ] **M6 Gas**: density grid, wind, settling, masks.
 - [ ] **M7 Crowd**: 400 soldiers with VAT instancing and LODs from the
       [Synty soldiers](assets/art-direction.md#version-1-synty-polygon), through the full

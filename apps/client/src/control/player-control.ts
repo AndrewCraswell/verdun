@@ -1,6 +1,14 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { heightAt } from "@verdun/map"
-import { enqueueCommand, type EntityId, isAlive, nextLivingMember, type Simulation, type Squad } from "@verdun/sim"
+import {
+  enqueueCommand,
+  type EntityId,
+  isAlive,
+  nextLivingMember,
+  type Simulation,
+  type Squad,
+  Stance
+} from "@verdun/sim"
 
 /** Ground-plane vector, `x` east and `z` north. */
 export interface GroundVector {
@@ -28,6 +36,8 @@ export type PlayerAction =
   | { readonly kind: "call-fire"; readonly x: number; readonly z: number }
   /** Turn fog of war on or off. */
   | { readonly kind: "toggle-fog" }
+  /** Lie down (and crawl), or get back up. */
+  | { readonly kind: "toggle-prone" }
   /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
 
@@ -156,6 +166,15 @@ export function createPlayerControl(
         return
       case "toggle-fog":
         toggleFog?.()
+        return
+      case "toggle-prone":
+        if (squad.leader >= 0) {
+          enqueueCommand(sim, {
+            type: "stance",
+            soldier: squad.leader,
+            prone: sim.soldiers.stance.value[squad.leader] !== Stance.Prone
+          })
+        }
         return
       case "debug-kill":
         if (debugActions && squad.leader >= 0) {

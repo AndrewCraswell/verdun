@@ -1,6 +1,6 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { generateRollingTerrain, heightAt } from "@verdun/map"
-import { createSimulation, enqueueCommand, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
+import { createSimulation, enqueueCommand, Side, spawnSoldier, Stance, stepSimulation, surrender } from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
 import { type BattlefieldView, CAMERA_TILT_DEGREES, createBattlefieldScene } from "./battlefield-scene.ts"
 
@@ -94,6 +94,23 @@ describe("createBattlefieldScene", () => {
     expect(view.fallenMeshes[Side.German].thinInstanceCount).toBe(1)
     const [lying] = view.fallenMeshes[Side.German].thinInstanceGetWorldMatrices()
     expect(lying?.getTranslation().y).toBeCloseTo(heightAt(map, 30, 30) + 0.28, 4)
+  })
+
+  it("lays prone soldiers flat, hides men down a dugout, and draws prisoners apart", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const prone = spawnSoldier(sim, { side: Side.French, x: 30, z: 30 })
+    const sheltering = spawnSoldier(sim, { side: Side.French, x: 40, z: 30 })
+    const prisoner = spawnSoldier(sim, { side: Side.German, x: 50, z: 30 })
+    sim.soldiers.stance.value[prone] = Stance.Prone
+    sim.soldiers.stance.value[sheltering] = Stance.Sheltering
+    surrender(sim, prisoner)
+    const view = render(sim)
+
+    expect(view.soldierMeshes[Side.French].thinInstanceCount).toBe(1)
+    const [lying] = view.soldierMeshes[Side.French].thinInstanceGetWorldMatrices()
+    expect(lying?.getTranslation().y).toBeCloseTo(heightAt(map, 30, 30) + 0.28, 4)
+    expect(view.soldierMeshes[Side.German].thinInstanceCount).toBe(0)
+    expect(view.prisonerMeshes[Side.German].thinInstanceCount).toBe(1)
   })
 
   it("grows its instance buffers when more soldiers join", () => {

@@ -1,12 +1,14 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
 import { type ArtilleryState, artillerySystem, type BurstEvent, createArtilleryState } from "./artillery.ts"
+import { captureSystem, type CaptureEvent } from "./capture.ts"
 import { combatSystem, type ShotEvent, Weapon } from "./combat.ts"
 import { applyCommand, type Command } from "./commands.ts"
-import { createSoldierComponents, Side, type SoldierComponents } from "./components.ts"
+import { createSoldierComponents, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { type Squad, squadSystem } from "./squads.ts"
+import { stanceSystem } from "./stance.ts"
 import { movementSystem } from "./systems/movement.ts"
 
 /** Simulation steps per second. */
@@ -40,7 +42,7 @@ export interface Simulation {
 }
 
 /** Something that happened during a step that a renderer may want to show. */
-export type SimEvent = ShotEvent | BurstEvent
+export type SimEvent = ShotEvent | BurstEvent | CaptureEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -108,15 +110,23 @@ export function spawnSoldier(
   sim.soldiers.target.id[soldier] = -1
   sim.soldiers.suppression.value[soldier] = 0
   sim.soldiers.morale.value[soldier] = 1
+  sim.soldiers.stance.value[soldier] = Stance.Standing
+  sim.soldiers.shelter.lastShelled[soldier] = NEVER
+  sim.soldiers.shelter.emergeAt[soldier] = -1
   const towardEnemy = side === Side.French ? 1 : -1
   facingStore.x[soldier] = facing?.x ?? 0
   facingStore.z[soldier] = facing?.z ?? towardEnemy
   return soldier
 }
 
-/** Every living soldier. The result is owned by the ECS: read it, don't keep it across steps. */
+/** Every soldier still in the fight: alive and free. The result is owned by the ECS: read it, don't keep it across steps. */
 export function soldierIds(sim: Simulation): QueryResult {
-  return query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead)])
+  return query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead), Not(sim.soldiers.captured)])
+}
+
+/** Every soldier who has surrendered, on their way to the rear. */
+export function capturedIds(sim: Simulation): QueryResult {
+  return query(sim.world, [sim.soldiers.position, sim.soldiers.captured])
 }
 
 /** Every fallen soldier, still lying where they fell. */
@@ -136,6 +146,8 @@ export function stepSimulation(sim: Simulation): void {
     applyCommand(sim, command)
   }
   squadSystem(sim)
+  stanceSystem(sim)
+  captureSystem(sim)
   combatSystem(sim)
   artillerySystem(sim)
   movementSystem(sim, STEP_SECONDS)

@@ -98,16 +98,19 @@ export function setupSkirmish(sim: Simulation, soldiersPerSide = 200): Skirmish 
 }
 
 /**
- * Creeping barrage timing, after French practice at Verdun in late 1916: the barrage opens just beyond the wire as the
- * infantry go over, then lifts 50 m every 90 s; the infantry keep about 60 m behind it.
+ * Creeping barrage timing, after French practice at Verdun in late 1916: the barrage opens 70 m out as the infantry go
+ * over, then lifts 50 m every 90 s; the infantry keep about 70 m behind it, close enough to be on the enemy's parapet
+ * before the garrison is up, far enough that few of their own shells fall among them.
  */
 export const CREEPING_BARRAGE = {
-  openAhead: 40,
+  openAhead: 70,
   lift: 50,
   interval: 90,
-  standoff: 60,
+  standoff: 70,
   // About one field gun per 15-20 m of front, firing 3-4 rounds a minute.
-  roundsPerMinute: 150
+  roundsPerMinute: 150,
+  // A standing barrage keeps the enemy trench's garrison down their dugouts until the creeping barrage arrives.
+  standingRoundsPerMinute: 60
 } as const
 
 function lines(sim: Simulation, side: Side): { own: number; enemy: number } | null {
@@ -134,6 +137,7 @@ export function attackBehindBarrage(sim: Simulation, side: Side): void {
     lift: CREEPING_BARRAGE.lift,
     interval: CREEPING_BARRAGE.interval,
     standoff: CREEPING_BARRAGE.standoff,
+    standingRoundsPerMinute: CREEPING_BARRAGE.standingRoundsPerMinute,
     delay: 0
   })
 }

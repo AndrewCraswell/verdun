@@ -3,7 +3,17 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
-import { createSimulation, createSquad, isAlive, shotEvents, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
+import {
+  createSimulation,
+  createSquad,
+  CRAWL_FACTOR,
+  isAlive,
+  shotEvents,
+  Side,
+  spawnSoldier,
+  Stance,
+  stepSimulation
+} from "@verdun/sim"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   aimToward,
@@ -65,7 +75,7 @@ function setup(debugActions = false) {
     seed: 1
   })
   const members = [50, 53, 56].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))
-  const squad = createSquad(sim, Side.French, members)
+  const squad = createSquad(sim, Side.French, members, "player")
   const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), scene)
   const held = new Set<string>()
   const actions: PlayerAction[] = []
@@ -163,7 +173,9 @@ describe("createPlayerControl", () => {
     for (let step = 0; step < 20; step++) {
       frame()
     }
-    expect(sim.soldiers.position.x[members[2]!]).toBeCloseTo(57.4)
+    // Waiting with the squad, they had lain down; taking control of them doesn't stand them up, so they crawl.
+    expect(sim.soldiers.stance.value[members[2]!]).toBe(Stance.Prone)
+    expect(sim.soldiers.position.x[members[2]!]).toBeCloseTo(56 + 1.4 * CRAWL_FACTOR)
     expect(sim.soldiers.position.x[members[1]!]).toBe(53)
   })
 
@@ -204,7 +216,8 @@ describe("createPlayerControl", () => {
       { kind: "whistle" },
       { kind: "bombard" },
       { kind: "call-fire", x: 1, z: 2 },
-      { kind: "toggle-fog" }
+      { kind: "toggle-fog" },
+      { kind: "toggle-prone" }
     ]
     const control = createPlayerControl(
       sim,
@@ -223,6 +236,7 @@ describe("createPlayerControl", () => {
     control.update(0.05)
 
     expect(sim.pendingCommands).toContainEqual({ type: "fire", soldier: leader })
+    expect(sim.pendingCommands).toContainEqual({ type: "stance", soldier: leader, prone: true })
     expect(whistles).toEqual([0, -1, -2, -3])
     stepSimulation(sim)
     expect(shotEvents(sim.events).filter((event) => event.shooter === leader)).toHaveLength(1)

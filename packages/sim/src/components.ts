@@ -2,6 +2,16 @@ export const Side = { French: 0, German: 1 } as const
 export type Side = (typeof Side)[keyof typeof Side]
 
 /**
+ * How a soldier holds themselves. Standing to walk or man a fire step; prone in the open, a third of the target and far
+ * safer from shell fragments; sheltering down a dugout under bombardment, out of the fight but nearly safe.
+ */
+export const Stance = { Standing: 0, Prone: 1, Sheltering: 2 } as const
+export type Stance = (typeof Stance)[keyof typeof Stance]
+
+/** A step long before any battle starts, for "never shelled". */
+export const NEVER = -1_000_000
+
+/**
  * Soldier component stores, one typed-array slot per entity id. Each simulation owns its own stores, so several worlds
  * (a replay, a test, a server sector) never share state.
  *
@@ -27,6 +37,8 @@ export interface SoldierComponents {
   readonly health: { readonly value: Float32Array }
   /** Tag: present once a soldier has fallen. The fallen keep their place on the battlefield but take no part. */
   readonly dead: Record<string, never>
+  /** Tag: present once a soldier has surrendered. Prisoners walk to their captors' rear and take no part. */
+  readonly captured: Record<string, never>
   /** The soldier's weapon (a `Weapon`) and seconds until it can fire again. */
   readonly weapon: { readonly kind: Uint8Array; readonly cooldown: Float32Array }
   /** The enemy the soldier is shooting at, or -1. */
@@ -35,6 +47,13 @@ export interface SoldierComponents {
   readonly suppression: { readonly value: Float32Array }
   /** Fighting spirit, from 1 (steady) to 0 (broken). */
   readonly morale: { readonly value: Float32Array }
+  /** How the soldier holds themselves: a `Stance`. */
+  readonly stance: { readonly value: Uint8Array }
+  /**
+   * Dugout bookkeeping: the last step a shell burst close by, and the step a sheltering soldier will be back up on the
+   * fire step, or -1 while they stay down.
+   */
+  readonly shelter: { readonly lastShelled: Int32Array; readonly emergeAt: Int32Array }
 }
 
 export function createSoldierComponents(capacity: number): SoldierComponents {
@@ -48,9 +67,12 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     squad: { id: new Int32Array(capacity).fill(-1) },
     health: { value: new Float32Array(capacity) },
     dead: {},
+    captured: {},
     weapon: { kind: new Uint8Array(capacity), cooldown: new Float32Array(capacity) },
     target: { id: new Int32Array(capacity).fill(-1) },
     suppression: { value: new Float32Array(capacity) },
-    morale: { value: new Float32Array(capacity) }
+    morale: { value: new Float32Array(capacity) },
+    stance: { value: new Uint8Array(capacity) },
+    shelter: { lastShelled: new Int32Array(capacity).fill(NEVER), emergeAt: new Int32Array(capacity).fill(-1) }
   }
 }

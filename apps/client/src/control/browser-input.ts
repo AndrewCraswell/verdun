@@ -27,6 +27,9 @@ function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyO") {
     return { kind: "toggle-fog" }
   }
+  if (code === "KeyZ") {
+    return { kind: "toggle-prone" }
+  }
   const digit = /^Digit([1-8])$/.exec(code)?.[1]
   return digit ? { kind: "switch-slot", slot: Number(digit) - 1 } : null
 }

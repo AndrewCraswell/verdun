@@ -46,8 +46,13 @@ export const SQUAD_THINK_INTERVAL = 5
 /** Soldiers within this distance of their slot stay put rather than shuffling. */
 const SLOT_TOLERANCE = 1
 
+/** Whether a soldier is still in the fight: neither fallen nor taken prisoner. */
 export function isAlive(sim: Simulation, soldier: EntityId): boolean {
-  return soldier >= 0 && !hasComponent(sim.world, soldier, sim.soldiers.dead)
+  return (
+    soldier >= 0 &&
+    !hasComponent(sim.world, soldier, sim.soldiers.dead) &&
+    !hasComponent(sim.world, soldier, sim.soldiers.captured)
+  )
 }
 
 /** Forms a squad from soldiers in slot order. The first is its leader; it starts out holding. */
@@ -127,7 +132,10 @@ function creepSlot(
   const line = barrageLine(sim, order.mission)
   const start = sim.artillery.missions[order.mission]?.z ?? order.objectiveZ
   const direction = Math.sign(order.objectiveZ - start) || 1
-  const behindBarrage = line === null ? order.objectiveZ : line - direction * order.standoff
+  // The moment the barrage lifts off the objective, rush it: every second waiting lets its garrison climb out of their
+  // dugouts and man the parapet.
+  const lifted = line === null || (line - order.objectiveZ) * direction > 0
+  const behindBarrage = lifted ? order.objectiveZ : line - direction * order.standoff
   // Don't run past the objective while the barrage is still falling beyond it.
   const z = direction > 0 ? Math.min(behindBarrage, order.objectiveZ) : Math.max(behindBarrage, order.objectiveZ)
   return advanceSlot(sim, { x: order.x, z }, slot, count)

@@ -21,11 +21,14 @@ export type {
   KillCommand,
   MoveToCommand,
   SquadOrderCommand,
+  StanceCommand,
   SteerCommand,
   TakeCommandCommand
 } from "./commands.ts"
-export { Side } from "./components.ts"
+export { Side, Stance } from "./components.ts"
+export { type CaptureEvent, surrender } from "./capture.ts"
 export {
+  capturedIds,
   createSimulation,
   enqueueCommand,
   fallenIds,
@@ -51,3 +54,4 @@ export {
 } from "./snapshot.ts"
 export { createFixedStepper, type FixedStepper } from "./stepper.ts"
 export { createLineOfSight, EYE_HEIGHT, eyeAt, type LineOfSight, type WorldPoint } from "./line-of-sight.ts"
+export { CRAWL_FACTOR, isInTrench, isSheltering, PRONE_EYE_HEIGHT, SHELTER_CALM, soldierEye } from "./stance.ts"
