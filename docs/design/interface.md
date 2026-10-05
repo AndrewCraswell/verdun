@@ -51,7 +51,8 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
 - **The background changes completely.** White snow by day, near-black nights, the glare of a flare, a yellow-green gas
   cloud, brown mud, smoke. Every overlay needs its own backing so it reads on all of them.
 - **Fast load**: a link click reaches the battle in under 10 seconds. Every player, the first time too, opens on the
-  front door, with the battle loading behind it ([first session](progression-and-community.md#first-session)).
+  front door, which loads none of the battle: it loads once they choose the battle to join
+  ([first session](progression-and-community.md#first-session)), so the ten seconds run from "Join the battle".
 - **Tone.** Over 700,000 men were killed, wounded or captured at Verdun. The interface is sober and respectful: no kill
   feed, no points popping off men, no medals for killing. See [principles](#principles).
 
@@ -67,17 +68,18 @@ The grenade throw (H9, W7) is built too: hold Q for the arc, reach, scatter and 
 from the hand to where it bursts.
 
 The menus are built too, in `apps/client/src/ui/`. The game opens on a front door (a first cut of S13), from a small
-bundle of its own, with the battle downloading and coming up behind it: "Join the battle", "War map", "Options" and
-"Credits", nothing more, with "Fight for: French or German" over them (S14's first cut: kept between visits; a change
-reloads, since the battle comes up for the side chosen). A German player defends against the playtest's French attack
-and, as a defender of 1916 would, isn't told its hour or where it will fall: the join screen gives orders to hold, and
-the report reads Held, A footing lost or Line lost. "Join the battle" opens the join screen (S8): the sector's plan with
-every squad pinned where it stands and the attack ahead beside it, and **Start**. Then the loading screen (S6) until the
-battle draws, and the battle. Esc opens the list over the battle (S1): "Resume", the sector map (S4), the squad book
-(S5), the battle log's history (H14), the war map (a first cut of S15: the Western Front in each season, the theatres
-each season opens, Verdun's sectors, Fleury playable), the options (S3, with the keys and their rebinding, S2, as a
-tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on their own over the running
-battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
+bundle of its own that loads none of the battle, since at the front door which battle the player will join isn't known
+yet: "Join the battle", "War map", "Options" and "Credits", nothing more, with "Fight for: French or German" over them
+(S14's first cut: kept between visits; the battle loads for the side chosen, so a change once it's loading starts it
+again). A German player defends against the playtest's French attack and, as a defender of 1916 would, isn't told its
+hour or where it will fall: the join screen gives orders to hold, and the report reads Held, A footing lost or Line
+lost. "Join the battle" (or the war map's way into Fleury) starts the battle loading, under the loading screen (S6), and
+then opens the join screen (S8): the sector's plan with every squad pinned where it stands and the attack ahead beside
+it, and **Start**, which goes straight into the battle. Esc opens the list over the battle (S1): "Resume", the sector
+map (S4), the squad book (S5), the battle log's history (H14), the war map (a first cut of S15: the Western Front in
+each season, the theatres each season opens, Verdun's sectors, Fleury playable), the options (S3, with the keys and
+their rebinding, S2, as a tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on
+their own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
 
 Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), and the rest of
 stage 2-3's screens.
@@ -167,7 +169,7 @@ picture; pending ones stay a dashed amber outline, as a warning.
 ## Screen flow
 
 ```
-Stage 1 (now)    link ──▶ S13 front door ──▶ S8 join ──▶ S6 loading ──▶ battle (HUD) ◀──▶ S1 menu ──▶ S2, S3, S15
+Stage 1 (now)    link ──▶ S13 front door ──▶ S6 loading ──▶ S8 join ──▶ battle (HUD) ◀──▶ S1 menu ──▶ S2, S3, S15
                                                                                │  ▲
                                                                                ▼  │
                                                                      S4 sector map (M), S5 squad book (U)
@@ -185,8 +187,8 @@ Stage 3          S13 landing ──▶ S22 sign in ──▶ S14 side ──▶ 
                                    S18 service record, S19 regiment, S20 memorial, S17 main effort vote
 ```
 
-Every player opens on the front door, the first time too, with the battle loading behind it; an account is offered after
-their first operation.
+Every player opens on the front door, the first time too; the battle loads once they join it, and an account is offered
+after their first operation.
 
 ## Soldier and squad state: the vocabulary
 
@@ -919,8 +921,8 @@ The squad as a nominal roll: every man, his state, and what happened to him. It 
 
 **Stage** P. **Kind** Screen.
 
-**Built** (`ui/loading.ts`): over the battle while it comes up and as the player goes in, the sector and the week, the
-line of what happened at Verdun that week (`ui/front/verdun-1916.ts`, from
+**Built** (`ui/loading.ts`): from "Join the battle" while the battle comes up (then the join screen), and again as the
+player goes in, the sector and the week, the line of what happened at Verdun that week (`ui/front/verdun-1916.ts`, from
 [the research note](../research/notes/history/verdun-1916.md)), the loading's steps and its bar, and a quiet line when
 the game is drawing with WebGL. It gives way once the battle has drawn its first frame. Below: the spec as first
 written.

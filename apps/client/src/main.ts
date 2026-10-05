@@ -5,8 +5,8 @@ import { sideSettings } from "./settings/side.ts"
 import { createMenu } from "./ui/menu.ts"
 
 /**
- * The game's entry: the menus first, small and quick to load, then the battle in a module of its own, loaded behind the
- * front door while the player looks round it (./start-battle.ts).
+ * The game's entry: the menus first, small and quick to load, then the battle in a module of its own, loaded once the
+ * player joins it (./start-battle.ts).
  *
  * The front door the game opens on; ?play and ?debug go straight into the line (?debug for measuring, scripts/perf.mjs),
  * behind the loading screen: nothing of the battle shows until it's drawing.
@@ -26,6 +26,8 @@ async function start(): Promise<void> {
   if (frontDoor) {
     void startMenuMusic().then((theme) => menu.entered.then(() => theme?.stop()))
   }
+  // Nothing of the battle loads until the player asks to join it: at the front door, which battle isn't known yet.
+  await menu.joining
   menu.progress("Loading the battle", 0.02)
   // The level kit's asset pack, most of what the battle downloads, sets off at once, beside the battle's own code.
   const kitFiles = openKitFiles()

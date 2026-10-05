@@ -1,6 +1,8 @@
 import type { WarDay } from "@verdun/sim"
+import { warDayAt } from "@verdun/sim/war-calendar"
 import { getMixer } from "../audio/mixer.ts"
 import { turnLabel, weekLabel } from "../environment/war-labels.ts"
+import { BATTLE_WEEK, browserStore, localSchedule } from "../environment/war-schedule.ts"
 import { h, setText } from "../hud/dom.ts"
 import { type InterfaceSettings, interfaceSettings } from "../hud/interface-settings.ts"
 import { type PlayerSide, sideSettings } from "../settings/side.ts"
@@ -44,6 +46,11 @@ export interface Menu {
     readonly renderer?: string
     readonly battle?: BattleParts
   }): void
+  /**
+   * Settles when the player asks to join the battle, from the front door or the war map; at once without the front
+   * door. Nothing of the battle loads before: until then, which battle they'll join isn't known.
+   */
+  readonly joining: Promise<void>
   /** Settles when the player is in the line and the battle shows, once the loading screen has given way to it. */
   readonly entered: Promise<void>
   /** Opens the menu over the battle at one of its pages: "options", "front", "sector"... */
@@ -79,6 +86,24 @@ function reloadAddress(play: boolean): string {
 }
 
 /**
+ * The war as it stands now, from its calendar alone, for the front door before any battle has loaded: the same
+ * schedule the battle's clock keeps to once it's up (environment/war-schedule.ts).
+ */
+function calendarWar(development: boolean): { readonly day: WarDay } {
+  const schedule = localSchedule({
+    week: BATTLE_WEEK,
+    now: Date.now(),
+    store: browserStore(),
+    ...(development ? { search: new URLSearchParams(location.search) } : {})
+  })
+  return {
+    get day() {
+      return warDayAt(schedule, Date.now())
+    }
+  }
+}
+
+/**
  * The game's menus: the front door the game opens on (S13), the loading screen as the battle comes up (S6), and the
  * menu Esc opens over the battle (S1), with one list down the left and the pages it opens beside it: the war map, the
  * sector map, the squad book, the battle log, the options, the controls and the credits. The sector map (S4) and the
@@ -91,7 +116,8 @@ export function createMenu(
   parent: HTMLElement,
   { development = false, frontDoor = true, build = "dev" }: MenuOptions = {}
 ): Menu {
-  let war: { readonly day: WarDay } | null = null
+  // The war's date at the front door from its calendar, then from the battle's own clock once it's attached.
+  let war: { readonly day: WarDay } | null = frontDoor ? calendarWar(development) : null
   let renderer: string | null = null
   let battle: BattleParts | null = null
   // The front door, or straight to the loading screen (?play, ?debug): nothing of the battle shows until it's drawing.
@@ -102,6 +128,17 @@ export function createMenu(
   let held = false
   let loaded = false
   let loadingSince = 0
+  // Whether the player has asked to join, and so the battle is loading or loaded; whether they're waiting on it, under
+  // the loading screen, for the map to choose a squad on.
+  let requested = !frontDoor
+  let waiting = false
+  let requestJoin: () => void = () => undefined
+  const joining = new Promise<void>((resolve) => {
+    requestJoin = resolve
+  })
+  if (requested) {
+    requestJoin()
+  }
   let entering: () => void = () => undefined
   const entered = new Promise<void>((resolve) => {
     entering = resolve
@@ -123,7 +160,8 @@ export function createMenu(
   const nav = h("nav", "ui-nav-list")
   nav.setAttribute("aria-label", "Menu")
   const footer = h("footer", "ui-footer", `Single-player prototype, build ${build}`)
-  // The side to fight for, at the front door: the battle comes up for the side chosen, so a change starts it again.
+  // The side to fight for, at the front door. The battle comes up for the side chosen, so a change once it's loading
+  // starts it again.
   const sideChoice = segmented<PlayerSide>(
     [
       { value: "french", label: "French" },
@@ -132,7 +170,12 @@ export function createMenu(
     sideSettings().current.side,
     (side) => {
       sideSettings().change({ side })
-      location.reload()
+      document.documentElement.dataset.army = side
+      if (requested) {
+        location.reload()
+      } else {
+        entry()
+      }
     }
   )
   sideChoice.root.classList.add("ui-side-choice")
@@ -189,13 +232,33 @@ export function createMenu(
         : { label: "Resume", enabled: true },
     enter: () => (screen === "front-door" ? openJoin() : show(false))
   })
-  // Until the battle's squads are mustered, the join screen says so; then it's the map to choose one on.
-  const mustering: MenuPage = {
-    id: "join",
-    title: "Choose your squad",
-    root: h("p", "ui-controls-intro", "Mustering the sector's squads…")
+  /**
+   * Asks to join: the battle starts loading now, under the loading screen, and the map to choose a squad on comes up
+   * once it's ready and its squads are mustered.
+   */
+  function openJoin(): void {
+    if (!requested) {
+      requested = true
+      requestJoin()
+      entry()
+    }
+    if (made && loaded) {
+      openPage(made.join)
+    } else if (!waiting) {
+      waiting = true
+      loading.show()
+    }
   }
-  const openJoin = () => openPage(made?.join ?? mustering)
+
+  /** The battle is up and mustered: the loading screen gives way to the join map, for a player waiting on it. */
+  function mustered(): void {
+    if (!waiting || !made || !loaded) {
+      return
+    }
+    waiting = false
+    const join = made.join
+    void loading.finish().then(() => openPage(join))
+  }
   const options = createOptionsPage({
     development,
     renderer: () => renderer,
@@ -289,11 +352,11 @@ export function createMenu(
   }
 
   function entry(): void {
-    const coming = screen === "front-door" && !loaded
+    const coming = screen === "front-door" && requested && !loaded
     enterButton.dataset.loading = String(coming)
     if (screen !== "front-door") {
       setText(enterNote, "Esc")
-    } else if (loaded) {
+    } else if (!coming) {
       const side = sideSettings().current.side === "german" ? "the German line" : "the French line"
       setText(enterNote, `${OPEN_SECTOR.name}, ${side}`)
     }
@@ -410,7 +473,7 @@ export function createMenu(
 
   // Capture, so the menu hears keys before the game does and can keep them from it while open.
   const onKey = (event: KeyboardEvent) => {
-    if (screen === "loading") {
+    if (screen === "loading" || waiting) {
       event.stopImmediatePropagation()
       return
     }
@@ -466,7 +529,7 @@ export function createMenu(
   window.addEventListener("keydown", onKey, { capture: true })
   pageClose.addEventListener("click", onClose)
   const clock = setInterval(() => {
-    soundHint.hidden = getMixer().context.state !== "suspended" || screen === "loading"
+    soundHint.hidden = getMixer().context.state !== "suspended" || screen === "loading" || waiting
     if (screen === "battle") {
       observe()
     }
@@ -479,8 +542,8 @@ export function createMenu(
   root.hidden = !open
   // The hint comes once the battle shows.
   hint.hidden = true
-  setText(enterNote, "Bringing up the battle")
   layout()
+  date()
   if (screen === "loading") {
     loadingSince = performance.now() - GOING_UP
     loading.show()
@@ -515,6 +578,7 @@ export function createMenu(
       if (screen === "loading") {
         arrive()
       }
+      mustered()
     },
     attach(parts) {
       war = parts.war ?? war
@@ -531,16 +595,14 @@ export function createMenu(
           if (open && screen !== "front-door") {
             layout()
           }
-          // A player waiting on the squads to be mustered gets the map to choose one on.
-          if (page === mustering) {
-            openPage(made.join)
-          }
+          mustered()
           page?.tick?.()
         })
       }
       loading.renderer(renderer)
       date()
     },
+    joining,
     entered,
     showPage(id) {
       const wanted = [...pages, ...(made ? [made.sector, made.squad, made.log, made.report] : [])].find(

@@ -1,6 +1,6 @@
-import { warDayAt } from "@verdun/sim"
+import { DEFAULT_WEEK, warDayAt } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { localSchedule, SCHEDULE_KEY, type ScheduleStore } from "./war-schedule.ts"
+import { BATTLE_WEEK, localSchedule, SCHEDULE_KEY, type ScheduleStore } from "./war-schedule.ts"
 
 const DAY = 86_400_000
 const WEEK = 7 * DAY
@@ -27,6 +27,10 @@ const weekOf = (schedule: ReturnType<typeof localSchedule>, at: number) => {
 }
 
 describe("the local war schedule", () => {
+  it("begins in the battle's own week, read without the simulation", () => {
+    expect(BATTLE_WEEK).toBe(DEFAULT_WEEK)
+  })
+
   it("begins in the battle's week, and keeps going a week a real day across visits", () => {
     const store = memory()
     const first = localSchedule({ week: JUNE_1916, now: NOW, store })

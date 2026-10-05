@@ -1,4 +1,8 @@
-import { scheduleForWeek, type WarSchedule } from "@verdun/sim"
+// The calendar alone, not the simulation's barrel: the front door reads the war's date before the battle loads.
+import { scheduleForWeek, type WarSchedule } from "@verdun/sim/war-calendar"
+
+/** The battle's own week, the simulation's DEFAULT_WEEK: the week of 20 June 1916, the German attack on Fleury. */
+export const BATTLE_WEEK = Date.UTC(1916, 5, 20)
 
 /** Where the schedule is kept between visits. */
 export const SCHEDULE_KEY = "verdun.war-schedule"

@@ -102,9 +102,9 @@ const SLOW_SUGGESTED = "verdun.slow-suggested"
 
 /**
  * Brings up the battle behind the menus: the renderer, the ground, the simulation in its worker, the level, the
- * soldiers and the sound, reporting each step to the loading, then runs it. Loaded on its own after the menus, so the
- * front door is up before Babylon and the battle have downloaded. The menus open the level kit's files, so its pack is
- * already on its way.
+ * soldiers and the sound, reporting each step to the loading, then runs it. Loaded on its own once the player joins the
+ * battle, so the front door downloads none of Babylon or the battle. The entry opens the level kit's files alongside, so
+ * its pack is already on its way.
  */
 export async function startBattle(
   menu: Menu,

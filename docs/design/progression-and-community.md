@@ -15,9 +15,9 @@ accounts arrive.
 ## First session
 
 - **A link click reaches gameplay in under 10 seconds** ([vision](../vision.md#platform-and-constraints)). No account:
-  the game opens on its front door, with the battle loading behind it, and one click on "Into the line" puts the player
-  into a bot sector on the French side, in a quiet hour, with a squad. The front door costs no load time, since the
-  battle comes up behind it.
+  the game opens on its front door, and one click on "Join the battle" loads the battle and puts the player into a bot
+  sector, in a quiet hour, with a squad. The front door loads none of the battle, since until the player chooses which
+  battle to join it isn't known, and it costs little load time itself: the ten seconds run from the click.
 - **The first ten minutes teach by doing**: move and shoot, switch soldiers, order the squad, take a bay with grenades,
   then go over the top in a small operation behind a barrage. Short prompts, no separate tutorial level. The stage 1
   prototype battle is close to this already.
