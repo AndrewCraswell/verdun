@@ -197,7 +197,8 @@ describe("high-explosive bursts", () => {
     expect(atHalf).toBeGreaterThan(0.3)
     expect(atHalf).toBeLessThan(0.7)
     expect(further).toBeLessThan(atHalf)
-  })
+    // 120 trials, each with its own Rapier heightfield: over 30 s on CI's runners under coverage.
+  }, 90_000)
 
   it("rarely hurt men in a trench from a shell landing outside it", async () => {
     // A field shell 4 m out in front of the trench: the parapet and trench wall take the fragments.
