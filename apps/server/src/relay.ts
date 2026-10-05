@@ -1,5 +1,5 @@
 import { createSyncEncoder } from "@verdun/net"
-import { createSyncSource } from "@verdun/sim"
+import { createSyncSource, soldierArrayLayout } from "@verdun/sim"
 import type { Sector } from "./sector.ts"
 
 /** Players are sent the battle every this many steps: ten times a second. */
@@ -18,7 +18,7 @@ export interface Relay {
 
 export function createRelay(sector: Sector, every = SYNC_EVERY): Relay {
   const source = createSyncSource(sector.sim)
-  const encoder = createSyncEncoder()
+  const encoder = createSyncEncoder(soldierArrayLayout(sector.sim))
   // A first sync, so a player can be welcomed straight away.
   encoder.encode(source.take())
   let steps = 0

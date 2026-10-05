@@ -7,6 +7,7 @@ import {
   enqueueCommand,
   scheduleForWeek,
   setupSkirmish,
+  soldierArrayLayout,
   type Simulation,
   stepSimulation,
   type SyncSource
@@ -32,7 +33,7 @@ class FakeServer implements SectorConnection {
   readonly squad = setupSkirmish(this.sim).playerSquad
   readonly received: unknown[] = []
   private readonly source: SyncSource = createSyncSource(this.sim)
-  private readonly encoder = createSyncEncoder()
+  private readonly encoder = createSyncEncoder(soldierArrayLayout(this.sim))
   private readonly handlers = new Map<string, (payload: unknown) => void>()
   private readonly leaving: ((code: number) => void)[] = []
   left = false
@@ -108,6 +109,19 @@ describe("the battle on a server, as the page sees it", () => {
     server.sync()
     expect(host.update(0).map((step) => step.tick)).toEqual([2, 3])
     expect(host.sim.tick).toBe(3)
+  })
+
+  it("keeps only the last two seconds of steps for a page that draws no frames, as a hidden tab", async () => {
+    const server = new FakeServer()
+    const host = await serverHost(map(), setup, server)
+    for (let message = 0; message < 30; message++) {
+      server.step(2)
+      server.sync()
+    }
+
+    const taken = host.update(0)
+    expect(taken.map((step) => step.tick)).toEqual(Array.from({ length: 40 }, (_, index) => 22 + index))
+    expect(host.sim.tick).toBe(61)
   })
 
   it("sends the page's commands to the server", async () => {

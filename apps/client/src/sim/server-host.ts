@@ -1,6 +1,6 @@
 import type { BattlefieldMap } from "@verdun/map"
 import { decodeJoined, type JoinOptions, MESSAGE, SECTOR_ROOM, type SyncDecoder } from "@verdun/net"
-import { applySync, type Command, createSimulation, type Side, type WarSchedule } from "@verdun/sim"
+import { applySync, type Command, createSimulation, type Side, TICK_RATE, type WarSchedule } from "@verdun/sim"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
 import type { SimHost, StepTaken } from "./sim-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
@@ -13,6 +13,13 @@ export interface SectorConnection {
   onLeave(callback: (code: number) => void): void
   leave(): void
 }
+
+/**
+ * Steps kept to play out, at most: two seconds. A hidden tab draws no frames, so nothing takes the steps that come in
+ * meanwhile; the mirror stays up to date all the same, and on coming back the page plays out the last moments, not an
+ * hour's shots and shells at once.
+ */
+const MOST_STEPS_KEPT = 2 * TICK_RATE
 
 /** The battle on a sector server: the host also carries the war's calendar the server keeps. */
 export interface ServerHost extends SimHost {
@@ -91,6 +98,7 @@ export async function serverHost(
     const sync = decoder.decode(bytesOf(payload))
     applySync(mirror, sync)
     arrived.push(...sync.steps)
+    arrived.splice(0, Math.max(0, arrived.length - MOST_STEPS_KEPT))
   })
   // Listening now: the battle can come.
   connection.send(MESSAGE.ready)

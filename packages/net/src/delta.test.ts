@@ -45,6 +45,26 @@ describe("what changed", () => {
     expect(diff(previous, previous.slice())).toBeNull()
   })
 
+  it("lengthens a typed array, as the soldiers' arrays grow when men join", () => {
+    const previous = Int32Array.of(1, 2)
+    const next = Int32Array.of(1, 2, 3)
+    const nothingNew = Int32Array.of(1, 2, 0)
+
+    expect(diff(previous, next)).toEqual({ t: [[2, Int32Array.of(3)]], n: 3 })
+    expect(roundTrip(previous, next)).toEqual(next)
+    expect(roundTrip(previous, nothingNew)).toEqual(nothingNew)
+  })
+
+  it("drops elements from a queue and adds others at its end", () => {
+    const shell = (x: number) => ({ x, z: 1, landsAtTick: x * 10 })
+    const previous = [shell(1), shell(2), shell(3), shell(4), shell(5)]
+    const next = [shell(2), shell(4), shell(5), shell(6)]
+
+    expect(diff(previous, next)).toEqual({ r: [0, 2], p: [shell(6)] })
+    expect(roundTrip(previous, next)).toEqual(next)
+    expect(roundTrip([shell(1)], [])).toEqual([])
+  })
+
   it("writes array buffers as bytes", () => {
     const previous = new ArrayBuffer(16)
     const next = new ArrayBuffer(16)
@@ -56,9 +76,9 @@ describe("what changed", () => {
   })
 
   it("replaces whole what changed shape or type", () => {
-    expect(diff(Float32Array.of(1), Float32Array.of(1, 2))).toEqual({ f: Float32Array.of(1, 2) })
+    expect(diff(Float32Array.of(1, 2), Float32Array.of(1))).toEqual({ f: Float32Array.of(1) })
     expect(diff(Float32Array.of(1), Int32Array.of(1))).toEqual({ f: Int32Array.of(1) })
-    expect(diff([1], [1, 2])).toEqual({ f: [1, 2] })
+    expect(diff([1, 2, 3], [4, 5, 6, 7])).toEqual({ f: [4, 5, 6, 7] })
     expect(diff(new ArrayBuffer(2), new ArrayBuffer(3))).toEqual({ f: new ArrayBuffer(3) })
     expect(diff(null, { a: 1 })).toEqual({ f: { a: 1 } })
     expect(roundTrip({ a: 1 }, null)).toBeNull()
@@ -74,6 +94,7 @@ describe("what changed", () => {
     expect(() => apply({}, { o: [] })).toThrow("A patch's fields aren't a record")
     expect(() => apply({}, { o: { a: 1 } })).toThrow("The patch for a isn't one")
     expect(() => apply({}, { x: 1 })).toThrow("A patch isn't one")
+    expect(() => apply({}, { r: [], p: [] })).toThrow("A queue's patch for something that isn't an array")
     expect(() => apply(Float32Array.of(1), { t: 3 })).toThrow("A patch of runs for something that isn't a typed array")
   })
 })

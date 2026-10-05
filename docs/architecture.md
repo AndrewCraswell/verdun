@@ -85,21 +85,32 @@ before, for development and `pnpm perf`.
   worker's is mirrored: the server sends `SimSync` ten times a second (every second step), and a player joining late is
   sent the whole battle, with how far shells have moved the ground. The war's calendar is the server's. The menu doesn't
   pause the battle. What the squad sees is worked out on the page, from the ground.
-- **Encoding** (`packages/net`): each message is only what changed since the last (`delta.ts`): the fields of state, and
-  runs of the soldier arrays, the wire and the clouds, as MessagePack that keeps typed arrays (msgpackr's `moreTypes`),
-  deflated once for every player (fflate). A joining player is welcomed to the battle as of the last message, and every
-  message after builds on it. Gas and smoke go as a byte a cell on a log scale (about 7% a step); the ground a late
+- **Encoding** (`packages/net`): each message is only what changed since the last (`delta.ts`): the fields of state,
+  runs of each soldier array (apart, by `soldierArrayLayout`), the wire and the clouds, and lists that only lose
+  elements and gain new ones at the end (the shells in flight) as just that. It goes as MessagePack that keeps typed
+  arrays (msgpackr's `moreTypes`), deflated once for every player (fflate). A joining player is welcomed to the battle
+  as of the last message, and every message after builds on it. Players get soldiers' positions to the centimetre and
+  their facing, morale, suppression and breath to the hundredth, so a value that ebbs a little every step is sent only
+  when it has changed enough to tell. Gas and smoke go as a byte a cell on a log scale (about 7% a step), and a cell
+  moves a step only once the cloud has moved it two, so cells on the edge between steps don't flicker. The ground a late
   joiner gets is how far shells have moved each sample, in millimetres, against the map they generate themselves.
   Commands go in Colyseus's own encoding.
 - **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
   their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
   keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
   aren't checked yet (a call for fire could ask for any number of rounds a minute; the side's ammunition still caps it).
-- **Bandwidth**, measured over the battle's first six minutes, bombardments and all: about 26 KB/s a player (38 KB/s at
-  the worst minute), and a late joiner's welcome about 220 KB. Sending the whole battle every time, it was 1.4 to 2.8
-  MB/s and 1.75 MB. What's left: smoke drifting (about 12 KB/s), soldiers moving (7), shells in flight (7). The odd
-  message is still about 200 KB, when a grid or the soldiers' list changes size and goes whole. Every player is still
-  sent the whole battle; relevance filtering, and quantizing positions, are the stage 2 load test's work.
+- **Bandwidth**, measured over the battle's first six minutes, bombardments and all: about 16 KB/s a player (25 KB/s at
+  the worst minute), no message over about 6 KB, and a late joiner's welcome about 220 KB. Sending the whole battle
+  every time, it was 1.4 to 2.8 MB/s and 1.75 MB. Encoding takes about 4 ms a message, once for every player. What's
+  left: smoke drifting (about 6 KB/s), all the soldiers' arrays together (5), shells and fire missions (2), craters
+  (1.3).
+- **Relevance filtering isn't done.** Every player is sent the whole battle. Sending far soldiers less often would save
+  only part of the soldiers' 5 KB/s at this sector's 500 men, and would end the one encoding shared by every player:
+  each player would need what they've been sent kept apart. It earns its place when the stage 2 load test, with its
+  1,000 men, shows soldiers' data dominating. Visibility filtering (sending only what a player's men can see) waits on
+  fog of war being on.
+- **A hidden tab** draws no frames, so it sends no commands and plays out no steps; its mirror stays up to date, and it
+  keeps only the last two seconds of steps to play on coming back (`server-host.ts`).
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
   pnpm's supply-chain policy (`blockExoticSubdeps`) refuses; swapping it in is one line in `main.ts` once that's
   settled.
