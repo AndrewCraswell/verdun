@@ -322,7 +322,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly ambience: Ambience | null
   /**
    * The battle's sound effects, for apps/client/src/audio/battle-sounds.ts, or null when the kit has none. The sounds
-   * are last in the asset pack, so the level is up before they've all arrived.
+   * are last in the asset pack, so the level is up before they've all arrived. Settles only once the ambience has
+   * started too, so the battle can wait for all its sound before it begins.
    */
   readonly sfx: Promise<BattleSoundFiles | null>
 }
@@ -422,9 +423,13 @@ export async function dressLevel(
   const bursts = createShellBursts(view.scene, map, kit.fx, wind)
   // The ambience starts when its sounds have come, behind the rest of the kit.
   let ambience: Ambience | null = null
-  void kit.audio.then(async (audio) => {
-    ambience = audio ? await createAmbience(map, audio) : null
-  })
+  const ambienceStarted = kit.audio
+    .then(async (audio) => {
+      ambience = audio ? await createAmbience(map, audio) : null
+    })
+    .catch((error: unknown) => {
+      console.warn("The ambience couldn't start; the battle goes on without it.", error)
+    })
   const dressing = {
     ...dressed,
     ground,
@@ -453,7 +458,7 @@ export async function dressLevel(
     get ambience() {
       return ambience
     },
-    sfx: kit.sfx,
+    sfx: ambienceStarted.then(() => kit.sfx),
     fx: kit.fx,
     scorch,
     backdrop,

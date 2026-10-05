@@ -249,6 +249,27 @@ describe("dressLevel", () => {
     expect(dressing?.wire).toBeNull()
   })
 
+  it("hands over the sound effects only once the ambience has started, so the battle starts with all its sound", async () => {
+    const { kit, scene } = kitOf([])
+    const { map, view: battlefield } = view({ scene })
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    let ambienceCame: (audio: null) => void = () => undefined
+    const effects = new Map()
+    vi.mocked(loadLevelKit).mockResolvedValueOnce({
+      ...kit,
+      audio: new Promise((resolve) => (ambienceCame = resolve)),
+      sfx: Promise.resolve(effects)
+    })
+    const dressing = await dressLevel(battlefield, map)
+    let handed = false
+    void dressing?.sfx.then(() => (handed = true))
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(handed).toBe(false)
+
+    ambienceCame(null)
+    await expect(dressing?.sfx).resolves.toBe(effects)
+  })
+
   it("lets the rain wash the scorch away, and the snow not", async () => {
     const { kit, scene } = kitOf([])
     const { map, view: battlefield } = view({ scene })
