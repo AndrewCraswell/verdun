@@ -13,6 +13,9 @@
 // once the game is up, such as counts of what's drawn. The battle is played free (?free), in the close view the
 // scenarios were written for, so runs compare across builds; --operation plays the playtest's operation instead, which
 // opens on its briefing in the overview.
+// A free battle with nobody at the keyboard is quiet, so the last scenarios put it through what a played one does:
+// "aiming" sweeps the soldier's aim, "overview" pulls the camera back, "dawn" brings the sun low and "barrage" brings a
+// bombardment down in front of the camera. --eval "__perf.barrage(true)" (or aim(true), zoom(300)) starts one for --ab.
 // Without --url it builds the client as committed at --ref (HEAD by default, in a worktree of its own, so others'
 // half-made changes stay out) and serves the build itself. Close other copies of the game first. Several runs at once
 // each take a slot of their own (build tree, build folder, port), so they never swap files under each other; --no-build
@@ -219,6 +222,21 @@ window.__perf = {
   clock(utc) {
     verdun.sim.pendingCommands.push({ type: "clock", at: utc, minutesPerDay: 1e6 })
   },
+  // The clock as it is now, for restoreClock to put back.
+  saveClock() {
+    window.__perfClock = { ...verdun.sim.environment.clock }
+  },
+  // At the saved week, then on by the time since it: the moment, the week and the pace all as they were.
+  restoreClock() {
+    const { week, elapsed, minutesPerDay } = window.__perfClock
+    verdun.sim.pendingCommands.push({ type: "clock", at: week, shift: elapsed, minutesPerDay })
+  },
+  // Resolves once a test passes, or after a time limit in milliseconds, with whether it passed.
+  async until(test, ms) {
+    const end = performance.now() + ms
+    while (!test() && performance.now() < end) await new Promise((r) => setTimeout(r, 100))
+    return test()
+  },
   async sample(seconds) {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms))
     // A change of settings recompiles shaders, which stalls for seconds: wait for two seconds in a row that agree.
@@ -282,6 +300,102 @@ window.__perf = {
       let t = 0
       window.__perfMove = setInterval(() => { t += 0.05; camera.radius = base + 25 * Math.sin(t) }, 16)
     }
+  },
+  // Zooms the player's camera as the wheel would: the camera rig takes a radius set from outside as the player's zoom
+  // (camera-rig.ts) and eases the view there, tipping it toward overhead. Resolves once the view has arrived.
+  async zoom(radius) {
+    const camera = verdun.view.camera
+    camera.radius = radius
+    // A few frames for the rig to take it, then until the distance has landed and the angle, which lags it, stopped.
+    await new Promise((r) => setTimeout(r, 250))
+    let beta = NaN
+    await __perf.until(() => {
+      const still = Math.abs(camera.radius - radius) < 0.01 && camera.beta === beta
+      beta = camera.beta
+      return still
+    }, 5000)
+  },
+  // Sweeps the controlled soldier's aim 30° either side of straight at the enemy and back, a face command every 16 ms as
+  // the player's mouse sends them at 60 fps (player-control.ts), 1.2° apart: more than the 0.8° under which the page
+  // sends none. Off, faces him back the way he was.
+  aim(on) {
+    clearInterval(window.__perfAim)
+    const sim = verdun.sim
+    const facing = sim.soldiers.facing
+    if (on) {
+      const soldier = verdun.control.soldier
+      window.__perfAimWas = soldier >= 0 ? { soldier, x: facing.x[soldier], z: facing.z[soldier] } : null
+      // The French face north, toward +z; the Germans south.
+      const ahead = verdun.control.squad.side === 0 ? Math.PI / 2 : -Math.PI / 2
+      let step = 0
+      window.__perfAim = setInterval(() => {
+        const soldier = verdun.control.soldier
+        if (soldier < 0) return
+        step = (step + 1) % 100
+        const angle = ahead + (Math.PI / 6) * (1 - 2 * Math.abs(step / 50 - 1))
+        sim.pendingCommands.push({ type: "face", soldier, x: Math.cos(angle), z: Math.sin(angle) })
+      }, 16)
+    } else if (window.__perfAimWas) {
+      const { soldier, x, z } = window.__perfAimWas
+      sim.pendingCommands.push({ type: "face", soldier, x, z })
+      window.__perfAimWas = null
+    }
+  },
+  // The bombardment the player calls on the enemy's front line (bombardEnemyLine, packages/sim/src/operation.ts), on the
+  // 200 m of it in front of the camera at the same weight of fire a metre: heavy and field guns on the trench, field guns
+  // sweeping the wire in front of it. It fires until switched off, and resolves once its first rounds land, some ten
+  // seconds after the order. Off, it stops the guns, gives the side back the shells fired and lets those in the air land.
+  async barrage(on) {
+    const sim = verdun.sim
+    // Field and heavy high explosive, by Shell in packages/sim/src/artillery.ts.
+    const kinds = [0, 2]
+    if (on) {
+      const side = verdun.control.squad.side
+      const middle = (trench) => trench.points.reduce((sum, point) => sum + point[1], 0) / trench.points.length
+      // His front line as the simulation picks it: of his fire trenches, the one nearest no man's land. The French hold
+      // the south of the map and face north; the Germans the north, facing south.
+      const line = sim.map.trenches
+        .filter((trench) => trench.kind === "fire" && trench.facing === (side === 0 ? "south" : "north"))
+        .sort((a, b) => (side === 0 ? middle(a) - middle(b) : middle(b) - middle(a)))[0]
+      const zs = line.points.map((point) => point[1])
+      const forward = side === 0 ? Math.min(...zs) : Math.max(...zs)
+      const rear = side === 0 ? Math.max(...zs) : Math.min(...zs)
+      const width = sim.map.columns * sim.map.cellSize
+      const x = verdun.view.camera.target.x
+      const fromX = Math.max(0, x - 100)
+      const toX = Math.min(width, x + 100)
+      const share = (toX - fromX) / width
+      const target = { side, fromX, toX, z: middle(line), band: Math.abs(rear - forward) + 20, delay: 0, duration: 3600 }
+      const plans = [
+        { ...target, shell: 2, roundsPerMinute: 30 * share },
+        { ...target, shell: 0, roundsPerMinute: 120 * share },
+        { ...target, z: forward + (side === 0 ? -30 : 30), band: 30, shell: 0, roundsPerMinute: 600 * share }
+      ]
+      const ours = (shell) =>
+        shell.side === side && kinds.includes(shell.shell) && shell.x > fromX - 50 && shell.x < toX + 50
+      window.__perfBarrage = { side, fromX, toX, ours, rounds: [...sim.artillery.ammunition[side]] }
+      for (const plan of plans) sim.pendingCommands.push({ type: "fire-mission", plan })
+      // A shell lands in the step taken from its tick, which the page plays out as the tick after.
+      let first = Infinity
+      await __perf.until(() => {
+        for (const shell of sim.artillery.shells) if (ours(shell)) first = Math.min(first, shell.landsAtTick)
+        return sim.tick > first
+      }, 30000)
+      return plans
+    }
+    const was = window.__perfBarrage
+    if (!was) return
+    window.__perfBarrage = null
+    const missions = () =>
+      sim.artillery.missions.filter((m) => m.side === was.side && m.fromX === was.fromX && m.toX === was.toX)
+    // No command calls a mission off, but one ends when its kind of shell runs out: empty the side's stock until every
+    // one has, then put back what it had before the barrage.
+    for (const shell of kinds) sim.pendingCommands.push({ type: "ammunition", side: was.side, shell, rounds: 0 })
+    await __perf.until(() => missions().every((m) => m.finished), 15000)
+    for (const shell of kinds) {
+      sim.pendingCommands.push({ type: "ammunition", side: was.side, shell, rounds: was.rounds[shell] })
+    }
+    await __perf.until(() => !sim.artillery.shells.some(was.ours), 20000)
   }
 }
 true`
@@ -337,8 +451,29 @@ const SCENARIOS = [
     teardown:
       "for (const m of verdun.engine.scenes[0].meshes) if (m.name.startsWith('backdrop-')) m.setEnabled(m.metadata?.perfWas ?? true)"
   },
-  // Last: switching snapshot rendering off is for good.
-  { name: "day, no snapshot rendering", setup: "verdun.snapshots?.dispose()" }
+  // The busy paths a quiet battle never takes. Each sets its own time of day, so it can be run alone with --only.
+  // Every aim the player moves goes to the simulation as a command, with a batch of its own when no steps are owed.
+  { name: "aiming", setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); __perf.aim(true)", teardown: "__perf.aim(false)" },
+  // The map view: 300 m back and some 250 m up, above the height where the sun's shadows stop (atmosphere.ts).
+  {
+    name: "overview",
+    setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); window.__perfRadius = verdun.view.camera.radius; __perf.zoom(300)",
+    teardown: "__perf.zoom(window.__perfRadius)"
+  },
+  // A low sun, 11° up at 05:00 UTC on the same June day: shadows five times as long as what casts them.
+  {
+    name: "dawn",
+    setup: "__perf.saveClock(); __perf.clock(Date.UTC(1916, 5, 23, 5))",
+    teardown: "__perf.restoreClock()"
+  },
+  // Switching snapshot rendering off is for good.
+  { name: "day, no snapshot rendering", setup: "verdun.snapshots?.dispose()" },
+  // Last of all: a barrage's craters, cut wire and dead are for good too, and its smoke hangs about for a minute.
+  {
+    name: "barrage",
+    setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); __perf.barrage(true)",
+    teardown: "__perf.barrage(false)"
+  }
 ]
 
 /** --ab's scenarios: the day, then baseline and toggled samples in turn, each toggle followed by time to settle. */
