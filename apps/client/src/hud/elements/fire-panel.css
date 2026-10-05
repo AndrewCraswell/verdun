@@ -210,16 +210,6 @@
   color: var(--hud-danger);
 }
 
-.fp-note {
-  font-size: 0.72em;
-  color: var(--hud-ink-2);
-  text-align: center;
-}
-
-.fp-note[hidden] {
-  display: none;
-}
-
 /* Shells left by kind. */
 .fp-shells {
   display: grid;

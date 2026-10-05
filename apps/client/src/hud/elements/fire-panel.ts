@@ -68,14 +68,12 @@ export const firePanel: HudElementFactory = () => {
   const missions = h("ol", "fp-missions")
   const sos = h("span", "fp-sos", icon("rocket", "fp-sos__icon"), "SOS barrage called")
   const calls = h("div", "fp-calls")
-  const note = h("div", "fp-note")
   const shells = h("div", "fp-shells")
   const board = h(
     "div",
     "fp-board hud-plate",
     h("header", "fp-head", h("span", "hud-label hud-label--brass", "Artillery"), sos),
     calls,
-    note,
     shells
   )
   const root = h("section", "fire-panel", missions, board)
@@ -83,8 +81,6 @@ export const firePanel: HudElementFactory = () => {
   const tiles = new Map<CallId, Tile>()
   const rows = new Map<number, Row>()
   const stocks = new Map<Shell, { readonly root: HTMLElement; readonly left: HTMLElement; readonly bar: HTMLElement }>()
-  let hovered: CallId | null = null
-  let fallbackNote = ""
 
   function tileFor(call: CallView): Tile {
     const existing = tiles.get(call.id)
@@ -101,24 +97,9 @@ export const firePanel: HudElementFactory = () => {
       stock
     )
     const tile: Tile = { root, stock, call: null }
-    root.addEventListener("pointerenter", () => {
-      hovered = call.id
-      showNote()
-    })
-    root.addEventListener("pointerleave", () => {
-      hovered = null
-      showNote()
-    })
     tiles.set(call.id, tile)
     calls.append(root)
     return tile
-  }
-
-  function showNote(): void {
-    const call = hovered ? tiles.get(hovered)?.call : null
-    const text = call ? `${call.label}: ${call.reason ?? call.detail}` : fallbackNote
-    setText(note, text)
-    show(note, text !== "")
   }
 
   function rowFor(mission: MissionView): Row {
@@ -160,11 +141,11 @@ export const firePanel: HudElementFactory = () => {
         tile.call = call
         setData(tile.root, "available", call.available)
         setData(tile.root, "active", call.active)
+        // Said to a screen reader; on screen the tile's own state shows it, without words that move the board.
+        tile.root.setAttribute("aria-label", call.reason ? `${call.label}, ${call.reason}` : call.label)
         const left = stockOf.get(CALL_SHELLS[call.id])
         setText(tile.stock, left === undefined ? "" : rounds(left))
       }
-      fallbackNote = fire.calls.find((call) => call.active)?.reason ?? ""
-      showNote()
 
       const live = new Set(fire.missions.map((mission) => mission.id))
       for (const [id, row] of rows) {
