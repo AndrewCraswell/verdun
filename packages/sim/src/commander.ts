@@ -30,9 +30,10 @@ const FLANK = 20
 /**
  * Seconds from losing the front line to counter-attacking it. German doctrine at Verdun was the immediate counter-attack
  * (Gegenstoß) by the reserves close behind, before the attackers could dig in: runners back, the reserves formed up,
- * the guns laid on the lost trench. Minutes, not hours.
+ * the guns laid on the lost trench. Minutes, not hours; five of them leave the attackers time to start consolidating, so
+ * a stretch well taken can be held.
  */
-export const COUNTER_ATTACK_DELAY = 180
+export const COUNTER_ATTACK_DELAY = 300
 /**
  * A counter-attack ready in the small hours waits for the dawn stand-to if it is this many game hours off or less: dawn
  * was the hour for attacks, light enough to keep direction and find the enemy, too dim for his machine gunners to see far.
@@ -167,36 +168,25 @@ export function menInEnemyLine(sim: Simulation, side: Side, stretch: Stretch): n
 }
 
 /**
- * Where the enemy holds a side's front line: every window of it he holds, joined where they touch or overlap, and the
- * longest such stretch returned; null where he holds none.
+ * Where the enemy holds a side's front line: from the first window of it he holds to the last, so one counter-attack
+ * retakes every break-in; null where he holds none.
  */
 function lostStretch(sim: Simulation, side: Side): Stretch | null {
   const width = mapWidth(sim.map)
   const living = soldierIds(sim)
-  let longest: Stretch | null = null
-  let current: { fromX: number; toX: number } | null = null
-  const close = () => {
-    if (current && (longest === null || current.toX - current.fromX > longest.toX - longest.fromX)) {
-      longest = current
-    }
-    current = null
-  }
+  let first = -1
+  let last = -1
   for (let fromX = 0; ; fromX += LOST_STEP) {
     const toX = Math.min(width, fromX + LOST_WINDOW)
     if (stretchLost(sim, side, { fromX, toX }, living)) {
-      if (current && fromX <= current.toX) {
-        current.toX = toX
-      } else {
-        close()
-        current = { fromX, toX }
-      }
+      first = first < 0 ? fromX : first
+      last = toX
     }
     if (toX >= width) {
       break
     }
   }
-  close()
-  return longest
+  return first < 0 ? null : { fromX: first, toX: last }
 }
 
 /** The ground the counter-attack shells: the lost stretch and a little beyond each end, and its share of the front. */

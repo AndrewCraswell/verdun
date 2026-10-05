@@ -117,9 +117,12 @@ Balance is tested, not argued. Two harnesses, both headless and deterministic (s
 
 ### Battle matrix (built)
 
-[scripts/balance.mjs](../../scripts/balance.mjs) runs headless barrage attacks on the Fleury sector (or the prototype
-sector) across seeds, from both sides, each battle in its own process, and checks each scenario against its **acceptance
-band**. It exits non-zero when a band fails, so it can gate CI.
+[scripts/balance.mjs](../../scripts/balance.mjs) runs headless attacks on the Fleury sector (or the prototype sector)
+across seeds, from both sides, each battle in its own process, and checks each scenario against its **acceptance band**.
+It exits non-zero when a band fails, so it can gate CI. Since 5 October 2026 the barrage scenarios are
+[operations](operations.md#the-frontage-and-who-goes) as the game runs them: a 200 m stretch chosen, squads massed on
+it, the bombardments, the barrage and two waves, and the result judged 20 minutes after zero hour, after the
+counter-attack. The whole-front attacks they replace measured only the break-in, ten minutes after the whistle.
 
 ```bash
 pnpm balance
@@ -129,19 +132,20 @@ Options: `--map prototype`, `--seeds 1916,7,42`, `--scenario "three bombardments
 battle takes about 20 s for six minutes of fighting; the full matrix (three scenarios, two sides, five seeds) about two
 minutes on a 16-core machine. Keep `--jobs` low while anyone is measuring frame rates on the same machine.
 
-An attack **holds** the enemy front line when, at the end, at least 8 attackers are in it (its span plus 15 m) and they
-outnumber what's left of its garrison 3 to 1, the commander AI's own test for a lost line. Losses count the attackers
-killed, wounded and captured as a share of the men they started with.
+An operation **holds** when its result is "taken": at the end at least 8 attackers are in the stretch of the enemy's
+front line (its span plus 15 m) and they outnumber what's left of its garrison there 3 to 1, the commander AI's own test
+for a lost line. Losses count the attacking side's killed, wounded and captured, replacements included, as a share of
+the men it started with.
 
-| Scenario (Fleury)                                                    | Band                                                | Built                                     |
-| -------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------- |
-| No artillery: every squad simply advances on the enemy line          | Holds on no seed                                    | Yes                                       |
-| The whistle without bombardment: creeping and standing barrages only | Holds on at most 40% of seeds                       | Yes                                       |
-| One bombardment, then a creeping barrage                             | Holds on at most 40% of seeds                       | Yes                                       |
-| Three bombardments, then a creeping barrage                          | Holds on 60–90% of seeds, at 35–60% attacker losses | Yes                                       |
-| The same scenarios with sides swapped (German attacking)             | Within 20 points of the French result               | Yes                                       |
-| Own-shell casualties in a barrage attack                             | 5–15% of the attackers' losses                      | Needs casualty causes from the simulation |
-| Counter-attack without preparation                                   | Fails on most seeds                                 | To add                                    |
+| Scenario (Fleury)                                                     | Band                                       | Built                                     |
+| --------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------- |
+| No artillery: every squad simply advances on the enemy line           | Holds on no seed                           | Yes                                       |
+| An operation without bombardment: creeping and standing barrages only | Holds on at most 20% of seeds              | Yes                                       |
+| An operation after one bombardment                                    | Holds on at most 40% of seeds              | Yes                                       |
+| An operation after three bombardments (the playtest's)                | Holds on 40–80% of seeds, at 40–80% losses | Yes                                       |
+| The same scenarios with sides swapped (German attacking)              | Within 20 points of the French result      | Yes                                       |
+| Own-shell casualties in a barrage attack                              | 5–15% of the attackers' losses             | Needs casualty causes from the simulation |
+| Counter-attack without preparation                                    | Fails on most seeds                        | To add                                    |
 
 A change that moves a scenario out of its band needs a reason in its commit. To run it in CI it needs a nightly job, not
 the verify loop: two minutes of battles is too long for every push.
@@ -178,6 +182,13 @@ the alarm, spotted guns, gun crews, snipers and rifle grenadiers): 13 of 15 chec
 losses (German just over); own fire 15% and 11%; the two sides within 20 points everywhere. Machine guns cause 27–38% of
 an unsupported attack's losses, a little under the [target](machine-guns.md#balance-targets) now that snipers and rifle
 grenades hunt them.
+
+**Operations, 5 October 2026** (ten seeds each way): no artillery and three bombardments pass from both sides; three
+bombardments are taken 4 and 5 in 10, at 70% and 73% losses, own fire 10%. **The unprepared operations fail**: without a
+bombardment they are taken 3 and 5 in 10, after one bombardment 1 and 6 in 10. Massed on a stretch, a first wave gets in
+whether or not the guns have cut the wire, so preparation matters too little; the German attack still does better than
+the French, as on the whole front. Getting there took the counter-attack's delay up from three minutes to five, and one
+counter-attack retaking every break-in rather than only the longest.
 
 **Latest** (on `3be231d` with the counter-thrust at 2.5 to 1, up to three squads a look, every 5 s, counting squads
 already on their way, and commanders' automatic counter-fire off): barrage-only attacks hold 4 in 10 from both sides,

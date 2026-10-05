@@ -142,10 +142,10 @@ the dugouts they were taken prisoner wholesale by the counter-attack.
 ### The defender's answer
 
 The defender's counter-attack goes in where its line was lost: the commander finds the stretch held by the enemy (at
-least eight of them, outnumbering what's left of the garrison three to one, over any 100 m), joins it to any lost line
-next to it, shells it and sends the reserves within 100 m of it in behind a barrage on that stretch alone, at the same
-weight per metre and over the whole line's depth. A whole-front attack loses the whole line, and the whole line is
-counter-attacked, as before.
+least eight of them, outnumbering what's left of the garrison three to one, over any 100 m), takes in everything from
+the first such stretch to the last so one counter-attack retakes every break-in, shells it and sends the reserves within
+100 m of it in behind a barrage on that stretch alone, at the same weight per metre and over the whole line's depth. A
+whole-front attack loses the whole line, and the whole line is counter-attacked, as before.
 
 ## Where the men assemble
 
@@ -219,7 +219,7 @@ The operation ends when the objective is taken or the attackers are back in thei
 
 - The [consolidation](sector-battle.md#consolidation) clock runs, faster where engineers work and a forward dump is up.
 - The defender's counter-attack comes in: immediate (built: the commander AI shells the lost trench and sends its
-  reserves in about five minutes later), or prepared within the half hour with fresh shells.
+  reserves in about seven minutes later), or prepared within the half hour with fresh shells.
 - The communiqué reports it at the next daily turn, with citations for the squads that did best.
 
 ## The playtest operation
@@ -234,10 +234,10 @@ harness plays the same operation the player does.
 stretch. The player's squad goes in the first wave with the squads opposite it; two reserve squads follow as the second
 wave; the rest of the line holds and fires in support.
 
-In the balance harness ("playtest operation", ten seeds, the player's squad idle) the attack gets into the stretch on
-most seeds and holds it on three, a footing on none; the German counter-attack, about ten minutes after zero hour,
-decides it. The attackers lose half to two thirds of the men engaged. Raising the assembly to eight squads and the
-second wave to three changed nothing but the losses.
+In the balance harness ("three bombardments", ten seeds, the player's squad idle) the attack holds its stretch on four
+or five seeds in ten; the German counter-attack, about seven minutes after the line falls, decides the rest. The
+attackers lose about 70% of the men engaged, replacements included. With a three-minute delay it held three in ten;
+raising the assembly to eight squads and the second wave to three changed nothing but the losses.
 
 | Clock | What happens                                                                                              |
 | ----- | --------------------------------------------------------------------------------------------------------- |
@@ -245,7 +245,7 @@ second wave to three changed nothing but the losses.
 | 1:30  | The bombardment opens: three two-minute bombardments of the German front line and its wire, back to back. |
 | 8:00  | **Zero hour.** Whistles; the first wave goes over behind the creeping barrage.                            |
 | 8–18  | The assault: into the German line and onto the objectives.                                                |
-| 18–28 | The hold: the German counter-thrusts and counter-attack, about five minutes after the line falls.         |
+| 18–28 | The hold: the German counter-thrusts and counter-attack, about seven minutes after the line falls.        |
 | 28:00 | **The end.** The result is judged and the report shown.                                                   |
 
 **The result**, judged at the end:

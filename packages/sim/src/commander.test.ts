@@ -160,6 +160,31 @@ describe("counter-attacks", () => {
     expect(far.order.kind).toBe("reserve")
   })
 
+  it("retake every break-in with one counter-attack, from the first to the last", () => {
+    const map = createFlatMap({ name: "wide", cellSize: 0.5, columns: 800, rows: 440 }, 5, Surface.Grass)
+    const trenches: Trench[] = [
+      {
+        kind: "fire",
+        points: [
+          [20, 150],
+          [380, 150]
+        ],
+        facing: "south"
+      }
+    ]
+    carveTrenches(map, trenches)
+    const sim = createSimulation({ map: { ...map, trenches }, seed: 1 })
+    for (let index = 0; index < 10; index++) {
+      spawnSoldier(sim, { side: Side.French, x: 30 + index * 4, z: 149 })
+      spawnSoldier(sim, { side: Side.French, x: 280 + index * 4, z: 149 })
+    }
+    spawnSoldier(sim, { side: Side.German, x: 200, z: 150 })
+    stepFor(sim, 5.1)
+    const state = sim.commanders[Side.German]
+
+    expect([state.lostFromX, state.lostToX]).toEqual([0, 375])
+  })
+
   it("are saved and restored mid-way", () => {
     const { sim } = frontTaken()
     stepFor(sim, COUNTER_ATTACK_DELAY + 6)

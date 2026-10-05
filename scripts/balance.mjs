@@ -51,20 +51,18 @@ const FRONT_BAND = 15
 const SCENARIOS = [
   // Infantry alone: every squad advances on the enemy line, walking, with no barrage of any kind.
   { name: "no artillery", bombardments: 0, barrage: false, assaultSeconds: 360, success: [0, 0] },
-  // The creeping and standing barrages without any preparatory bombardment.
-  { name: "barrage only", bombardments: 0, assaultSeconds: 600, success: [0, 0.4] },
-  { name: "one bombardment", bombardments: 1, assaultSeconds: 600, success: [0, 0.4] },
+  // Operations as the simulation runs them (docs/design/operations.md): a stretch of the enemy's line chosen, squads
+  // massed on it, the bombardments, the barrage and the waves, and "held" the result "taken", judged at the end, after
+  // the counter-attack. Three bombardments is the playtest's operation.
+  { name: "barrage only", operation: { bombardments: 0 }, success: [0, 0.2] },
+  { name: "one bombardment", operation: { bombardments: 1 }, success: [0, 0.4] },
   {
     name: "three bombardments",
-    bombardments: 3,
-    assaultSeconds: 600,
-    success: [0.6, 0.9],
-    losses: [0.35, 0.6],
+    operation: { bombardments: 3 },
+    success: [0.4, 0.8],
+    losses: [0.4, 0.8],
     ownFire: [0.05, 0.15]
-  },
-  // The playtest's operation as the simulation runs it, to its end: "held" is the result "taken", judged after the
-  // counter-attack. Winnable, not certain.
-  { name: "playtest operation", operation: true, success: [0.4, 0.8] }
+  }
 ]
 /** What knocks men down, in the order the report lists them. "own" is the attackers' own shells and grenades. */
 const CAUSES = ["machine-gun", "rifle", "shell", "own", "grenade", "gas", "other"]
@@ -131,7 +129,7 @@ async function battle({ mapName, seed, scenario, attacker }) {
     operation
   } = SCENARIOS.find((candidate) => candidate.name === scenario)
   if (operation) {
-    const planned = planOperation(sim, { ...PLAYTEST_OPERATION, side: attacker })
+    const planned = planOperation(sim, { ...PLAYTEST_OPERATION, side: attacker, ...operation })
     while (planned.result === null && sim.tick <= planned.endsAt) {
       run(10)
     }
