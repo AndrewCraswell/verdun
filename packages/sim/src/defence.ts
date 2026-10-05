@@ -8,7 +8,7 @@ import { isAlive, type Squad } from "./squads.ts"
  * Each side looks at its front line this often, in seconds. Kept in seconds and converted where used: this module and
  * simulation.ts import each other.
  */
-const CHECK_SECONDS = 2
+const CHECK_SECONDS = 5
 /** Soldiers within this distance of the front line's span are in it, in metres: its bays, traverses and the ground just round them. */
 const FRONT_BAND = 15
 /** The front line is judged in stretches this wide, in metres: about a company's frontage of bays. */
