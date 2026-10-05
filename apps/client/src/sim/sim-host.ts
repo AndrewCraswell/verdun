@@ -2,7 +2,6 @@ import type { BattlefieldMap } from "@verdun/map"
 import {
   applySync,
   type Command,
-  type EntityId,
   createSimulation,
   type EntityId,
   type LineOfSight,
