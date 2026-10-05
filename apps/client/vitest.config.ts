@@ -18,6 +18,8 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.ts",
         "src/main.ts",
+        // Only carries messages between the page and sim-runner.ts, which is tested.
+        "src/sim/sim-worker.ts",
         "src/dev/**",
         "src/control/browser-input.ts",
         "src/audio/battle-sounds.ts",
