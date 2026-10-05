@@ -166,3 +166,64 @@ describe("the simulation's host", () => {
     expect(host.sightLines).toBe(physics)
   })
 })
+
+/** Lets the worker's replies come in for a few frames, asking for no more steps. */
+async function frames(host: SimHost, count = 10): Promise<void> {
+  for (let frame = 0; frame < count; frame++) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    host.update(0)
+  }
+}
+
+describe("the squad's sight from the worker", () => {
+  it("is looked at every few steps however many batches come, and never while the fog is off", async () => {
+    const posted: FromWorker[] = []
+    const handle = createSimRunner((message) => posted.push(message))
+    handle({ type: "start", setup: { ...setup, elevation: setup.elevation.slice(0) } })
+    for (let wait = 0; wait < 200 && !posted.some((message) => message.type === "started"); wait++) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    const looks = () => posted.filter((message) => message.type === "stepped" && message.sight !== null).length
+    // Aiming: a face command every batch, half the batches with no step owed.
+    for (let batch = 0; batch < 40; batch++) {
+      handle({ type: "step", commands: [{ type: "face", soldier: 1, x: 0, z: 1 }], steps: batch % 2, look: true })
+    }
+    // 20 steps: the first look, then one every five steps.
+    expect(looks()).toBeLessThanOrEqual(5)
+    expect(looks()).toBeGreaterThan(0)
+
+    const before = looks()
+    for (let batch = 0; batch < 40; batch++) {
+      handle({ type: "step", commands: [], steps: 1, look: false })
+    }
+    expect(looks()).toBe(before)
+  })
+
+  it("comes at once when the fog is turned on, and when the player takes another soldier", async () => {
+    vi.stubGlobal("Worker", InProcessWorker)
+    const host = await createSimHost(map(), setup)
+    hosts.push(host)
+    host.sight?.watch?.(false)
+    await frames(host)
+    host.update(6)
+    await stepsTaken(host, 6)
+    expect(host.sight?.take()).toBeNull()
+
+    // Turned on, a look comes without a step owed.
+    host.sight?.watch?.(true)
+    host.update(0)
+    await frames(host)
+    expect(host.sight?.take()).not.toBeNull()
+
+    // A step later the next look isn't due, unless he's taken another man of his squad.
+    host.update(1)
+    await stepsTaken(host, 1)
+    expect(host.sight?.take()).toBeNull()
+    const other = host.playerSquad.members.find((member) => member !== host.playerSquad.leader) ?? -1
+    enqueueCommand(host.sim, { type: "take-command", squad: host.playerSquad.id, soldier: other })
+    host.update(1)
+    await stepsTaken(host, 1)
+    expect(host.playerSquad.leader).toBe(other)
+    expect(host.sight?.take()).not.toBeNull()
+  })
+})

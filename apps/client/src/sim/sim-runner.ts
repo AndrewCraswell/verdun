@@ -3,11 +3,13 @@ import {
   createSimulation,
   createSyncSource,
   enqueueCommand,
+  isAlive,
   loadWeatherRegion,
   planOperation,
   PLAYTEST_OPERATION,
   setupSkirmish,
   type Simulation,
+  type Squad,
   stepSimulation,
   type SyncSource
 } from "@verdun/sim"
@@ -53,6 +55,9 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
   let source: SyncSource | null = null
   let sight: SightModel | null = null
   let sinceLook = STEPS_PER_LOOK
+  let squad: Squad | null = null
+  // Who the squad's sight was last looked at for: its leader, and how many of it were still in the fight.
+  let lookedFor = { leader: -1, living: -1 }
   const send = (message: FromWorker) => post(message, transferables(message))
 
   async function start(setup: BattleSetup): Promise<void> {
@@ -70,17 +75,28 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
     const lineOfSight = await createLineOfSight(map)
     battle.lineOfSight = lineOfSight
     sight = createSightModel(battle, lineOfSight, playerSquad, SIGHT_RANGE)
+    squad = playerSquad
     sim = battle
     source = createSyncSource(battle)
     send({ type: "started", playerSquad: playerSquad.id, sync: source.take() })
   }
 
-  /** The squad's sight, looked at whole, when it's due: plain code off the page, so there's no need to spread it out. */
-  function look(ordered: boolean): SightLook | null {
-    if (!sight || (sinceLook < STEPS_PER_LOOK && !ordered)) {
+  /**
+   * The squad's sight, looked at whole when it's due: every few steps, at once when the player takes another soldier or
+   * the squad loses a man, and whenever asked. Plain code off the page, so there's no need to spread it out. Never while
+   * the page isn't showing the fog of war: a look costs a few milliseconds.
+   */
+  function look(battle: Simulation, wanted: boolean, now: boolean): SightLook | null {
+    if (!sight || !squad || !wanted) {
+      return null
+    }
+    const viewer = { leader: squad.leader, living: squad.members.filter((member) => isAlive(battle, member)).length }
+    const changed = viewer.leader !== lookedFor.leader || viewer.living !== lookedFor.living
+    if (sinceLook < STEPS_PER_LOOK && !changed && !now) {
       return null
     }
     sinceLook = 0
+    lookedFor = viewer
     sight.begin()
     sight.advance(1)
     return { ground: sight.grid.values.slice(), enemies: Int32Array.from(sight.visibleEnemies) }
@@ -104,6 +120,7 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
       source.stepped()
     }
     sinceLook += message.steps
-    send({ type: "stepped", sync: source.take(), sight: look(message.commands.length > 0) })
+    // Looked at after the steps, so after the commands took effect: a soldier just taken over sees with his own eyes.
+    send({ type: "stepped", sync: source.take(), sight: look(sim, message.look, message.lookNow === true) })
   }
 }

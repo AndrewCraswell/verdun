@@ -110,6 +110,9 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   const sightLines = createTerrainSight(map)
   mirror.lineOfSight = sightLines
   let latestSight: SightLook | null = null
+  // Whether the fog is shown and wants looks, and whether it wants one at once (just turned on).
+  let watching = true
+  let lookNow = false
 
   const started = new Promise<number>((resolve, reject) => {
     worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
@@ -145,17 +148,27 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
         const look = latestSight
         latestSight = null
         return look
+      },
+      watch(on) {
+        lookNow = on && !watching
+        watching = on
+        if (!on) {
+          latestSight = null
+        }
       }
     },
     update(steps) {
-      // Commands queued on the mirror go to the simulation, in order, with the next batch.
+      // Commands queued on the mirror go to the simulation, in order, with the next batch: there's no sending them
+      // sooner, since a command takes effect only as a step is taken. A batch of none would only cost both threads a
+      // round trip, except to fetch a look for fog just turned on.
       commands.push(...mirror.pendingCommands.splice(0))
       owed += steps
-      if (!inFlight && (owed > 0 || commands.length > 0)) {
+      if (!inFlight && (owed > 0 || lookNow)) {
         const batch = Math.min(MOST_STEPS, owed)
-        send({ type: "step", commands, steps: batch })
+        send({ type: "step", commands, steps: batch, look: watching, lookNow })
         owed -= batch
         commands = []
+        lookNow = false
         inFlight = true
       }
       const taken = arrived

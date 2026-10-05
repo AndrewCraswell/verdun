@@ -13,6 +13,8 @@ import { createFogGrid } from "./viewshed.ts"
 export interface SightFeed {
   /** The latest look, once: null when there's nothing new since the last call. */
   take(): { readonly ground: Uint8Array; readonly enemies: Int32Array } | null
+  /** Whether the fog is shown, and so wants looks: none are worked out while it isn't, and one at once when it's back. */
+  watch?(on: boolean): void
 }
 
 export interface FogOfWarOptions {
@@ -95,6 +97,14 @@ export function createFogOfWar(
   for (const each of plugins) {
     each.darkenUnseen = enabled
   }
+  fed?.watch?.(enabled)
+  // Turned on with a feed, the fog waits for a fresh look before darkening anything: the last one may be minutes old.
+  let awaitingLook = false
+  const darken = (value: boolean) => {
+    for (const each of plugins) {
+      each.darkenUnseen = value
+    }
+  }
   const fedEnemies = new Set<EntityId>()
   const visibleEnemies: ReadonlySet<EntityId> = model?.visibleEnemies ?? fedEnemies
   const interval = 1 / updatesPerSecond
@@ -102,11 +112,14 @@ export function createFogOfWar(
   // Soldiers need redrawing on the next update, as after fog is turned on or off.
   let redraw = false
 
-  /** Takes the latest look sent, if any. Returns whether any enemy came into or went out of sight. */
-  function takeFed(feed: SightFeed): boolean {
+  /**
+   * Takes the latest look sent, if any. Returns whether any enemy came into or went out of sight, or null when nothing
+   * new came.
+   */
+  function takeFed(feed: SightFeed): boolean | null {
     const look = feed.take()
     if (!look) {
-      return false
+      return null
     }
     grid.values.set(look.ground)
     texture.update(grid.values)
@@ -141,19 +154,29 @@ export function createFogOfWar(
     plugin,
     plugins,
     get enabled() {
-      return plugin.darkenUnseen
+      return plugin.darkenUnseen || awaitingLook
     },
     set enabled(value) {
-      for (const each of plugins) {
-        each.darkenUnseen = value
+      fed?.watch?.(value)
+      if (fed && value && !plugin.darkenUnseen) {
+        awaitingLook = true
+      } else {
+        awaitingLook = false
+        darken(value)
       }
       // Redraw soldiers on the next update either way, and look again at once when it's back on.
       redraw = true
       sinceUpdate = interval
     },
     update(frameSeconds) {
-      // What was sent is taken even with fog off, so turning it back on shows the latest at once.
-      const fedChanged = fed ? takeFed(fed) : false
+      // With fog off nothing is sent, nor taken: no grid to copy, no texture to upload.
+      const taken = fed && (plugin.darkenUnseen || awaitingLook) ? takeFed(fed) : null
+      if (awaitingLook && taken !== null) {
+        awaitingLook = false
+        darken(true)
+        redraw = true
+      }
+      const fedChanged = taken === true
       if (!plugin.darkenUnseen) {
         // Fog is off: everyone is shown and nothing need be worked out.
         const changed = redraw

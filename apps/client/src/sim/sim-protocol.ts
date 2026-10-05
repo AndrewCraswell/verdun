@@ -17,8 +17,17 @@ export interface BattleSetup {
 /** From the page to the worker. */
 export type ToWorker =
   | { readonly type: "start"; readonly setup: BattleSetup }
-  /** Commands the page has queued, then this many steps to take. */
-  | { readonly type: "step"; readonly commands: readonly Command[]; readonly steps: number }
+  /**
+   * Commands the page has queued, then this many steps to take. `look` is whether the page is showing the fog of war,
+   * and so wants the squad's sight; `lookNow` asks for a look with this batch, as when the fog has just been turned on.
+   */
+  | {
+      readonly type: "step"
+      readonly commands: readonly Command[]
+      readonly steps: number
+      readonly look: boolean
+      readonly lookNow?: boolean
+    }
 
 /** What the player's squad can see, worked out beside the simulation: the fog's ground cells, and the enemies in sight. */
 export interface SightLook {

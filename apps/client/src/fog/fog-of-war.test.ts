@@ -306,6 +306,39 @@ describe("createFogOfWar", () => {
     expect(fog.plugins.every((plugin) => !plugin.darkenUnseen)).toBe(true)
   })
 
+  it("fed from a worker, asks for looks only while shown, and darkens again only once a fresh look comes", async () => {
+    const { sim, squad, enemyInOpen } = await trenchSetup()
+    const watched: boolean[] = []
+    let next: { ground: Uint8Array; enemies: Int32Array } | null = null
+    const feed = {
+      take: () => {
+        const look = next
+        next = null
+        return look
+      },
+      watch: (on: boolean) => watched.push(on)
+    }
+    const fog = createFogOfWar(scene(), sim, feed, {
+      squad,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      enabled: false
+    })
+    expect(watched).toEqual([false])
+
+    fog.enabled = true
+    expect(watched).toEqual([false, true])
+    fog.update(0.1)
+    // No look yet: nothing darkened, everyone shown, though the fog counts as on.
+    expect(fog.enabled).toBe(true)
+    expect(fog.plugin.darkenUnseen).toBe(false)
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+
+    next = { ground: new Uint8Array(0), enemies: new Int32Array() }
+    fog.update(0.1)
+    expect(fog.plugin.darkenUnseen).toBe(true)
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+  })
+
   it("can start turned off", async () => {
     const { sim, squad, enemyInOpen } = await trenchSetup()
     const lineOfSight = await createLineOfSight(sim.map)
