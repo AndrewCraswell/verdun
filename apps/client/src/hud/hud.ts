@@ -151,6 +151,7 @@ export function createHud(
     },
     heightAt: (x, z) => heightAt(sim.map, x, z),
     cameraDistance: () => view?.camera.radius ?? 0,
+    aimView: () => (view ? (cameraRigOf(view.camera)?.aimShare ?? 0) : 0),
     pointerGround: () => (view ? groundUnderPointer(view.scene, sim.map) : null),
     seen: (soldier) => seen?.(soldier) ?? true,
     positionOf: (soldier) => ({ x: sim.soldiers.position.x[soldier], z: sim.soldiers.position.z[soldier] }),

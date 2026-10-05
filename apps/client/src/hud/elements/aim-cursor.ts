@@ -3,6 +3,7 @@ import type { HudElementFactory } from "../element.ts"
 import type { HudState, ShotChance } from "../hud-state.ts"
 import { interfaceSettings } from "../interface-settings.ts"
 import { weaponOf } from "../squad-names.ts"
+import "./aim-cursor.css"
 
 /**
  * H8: the pointer over the battlefield, where the man aims. The battlefield's own reticle (style.css) is the resting
@@ -44,7 +45,13 @@ interface Reticle {
 }
 
 /** A reticle as a cursor, drawn `scale` times its size: the player's marker size. */
-function svgOf(
+function svgOf(reticle: Reticle, scale: number): string {
+  const size = Math.round(SIZE * scale)
+  return `url("${imageOf(reticle, scale)}") ${Math.round(size / 2)} ${Math.round(size / 2)}, crosshair`
+}
+
+/** A reticle as an SVG image's URL, drawn `scale` times its size. */
+function imageOf(
   { gap, tick, colour, ring, ringColour, dot, pips, slash, bar, dash, ringTrack }: Reticle,
   scale: number
 ): string {
@@ -99,7 +106,12 @@ function svgOf(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${SIZE} ${SIZE}">` +
     `<path d="${lines}" stroke="#000" stroke-opacity=".6" stroke-width="3.6" stroke-linecap="round"/>` +
     `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}${pipMarks}${struck}${ledge}</svg>`
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(size / 2)} ${Math.round(size / 2)}, crosshair`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+/** The image inside a cursor made by `svgOf`, for the aim view's reticle. */
+function imageIn(cursor: string): string {
+  return /^url\("([^"]+)"\)/.exec(cursor)?.[1] ?? ""
 }
 
 /** The squad markers' gold, as the battlefield's own reticle (style.css) draws it, so the two read as one. */
@@ -175,11 +187,22 @@ export const aimCursor: HudElementFactory = (context) => {
   let shown = ""
   let size = 1
   let cursors = cursorsAt(size)
+  // In the aim view the pointer is locked and hidden: the same marks sit in the middle of the screen, where he aims.
+  const root = document.createElement("img")
+  root.className = "aim-reticle"
+  root.alt = ""
+  root.hidden = true
+  let centred = ""
 
   return {
     id: "aim-cursor",
-    zone: "none",
-    root: null,
+    zone: "screen",
+    root,
+    frame() {
+      const share = context.aimView()
+      root.hidden = share <= 0.05 || shown === ""
+      root.style.opacity = share.toFixed(2)
+    },
     update(state: HudState) {
       const canvas = context.canvas
       if (!canvas) {
@@ -223,6 +246,12 @@ export const aimCursor: HudElementFactory = (context) => {
       if (next !== shown) {
         shown = next
         canvas.style.cursor = next
+      }
+      const image = imageIn(next)
+      if (image !== centred) {
+        centred = image
+        root.src = image
+        root.style.width = `${Math.round(SIZE * size)}px`
       }
     },
     dispose() {

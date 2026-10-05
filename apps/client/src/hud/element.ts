@@ -59,6 +59,8 @@ export interface HudContext {
   lookAt(x: number, z: number): void
   /** Sets how far back the camera stands, in metres. */
   setCameraDistance(distance: number): void
+  /** How far the camera has swung in behind the soldier's shoulder for the aim view, from 0 (not at all) to 1. */
+  aimView(): number
   /** The battlefield's canvas, for the pointer. */
   readonly canvas: HTMLCanvasElement | null
   /**
