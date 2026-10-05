@@ -108,7 +108,8 @@ There's no aimed crawl: a man aiming lies still, and crawls with the rifle down.
 | 3        | Ducking                      | **Ducking**, Ducking For Cover From Standing Idle                                              |
 | 3        | Crouched, ducking down       | **Hiding**, Crouched Hiding To Ducking                                                         |
 
-The simulation has no dodge yet: a man near a grenade doesn't react to it before it bursts.
+For later: the simulation has no dodge yet, so these wait until it does (see
+[below](#what-the-game-needs-besides-the-clips)).
 
 ## Climbing and vaulting
 
@@ -133,7 +134,8 @@ The climbs are unarmed: the game keeps the rifle in the right hand when the hand
 | 3        | Rifle butt     | **Rifle Punch**, Advancing And Punching With Butt Of A Rifle; **Smash**, Smash With Back Of Rifle Or Staff |
 | 3        | Parry          | **Rifle Block**, Blocking With A Rifle                                                                     |
 
-The simulation has no hand-to-hand fighting yet, and the rifle model has no bayonet.
+For later: the simulation has no hand-to-hand fighting yet and the rifle model has no bayonet, so these wait until it
+does (see [below](#what-the-game-needs-besides-the-clips)).
 
 ## Stance changes
 
@@ -197,9 +199,18 @@ The crowd can't blend, so a change of stance snaps unless a clip carries it.
 
 ## What the game needs besides the clips
 
-- **The player's aim (right click) doesn't reach the crowd.** The crowd draws a man aiming only when he has an enemy in
-  his sights (`soldiers.target`), so the player's own soldier needs an aiming flag for his aimed walk and idle to show.
-- Turning clips need a rule for when they play: a man standing still whose facing swings further than some angle.
-- Jumping clear of a grenade and the bayonet need rules in the simulation first.
-- The retargeting script maps polyperfect's bone names onto Synty's; Mixamo's (`mixamorig:Hips` and so on) need a map of
-  their own.
+**With the animation work**, as the new clips go in:
+
+- **Aiming with the right click.** The crowd draws a man aiming only when he has an enemy in his sights
+  (`soldiers.target`), so the soldier the player aims with never looks it. He needs an aiming flag that reaches the
+  crowd, for his aimed idles and aimed walks to show standing, crouched and prone.
+- **Turning on the spot.** The crowd turns a body smoothly today. The turn clips need a rule for when they play: a man
+  standing still whose facing swings further than some angle, by the nearest of 45, 90, 135 and 180 degrees.
+- **A bone map for Mixamo.** The retargeting script maps polyperfect's bone names onto Synty's; Mixamo's
+  (`mixamorig:Hips` and so on) need a map of their own.
+
+**Later**, once the simulation has them; their clips can wait until then:
+
+- **Jumping clear of a grenade.** A man near a grenade doesn't react to it before it bursts. He needs a rule to see it
+  land and throw himself away from it or flat, in time or too late.
+- **Bayonet fighting.** There's no hand-to-hand fighting, and the rifle model has no bayonet to fix.
