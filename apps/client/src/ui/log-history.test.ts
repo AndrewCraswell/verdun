@@ -5,7 +5,7 @@ import { createLogHistory } from "./log-history.ts"
 const RATE = 10
 
 function line(id: number, text: string, tick: number): LogMessage {
-  return { id, text, tick, kind: "sector", alarm: false }
+  return { id, text, tick, kind: "sector", alarm: false, quiet: false }
 }
 
 describe("the battle log's history", () => {

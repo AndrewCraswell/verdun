@@ -9,7 +9,8 @@ import "./log-feed.css"
 /**
  * H14: the battle log, top centre. The newest line on top; each line marked by its kind (bad news, the squad's own
  * men, the sector, the guns, the sky), fading as it ages. Lines that merge a count ("4 prisoners taken") flash as it
- * grows. No kill feed.
+ * grows. No kill feed, and nothing a banner has just said or the player can already see: those lines wait in the
+ * log's history.
  */
 
 /** Lines shown at once. */
@@ -50,7 +51,7 @@ export const logFeed: HudElementFactory = () => {
     zone: "top-centre",
     root,
     update(state: HudState) {
-      const shown = state.log.slice(-SHOWN)
+      const shown = state.log.filter((message) => !message.quiet).slice(-SHOWN)
       const keep = new Set(shown.map((message) => message.id))
       for (const [id, line] of lines) {
         if (!keep.has(id)) {

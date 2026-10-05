@@ -1,10 +1,9 @@
-import { h, keyCap, setData, setText, show } from "../dom.ts"
+import { h, setData, setText, show } from "../dom.ts"
 import type { HudElementFactory } from "../element.ts"
 import { hourText } from "../format.ts"
 import type { HudState } from "../hud-state.ts"
 import { icon, type IconName, setIcon } from "../icons.ts"
 import { interfaceSettings } from "../interface-settings.ts"
-import { keyOf } from "../keys.ts"
 import type { LightPhase, Sky } from "../sector-state.ts"
 import "./clock-panel.css"
 
@@ -128,15 +127,13 @@ export const clockPanel: HudElementFactory = (context) => {
 
   // At rest only the hour, the stand-to and the compass show; the rest folds away until the overview or a change.
   const fold = (...children: HTMLElement[]) => h("div", "cp-fold", h("div", "cp-fold__inner", ...children))
-  const overviewKey = keyCap(keyOf("overview"))
-  const overviewHint = h("div", "cp-overview-hint", overviewKey, h("span", "", "Overview"))
   const root = h(
     "section",
     "clock-panel hud-plate",
     h(
       "div",
       "cp-main",
-      h("div", "cp-time", h("div", "cp-hour-row", standTo, hour), fold(week, light, weather), overviewHint),
+      h("div", "cp-time", h("div", "cp-hour-row", standTo, hour), fold(week, light, weather)),
       compass
     ),
     fold(war)
@@ -150,7 +147,6 @@ export const clockPanel: HudElementFactory = (context) => {
     zone: "top-right",
     root,
     update(state: HudState) {
-      setText(overviewKey, keyOf("overview"))
       const { clock } = state
       const full = state.view.overview || state.attention.sky || state.view.tactical > 0.5
       setData(root, "mode", full ? "full" : "compact")

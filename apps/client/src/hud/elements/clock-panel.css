@@ -186,23 +186,6 @@
   display: none;
 }
 
-.cp-overview-hint {
-  display: flex;
-  align-items: center;
-  gap: 0.2em;
-  margin-top: 0.15em;
-  font-size: 0.66em;
-  font-weight: 650;
-  font-stretch: 100%;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--hud-ink-3);
-}
-
-.clock-panel[data-mode="full"] .cp-overview-hint {
-  display: none;
-}
-
 /* The compass: a bezel, a dark face, a card of ticks turning with the camera, the wind's arrow over it. */
 .cp-compass {
   display: grid;

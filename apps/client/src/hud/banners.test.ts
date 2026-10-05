@@ -33,8 +33,7 @@ describe("banners", () => {
     const surname = names.nameOf(sim, squad, slot(members, 0)).surname
     expect(banners.current(1)?.banner).toMatchObject({
       kicker: "Squad taken over",
-      title: `You now command ${surname}'s squad`,
-      detail: "6 men"
+      title: `You now command ${surname}'s squad`
     })
   })
 
@@ -62,7 +61,7 @@ describe("banners", () => {
     banners.record([{ type: "reinforcement", squad: squad.id, side: Side.French, men: 8 }])
     expect(banners.current(0)?.banner.tone).toBe("routine")
     banners.record([{ type: "objective-taken", name: "Crossroads", side: Side.German }])
-    expect(banners.current(1)?.banner).toMatchObject({ kicker: "Objective lost", detail: "Taken by the Germans" })
+    expect(banners.current(1)?.banner).toMatchObject({ kicker: "Objective lost", title: "Crossroads" })
   })
 
   it("doesn't say the same thing twice at once", () => {

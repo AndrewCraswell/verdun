@@ -1,7 +1,7 @@
 /* H6: the squad's order, above the roster. */
 .order-plate {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 0.75em;
   align-items: center;
   width: 24.6em;
@@ -78,54 +78,6 @@
   text-transform: uppercase;
   color: var(--severity);
   background-color: color-mix(in srgb, var(--severity) 14%, transparent);
-}
-
-/* The order keys, faint; the current order's lit. */
-.op-keys {
-  display: grid;
-  gap: 0.22em;
-  justify-items: end;
-  animation: hud-fade-in var(--hud-med) var(--hud-ease) both;
-}
-
-.op-keys[hidden] {
-  display: none;
-}
-
-.op-key {
-  display: flex;
-  align-items: center;
-  gap: 0.15em;
-  opacity: 0.5;
-  transition: opacity var(--hud-med) var(--hud-ease);
-}
-
-.op-key .hud-key {
-  font-size: 0.56em;
-  height: 1.6em;
-  min-width: 1.6em;
-}
-
-.op-key__word {
-  font-size: 0.6em;
-  font-weight: 650;
-  font-stretch: 100%;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--hud-ink-2);
-}
-
-.op-key[data-current] {
-  opacity: 1;
-}
-
-.op-key[data-current] .op-key__word {
-  color: var(--hud-brass-bright);
-}
-
-.op-key[data-current] .hud-key {
-  border-color: var(--hud-brass);
-  color: var(--hud-brass-bright);
 }
 
 /* A new order: a sweep of brass across the plate. */

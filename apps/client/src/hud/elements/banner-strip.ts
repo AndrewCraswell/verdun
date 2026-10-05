@@ -6,8 +6,8 @@ import "./banner-strip.css"
 
 /**
  * H15: banners across the upper screen for what changes everyone's next minute: zero hour, the gas, an objective won or
- * lost, the counter-attack, stand-to. A kicker between rules, a Didone headline, a line under it. While the battle waits
- * for the daily turn, its banner stays up.
+ * lost, the counter-attack, stand-to. A kicker between rules and a Didone headline. While the battle waits for the
+ * daily turn, its banner stays up, with when it goes on under it.
  */
 
 /** Where in its time a banner starts to go. */
@@ -66,7 +66,7 @@ export const bannerStrip: HudElementFactory = () => {
         shown = null
         return
       }
-      put(current.banner.id, current.banner.tone, current.banner.kicker, current.banner.title, current.banner.detail)
+      put(current.banner.id, current.banner.tone, current.banner.kicker, current.banner.title, null)
       root.classList.toggle("is-leaving", current.progress >= LEAVING)
     }
   }

@@ -12,7 +12,8 @@ import type { SquadNames } from "./squad-names.ts"
 
 /**
  * Banners: big, rare, short messages across the top of the screen that change what everyone is doing (H15 in
- * docs/design/interface.md). One at a time; a more urgent one cuts in ahead of the rest.
+ * docs/design/interface.md). One at a time; a more urgent one cuts in ahead of the rest. A kicker and a headline, nothing
+ * under them: what to do about it the player sees on the plate, the ground and the men.
  */
 
 /** The banner's register: bad news, the attack, ground won, or the routine of the line. */
@@ -24,7 +25,6 @@ export interface Banner {
   /** A line above the title, in small capitals: "Zero hour", "Objective taken". */
   readonly kicker: string
   readonly title: string
-  readonly detail: string | null
   readonly tone: BannerTone
 }
 
@@ -32,8 +32,6 @@ export interface Banner {
 export const BANNER_SECONDS = 4.2
 
 const URGENCY: Readonly<Record<BannerTone, number>> = { alarm: 3, attack: 2, won: 1, routine: 0 }
-
-const ZERO_HOUR_DETAIL = "Keep 70 m behind the barrage. Run for the trench when it lifts"
 
 /** How an operation ended, for the attackers and for the defenders. */
 const OVER: Readonly<Record<OperationResult, readonly [readonly [string, BannerTone], readonly [string, BannerTone]]>> =
@@ -69,8 +67,8 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
   let creeping = squad.order.kind === "creep"
   let standTo = isStandTo(sim)
 
-  function raise(kicker: string, title: string, detail: string | null, tone: BannerTone): void {
-    const banner = { id: nextId++, kicker, title, detail, tone }
+  function raise(kicker: string, title: string, tone: BannerTone): void {
+    const banner = { id: nextId++, kicker, title, tone }
     // The same banner twice in a row says nothing new.
     const same = (other: Banner) => other.kicker === kicker && other.title === title
     if (waiting.some(same) || (showing && same(showing.banner))) {
@@ -85,64 +83,53 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
       for (const event of events) {
         if (event.type === "objective-taken") {
           if (event.side === side) {
-            raise("Objective taken", event.name, "Hold it: the counter-attack will come", "won")
+            raise("Objective taken", event.name, "won")
           } else {
-            raise(
-              "Objective lost",
-              event.name,
-              `Taken by the ${event.side === Side.German ? "Germans" : "French"}`,
-              "alarm"
-            )
+            raise("Objective lost", event.name, "alarm")
           }
         } else if (event.type === "counter-attack" && event.side === enemy) {
-          raise("Alarm", "Counter-attack coming", "The enemy is shelling the lost trench", "alarm")
+          raise("Alarm", "Counter-attack coming", "alarm")
         } else if (event.type === "zero-hour") {
           if (event.side === side && event.squads.includes(squad.id)) {
-            raise("Zero hour", "Over the top!", ZERO_HOUR_DETAIL, "attack")
+            raise("Zero hour", "Over the top!", "attack")
           } else if (event.side === side) {
             // The attack is on a stretch of the line; the player's squad holds its own.
-            raise("Zero hour", "The attack goes in", "Hold your ground: the first wave is going over", "attack")
+            raise("Zero hour", "The attack goes in", "attack")
           } else {
-            raise("Alarm", "They're coming!", "Every man up on the fire step", "alarm")
+            raise("Alarm", "They're coming!", "alarm")
           }
         } else if (event.type === "operation-over") {
           const attacking = sim.operation?.plan.side === side
           const [title, tone] = OVER[event.result][attacking ? 0 : 1]
-          raise("Operation over", title, null, tone)
+          raise("Operation over", title, tone)
         } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
           const leader = names && squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
           raise(
             "Squad taken over",
             leader ? `You now command ${leader.surname}'s squad` : "You command a new squad",
-            `${event.men} men`,
             "routine"
           )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
-          raise(
-            "Replacements",
-            `${event.men} men up in the rear trench`,
-            "Your new squad is holding, waiting for orders",
-            "routine"
-          )
+          raise("Replacements", `${event.men} men up in the rear trench`, "routine")
         }
       }
       const masking = squad.members.some(
         (member) => isAlive(sim, member) && sim.soldiers.mask.state[member] === MaskState.Donning
       )
       if (masking && !gasAlarm) {
-        raise("Gas", "Gas! Masks on", "Your men are masking up", "alarm")
+        raise("Gas", "Gas! Masks on", "alarm")
       }
       gasAlarm =
         masking || (gasAlarm && squad.members.some((member) => sim.soldiers.mask.state[member] !== MaskState.Off))
       const creep = squad.order.kind === "creep"
       if (creep && !creeping) {
-        raise("Zero hour", "Over the top!", ZERO_HOUR_DETAIL, "attack")
+        raise("Zero hour", "Over the top!", "attack")
       }
       creeping = creep
       const standing = isStandTo(sim)
       if (standing && !standTo) {
         const dawn = sim.environment.clock.elapsed % 86_400_000 < 43_200_000
-        raise(dawn ? "Dawn" : "Dusk", "Stand-to", "Every man up on the fire step", "routine")
+        raise(dawn ? "Dawn" : "Dusk", "Stand-to", "routine")
       }
       standTo = standing
     },

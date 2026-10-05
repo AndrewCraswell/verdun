@@ -44,7 +44,8 @@ const RELOADING: Readonly<Record<SoldierView["weapon"]["kind"], string>> = {
   "rifle-grenade": "Working the bolt"
 }
 
-const MASK: Readonly<Record<MaskView, string>> = { off: "Mask off", masking: "Masking", on: "Mask on" }
+/** Said only while it matters: off, the mask's dim mark is enough. */
+const MASK: Readonly<Record<MaskView, string>> = { off: "", masking: "Masking", on: "Mask on" }
 
 /** In a trench, a word on whether his head is up over the parapet; nothing out of the trenches. */
 function parapetNote(overParapet: boolean | null): string {
@@ -215,7 +216,8 @@ export const soldierCard: HudElementFactory = () => {
       const ready = soldier.weapon.ready >= 1
       setData(weapon, "ready", ready)
       setVar(readyRing, "--ready", soldier.weapon.ready)
-      setText(readyText, ready ? "Ready" : RELOADING[soldier.weapon.kind])
+      // Ready goes without saying: the ring full says it. Only the reload is named.
+      setText(readyText, ready ? "" : RELOADING[soldier.weapon.kind])
 
       if (soldier.grenades.carried !== pipCount) {
         pipCount = soldier.grenades.carried

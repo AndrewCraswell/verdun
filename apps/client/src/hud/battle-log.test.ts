@@ -91,13 +91,14 @@ describe("the battle log", () => {
       { type: "capture", soldier: french }
     ]
     log.record(events)
-    expect(log.messages.map((message) => [message.text, message.kind, message.alarm])).toEqual([
-      ["Crossroads taken by the French", "sector", false],
-      ["Crossroads taken by the Germans", "alarm", true],
-      ["The enemy is shelling the lost trench: counter-attack coming", "alarm", true],
-      ["Counter-attack ordered", "sector", false],
-      ["2 prisoners taken", "sector", false],
-      ["1 of ours surrendered", "alarm", true]
+    // What a banner says as well is kept for the history, off the screen.
+    expect(log.messages.map((message) => [message.text, message.kind, message.alarm, message.quiet])).toEqual([
+      ["Crossroads taken by the French", "sector", false, true],
+      ["Crossroads taken by the Germans", "alarm", true, true],
+      ["The enemy is shelling the lost trench: counter-attack coming", "alarm", true, true],
+      ["Counter-attack ordered", "sector", false, false],
+      ["2 prisoners taken", "sector", false, false],
+      ["1 of ours surrendered", "alarm", true, false]
     ])
   })
 
@@ -131,7 +132,7 @@ describe("the battle log", () => {
       `${who(3)} killed`,
       `${who(4)} taken prisoner`,
       `${who(2)} reached the aid post`,
-      `${who(2)} is patched up and back in the reserves`,
+      `${who(2)} patched up, back in reserve`,
       `${who(5)} died of his wounds`
     ])
     log.record([

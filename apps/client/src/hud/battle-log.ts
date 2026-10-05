@@ -37,6 +37,8 @@ export interface LogMessage {
   readonly kind: LogKind
   /** Whether it's bad news for the player's side. */
   readonly alarm: boolean
+  /** Said already by a banner, or plain to see: kept for the log's history, left off the screen. */
+  readonly quiet: boolean
 }
 
 /** How many messages the battle log keeps. */
@@ -102,8 +104,8 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
   const counts = new Map<string, { readonly id: number; readonly count: number }>()
   const hurt = new Set<EntityId>()
 
-  function say(text: string, kind: LogKind, alarm: boolean): void {
-    messages.push({ id: nextId++, text, tick: sim.tick, kind, alarm })
+  function say(text: string, kind: LogKind, alarm: boolean, quiet = false): void {
+    messages.push({ id: nextId++, text, tick: sim.tick, kind, alarm, quiet })
   }
 
   /** A line counting something, merged with the same count said in the last few seconds. */
@@ -156,7 +158,7 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
         }
         const fates = {
           "arrived-at-aid-post": ["reached the aid post", false],
-          "returned-to-duty": ["is patched up and back in the reserves", false],
+          "returned-to-duty": ["patched up, back in reserve", false],
           "died-of-wounds": ["died of his wounds", true]
         } as const
         const [fate, alarm] = fates[event.type]
@@ -183,7 +185,8 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
           say(
             `${event.name} taken by the ${SIDE_NAMES[event.side]}`,
             event.side === side ? "sector" : "alarm",
-            event.side !== side
+            event.side !== side,
+            true
           )
         } else if (event.type === "counter-attack") {
           say(
@@ -191,15 +194,17 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
               ? "The enemy is shelling the lost trench: counter-attack coming"
               : "Counter-attack ordered",
             event.side === enemy ? "alarm" : "sector",
+            event.side === enemy,
             event.side === enemy
           )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
-          say(`Replacements up in the rear trench: ${event.men} men`, "squad", false)
+          say(`Replacements up in the rear trench: ${event.men} men`, "squad", false, true)
         } else if (event.type === "zero-hour") {
           say(
             event.side === side ? "Zero hour: the first wave goes over" : "They're coming: the enemy is over the top",
             event.side === side ? "sector" : "alarm",
-            event.side !== side
+            event.side !== side,
+            true
           )
         } else if (event.type === "second-wave") {
           const count = event.squads.length
@@ -215,7 +220,8 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
           say(
             `${attacking ? "The operation" : "The attack"} is over: ${OUTCOMES[event.result][attacking ? 0 : 1]}`,
             "sector",
-            false
+            false,
+            true
           )
         } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
           const leader = squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
@@ -224,7 +230,8 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
               ? `You take over ${leader.rank} ${leader.surname}'s squad: ${event.men} men`
               : `You take over a squad: ${event.men} men`,
             "squad",
-            false
+            false,
+            true
           )
         } else if (event.type === "gun-manned" && event.squad === squad.id) {
           const gunner = names.nameOf(sim, squad, event.soldier)
@@ -293,7 +300,7 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
       )
       if (masking && !gasAlarm) {
         gasAlarm = true
-        say("Gas! Masks on", "alarm", true)
+        say("Gas! Masks on", "alarm", true, true)
       } else if (squad.members.every((member) => sim.soldiers.mask.state[member] === MaskState.Off)) {
         gasAlarm = false
       }
@@ -312,13 +319,13 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
       // The sky, and the stand-to at dawn and dusk.
       if (sim.environment.weather.pattern !== pattern) {
         pattern = sim.environment.weather.pattern
-        say(WEATHER_TURNS[pattern], "weather", false)
+        say(WEATHER_TURNS[pattern], "weather", false, true)
       }
       const standing = isStandTo(sim)
       if (standing && !standTo) {
         // Dawn comes before noon, dusk after: the stand-tos are hours either side of it.
         const dawn = sim.environment.clock.elapsed % DAY < DAY / 2
-        say(`Stand-to: ${dawn ? "dawn" : "dusk"}, every man to the fire step`, "sector", false)
+        say(`Stand-to: ${dawn ? "dawn" : "dusk"}, every man to the fire step`, "sector", false, true)
       }
       standTo = standing
       messages = messages.filter((message) => sim.tick - message.tick < MESSAGE_SECONDS * tickRate).slice(-LOG_LENGTH)
