@@ -20,6 +20,17 @@ describe("sightBlocks", () => {
     expect(shell && blockReach(shell)).toBeCloseTo(Math.sqrt(14.3 ** 2 + 11.1 ** 2))
   })
 
+  it("hides what's behind the church's nave, tower and apse, the tower standing tallest at its west end", () => {
+    const blocks = sightBlocks({ kind: "landmark", x: 100, z: 50, heading: Math.PI / 2, variant: 1, scale: 1 })
+    const tower = blocks.find((block) => block.height === Math.max(...blocks.map(({ height }) => height)))
+
+    expect(blocks).toHaveLength(3)
+    // Its apse faces east, so its tower stands west of its middle.
+    expect(tower?.x).toBeCloseTo(93.75)
+    expect(tower?.z).toBeCloseTo(50)
+    expect(tower?.height).toBe(8.5)
+  })
+
   it("keeps round footprints for trees and the like, and cuts everything down to a knocked-down height", () => {
     const [tree] = sightBlocks({ kind: "tree", x: 0, z: 0, heading: 0, variant: 0, scale: 1 })
     expect(tree).toEqual({ kind: "cylinder", x: 0, z: 0, radius: 0.6, height: 8 })
@@ -28,6 +39,10 @@ describe("sightBlocks", () => {
     expect(tree && blockReach(tree)).toBe(0.6)
 
     expect(sightBlocks({ kind: "tree", x: 0, z: 0, heading: 0, variant: 0, scale: 1 }, 0)).toEqual([])
+    // An orchard's fruit tree, a man and a half high.
+    expect(sightBlocks({ kind: "fruit-tree", x: 0, z: 0, heading: 0, variant: 2, scale: 1 })).toEqual([
+      { kind: "cylinder", x: 0, z: 0, radius: 0.3, height: 2.8 }
+    ])
     expect(
       sightBlocks({ kind: "landmark", x: 0, z: 0, heading: 0, variant: 0, scale: 1 }, 3).map((b) => b.height)
     ).toEqual([3, 3])

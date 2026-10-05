@@ -59,9 +59,26 @@ a cross street near the French wire, with a lane out to the sunken road. The vil
 street, with garden walls between the plots; a plot a big shell hole has taken holds only a heap of rubble, and a few
 were yards to begin with. Rubble lies heaped against the ruins' walls. The landmark, seen from anywhere in the sector,
 is the great barn of the farm on the main street with its chimney stack still standing, on the plot the shells reached
-least. Fleury had a church, but the kit has none, and a barn and chimney read better from above than a church improvised
-from house ruins. The village is all in no man's land, as it was in July 1916; the crossroads is an objective. No house
-stands within 14 m of the map's edge.
+least. The village is all in no man's land, as it was in July 1916; the crossroads is an objective. No house stands
+within 14 m of the map's edge.
+
+Fleury's church stands as a ruin behind the German front on the village's north side, east of the main road
+([scenery-dressing.ts](../apps/client/src/level/scenery-dressing.ts), `CHURCH`). It's built up from the War Pack's
+modular walls, 2.5 m long and a storey high: a nave 10 m square broken to one storey or two, its windows blown in and
+its roof fallen into it in slabs, the west tower standing three storeys to its shattered belfry over the door, and the
+apse's half circle to the east. It's the landmark's second variant. It stands behind the German line rather than in no
+man's land, where a building that size would hand an attack a covered jump-off; there it gives the defence depth.
+
+### The orchard
+
+Behind the French support line, east of the main road, stand three rows of fruit trees 6.5 m apart (`ORCHARD` in
+fleury.ts): apple, pear, plum and cherry from the Farm Pack, stripped bare by the shelling (build-level-kit.py cuts
+their leaves away), with a gap or a stump where a shell found one. A fruit tree is a scenery kind of its own: 2.8 m high
+and thin, it hides less than a dead forest tree's 8 m trunk. Like the church, it dresses ground behind a line rather
+than giving an attack cover.
+
+The generator places the railway, the church and the orchard after everything else, the orchard on random draws of its
+own, so adding them moved nothing else in the sector, and balance runs before and after compare like with like.
 
 ### The woods and no man's land
 
@@ -148,7 +165,8 @@ in 1916.
 What blocks sight and walking is one table, `SCENERY_FOOTPRINTS` in [scenery.ts](../packages/map/src/scenery.ts): for
 each kind of scenery, the ground it takes up, how high it stands, and what it costs to walk through. The simulation's
 line of sight stands an upright cylinder of that height on each piece (a ruin 4.5 m, the landmark barn 7 m, a wall 1.3
-m, a dead tree's trunk 8 m; rubble 1.1 m hides only a man lying down), and its pathfinding reads the same table.
+m, a dead tree's trunk 8 m, an orchard's fruit tree 2.8 m; rubble 1.1 m hides only a man lying down), and its
+pathfinding reads the same table.
 
 The skirmish and the artillery find each side's front line as the fire trench facing the enemy that lies furthest
 forward, so the layout keeps every front line spanning the map from west to east.
@@ -158,9 +176,9 @@ forward, so the layout keeps every front line spanning the map from west to east
 The map stores what the simulation will need: heights, surfaces, trench polylines, and since format version 4,
 **scenery** (ruins, trees, stumps, logs, guns, wrecks, bunkers, machine guns, knife rests, stores, bridges and pools,
 each with a position, heading, variant and scale), **wire belts** (polylines) and **objectives** (named points with a
-radius). Version 5 added the **weather region**, and version 6 the **railways** (polylines). The client picks the art;
-the map never names a Synty model. Pure decoration that follows from geometry, such as the trench kit pieces, fire
-steps, duckboards and ladders, is derived by the client and isn't stored.
+radius). Version 5 added the **weather region**, and version 6 the **railways** (polylines) and **fruit trees**. The
+client picks the art; the map never names a Synty model. Pure decoration that follows from geometry, such as the trench
+kit pieces, fire steps, duckboards and ladders, is derived by the client and isn't stored.
 
 ## Trenches and the trench kit
 
@@ -352,7 +370,10 @@ won't decode is left out with a warning rather than stopping the game.
   - **Rifles** by side, the bolt worked after each shot nearby. The Mosin-Nagant 1891 stands in for the Lebel, and the
     M1917 Enfield and Springfield's Mauser-pattern actions for the Gewehr 98 (BOOM's World War I Firearms).
   - **Machine guns** round by round up close (Browning M1919, the Hotchkiss and MG 08's rate of fire), a recorded burst
-    every 1.5 s from afar. Rounds from more than 40 m **crack** past the listener and thud into the ground nearby.
+    every 1.5 s from afar. Rounds from more than 40 m **crack** past the listener as they arrive, and zip by when they
+    pass within 4 m. Where they land nearby is heard as the dirt or sparks fly (The Recordist's Bullets 3): a thud into
+    earth, a thump into mud when the ground is sodden, a crump into snow, a splash in a shell hole's pool or a flooded
+    trench, a crack off the ruins' stone, a ping off the wire, a thump into a parapet, and one in four a ricochet.
   - **Shells** by type, each with a near and a far recording. Field shells' crack and burst come together, as
     whizz-bangs gave no warning. Heavy 155 mm shells are ready to **rush in** for the last 2 s before landing within 150
     m, once a real recording of that rush is found (none is, so far). There are shrapnel airbursts, the quiet pop and

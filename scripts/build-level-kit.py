@@ -38,6 +38,31 @@ from mathutils import Matrix, Vector
 WAR_MAP = "POLYGON - War Map WWI - Art by Synty"
 WAR_PACK = "POLYGON - War Pack - Art by Synty"
 NATURE = "POLYGON - Nature Pack - Art by Synty"
+FARM = "POLYGON - Farm Pack - Art by Synty"
+
+# Fleury's church, built up from the War Pack's modular walls (2.5 m wide, a 3 m storey): walls whole, halved and
+# broken, a window, the west door, the gable's slopes, the apse's curve, a pillar, and roof lying where it fell. They come
+# from Synty's generic set, so they're drawn in its palette; but they're mapped for a tiling texture, their big faces
+# spanning the whole image, so those faces take one colour, the limestone Fleury was built of (see flatten_spanning).
+CHURCH_WALLS = [
+    f"SM_Bld_Base_{name}"
+    for name in [
+        "Wall_01",
+        "Wall_Half_01",
+        "Wall_Destroyed_01",
+        "Wall_Destroyed_02",
+        "Wall_Window_01",
+        "Wall_Door_Double_Large_01",
+        "Wall_Angle_01",
+        "Wall_Angle_02",
+        "Wall_Round_01",
+        "Pillar_01",
+        "Roof_Straight_01",
+    ]
+]
+# The orchard's fruit trees, stripped bare by the shelling: their leaves are cut away (see strip_leaves) and the piece
+# named "<piece>_Bare".
+BARE_TREES = [f"SM_Env_Tree_{name}_01" for name in ["Apple", "Pear", "Plum", "Cherry"]]
 
 # (pack, source model name without .glb). War Pack models are scaled up from their 1/100 conversion.
 PIECES = [
@@ -202,16 +227,28 @@ PIECES = [
             "Prop_Barrel_Pile_01",
         ]
     ],
+    *[(WAR_PACK, name) for name in CHURCH_WALLS],
+    *[(FARM, name) for name in BARE_TREES],
 ]
 
 WAR_PACK_SCALE = 100
-# War Pack pieces that convert at full size, unlike the rest of the pack.
-FULL_SIZE = {"SM_Prop_Stretcher_01", "SM_Char_Attach_German_Pack_01", "SM_Char_Attach_German_Canteen_01"}
+# War Pack pieces that convert at full size, unlike the rest of the pack: a few props, and the modular walls the pack
+# carries from Synty's generic set.
+FULL_SIZE = {
+    "SM_Prop_Stretcher_01",
+    "SM_Char_Attach_German_Pack_01",
+    "SM_Char_Attach_German_Canteen_01",
+    *CHURCH_WALLS,
+}
 PALETTE_SIZE = 1024
 # Synty's generic props (SM_Gen_*) have no prefab in the pack, so the converter gave them the pack's palette. They use
 # the generic palette instead, in its weathered B colours: pale, splintered wood reads against the mud.
 GENERIC_PREFIX = "Gen_"
 GENERIC_PALETTE = Path("Synty/PolygonGeneric/Textures/Alts/Generic_01_B.png")
+# The church's limestone, as a hex colour: its walls take the generic palette's nearest swatch.
+LIMESTONE = "a8a090"
+# A face whose UVs span more than this of the image is mapped for a tiling texture, not to a palette swatch.
+SWATCH_SPAN = 0.05
 
 # Ground layers: (output name, Nature pack texture, target mean colour as hex, saturation kept, mirror). Target means
 # match surfaceColors in apps/client/src/palette.ts.
@@ -296,9 +333,9 @@ def import_piece(path, piece_id, scale):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(path))
     imported = [obj for obj in bpy.data.objects if obj not in before]
-    # Joining deletes the other meshes, so remember the rest by name.
-    others = [obj.name for obj in imported if obj.type != "MESH"]
-    meshes = [obj for obj in imported if obj.type == "MESH"]
+    # Joining deletes the other meshes, so remember the rest by name. Windows' glass is blown out of every ruin.
+    others = [obj.name for obj in imported if obj.type != "MESH" or obj.name.endswith("_Glass")]
+    meshes = [obj for obj in imported if obj.type == "MESH" and not obj.name.endswith("_Glass")]
     if not meshes:
         raise ValueError(f"{path.name} has no meshes")
     bpy.ops.object.select_all(action="DESELECT")
@@ -320,6 +357,67 @@ def import_piece(path, piece_id, scale):
     joined.name = piece_id
     joined.data.name = piece_id
     return joined
+
+
+def strip_leaves(piece):
+    """Cuts a tree's leaves away, leaving its trunk and branches: the faces whose palette colour is greener than red."""
+    import bmesh
+
+    images = [
+        node.image
+        for slot in piece.material_slots
+        if slot.material and slot.material.node_tree
+        for node in slot.material.node_tree.nodes
+        if node.type == "TEX_IMAGE" and node.image
+    ]
+    if not images:
+        raise ValueError(f"{piece.name} has no palette to tell its leaves by")
+    image = images[0]
+    width, height = image.size
+    pixels = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4)
+    mesh = bmesh.new()
+    mesh.from_mesh(piece.data)
+    uv = mesh.loops.layers.uv.active
+    leaves = []
+    for face in mesh.faces:
+        u = sum(loop[uv].uv[0] for loop in face.loops) / len(face.loops)
+        v = sum(loop[uv].uv[1] for loop in face.loops) / len(face.loops)
+        red, green = pixels[min(height - 1, int((v % 1) * height)), min(width - 1, int((u % 1) * width)), :2]
+        if green > red:
+            leaves.append(face)
+    bmesh.ops.delete(mesh, geom=leaves, context="FACES")
+    mesh.to_mesh(piece.data)
+    mesh.free()
+    piece.name = f"{piece.name}_Bare"
+    piece.data.name = piece.name
+
+
+def nearest_swatch(image, target_hex, block=32):
+    """
+    The UV of the middle of the palette's evenly coloured `block`-pixel square nearest a colour. An 8-bit palette's
+    pixels come as stored, its sRGB values, as the colour is given. A whole block, so neither the palette's halving nor a
+    texel's offset blends in the colour next to it.
+    """
+    width, height = image.size
+    stored = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4)[:, :, :3]
+    squares = stored.reshape(height // block, block, width // block, block, 3)
+    means = squares.mean(axis=(1, 3))
+    even = squares.std(axis=(1, 3)).max(axis=2) < 0.004
+    target = np.array([int(target_hex[i : i + 2], 16) / 255 for i in (0, 2, 4)], dtype=np.float32)
+    distance = np.where(even, np.sum((means - target) ** 2, axis=2), np.inf)
+    row, column = np.unravel_index(np.argmin(distance), distance.shape)
+    return (column + 0.5) * block / width, (row + 0.5) * block / height
+
+
+def flatten_spanning(piece, uv_point):
+    """Maps every face whose UVs span the image, as a tiling texture's would, onto one palette swatch."""
+    uv = piece.data.uv_layers.active
+    for polygon in piece.data.polygons:
+        us = [uv.data[loop].uv[0] for loop in polygon.loop_indices]
+        vs = [uv.data[loop].uv[1] for loop in polygon.loop_indices]
+        if max(us) - min(us) > SWATCH_SPAN or max(vs) - min(vs) > SWATCH_SPAN:
+            for loop in polygon.loop_indices:
+                uv.data[loop].uv = uv_point
 
 
 def generic_material(vendor):
@@ -381,10 +479,15 @@ def build_kit(converted, vendor, output):
         piece_id = name.removeprefix("SM_")
         scale = WAR_PACK_SCALE if pack == WAR_PACK and name not in FULL_SIZE else 1
         piece = import_piece(find_model(converted, pack, name), piece_id, scale)
-        if piece_id.startswith(GENERIC_PREFIX):
+        if name in BARE_TREES:
+            strip_leaves(piece)
+        if piece_id.startswith(GENERIC_PREFIX) or name in CHURCH_WALLS:
             generic = generic or generic_material(vendor)
             for slot in piece.material_slots:
                 slot.material = generic
+        if name in CHURCH_WALLS:
+            image = next(node.image for node in generic.node_tree.nodes if node.type == "TEX_IMAGE")
+            flatten_spanning(piece, nearest_swatch(image, LIMESTONE))
         add_far_copy(piece)
     merge_duplicate_materials()
     output.mkdir(parents=True, exist_ok=True)

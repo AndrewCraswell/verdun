@@ -29,7 +29,7 @@ import {
   railwayTracks
 } from "./railway.ts"
 import { batchScenery, type SceneryBatches } from "./scenery-batches.ts"
-import { CENTRED_PIECES, layOutScenery } from "./scenery-dressing.ts"
+import { CENTRED_PIECES, FRUIT_TREES, layOutScenery } from "./scenery-dressing.ts"
 import { createScorchMap, type ScorchMap } from "./scorch-map.ts"
 import { createShellAftermath, type ShellAftermath } from "./shell-aftermath.ts"
 import { createShellBursts, type ShellBursts } from "./shell-burst.ts"
@@ -140,7 +140,9 @@ const SWAY: Readonly<Record<string, number>> = {
   // Stripped to poles, only a stub of a branch left to stir.
   Env_Tree_Dead_01: 0.1,
   Env_Tree_Dead_02: 0.1,
-  Env_Tree_Dead_03: 0.1
+  Env_Tree_Dead_03: 0.1,
+  // The orchard's bare fruit trees: short, stiff limbs.
+  ...Object.fromEntries(FRUIT_TREES.map((piece) => [piece, 0.15]))
 }
 
 /**

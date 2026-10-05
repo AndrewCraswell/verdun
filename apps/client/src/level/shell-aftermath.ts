@@ -54,6 +54,7 @@ const STATS: Readonly<Record<Shell, ShellAftermathStats>> = {
 /** Scenery that burns: timber, roofs, stores, and the fuel and charges around guns. */
 const FLAMMABLE: ReadonlySet<SceneryKind> = new Set<SceneryKind>([
   "tree",
+  "fruit-tree",
   "stump",
   "log",
   "ruin",

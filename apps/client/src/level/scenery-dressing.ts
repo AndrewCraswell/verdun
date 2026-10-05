@@ -1,5 +1,6 @@
 import {
   type BattlefieldMap,
+  type GroundPoint,
   heightAt,
   sampleIndex,
   type Scenery,
@@ -105,6 +106,133 @@ const STRIPPED: Part = {
   lean: 0.28
 }
 
+/**
+ * Fleury's church as the shelling left it: the War Pack's modular walls, each 2.5 m long and a storey high, running
+ * along their own +x from their origin. A nave 10 m square between z = -3.75 and 6.25 (x right, z toward the apse), the
+ * tower 5 m square west of it, the apse's half circle east.
+ */
+const STOREY = 3.01
+const CHURCH_PIECES = {
+  wall: "Bld_Base_Wall_01",
+  half: "Bld_Base_Wall_Half_01",
+  broken: "Bld_Base_Wall_Destroyed_01",
+  stub: "Bld_Base_Wall_Destroyed_02",
+  window: "Bld_Base_Wall_Window_01",
+  door: "Bld_Base_Wall_Door_Double_Large_01",
+  pillar: "Bld_Base_Pillar_01",
+  apse: "Bld_Base_Wall_Round_01",
+  roof: "Bld_Base_Roof_Straight_01"
+} as const
+/** Walls stand a little into the ground, so no slope shows a gap under them. */
+const FOOTING = -0.15
+
+/**
+ * A run of wall from one point to another, `storey` storeys up, one piece to a 2.5 m module: null where the module has
+ * been shot away. Each piece is turned to run from its module's start to its end.
+ */
+function wallRun(
+  pieces: readonly (string | null)[],
+  [fromX, fromZ]: GroundPoint,
+  [toX, toZ]: GroundPoint,
+  storey = 0
+): Part[] {
+  const turn = Math.atan2(fromZ - toZ, toX - fromX)
+  return pieces.flatMap((piece, index): Part[] => {
+    const along = index / pieces.length
+    return piece
+      ? [
+          {
+            pieces: [piece],
+            right: fromX + (toX - fromX) * along,
+            forward: fromZ + (toZ - fromZ) * along,
+            turn,
+            lift: storey * STOREY + FOOTING
+          }
+        ]
+      : []
+  })
+}
+
+/** A corner pillar standing `storeys` storeys high. */
+function pillar([right, forward]: GroundPoint, storeys: number): Part[] {
+  return Array.from({ length: storeys }, (_, storey) => ({
+    pieces: [CHURCH_PIECES.pillar],
+    right,
+    forward,
+    lift: storey * STOREY + FOOTING
+  }))
+}
+
+const { wall, half, broken, stub, window: opening, door } = CHURCH_PIECES
+/**
+ * The church: the nave's walls broken to one storey or two, their windows blown in; the tower standing to its shattered
+ * belfry over the west door; the apse; the roof fallen into the nave in slabs, with rubble, beams and tiles; what fell
+ * from the belfry heaped outside; stumps of the churchyard wall.
+ */
+const CHURCH: readonly Part[] = [
+  // The nave's north and south walls, west to east, a storey at a time.
+  ...wallRun([opening, opening, broken, wall], [-5, -3.75], [-5, 6.25]),
+  ...wallRun([wall, stub, null, half], [-5, -3.75], [-5, 6.25], 1),
+  ...wallRun([wall, opening, opening, stub], [5, -3.75], [5, 6.25]),
+  ...wallRun([broken, null, opening, wall], [5, -3.75], [5, 6.25], 1),
+  // Its west wall either side of the tower and its east wall either side of the apse.
+  ...wallRun([wall], [-5, -3.75], [-2.5, -3.75]),
+  ...wallRun([wall], [-5, -3.75], [-2.5, -3.75], 1),
+  ...wallRun([wall], [2.5, -3.75], [5, -3.75]),
+  ...wallRun([broken], [2.5, -3.75], [5, -3.75], 1),
+  ...wallRun([wall], [-5, 6.25], [-2.5, 6.25]),
+  ...wallRun([half], [-5, 6.25], [-2.5, 6.25], 1),
+  ...wallRun([broken], [2.5, 6.25], [5, 6.25]),
+  // The tower: the west door, open to the nave below, three storeys to the belfry's broken openings.
+  ...wallRun([door, wall], [-2.5, -8.75], [2.5, -8.75]),
+  ...wallRun([wall, opening], [-2.5, -8.75], [2.5, -8.75], 1),
+  ...wallRun([opening, broken], [-2.5, -8.75], [2.5, -8.75], 2),
+  ...wallRun([wall, wall], [-2.5, -8.75], [-2.5, -3.75]),
+  ...wallRun([opening, wall], [-2.5, -8.75], [-2.5, -3.75], 1),
+  ...wallRun([stub, null], [-2.5, -8.75], [-2.5, -3.75], 2),
+  ...wallRun([wall, opening], [2.5, -8.75], [2.5, -3.75]),
+  ...wallRun([wall, wall], [2.5, -8.75], [2.5, -3.75], 1),
+  ...wallRun([opening, broken], [2.5, -8.75], [2.5, -3.75], 2),
+  ...wallRun([wall, wall], [-2.5, -3.75], [2.5, -3.75], 1),
+  ...wallRun([broken, null], [-2.5, -3.75], [2.5, -3.75], 2),
+  // The apse: two quarter circles meeting on the axis, east of the nave. Each curves from its origin, running +x, a
+  // quarter turn round a centre 2.5 m to its -z.
+  { pieces: [CHURCH_PIECES.apse], right: 0, forward: 8.75, lift: FOOTING },
+  { pieces: [CHURCH_PIECES.apse], right: -2.5, forward: 6.25, turn: -Math.PI / 2, lift: FOOTING },
+  ...pillar([-5, -3.75], 2),
+  ...pillar([5, -3.75], 2),
+  ...pillar([-5, 6.25], 2),
+  ...pillar([5, 6.25], 1),
+  ...pillar([-2.5, -8.75], 3),
+  ...pillar([2.5, -8.75], 2),
+  ...pillar([-2.5, -3.75], 3),
+  ...pillar([2.5, -3.75], 2),
+  // The roof, fallen in slabs against the walls, and what came down with it. A slab's ridge runs along its +x from its
+  // origin, its eaves 2.5 m to its +z and 3.1 m lower.
+  { pieces: [CHURCH_PIECES.roof], right: -4.7, forward: 2.8, turn: Math.PI / 2, lift: 3 },
+  { pieces: [CHURCH_PIECES.roof], right: 4.7, forward: -0.5, turn: -Math.PI / 2, lift: 2.8 },
+  { pieces: ["Env_Rubble_Pile_Big"], right: 1, forward: 2.5, turn: 0.6, tilt: true, lift: -0.2 },
+  { pieces: ["Env_Rubble_Pile_Corner"], right: 3.6, forward: -2.4, turn: Math.PI, tilt: true, lift: -0.1 },
+  { pieces: ["Env_Rubble_Pile_Small"], right: -3, forward: 4.8, turn: 2, tilt: true },
+  { pieces: BEAMS, right: -0.5, forward: -1, turn: 0.9, tilt: true, lift: 0.3 },
+  { pieces: BEAMS, right: 2, forward: 0.5, turn: -0.4, tilt: true, lift: 0.4 },
+  { pieces: TILES, right: 0.5, forward: 4.2, turn: 1.3, tilt: true },
+  { pieces: TILES, right: -2.2, forward: -2, turn: 2.6, tilt: true },
+  // The belfry's stones heaped west of the tower; the churchyard wall's stumps either side.
+  { pieces: ["Env_Rubble_Pile_Big"], right: -1, forward: -10.5, turn: 0.2, tilt: true, lift: -0.2 },
+  { pieces: ["Env_Rubble_Pile_Corner"], right: 3.2, forward: -9.6, turn: -1, tilt: true, lift: -0.1 },
+  { pieces: ["Env_StoneWall_Rubble_02"], right: -7.5, forward: 2, turn: Math.PI / 2, lift: -0.1 },
+  { pieces: ["Env_StoneWall_Rubble_04"], right: 7.6, forward: -1, turn: Math.PI / 2, lift: -0.1 }
+]
+
+/** The orchard's fruit trees, stripped bare by the shelling (see build-level-kit.py), one to a variant. */
+export const FRUIT_TREES = [
+  "Env_Tree_Apple_01_Bare",
+  "Env_Tree_Pear_01_Bare",
+  "Env_Tree_Plum_01_Bare",
+  "Env_Tree_Cherry_01_Bare"
+] as const
+
 /** The art for each kind of scenery: one or more parts, picked between by the item's variant. */
 const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part[])[]>> = {
   // Most razed, some gutted, a few torn open, one in eight a front wall standing alone.
@@ -122,7 +250,7 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
       { pieces: BEAMS, right: 1, forward: -3.5, turn: 0.4, tilt: true, lift: 0.2 }
     ]
   ],
-  // The great barn of the farm on Fleury's main street, its chimney stack still standing.
+  // The great barn of the farm on Fleury's main street, its chimney stack still standing; and the church.
   landmark: [
     [
       { pieces: ["Bld_Barn_Broken_01"], lift: -0.4 },
@@ -130,7 +258,8 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
       { pieces: ["Env_Rubble_Pile_Big"], right: 4, forward: 8, turn: 0.3, tilt: true, lift: -0.1 },
       { pieces: ["Env_Rubble_Pile_Corner"], right: -7.5, forward: 5, turn: -0.8, tilt: true, lift: -0.1 },
       { pieces: ["Env_StoneWall_Rubble_02"], right: 9, forward: 6, turn: 1.57, lift: -0.1 }
-    ]
+    ],
+    CHURCH
   ],
   rubble: [
     [
@@ -157,6 +286,8 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
   ].map((piece) => [{ pieces: [piece], lift: -0.1 }]),
   // Crowned or stripped, by how hard the shelling has hit the wood there (see treeVariant).
   tree: [[CROWNED], [STRIPPED]],
+  // Stripped bare, leaning where the blasts left them.
+  "fruit-tree": FRUIT_TREES.map((piece) => [{ pieces: [piece], scaled: true, lift: -0.1, lean: 0.12 }]),
   stump: [
     [
       {
@@ -569,7 +700,7 @@ export function layOutDeadwood(map: BattlefieldMap): Placement[] {
   const pools = map.scenery.filter((item) => item.kind === "pool")
   const placements: Placement[] = []
   for (const item of map.scenery) {
-    if (item.kind !== "tree" && item.kind !== "stump" && item.kind !== "log") {
+    if (item.kind !== "tree" && item.kind !== "fruit-tree" && item.kind !== "stump" && item.kind !== "log") {
       continue
     }
     const battered = battering(item.x, item.z)

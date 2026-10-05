@@ -88,6 +88,27 @@ describe("layOutScenery", () => {
     expect(german?.piece).toContain("German")
   })
 
+  it("builds the church from modular walls: the tower over the west door three storeys up, the apse to the east", () => {
+    const church = layOutScenery({ ...flat, scenery: [item("landmark", { variant: 1, heading: Math.PI / 2 })] })
+    const pieces = church.map((part) => part.piece)
+    const tower = church.filter((part) => part.piece.startsWith("Bld_Base") && part.y > 5 + 2 * 3 - 0.5)
+
+    expect(pieces.filter((piece) => piece === "Bld_Base_Wall_Round_01")).toHaveLength(2)
+    expect(pieces).toContain("Bld_Base_Wall_Door_Double_Large_01")
+    expect(church.length).toBeGreaterThan(50)
+    // Facing east: the belfry stands to the west of the church's middle, and the apse to the east.
+    expect(tower.length).toBeGreaterThan(3)
+    expect(tower.every((part) => part.x < 50 - 3.5)).toBe(true)
+    expect(church.filter((part) => part.piece === "Bld_Base_Wall_Round_01").every((part) => part.x > 50 + 5)).toBe(true)
+  })
+
+  it("plants an orchard's fruit trees stripped bare, one kind to a variant, at the item's scale", () => {
+    const [plum] = layOutScenery({ ...flat, scenery: [item("fruit-tree", { variant: 2, scale: 1.1 })] })
+
+    expect(plum?.piece).toBe("Env_Tree_Plum_01_Bare")
+    expect(plum?.scale).toEqual([1.1, 1.1, 1.1])
+  })
+
   it("fills shell holes with water to its radius", () => {
     const [pool] = layOutScenery({ ...flat, scenery: [item("pool", { scale: 2.7 })] })
 

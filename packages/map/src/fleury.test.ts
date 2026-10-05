@@ -174,9 +174,36 @@ describe("generateFleurySector", () => {
     const street = Math.atan2(62, -110)
     const facing = onMainStreet.filter((house) => Math.abs(Math.cos(house.heading - street)) < 0.05)
     expect(facing.length / onMainStreet.length).toBeGreaterThan(0.7)
-    const landmarks = map.scenery.filter((item) => item.kind === "landmark")
-    expect(landmarks).toHaveLength(1)
-    expect(along(landmarks[0]?.x ?? 0, landmarks[0]?.z ?? 0)).toBeLessThan(14)
+    const barns = map.scenery.filter((item) => item.kind === "landmark" && item.variant === 0)
+    expect(barns).toHaveLength(1)
+    expect(along(barns[0]?.x ?? 0, barns[0]?.z ?? 0)).toBeLessThan(14)
+  })
+
+  it("raises Fleury's church behind the German front, clear of the trenches, its apse to the east", () => {
+    const churches = map.scenery.filter((item) => item.kind === "landmark" && item.variant === 1)
+    expect(churches).toHaveLength(1)
+    const [church] = churches
+    const german = frontLine("south")
+    // Behind the German front where it stands: north of the front line's nearest point.
+    const nearest = german.points.reduce((best, point) =>
+      Math.abs(point[0] - (church?.x ?? 0)) < Math.abs(best[0] - (church?.x ?? 0)) ? point : best
+    )
+    expect(church?.z).toBeGreaterThan(nearest[1] + 10)
+    expect(distanceToTrenches(church?.x ?? 0, church?.z ?? 0)).toBeGreaterThan(12)
+    expect(church?.heading).toBeCloseTo(Math.PI / 2)
+  })
+
+  it("plants an orchard behind the French support line, shelled to gaps and stumps, and none in no man's land", () => {
+    const orchard = map.scenery.filter((item) => item.kind === "fruit-tree")
+    const frenchFront = Math.min(...frontLine("north").points.map(([, z]) => z))
+
+    expect(orchard.length).toBeGreaterThan(15)
+    expect(orchard.length).toBeLessThan(27)
+    expect(orchard.every(({ x, z }) => x > 520 && x < 590 && z > 40 && z < 70)).toBe(true)
+    expect(orchard.every(({ z }) => z < frenchFront)).toBe(true)
+    expect(orchard.every((tree) => distanceToTrenches(tree.x, tree.z) > TRENCH_PROFILE.parapetOuter)).toBe(true)
+    const stumps = map.scenery.filter(({ kind, x, z }) => kind === "stump" && x > 520 && x < 590 && z > 44 && z < 63)
+    expect(stumps.length).toBeGreaterThan(0)
   })
 
   it("stakes wire in front of both front lines, each belt on its own side of no man's land", () => {

@@ -62,6 +62,12 @@ const ART: Partial<Record<Scenery["kind"], readonly (readonly Part[])[]>> = {
     [
       { across: 11.2, along: 13.5, height: 7.1 },
       { across: 0.8, along: 2, height: 10.9, right: -8.5, forward: -4 }
+    ],
+    // The church: its nave's broken walls, the tower to its shattered belfry, the apse.
+    [
+      { across: 10.4, along: 10.2, height: 4.5, forward: 1.25 },
+      { across: 5.4, along: 5.4, height: 8.5, forward: -6.25 },
+      { across: 5.2, along: 2.7, height: 3, forward: 7.6 }
     ]
   ],
   // Stone walls run across their heading, one of four pieces by `variant % 4`.

@@ -22,7 +22,9 @@ const DESTROYED = [
   /^Env_Trench_Pole/,
   /^Env_Sandbag_Wall_Long/,
   /^Railway_Track/,
-  /^Railway_Load/
+  /^Railway_Load/,
+  // An orchard's trees are small enough for a shell to take whole.
+  /^Env_Tree_\w+_Bare$/
 ]
 const SHATTERED_TREE = /^(Gen_)?Env_Tree_Dead_0\d$/
 const STUMPS = ["Env_Tree_Destroyed_01", "Env_Tree_Destroyed_02", "Env_Tree_Destroyed_03", "Env_Tree_Destroyed_04"]

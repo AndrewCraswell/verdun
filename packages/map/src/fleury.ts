@@ -49,7 +49,8 @@ const SEEDS = {
   wood: 7_937,
   trace: 7_949,
   craters: 7_951,
-  scenery: 7_963
+  scenery: 7_963,
+  orchard: 7_993
 } as const
 
 /** Ground height across the sector from south to north, before local landforms: a valley between two rises. */
@@ -142,6 +143,20 @@ const FRENCH_RAILWAY: readonly GroundPoint[] = [
   [372, 7],
   [350, 8]
 ]
+/**
+ * Fleury's church, sited as near here as the trenches and the shelling allow: behind the German front on the village's
+ * north side, east of the main road, its tower to the west and its apse to the east. It's the landmark's second
+ * variant; the great barn is the first.
+ */
+const CHURCH = { x: 500, z: 292, variant: 1, heading: Math.PI / 2 } as const
+/** The church keeps this far, in metres from its middle, from trenches and everything else. */
+const CHURCH_CLEARANCE = 9
+/**
+ * An orchard behind the French support line, east of the main road: `rows` rows of `trees` fruit trees, `spacing`
+ * metres apart each way from its south-west tree at (x, z), with the shelling's gaps and stumps among them.
+ */
+const ORCHARD = { x: 526, z: 47, rows: 3, trees: 9, spacing: 6.5, jitter: 1.2 } as const
+
 /** Nothing is placed within this many metres of a railway's track: half a wagon's width and a margin. */
 const RAILWAY_CLEARANCE = 1.8
 /** The dumps the railway serves: one by the main road, and the railhead's at its end. */
@@ -762,6 +777,50 @@ function placeLandmark(placer: Placer, craters: readonly Crater[]): void {
   }
 }
 
+/** Fleury's church (see CHURCH): on the clearest, least shelled ground within a few rings of its site. */
+function placeChurch(placer: Placer, craters: readonly Crater[]): void {
+  let best: { x: number; z: number; damage: number } | null = null
+  for (let ring = 0; ring < 5 && best?.damage !== 0; ring++) {
+    for (let step = 0; step < Math.max(1, ring * 8); step++) {
+      const angle = (step / Math.max(1, ring * 8)) * Math.PI * 2
+      const x = CHURCH.x + Math.cos(angle) * ring * 3
+      const z = CHURCH.z + Math.sin(angle) * ring * 3
+      if (placer.isClear(x, z, CHURCH_CLEARANCE)) {
+        const damage = shellDamage(craters, x, z, 6)
+        if (!best || damage < best.damage) {
+          best = { x, z, damage }
+        }
+      }
+    }
+  }
+  if (best) {
+    placer.place("landmark", best.x, best.z, CHURCH.heading, { variant: CHURCH.variant })
+  }
+}
+
+/**
+ * The orchard (see ORCHARD): a fruit tree where each stood, one in eight gone and one in five shot down to a stump.
+ * Every tree's draws are made whether it stands or not, so one gone moves none of the rest.
+ */
+function placeOrchard(placer: Placer, random: () => number): void {
+  for (let row = 0; row < ORCHARD.rows; row++) {
+    for (let tree = 0; tree < ORCHARD.trees; tree++) {
+      const [acrossJitter, alongJitter, fate, turn, size] = [random(), random(), random(), random(), random()]
+      const x = ORCHARD.x + tree * ORCHARD.spacing + (acrossJitter - 0.5) * ORCHARD.jitter
+      const z = ORCHARD.z + row * ORCHARD.spacing + (alongJitter - 0.5) * ORCHARD.jitter
+      if (fate < 0.12 || !placer.isClear(x, z, 0.8)) {
+        continue
+      }
+      const heading = turn * Math.PI * 2
+      if (fate < 0.32) {
+        placer.place("stump", x, z, heading, { variant: 0, scale: 0.5 + size * 0.25 })
+      } else {
+        placer.place("fruit-tree", x, z, heading, { variant: Math.floor(size * 4), scale: 0.9 + size * 0.25 })
+      }
+    }
+  }
+}
+
 function placeVillage(placer: Placer, craters: readonly Crater[], random: () => number): void {
   placeLandmark(placer, craters)
   for (const street of [MAIN_STREET, ...SIDE_STREETS]) {
@@ -1098,6 +1157,9 @@ export function generateFleurySector({
   for (const [x, z] of RAILWAY_DUMPS) {
     placeNear(placer, "stores", x, z, 0, 1.5)
   }
+  // Last too, so they move nothing else: the church behind the German front, the orchard behind the French support.
+  placeChurch(placer, craters)
+  placeOrchard(placer, createRandom(seed + SEEDS.orchard))
 
   const sector = {
     ...map,
