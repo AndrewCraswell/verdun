@@ -6,6 +6,8 @@
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  /* The player's marker size. */
+  font-size: calc(1em * var(--hud-marker, 1));
 }
 
 .wm-text {

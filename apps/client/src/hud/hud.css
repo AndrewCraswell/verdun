@@ -23,6 +23,11 @@
   contain: strict;
 }
 
+/* A zone the player has set to hide. */
+.hud [data-zone-hidden] {
+  display: none !important;
+}
+
 /* Nothing shows until every element has drawn its first state: then the whole HUD fades in with the battle. */
 .hud:not([data-ready]) {
   visibility: hidden;

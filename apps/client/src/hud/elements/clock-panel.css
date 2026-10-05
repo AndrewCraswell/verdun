@@ -38,6 +38,17 @@
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* "am" or "pm", by the 12-hour clock. */
+.cp-hour__half {
+  margin-left: 0.18em;
+  font-family: var(--hud-font-ui);
+  font-size: 0.34em;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hud-ink-2);
+}
+
 .cp-hour__colon {
   display: inline-block;
   margin: 0 0.04em;

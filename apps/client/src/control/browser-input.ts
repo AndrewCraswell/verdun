@@ -1,5 +1,6 @@
 import type { Scene } from "@babylonjs/core/scene"
 import type { BattlefieldMap } from "@verdun/map"
+import { interfaceSettings } from "../hud/interface-settings.ts"
 import { canonicalCode, type Keymap, keymap } from "../ui/keymap.ts"
 import { groundUnderPointer } from "./ground-pick.ts"
 import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.ts"
@@ -21,6 +22,12 @@ export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyE", "KeyV"
  * thrown at the pointer. A quick tap throws at once, as before.
  */
 export const THROW_KEY = canonicalCode("throw")
+const RUN_KEY = canonicalCode("run")
+/** The stance keys, which the player can set to work while held rather than as a press on and a press off. */
+const STANCE_KEYS: ReadonlyMap<string, "crouch" | "prone"> = new Map([
+  [canonicalCode("crouch"), "crouch"],
+  [canonicalCode("prone"), "prone"]
+])
 
 /** What each pointer key does to the ground point under the pointer. */
 function pointerAction(code: string, x: number, z: number): PlayerAction | null {
@@ -86,8 +93,13 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
   // moves with it, and is never left stuck down.
   const down = new Set<string>()
   let actions: PlayerAction[] = []
-  // Held since its key went down: the grenade is thrown when the key comes up.
+  // Aiming since its key went down: the grenade is thrown when the key comes up, or on the next press.
   let aimingThrow = false
+  // Running, by a press of the run key set to toggle.
+  let runOn = false
+  // Stance keys held down, set to work while held: let go, and he gets up again.
+  const stancesHeld = new Set<string>()
+  const presses = () => interfaceSettings().current.presses
 
   // Marched over the map's heights rather than picked against the terrain's meshes: it's asked every frame.
   const pointerGround = (): GroundVector | null => groundUnderPointer(scene, map)
@@ -96,9 +108,14 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     held.clear()
     for (const physical of down) {
       const code = keys.canonical(physical)
-      if (code && (MOVEMENT_KEYS.has(code) || RUN_KEYS.has(code))) {
+      // With run set to toggle, holding the key does nothing more than its press did.
+      const run = code !== null && RUN_KEYS.has(code)
+      if (code && (MOVEMENT_KEYS.has(code) || (run && presses().run === "hold"))) {
         held.add(code)
       }
+    }
+    if (runOn && presses().run === "toggle") {
+      held.add(RUN_KEY)
     }
   }
   keys.listen(heldAgain)
@@ -114,12 +131,23 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
       event.preventDefault()
     }
     if (MOVEMENT_KEYS.has(code) || RUN_KEYS.has(code)) {
+      if (RUN_KEYS.has(code) && !event.repeat && presses().run === "toggle") {
+        runOn = !runOn
+      }
       down.add(event.code)
       heldAgain()
       return
     }
     if (code === THROW_KEY) {
-      aimingThrow = aimingThrow || !event.repeat
+      if (event.repeat) {
+        return
+      }
+      if (aimingThrow && presses().grenade === "toggle") {
+        // The second press throws.
+        throwAtPointer()
+      } else {
+        aimingThrow = true
+      }
       return
     }
     if (POINTER_KEYS.has(code)) {
@@ -135,15 +163,31 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
       // Tab would otherwise move focus off the game.
       event.preventDefault()
       actions.push(action)
+      const stance = STANCE_KEYS.get(code)
+      if (stance && presses()[stance] === "hold") {
+        stancesHeld.add(code)
+      }
     }
   })
+
+  function throwAtPointer(): void {
+    aimingThrow = false
+    const point = pointerGround()
+    const action = point ? pointerAction(THROW_KEY, point.x, point.z) : null
+    if (action) {
+      actions.push(action)
+    }
+  }
   window.addEventListener("keyup", (event) => {
     down.delete(event.code)
     heldAgain()
-    if (keys.canonical(event.code) === THROW_KEY && aimingThrow) {
-      aimingThrow = false
-      const point = pointerGround()
-      const action = point ? pointerAction(THROW_KEY, point.x, point.z) : null
+    const code = keys.canonical(event.code)
+    if (code === THROW_KEY && aimingThrow && presses().grenade === "hold") {
+      throwAtPointer()
+    }
+    // A stance held: let go, and the same key's toggle takes him back.
+    if (code && stancesHeld.delete(code)) {
+      const action = actionForKey(code)
       if (action) {
         actions.push(action)
       }
@@ -152,6 +196,8 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
   window.addEventListener("blur", () => {
     down.clear()
     held.clear()
+    runOn = false
+    stancesHeld.clear()
     // Losing the window mid-aim puts the grenade away rather than throwing it blind.
     aimingThrow = false
   })

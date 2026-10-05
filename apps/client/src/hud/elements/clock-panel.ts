@@ -1,7 +1,9 @@
 import { h, keyCap, setData, setText, show } from "../dom.ts"
 import type { HudElementFactory } from "../element.ts"
+import { hourText } from "../format.ts"
 import type { HudState } from "../hud-state.ts"
 import { icon, type IconName, setIcon } from "../icons.ts"
+import { interfaceSettings } from "../interface-settings.ts"
 import { keyOf } from "../keys.ts"
 import type { LightPhase, Sky } from "../sector-state.ts"
 import "./clock-panel.css"
@@ -152,20 +154,25 @@ export const clockPanel: HudElementFactory = (context) => {
       const { clock } = state
       const full = state.view.overview || state.attention.sky || state.view.tactical > 0.5
       setData(root, "mode", full ? "full" : "compact")
-      const [hours, minutes] = clock.hour.split(":")
-      if (hour.dataset.time !== clock.hour) {
-        hour.dataset.time = clock.hour
+      // By the 24-hour clock, as the army kept it, unless the player reads the 12-hour.
+      const { clock: reading } = interfaceSettings().current
+      const time = hourText(clock.hour, reading)
+      const [hours, rest] = time.split(":")
+      const [minutes, half] = (rest ?? "").split(" ")
+      if (hour.dataset.time !== time) {
+        hour.dataset.time = time
         hour.replaceChildren(
           h("span", "cp-hour__digits", hours ?? ""),
           h("span", "cp-hour__colon", ":"),
-          h("span", "cp-hour__digits", minutes ?? "")
+          h("span", "cp-hour__digits", minutes ?? ""),
+          ...(half ? [h("span", "cp-hour__half", half)] : [])
         )
       }
       setText(week, clock.week)
       const [phaseIcon, phaseText] = LIGHT[clock.light.phase]
       setIcon(lightIcon, phaseIcon)
       setText(lightPhase, phaseText)
-      setText(lightNext, clock.light.next ?? "")
+      setText(lightNext, hourText(clock.light.next ?? "", reading))
       show(standTo, clock.light.standTo)
       setData(root, "phase", clock.light.phase)
 

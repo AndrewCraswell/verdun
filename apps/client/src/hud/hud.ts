@@ -15,7 +15,7 @@ import type { HudContext, HudElement, HudElementFactory, HudZone } from "./eleme
 import { browserHintStore } from "./hints.ts"
 import { createHudModel, type HudModel, type HudState, type HudView } from "./hud-state.ts"
 import { installIcons } from "./icons.ts"
-import { type InterfaceSettings, interfaceSettings } from "./interface-settings.ts"
+import { type HudZoneSetting, type InterfaceSettings, interfaceSettings } from "./interface-settings.ts"
 import { isOverviewKey } from "./keys.ts"
 import { projectPoint, screenAngleBetween } from "./projection.ts"
 import { HUD_ELEMENTS } from "./registry.ts"
@@ -61,6 +61,19 @@ const REDRAWS_PER_SECOND = 10
 const WAR_MAP_VIEW = { from: 150, to: 230 } as const
 /** A press of the overview key shorter than this, in milliseconds, keeps the overview up until the next press. */
 const TAP = 250
+
+/** Which of the player's zone settings each element follows; elements not listed always show as they decide. */
+const ZONE_OF: Readonly<Record<string, HudZoneSetting>> = {
+  "soldier-card": "soldier",
+  "effects-list": "soldier",
+  "roster-strip": "roster",
+  "clock-panel": "sector",
+  "objectives-panel": "sector",
+  "strength-panel": "sector",
+  "log-feed": "log",
+  "fire-panel": "fire",
+  "hint-line": "hints"
+}
 
 function smoothstep(from: number, to: number, value: number): number {
   const t = Math.min(1, Math.max(0, (value - from) / (to - from)))
@@ -199,8 +212,19 @@ export function createHud(
     }
     const next = model.read(seconds(), now(), current)
     state = next
+    // A zone set to show always sees the overview's state; one set to hide is drawn but kept out of sight.
+    const always: HudState = { ...next, view: { ...next.view, overview: true } }
     for (const element of built) {
-      element.update(next)
+      const zone = ZONE_OF[element.id]
+      const showing = zone ? settings.zones[zone] : "changes"
+      if (element.root) {
+        if (showing === "hidden") {
+          element.root.dataset.zoneHidden = ""
+        } else {
+          delete element.root.dataset.zoneHidden
+        }
+      }
+      element.update(showing === "always" ? always : next)
     }
     // Hidden until every element has drawn once, then faded in with the battle.
     root.dataset.ready = ""
@@ -246,6 +270,7 @@ export function createHud(
     root.style.setProperty("--hud-scale", String(next.scale))
     root.style.setProperty("--hud-fx", String(next.effects))
     root.style.setProperty("--hud-backing", String(next.backing))
+    root.style.setProperty("--hud-marker", String(next.markers))
     if (next.vision === "default") {
       delete root.dataset.vision
     } else {
@@ -257,6 +282,10 @@ export function createHud(
       delete root.dataset.contrast
     }
     model.hints.enabled = next.hints
+    // Shown at once, not at the next redraw.
+    if (state) {
+      redraw()
+    }
   }
   // The menu changes the settings through the same hub: each change shows at once.
   const unlisten = hub.listen(apply)

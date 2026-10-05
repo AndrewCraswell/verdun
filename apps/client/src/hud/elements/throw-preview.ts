@@ -1,6 +1,8 @@
 import { THROW_KEY } from "../../control/browser-input.ts"
+import { keymap } from "../../ui/keymap.ts"
 import type { HudElementFactory, ScreenPoint } from "../element.ts"
 import type { HudState } from "../hud-state.ts"
+import { interfaceSettings } from "../interface-settings.ts"
 import { throwPreview, type ThrowPreview } from "../throw-preview.ts"
 import "./throw-preview.css"
 
@@ -78,13 +80,15 @@ export const throwPreviewMarks: HudElementFactory = (context) => {
   root.style.display = "none"
 
   let aiming = false
+  // As the input reads the key (control/browser-input.ts): held, or a press to aim and another to throw.
+  const toggled = () => interfaceSettings().current.presses.grenade === "toggle"
   const onDown = (event: KeyboardEvent) => {
-    if (event.code === THROW_KEY && !event.repeat) {
-      aiming = true
+    if (keymap().canonical(event.code) === THROW_KEY && !event.repeat) {
+      aiming = toggled() ? !aiming : true
     }
   }
   const onUp = (event: KeyboardEvent) => {
-    if (event.code === THROW_KEY) {
+    if (keymap().canonical(event.code) === THROW_KEY && !toggled()) {
       aiming = false
     }
   }

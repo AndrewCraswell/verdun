@@ -1,5 +1,6 @@
 import type { HudElementFactory } from "../element.ts"
 import type { HudState } from "../hud-state.ts"
+import { interfaceSettings } from "../interface-settings.ts"
 
 /**
  * H8: the pointer over the battlefield, where the man aims. The battlefield's own reticle (style.css) is the resting
@@ -23,7 +24,8 @@ interface Reticle {
   readonly dot: boolean
 }
 
-function svgOf({ gap, tick, colour, ring, ringColour, dot }: Reticle): string {
+/** A reticle as a cursor, drawn `scale` times its size: the player's marker size. */
+function svgOf({ gap, tick, colour, ring, ringColour, dot }: Reticle, scale: number): string {
   const lines = [
     [CENTRE, CENTRE - gap, CENTRE, CENTRE - gap - tick],
     [CENTRE, CENTRE + gap, CENTRE, CENTRE + gap + tick],
@@ -43,26 +45,44 @@ function svgOf({ gap, tick, colour, ring, ringColour, dot }: Reticle): string {
   const centre = dot
     ? `<circle cx="${CENTRE}" cy="${CENTRE}" r="2.1" fill="#000" fill-opacity=".6"/><circle cx="${CENTRE}" cy="${CENTRE}" r="1.25" fill="${colour}"/>`
     : ""
+  const size = Math.round(SIZE * scale)
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${SIZE} ${SIZE}">` +
     `<path d="${lines}" stroke="#000" stroke-opacity=".6" stroke-width="3.6" stroke-linecap="round"/>` +
     `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}</svg>`
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${CENTRE} ${CENTRE}, crosshair`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(size / 2)} ${Math.round(size / 2)}, crosshair`
 }
 
 /** The squad markers' gold, as the battlefield's own reticle (style.css) draws it, so the two read as one. */
 const INK = "#f2d973"
 const DANGER = "#ff6a43"
 
-const AIM = svgOf({ gap: 4.5, tick: 5, colour: INK, ring: null, dot: true })
-const SPOILED = svgOf({ gap: 8.5, tick: 4.5, colour: INK, ring: null, dot: true })
-const TARGET = svgOf({ gap: 7.5, tick: 4.5, colour: DANGER, ring: 1, ringColour: DANGER, dot: true })
-const RELOADING = Array.from({ length: RELOAD_STEPS + 1 }, (_, step) =>
-  svgOf({ gap: 4.5, tick: 4, colour: "rgba(242,217,115,.5)", ring: step / RELOAD_STEPS, ringColour: INK, dot: false })
-)
+interface Cursors {
+  readonly aim: string
+  readonly spoiled: string
+  readonly target: string
+  readonly reloading: readonly string[]
+}
+
+/** The cursors at a size, drawn once each. */
+function cursorsAt(scale: number): Cursors {
+  return {
+    aim: svgOf({ gap: 4.5, tick: 5, colour: INK, ring: null, dot: true }, scale),
+    spoiled: svgOf({ gap: 8.5, tick: 4.5, colour: INK, ring: null, dot: true }, scale),
+    target: svgOf({ gap: 7.5, tick: 4.5, colour: DANGER, ring: 1, ringColour: DANGER, dot: true }, scale),
+    reloading: Array.from({ length: RELOAD_STEPS + 1 }, (_, step) =>
+      svgOf(
+        { gap: 4.5, tick: 4, colour: "rgba(242,217,115,.5)", ring: step / RELOAD_STEPS, ringColour: INK, dot: false },
+        scale
+      )
+    )
+  }
+}
 
 export const aimCursor: HudElementFactory = (context) => {
   let shown = ""
+  let size = 1
+  let cursors = cursorsAt(size)
 
   return {
     id: "aim-cursor",
@@ -73,14 +93,19 @@ export const aimCursor: HudElementFactory = (context) => {
       if (!canvas) {
         return
       }
+      const wanted = interfaceSettings().current.markers
+      if (wanted !== size) {
+        size = wanted
+        cursors = cursorsAt(size)
+      }
       const { cursor } = state
       let next = ""
       if (cursor.state === "target") {
-        next = TARGET
+        next = cursors.target
       } else if (cursor.state === "reload") {
-        next = RELOADING[Math.min(RELOAD_STEPS, Math.floor(cursor.ready * RELOAD_STEPS))] ?? AIM
+        next = cursors.reloading[Math.min(RELOAD_STEPS, Math.floor(cursor.ready * RELOAD_STEPS))] ?? cursors.aim
       } else if (cursor.state === "aim") {
-        next = cursor.shaken ? SPOILED : AIM
+        next = cursor.shaken ? cursors.spoiled : cursors.aim
       }
       if (next !== shown) {
         shown = next
