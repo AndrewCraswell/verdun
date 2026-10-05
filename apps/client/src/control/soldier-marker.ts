@@ -9,6 +9,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { aimedTarget, isAlive, type Simulation, type Squad } from "@verdun/sim"
 import { type InstanceBuffer, instanceBuffer } from "../effects/instance-buffer.ts"
+import { keepsOffSoldiers } from "../render/marker-stencil.ts"
 
 /** Length of the aim line in front of the controlled soldier with no one in his sights, in metres. */
 const AIM_LENGTH = 4
@@ -22,7 +23,8 @@ const AIM_WIDTH_ANGLE = 0.0022
 const AIM_WIDTH = 0.06
 /**
  * The markers are drawn after the battlefield, over it: a man in a trench has its walls and parapet all round him, and
- * his ring and aim line drawn among them were mostly hidden.
+ * his ring and aim line drawn among them were mostly hidden. They keep off the soldiers themselves, by the stencil the
+ * soldiers write (render/marker-stencil.ts): a ring goes round a man, not across him.
  */
 const MARKER_GROUP = 1
 
@@ -45,6 +47,7 @@ function markerMaterial(scene: Scene, name: string, color: Color3): StandardMate
   const material = new StandardMaterial(name, scene)
   material.emissiveColor = color
   material.disableLighting = true
+  keepsOffSoldiers(material)
   return material
 }
 
@@ -83,6 +86,8 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
   for (const marker of [ring, aim, target, members]) {
     marker.renderingGroupId = MARKER_GROUP
   }
+  // Over the battlefield: its depth is cleared for the markers, but not the stencil the soldiers wrote.
+  scene.setRenderingAutoClearDepthStencil(MARKER_GROUP, true, true, false)
 
   return {
     leader,

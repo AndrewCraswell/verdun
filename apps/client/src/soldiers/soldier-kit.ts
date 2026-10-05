@@ -17,6 +17,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { Side } from "@verdun/sim"
 import { type KitFiles, openKitFiles } from "../level/kit-files.ts"
+import { marksSoldier } from "../render/marker-stencil.ts"
 import { AIMING, type BakedClip, CLIPS, type ClipName, CROUCH_LAYER, CROUCH_WALKS, WALKS } from "./soldier-animation.ts"
 
 /** The soldier models and their baked animation, as scripts/build-level-kit.py builds them into soldier.glb. */
@@ -509,7 +510,12 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
   rifle.setVerticesData(VertexBuffer.MatricesWeightsKind, weights, false)
   rifle.skeleton = skeleton
   rifle.bakedVertexAnimationManager = manager
-  return { bodies, rifle, mask, guns, drift, clips, materials: [...new Set(matte.values())] }
+  const materials = [...new Set(matte.values())]
+  // The squad's markers, drawn over the battlefield, keep off the men (render/marker-stencil.ts).
+  for (const material of materials) {
+    marksSoldier(material)
+  }
+  return { bodies, rifle, mask, guns, drift, clips, materials }
 }
 
 /**
