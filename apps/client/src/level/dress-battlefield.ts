@@ -479,9 +479,12 @@ export async function dressLevel(
   ].filter((system) => system !== undefined)
   setInFog(unlit)
   const particleLight = lightParticles(unlit.filter(litByAir))
-  // Puffs lying on the ground fade out where they meet it rather than cut a line through it, against the depth map the
-  // depth of field draws (see soft-particles.ts).
-  if (dressing.postProcess) {
+  const { postProcess } = dressing
+  if (postProcess) {
+    // The depth map holds only the ground, so it's drawn again only when the ground is rebuilt or the camera moves.
+    view.terrain.onRebuilt.add(() => postProcess.redrawDepth())
+    // Puffs lying on the ground fade out where they meet it rather than cut a line through it, against the depth map
+    // the depth of field draws (see soft-particles.ts).
     softenParticles(
       unlit.filter((system) => !AIRBORNE.test(system.name)),
       { depthMap: view.scene.enableDepthRenderer(view.camera).getDepthMap(), camera: view.camera }

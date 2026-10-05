@@ -1,5 +1,6 @@
 import type { Material } from "@babylonjs/core/Materials/material"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { Observable } from "@babylonjs/core/Misc/observable"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, TRENCH_PROFILE } from "@verdun/map"
 import { buildChunkGeometry, type ChunkBounds, type SurfaceColors } from "./chunk-geometry.ts"
@@ -49,6 +50,11 @@ export interface TerrainChunks {
    * Returns how many chunks were rebuilt.
    */
   refine(x: number, z: number, budget?: number): number
+  /**
+   * Fires with each chunk's mesh as it's rebuilt, by any of the above: for what's drawn from the ground's shape alone,
+   * such as the depth map (see post-process.ts), which is drawn again only when something in it changes.
+   */
+  readonly onRebuilt: Observable<Mesh>
   dispose(): void
 }
 
@@ -123,6 +129,7 @@ export function createTerrainChunks(
   }
 
   let renderHeights = createRenderHeights(map, false)
+  const onRebuilt = new Observable<Mesh>()
   function build(chunk: Chunk): void {
     const { vertexData, splat, wetness } = buildChunkGeometry(
       map,
@@ -135,6 +142,7 @@ export function createTerrainChunks(
     vertexData.applyToMesh(chunk.mesh, true)
     chunk.mesh.setVerticesData(SPLAT_ATTRIBUTE, splat, true, 4)
     chunk.mesh.setVerticesData(WETNESS_ATTRIBUTE, wetness, true, 1)
+    onRebuilt.notifyObservers(chunk.mesh)
   }
   chunks.forEach(build)
 
@@ -187,7 +195,9 @@ export function createTerrainChunks(
       }
       return stale.length
     },
+    onRebuilt,
     dispose() {
+      onRebuilt.clear()
       for (const chunk of chunks) {
         chunk.mesh.dispose()
       }

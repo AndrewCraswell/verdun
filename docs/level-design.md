@@ -484,9 +484,10 @@ frame (again for each shadow cascade and for the depth of field's depth pass), t
 drawing beyond 50–220 m, both measured to the nearest point of the batch, so pieces near the camera always draw. Grass,
 litter, planks and the like cast no shadows. The depth of field's depth map is drawn at half the screen's size and holds
 only the ground: looking down on the battlefield, what stands on it is near enough the ground's depth, and every prop
-drawn again would cost a draw call. Batches of grass and trees carry `metadata.sway`, how freely they bend in the wind
-(1 for grass, 0.25 for a crowned tree, 0.1 for a pole), for the wind's sway on the kit's materials. Zoomed fully out the
-sector draws about 1.6 M triangles.
+drawn again would cost a draw call. The ground stands still, so the map is drawn again only when the camera moves or
+zooms, the window changes size or the ground is rebuilt, not every frame. Batches of grass and trees carry
+`metadata.sway`, how freely they bend in the wind (1 for grass, 0.25 for a crowned tree, 0.1 for a pole), for the wind's
+sway on the kit's materials. Zoomed fully out the sector draws about 1.6 M triangles.
 
 ### Asset pack
 

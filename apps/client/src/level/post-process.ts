@@ -1,5 +1,9 @@
+import type { Camera } from "@babylonjs/core/Cameras/camera"
 import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
+import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture"
+import { Matrix } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
+import type { Observer } from "@babylonjs/core/Misc/observable"
 import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent"
 import "@babylonjs/core/Rendering/depthRendererSceneComponent"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
@@ -40,7 +44,9 @@ const SAMPLES: Readonly<Record<GraphicsQuality, number>> = { high: 4, low: 1 }
 interface PostProcessOptions {
   /**
    * What the depth map draws, out of what the camera sees. Leave out what lies flat on the ground, such as grass and
-   * litter: the ground under it has the same depth, near enough.
+   * litter: the ground under it has the same depth, near enough. Given this, the map is drawn again only when the
+   * camera moves or zooms, the window changes size or `redrawDepth` is called, so it should be only what stands still;
+   * without it, the map draws everything, every frame.
    */
   readonly inDepth?: (mesh: AbstractMesh) => boolean
   /** The graphics setting: high by default. */
@@ -51,6 +57,8 @@ export interface PostProcess {
   readonly pipeline: DefaultRenderingPipeline
   /** Keeps the focus on what the camera is looking at. Call once per frame. */
   update(): void
+  /** Draws the depth map again on the next frame, after what it draws has changed: the ground reshaped, say. */
+  redrawDepth(): void
   dispose(): void
 }
 
@@ -68,13 +76,18 @@ export function createPostProcess(
   // The depth renderer the depth of field will use, made first so it's made smaller: the pipeline takes it as it finds it.
   const engine = scene.getEngine()
   const depthMap = scene.enableDepthRenderer(camera).getDepthMap()
-  const fit = () =>
+  const redraw = () => depthMap.resetRefreshCounter()
+  const fit = () => {
     depthMap.resize({
       width: Math.max(1, Math.round(engine.getRenderWidth() * DEPTH_MAP_SCALE)),
       height: Math.max(1, Math.round(engine.getRenderHeight() * DEPTH_MAP_SCALE))
     })
+    // A new size is a new, empty texture.
+    redraw()
+  }
   fit()
   const resized = engine.onResizeObservable.add(fit)
+  let viewed: Observer<Camera> | null = null
   if (inDepth) {
     const drawn: AbstractMesh[] = []
     depthMap.getCustomRenderList = (_layer, visible, count) => {
@@ -87,11 +100,35 @@ export function createPostProcess(
       }
       return drawn
     }
+    // What it draws stands still, so a still view needn't draw it again: it's drawn when the camera's view or lens
+    // changes, or the caller says what's in it has. Until every mesh in it is ready, Babylon draws it again each
+    // frame, so a mesh still compiling leaves no lasting hole.
+    depthMap.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE
+    // The view and lens are compared by value, since Babylon works the lens out afresh whenever a render target draws
+    // from the camera: the camera's change events would fire on the depth map's own drawing, and so every frame.
+    const drawnFrom = new Matrix()
+    viewed = scene.onBeforeCameraRenderObservable.add((drawing) => {
+      if (drawing !== camera) {
+        // Another camera drawing, a dev tool's, culls what the map draws by its own view: then it's drawn every frame.
+        drawnFrom.reset()
+        redraw()
+        return
+      }
+      const view = camera.getTransformationMatrix()
+      if (!view.equals(drawnFrom)) {
+        drawnFrom.copyFrom(view)
+        redraw()
+      }
+    })
+  }
+  const stop = () => {
+    resized.remove()
+    viewed?.remove()
   }
   const pipeline = new DefaultRenderingPipeline("miniature", true, scene, [camera])
   if (!pipeline.isSupported) {
     pipeline.dispose()
-    resized.remove()
+    stop()
     return null
   }
   pipeline.samples = SAMPLES[quality]
@@ -130,8 +167,9 @@ export function createPostProcess(
       pipeline.depthOfField.focalLength = range * focalLengthPerMetre
       pipeline.depthOfField.fStop = fStop.near + (fStop.far - fStop.near) * zoom
     },
+    redrawDepth: redraw,
     dispose() {
-      resized.remove()
+      stop()
       pipeline.dispose()
     }
   }

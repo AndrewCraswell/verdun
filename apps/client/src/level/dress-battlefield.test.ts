@@ -242,6 +242,10 @@ describe("dressLevel", () => {
     const end = new Mesh(`${TRENCH_PIECES.end}@0,0`, scene)
     expect(ground.length).toBeGreaterThan(0)
     expect(depth.getCustomRenderList?.(0, [...ground, end], ground.length + 1)).toEqual(ground)
+    // It's drawn again as craters reshape the ground.
+    const redraw = vi.spyOn(depth, "resetRefreshCounter")
+    battlefield.terrain.rebuildRegion(0, 0, 1, 1)
+    expect(redraw).toHaveBeenCalled()
     // The stand-in kit has no straight sections, so it warns which pieces are missing.
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("missing"),

@@ -1,6 +1,8 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { Scene } from "@babylonjs/core/scene"
@@ -82,6 +84,68 @@ describe("createPostProcess", () => {
     vi.spyOn(engine, "getRenderHeight").mockReturnValue(300)
     engine.onResizeObservable.notifyObservers(engine)
     expect(depth.getSize()).toEqual({ width: 200, height: 150 })
+    post?.dispose()
+  })
+
+  it("draws the depth again only when the view or what's in it changes", async () => {
+    const { scene, camera } = setup(40)
+    const engine = scene.getEngine()
+    const ground = CreateGround("terrain-0-0", { width: 200, height: 200 }, scene)
+    ground.position.set(100, 0, 100)
+    ground.material = new StandardMaterial("ground", scene)
+    const post = createPostProcess(scene, camera, { inDepth: (mesh) => mesh.name.startsWith("terrain-") })
+    if (!post) {
+      throw new Error("the pipeline should run on the null engine")
+    }
+    const depth = scene.enableDepthRenderer(camera)
+    const drawn = vi.spyOn(depth.getDepthMap(), "render")
+    // How many of the next frames draw the depth map.
+    const draws = (frames: number) => {
+      drawn.mockClear()
+      for (let frame = 0; frame < frames; frame++) {
+        scene.render()
+      }
+      return drawn.mock.calls.length
+    }
+
+    // Until the ground is ready to draw, it's drawn every frame, so the ground leaves no lasting hole in it.
+    const ready = vi.spyOn(depth, "isReady").mockReturnValue(false)
+    expect(draws(3)).toBe(3)
+    ready.mockRestore()
+    await vi.waitFor(() => expect(ground.subMeshes.every((subMesh) => depth.isReady(subMesh, false))).toBe(true))
+    expect(draws(1)).toBe(1)
+    expect(draws(5)).toBe(0)
+    // The camera turning, its lens zooming, the window changing size and the caller saying the ground has changed each
+    // draw it again at once, and only the once.
+    const changes = [
+      () => (camera.alpha += 0.1),
+      () => (camera.fov *= 0.9),
+      () => engine.onResizeObservable.notifyObservers(engine),
+      () => post.redrawDepth()
+    ]
+    for (const change of changes) {
+      change()
+      expect(draws(1)).toBe(1)
+      expect(draws(5)).toBe(0)
+    }
+    // While another camera draws, a dev tool's, it's drawn every frame, and again on coming back.
+    scene.activeCamera = new ArcRotateCamera("dev", 1, 1, 80, Vector3.Zero(), scene)
+    expect(draws(3)).toBe(3)
+    scene.activeCamera = camera
+    expect(draws(1)).toBe(1)
+    expect(draws(5)).toBe(0)
+    post.dispose()
+  })
+
+  it("draws the depth every frame when it draws everything the camera sees, moving or not", () => {
+    const { scene, camera } = setup(40)
+    const post = createPostProcess(scene, camera)
+    const drawn = vi.spyOn(scene.enableDepthRenderer(camera).getDepthMap(), "render")
+    for (let frame = 0; frame < 3; frame++) {
+      scene.render()
+    }
+
+    expect(drawn).toHaveBeenCalledTimes(3)
     post?.dispose()
   })
 })

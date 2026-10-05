@@ -129,6 +129,18 @@ describe("createTerrainChunks", () => {
     expect(terrain.meshes[0]?.getTotalVertices()).toBe(detailed)
   })
 
+  it("tells of each chunk it rebuilds, whatever the reason", () => {
+    const { terrain } = setup(384, 64)
+    const rebuilt: string[] = []
+    terrain.onRebuilt.add((mesh) => rebuilt.push(mesh.name))
+
+    terrain.rebuildRegion(30, 30, 34, 34)
+    terrain.refine(352, 32)
+    expect(rebuilt).toEqual(["terrain-0-0", "terrain-5-0"])
+    terrain.shapeForTrenchKit()
+    expect(rebuilt).toHaveLength(2 + terrain.meshes.length)
+  })
+
   it("rejects render steps that don't divide a chunk", () => {
     expect(() => setup(64, 64, 3)).toThrow(RangeError)
   })
