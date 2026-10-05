@@ -5,12 +5,14 @@
 //
 // Usage: node scripts/perf.mjs [--headed] [--ref HEAD] [--url http://localhost:5173] [--no-build] [--width 1920]
 //                              [--height 1080] [--seconds 6] [--only "day;night"] [--out perf.json] [--shots dir]
-//                              [--eval "page-side expression"] [--query "inline"] [--operation]
+//                              [--eval "page-side expression"] [--query "inline"] [--operation] [--profile dir]
 //                              [--ab "page-side toggle" [--ab-undo "page-side undo"] [--rounds 4] [--settle 2500]]
 //                              [--chrome path/to/chrome.exe]
 // --headed runs a real Chrome window off-screen: headless Chrome here aborts some module fetches. --shots saves what
 // each scenario looked like, to check a faster setting still draws the picture. --eval prints a page-side expression
-// once the game is up, such as counts of what's drawn. The battle is played free (?free), in the close view the
+// once the game is up, such as counts of what's drawn. --profile saves a CPU profile of each scenario for Chrome's
+// DevTools and prints its costliest functions, named and placed in the game's or Babylon's source by the build's
+// source maps. The battle is played free (?free), in the close view the
 // scenarios were written for, so runs compare across builds; --operation plays the playtest's operation instead, which
 // opens on its briefing in the overview.
 // A free battle with nobody at the keyboard is quiet, so the last scenarios put it through what a played one does:
@@ -30,6 +32,7 @@
 
 import { execFileSync, spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { SourceMap } from "node:module"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -561,16 +564,63 @@ async function buildCommit(ref, outDir, slot) {
     cpSync(pack, join(tree, ".asset-cache", "pack"), { recursive: true })
   }
   await run("pnpm", ["install", "--frozen-lockfile", "--prefer-offline"], tree)
-  await run("pnpm", ["--filter", "@verdun/client", "exec", "vite", "build", "--outDir", outDir, "--emptyOutDir"], tree)
+  // Source maps beside the chunks, unlinked from them, so --profile can name the functions it finds.
+  await run(
+    "pnpm",
+    [
+      "--filter",
+      "@verdun/client",
+      "exec",
+      "vite",
+      "build",
+      "--outDir",
+      outDir,
+      "--emptyOutDir",
+      "--sourcemap",
+      "hidden"
+    ],
+    tree
+  )
+}
+
+/** The source maps of a build's chunks, read as first asked for: null for a chunk without one, or with no build. */
+function sourceMaps(outDir) {
+  const maps = new Map()
+  return (url) => {
+    const file = url.split("/").pop() ?? ""
+    if (!outDir || !file.endsWith(".js")) {
+      return null
+    }
+    if (!maps.has(file)) {
+      const path = join(outDir, "assets", `${file}.map`)
+      maps.set(file, existsSync(path) ? new SourceMap(JSON.parse(readFileSync(path, "utf8"))) : null)
+    }
+    return maps.get(file)
+  }
+}
+
+/**
+ * A function in a CPU profile as its name and place: in the source it was built from where the build's source map
+ * says (the game's file under src, or the package's), else in the built chunk.
+ */
+function placeOf({ functionName, url, lineNumber, columnNumber }, maps) {
+  const found = maps(url)?.findOrigin(lineNumber + 1, columnNumber + 1)
+  if (found?.fileName) {
+    const file = found.fileName
+      .replaceAll("\\", "/")
+      .replace(/^.*\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?/, "")
+      .replace(/^(?:\.\.\/)+/, "")
+    return `${found.name || functionName || "(anonymous)"} ${file}:${found.lineNumber}`
+  }
+  return `${functionName || "(anonymous)"} ${url.split("/").pop()}:${lineNumber + 1}`
 }
 
 /** A CPU profile's costliest functions by their own time, as lines of milliseconds, name and place. */
-function costliest(profile, count) {
+function costliest(profile, count, maps) {
   const nodes = new Map(profile.nodes.map((node) => [node.id, node]))
   const own = new Map()
   profile.samples.forEach((id, index) => {
-    const { functionName, url, lineNumber } = nodes.get(id).callFrame
-    const key = `${functionName || "(anonymous)"} ${url.split("/").pop()}:${lineNumber + 1}`
+    const key = placeOf(nodes.get(id).callFrame, maps)
     own.set(key, (own.get(key) ?? 0) + (profile.timeDeltas[index] ?? 0))
   })
   return [...own]
@@ -647,12 +697,15 @@ function freePort() {
 async function main() {
   let preview = null
   let url = option("--url", "")
+  // A game served from elsewhere (--url) is profiled as it's served.
+  let maps = sourceMaps(null)
   const { slot, free } = takeSlot()
   process.on("exit", free)
   sweepOldProfiles()
   if (!url) {
     // Its own build folder: other sessions build into apps/client/dist, and would swap files out under a running game.
     const outDir = join(tmpdir(), `verdun-perf-dist-${slot}`)
+    maps = sourceMaps(outDir)
     if (!flag("--no-build")) {
       await buildCommit(option("--ref", "HEAD"), outDir, slot)
     }
@@ -794,7 +847,7 @@ async function main() {
         if (profiles) {
           const { profile } = await cdp.send("Profiler.stop", {}, sessionId)
           writeFileSync(join(profiles, `${scenario.name.replace(/[^\w]+/g, "-")}.cpuprofile`), JSON.stringify(profile))
-          print(costliest(profile, 15))
+          print(costliest(profile, 15, maps))
         }
         const shots = option("--shots", "")
         if (shots) {
