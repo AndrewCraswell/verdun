@@ -50,8 +50,8 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
   hold at 2560×1440, 3840×2160 and 21:9.
 - **The background changes completely.** White snow by day, near-black nights, the glare of a flare, a yellow-green gas
   cloud, brown mud, smoke. Every overlay needs its own backing so it reads on all of them.
-- **Fast load**: a link click reaches the battle in under 10 seconds, with no menu in front of a first-time player
-  ([first session](progression-and-community.md#first-session)).
+- **Fast load**: a link click reaches the battle in under 10 seconds. Every player, the first time too, opens on the
+  front door, with the battle loading behind it ([first session](progression-and-community.md#first-session)).
 - **Tone.** Over 700,000 men were killed, wounded or captured at Verdun. The interface is sober and respectful: no kill
   feed, no points popping off men, no medals for killing. See [principles](#principles).
 
@@ -178,8 +178,8 @@ Stage 3          S13 landing ──▶ S22 sign in ──▶ S14 side ──▶ 
                                    S18 service record, S19 regiment, S20 memorial, S17 main effort vote
 ```
 
-A first-time player never sees stage 3's front door: the link drops them straight into a quiet sector with a squad, and
-an account is offered after their first operation.
+Every player opens on the front door, the first time too, with the battle loading behind it; an account is offered after
+their first operation.
 
 ## Soldier and squad state: the vocabulary
 
@@ -906,9 +906,9 @@ say quietly that the game is drawing with WebGL.
 
 **Stage** P (first session), 3 (offer). **Kind** Overlay, then Screen.
 
-The first session has no menu: the battle starts with the [H18 prompts](#h18-prompts-and-hints). After the player's
-first operation (stage 3), a single screen offers an account: "Keep your squad, your record and your side". Skippable,
-and offered again later, never in the middle of a fight.
+The first session opens on the front door like any other; in the battle, the [H18 prompts](#h18-prompts-and-hints) teach
+the controls. After the player's first operation (stage 3), a single screen offers an account: "Keep your squad, your
+record and your side". Skippable, and offered again later, never in the middle of a fight.
 
 ### S8 Join
 
@@ -975,7 +975,7 @@ separately when stage 2 starts.
 
 | ID  | Screen           | Contents                                                                                                                                                                                                                                                                         |
 | --- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S13 | Landing          | For returning players: today's communiqué headline, the war map, "Into the line" (to S8), the player's squad and regiment. First-time players skip it                                                                                                                            |
+| S13 | Landing          | For returning players: today's communiqué headline, the war map, "Into the line" (to S8), the player's squad and regiment. First-time players see it too                                                                                                                         |
 | S14 | Side             | The season's side choice, locked for the season; the smaller side offered first with its reward; switching once with a 48-hour wait and the loss of the season's rank ([sides](balance.md#sides))                                                                                |
 | S15 | War map          | The [front](war-map-and-season.md#the-war-map) as a chain of sectors: the line, active sectors and their battles (players, operations), key points, salients, supply routes and railheads, the [Balance](war-map-and-season.md#the-balance-winning-a-year) of the year, the date |
 | S16 | Communiqué       | The [daily communiqué](war-map-and-season.md#the-communiqué), written from the side's own headquarters: the front map with the day's changes, each sector's gains and losses, key points, citations, the date and the weather to come, war events. Typeset as a period bulletin  |
