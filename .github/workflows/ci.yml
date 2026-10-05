@@ -5,9 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# On main, runs queue rather than cancel each other: one at a time, the newest waiting, so a busy day still deploys.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:
