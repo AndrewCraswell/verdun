@@ -16,6 +16,7 @@ import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import type { Immutable, Nullable } from "@babylonjs/core/types"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { displaySettings } from "../settings/display.ts"
 
 /** Effect sprites from the level kit. */
 export interface EffectSprites {
@@ -340,6 +341,15 @@ export function createAtmosphere(
   const curves = grade(scene)
   const processing = scene.imageProcessingConfiguration
   let night = 0
+  // The player's brightness, from the options, over the grade's own exposure by day and night.
+  let brightness = 1
+  const expose = () => {
+    processing.exposure = EXPOSURE * (1 + NIGHT_GRADE.exposure * night) * brightness
+  }
+  const unlistenDisplay = displaySettings().listen((settings) => {
+    brightness = settings.brightness
+    expose()
+  })
 
   const shadows = createShadows(scene, map, sun, camera)
   // The soft spot rather than Synty's faceted puff: drawn many times over, the puff's hard edges show as discs.
@@ -358,9 +368,10 @@ export function createAtmosphere(
       }
       night = now
       curves.globalDensity = NIGHT_GRADE.density * night
-      processing.exposure = EXPOSURE * (1 + NIGHT_GRADE.exposure * night)
+      expose()
     },
     dispose() {
+      unlistenDisplay()
       smoke.dispose()
       mist.dispose()
       shadows?.dispose()

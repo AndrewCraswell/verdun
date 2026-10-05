@@ -74,6 +74,8 @@ export interface CameraRigModel {
   recenter(): void
   /** Holds a pan, from -1 to 1 right and forward relative to the view, until changed. Zero stops. */
   setPan(right: number, forward: number): void
+  /** Pans faster or slower than the usual, by this multiple: the player's setting. */
+  setPanSpeed(multiple: number): void
   /** Drags the ground by this many metres, right and forward relative to the view: grabbing the map. */
   drag(right: number, forward: number): void
   /** Turns the view around the focus, and tilts it, in radians. */
@@ -136,6 +138,7 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
   let yaw = start.yaw
   let tilt = start.pitch - pitchForDistance(start.distance)
   let pan = { right: 0, forward: 0 }
+  let panMultiple = 1
   let velocity = { x: 0, z: 0 }
   let turn = 0
 
@@ -176,6 +179,9 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
         following = false
       }
     },
+    setPanSpeed(multiple) {
+      panMultiple = Number.isFinite(multiple) && multiple > 0 ? multiple : 1
+    },
     drag(right, forward) {
       if (right === 0 && forward === 0) {
         return
@@ -209,7 +215,7 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
       yaw += turn * TURN_SPEED * seconds
       // Held pans ease in and out rather than starting and stopping dead.
       const { right, forward } = axes(yaw)
-      const speed = PAN_SPEED * view.distance
+      const speed = PAN_SPEED * panMultiple * view.distance
       const wanted = {
         x: (right.x * pan.right + forward.x * pan.forward) * speed,
         z: (right.z * pan.right + forward.z * pan.forward) * speed

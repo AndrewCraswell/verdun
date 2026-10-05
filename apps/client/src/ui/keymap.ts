@@ -33,6 +33,8 @@ export type KeyAction =
   | "overview"
   | "pause"
   | "fog"
+  | "sector-map"
+  | "squad-book"
 
 interface KeyActionInfo {
   readonly action: KeyAction
@@ -96,7 +98,9 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
     actions: [
       { action: "overview", label: "Overview: hold for the sector in full, tap to keep it up", keys: ["KeyI"] },
       { action: "pause", label: "Pause or carry on", keys: ["KeyP"] },
-      { action: "fog", label: "Fog of war on or off", keys: ["KeyO"] }
+      { action: "fog", label: "Fog of war on or off", keys: ["KeyO"] },
+      { action: "sector-map", label: "The sector map; the battle goes on while you look", keys: ["KeyM"] },
+      { action: "squad-book", label: "The squad book: every man, and the fallen", keys: ["KeyU"] }
     ]
   }
 ]

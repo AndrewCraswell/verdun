@@ -1,9 +1,13 @@
-import { SEASONS } from "@verdun/sim"
+import { SEASONS as SIMULATION_SEASONS } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import geography from "./front-geography.json"
-import { FRONT_LINES, OPEN_SECTOR, seasonPhase, THEATRES, theatresOf, VERDUN_SECTORS } from "./front.ts"
+import { FRONT_LINES, OPEN_SECTOR, SEASONS, seasonPhase, THEATRES, theatresOf, VERDUN_SECTORS } from "./front.ts"
 
 describe("the Western Front", () => {
+  it("counts the seasons as the simulation's calendar does", () => {
+    expect(SEASONS).toEqual(SIMULATION_SEASONS)
+  })
+
   it("runs every season from the North Sea to Switzerland", () => {
     for (const season of SEASONS) {
       const { points } = FRONT_LINES[season]

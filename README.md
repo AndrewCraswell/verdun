@@ -65,6 +65,9 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | B                               | Bombard the German front line for two minutes                                  |
 | V                               | Call artillery onto the point under the pointer                                |
 | O                               | Turn fog of war on or off (off for now)                                        |
+| M                               | The sector map; the battle goes on while you look                              |
+| U                               | The squad book: every man, and the fallen                                      |
+| Esc                             | The menu: the war map, options, controls; the battle waits                     |
 | Z                               | Lie down and crawl, or get back up                                             |
 | Q                               | Throw a grenade at the pointer                                                 |
 | F3                              | Debug statistics                                                               |
@@ -75,10 +78,10 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | J                               | Dev builds only: mark where soldiers have fallen                               |
 | \`                              | Dev builds only: open Babylon's Inspector                                      |
 
-The game opens on its front door, with the battle loading behind it; `?play` goes straight into the line (as does
-`?debug`, for measuring). Dev builds also read the address: `?webgl` draws with WebGL instead of WebGPU,
-`?war=1916-02-21` puts today's turn in the war's week of that date (`?war=reset` forgets it), and `?standto=0` plays
-straight through the stand-to after each daily cutoff. See
+The game opens on its front door, with the battle loading behind it; `?play` goes straight into the line behind the
+loading screen, and `?debug` past both, for measuring. Dev builds also read the address: `?webgl` draws with WebGL
+instead of WebGPU, `?war=1916-02-21` puts today's turn in the war's week of that date (`?war=reset` forgets it), and
+`?standto=0` plays straight through the stand-to after each daily cutoff. See
 [time and weather](docs/time-and-weather.md#the-wars-calendar).
 
 ## Credits

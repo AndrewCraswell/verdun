@@ -1,5 +1,5 @@
 import type { Scene } from "@babylonjs/core/scene"
-import { isInTrench, type Simulation, type Squad } from "@verdun/sim"
+import type { Simulation, Squad } from "@verdun/sim"
 import { getMixer } from "./mixer.ts"
 import { CUT_FADE, createMusicModel, FADE_IN, isAttacking, type Mood, type MusicCue, THEME } from "./music-model.ts"
 
@@ -148,6 +148,8 @@ export async function startMusic(
     playing = next
   }
 
+  // Loaded here rather than at the top, so the menu's theme (startMenuMusic) plays without the simulation's code.
+  const { isInTrench } = await import("@verdun/sim")
   const inTrench = (x: number, z: number) => isInTrench(sim.map, x, z)
   const observer = scene.onBeforeRenderObservable.add(() => {
     // Browsers keep audio off until the player clicks or presses a key; the theme waits for that.

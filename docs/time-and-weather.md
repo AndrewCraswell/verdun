@@ -133,8 +133,8 @@ war-map server, sector servers and clients all agree on the date without being t
 
 In the client, `apps/client/src/environment/war-clock.ts` keeps the battle on the calendar: when a turn begins it sends
 the battle to the new week with the `clock` command's `week` (the hour carries on, the weather eases into the new week),
-and through the stand-to, between seasons, and before and after the war, the battle waits: `main.ts` doesn't step the
-simulation while `war.paused`. It only acts when the turn changes, so the dev keys can still move the week.
+and through the stand-to, between seasons, and before and after the war, the battle waits: `start-battle.ts` doesn't
+step the simulation while `war.paused`. It only acts when the turn changes, so the dev keys can still move the week.
 
 ## What players see
 
@@ -541,8 +541,8 @@ records forecast names its region (`{ kind: "records", seed, region }`):
 | `artois`    | Vimy, 50.37° N 2.78° E    | Artois 1915, Arras and Vimy 1917                                | Dunkirk, Gisors; Étreux                                                                               |
 
 A map names its region (`weatherRegion`, added in map format version 5; the Fleury sector says `"fleury"`), and the
-client loads it before creating the battle (`main.ts`), falling back to Fleury's for a map that names none or one the
-simulation doesn't know. Fleury's table is built in; the others load when a battle needs them
+client loads it before creating the battle (`start-battle.ts`), falling back to Fleury's for a map that names none or
+one the simulation doesn't know. Fleury's table is built in; the others load when a battle needs them
 (`await loadWeatherRegion("somme")` before creating the forecast, or restoring a save that uses it), each its own chunk
 of about 70 kB gzipped, so the client downloads only its battle's weather. They're imported without an import attribute,
 as Vite needs in development, and again with `type: "json"` where Node insists on it. Outside Verdun few stations kept

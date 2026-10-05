@@ -66,14 +66,17 @@ colours, sizes and timings are tokens.
 The grenade throw (H9, W7) is built too: hold Q for the arc, reach, scatter and blast, and the grenade itself is drawn
 from the hand to where it bursts.
 
-The menus are built too, in `apps/client/src/ui/`: the game opens on a front door (a first cut of S13) with the battle
-loading behind it, and Esc opens the same list over the battle (S1). Both open the war map (a first cut of S15: the
-Western Front in each season, the theatres each season opens, Verdun's sectors, Fleury playable), the options (S3:
-display, sound, interface, accessibility), the controls with rebinding (S2) and the credits. `?play` and `?debug` go
-straight into the line.
+The menus are built too, in `apps/client/src/ui/`. The game opens on a front door (a first cut of S13), from a small
+bundle of its own, with the battle downloading and coming up behind it. "Into the line" opens the join screen (S8): the
+squad held for the player, another in the line to take over, an operation (none yet), or a fresh squad from the reserve
+line. Then the loading screen (S6) until the battle draws, and the battle. Esc opens the same list over the battle (S1).
+The list opens the war map (a first cut of S15: the Western Front in each season, the theatres each season opens,
+Verdun's sectors, Fleury playable), the sector map (S4), the squad book (S5), the battle log's history (H14), the
+options (S3), the controls with rebinding (S2) and the credits. M and U open the sector map and the squad book on their
+own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
 
-Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), the sector map as a
-screen (S4), the squad book (S5), the loading screen's line of history (S6) and the rest of stage 2-3's screens.
+Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), and the rest of
+stage 2-3's screens.
 
 ## Principles
 
@@ -160,10 +163,10 @@ picture; pending ones stay a dashed amber outline, as a warning.
 ## Screen flow
 
 ```
-Stage 1 (now)    link ──▶ S6 loading ──▶ battle (HUD) ◀──▶ S1 menu ──▶ S2 controls, S3 options
-                                            │  ▲
-                                            ▼  │
-                                  S4 sector map, S5 squad book
+Stage 1 (now)    link ──▶ S13 front door ──▶ S8 join ──▶ S6 loading ──▶ battle (HUD) ◀──▶ S1 menu ──▶ S2, S3, S15
+                                                                               │  ▲
+                                                                               ▼  │
+                                                                     S4 sector map (M), S5 squad book (U)
 
 Stage 2          link ──▶ S6 loading ──▶ S8 join (sector map) ──▶ S9 squad type and loadout ──▶ battle
                                             ▲                                                   │
@@ -779,7 +782,7 @@ the key and mouse bindings. The current list:
 | Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                      |
 | Camera            | Arrows or screen edges pan; Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Space back to your man |
 | Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                          |
-| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; M sound mixer                                                                    |
+| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; F7 sound mixer                                                                   |
 
 Proposed new keys, for the developer to confirm (E, I, L, R, T, U and Y are free today): **E** orders radial (H7), **M**
 sector map (S4; the dev sound mixer moves elsewhere), **R** rally (when built; or reload, if ammunition needs one),
@@ -793,8 +796,9 @@ storage today; on the account in stage 3) and apply at once where they can.
 
 **Built** (`ui/options.ts`), the settings that exist: graphics (low, high) and renderer (automatic, WebGL), each on
 reload; render scale and full screen at once; the five volumes; interface scale, backing and the prompts (with "show
-them again"); colour vision, high contrast and screen effects' strength. Not yet: frame-rate cap, brightness, per-zone
-visibility, captions, hold-or-toggle, camera speeds.
+them again"); colour vision, high contrast and screen effects' strength. Since added: the frame-rate cap, brightness
+with a test image, each zone of the HUD, the clock, marker size, hold or toggle for run, crouch, lie down and the
+grenade, edge panning, pan speed and the drag's direction. Not yet: captions, and confirming sector-wide fire.
 
 **Display**
 
@@ -861,6 +865,14 @@ whatever the interface; captions follow the interface language.
 
 **Stage** P (first version), 1–2 (more layers). **Kind** Screen over the live battle (proposed M).
 
+**Built** (`ui/sector/`): M opens it full width while the battle goes on, or the menu's list beside it. The ground in
+contours and shading from the survey, 100 m squares lettered as the trench maps did, trenches ours blue and theirs red,
+communication trenches, wire, ruins, trees, the field railway and our aid post; live, the squad in brass with the man
+under control ringed and its order's pin, our men, the enemy the side sees now, objectives ringed in their holder's
+colour (dashed when contested) and our side's fire missions, pending dashed and firing filled. The panel lists the
+order, the objectives with bearing and distance, and the missions. Click looks there, right-click sends the squad there.
+Not yet: control cells, dumps, other players. Below: the spec as first written.
+
 A full-screen map of the sector that doesn't stop the fight; the squad keeps its order while the player looks. In the
 manner of a French _plan directeur_ (the 1:20,000 trench maps drawn from air photographs), simplified for reading at a
 glance.
@@ -882,6 +894,11 @@ glance.
 
 **Stage** P (roster), 3 (names and history). **Kind** Screen.
 
+**Built** (`ui/squad-book.ts`): U opens it over the running battle. A nominal roll of the eight, with slot, rank and
+name, job and weapon, state in words with its marks, grenades and distance; "Take him" for any man who can be taken.
+Below, the fallen and the men brought in, kept as the battle goes, with the week and the place ("Killed near Fleury
+crossroads, week of 20 June 1916"), and the ranks glossed in English. Below: the spec as first written.
+
 The squad as a nominal roll: every man, his state, and what happened to him. It gives the
 [eight named men](progression-and-community.md#the-squad-roster) a face.
 
@@ -896,6 +913,12 @@ The squad as a nominal roll: every man, his state, and what happened to him. It 
 ### S6 Loading
 
 **Stage** P. **Kind** Screen.
+
+**Built** (`ui/loading.ts`): over the battle while it comes up and as the player goes in, the sector and the week, the
+line of what happened at Verdun that week (`ui/front/verdun-1916.ts`, from
+[the research note](../research/notes/history/verdun-1916.md)), the loading's steps and its bar, and a quiet line when
+the game is drawing with WebGL. It gives way once the battle has drawn its first frame. Below: the spec as first
+written.
 
 The link to the battle in under ten seconds, so the loading screen is brief. Show progress honestly (assets, the
 battlefield, the war's weather), the sector's name and the week ("Fleury, week of 20 June 1916"), and one line of
@@ -913,6 +936,12 @@ record and your side". Skippable, and offered again later, never in the middle o
 ### S8 Join
 
 **Stage** 2. **Kind** Screen.
+
+**Built**, a first cut (`ui/join-page.ts`, `ui/join.ts`): the squad held for the player; every squad of their side in
+the line, nearest the enemy first, with men, order, place and distance from the enemy line, or why it can't be taken (in
+contact, too few men); operations, none yet; and the fresh squads in the reserve line. Choosing one swaps it with the
+squad held for the player (the simulation's `join-squad` command) and goes into the line. Below: the spec as first
+written.
 
 How a player gets into a sector in under a minute ([joining the battle](soldier-and-squad.md#joining-the-battle)). A
 sector map with the choices, in this order:

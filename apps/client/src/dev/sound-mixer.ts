@@ -1,6 +1,7 @@
 import { SOUND_CUES } from "../audio/battle-sound-model.ts"
 import type { Mixer } from "../audio/mixer.ts"
 import { AMBIENCE_FILES } from "../level/ambience.ts"
+import { registerBindings } from "../ui/bindings.ts"
 
 const WEATHER_AND_LEVEL: readonly string[] = [
   "rain",
@@ -122,8 +123,10 @@ export function installSoundMixer(mixer: Mixer): void {
   panel.append(readout)
   document.body.append(panel)
 
+  // F7, so M is free for the sector map.
+  registerBindings({ title: "Development tools", devOnly: true, bindings: [{ keys: "F7", action: "Sound mixer" }] })
   window.addEventListener("keydown", (event) => {
-    if (event.code === "KeyM" && !event.repeat && !(event.target instanceof HTMLInputElement)) {
+    if (event.code === "F7" && !event.repeat && !(event.target instanceof HTMLInputElement)) {
       panel.style.display = panel.style.display === "none" ? "block" : "none"
     }
   })

@@ -1,10 +1,19 @@
 import { VOLUME_CHANNELS, type VolumeChannel, playerVolume } from "../audio/volume.ts"
-import { browserStore } from "../environment/war-schedule.ts"
 import { h } from "../hud/dom.ts"
-import { resetHints } from "../hud/hints.ts"
-import { type ColourVision, interfaceSettings } from "../hud/interface-settings.ts"
-import { displaySettings } from "../settings/display.ts"
+import {
+  type ColourVision,
+  HUD_ZONES,
+  type HudZoneSetting,
+  interfaceSettings,
+  PRESS_ACTIONS,
+  type PressAction,
+  type PressMode,
+  type ZoneShowing
+} from "../hud/interface-settings.ts"
+import { cameraSettings } from "../settings/camera.ts"
+import { displaySettings, FRAME_CAPS } from "../settings/display.ts"
 import { type GraphicsQuality, graphicsQuality, saveGraphicsQuality } from "../settings/graphics.ts"
+import { browserStorage } from "../settings/store.ts"
 import { button, percent, segmented, settingRow, slider, toggle } from "./fields.ts"
 import type { MenuPage } from "./page.ts"
 
@@ -33,14 +42,47 @@ const VISIONS: readonly { readonly value: ColourVision; readonly label: string }
 /** How far left and right move along a row of tabs. */
 const ARROW_STEPS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 }
 
-type Tab = "display" | "sound" | "interface" | "accessibility"
+type Tab = "display" | "sound" | "controls" | "interface" | "accessibility"
 
 const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
   { id: "display", label: "Display" },
   { id: "sound", label: "Sound" },
+  { id: "controls", label: "Controls" },
   { id: "interface", label: "Interface" },
   { id: "accessibility", label: "Accessibility" }
 ]
+
+const ZONE_LABELS: Readonly<Record<HudZoneSetting, { readonly label: string; readonly note: string }>> = {
+  soldier: { label: "Soldier card", note: "Your man, his state and what acts on him" },
+  roster: { label: "Squad roster", note: "The eight men in a row" },
+  sector: { label: "Sector panels", note: "The clock, the objectives and the strength" },
+  log: { label: "Battle log", note: "What has just happened" },
+  fire: { label: "Artillery board", note: "The calls and missions in progress" },
+  hints: { label: "Prompts", note: "The first-session lines along the bottom" }
+}
+
+const ZONE_CHOICES: readonly { readonly value: ZoneShowing; readonly label: string }[] = [
+  { value: "always", label: "Always" },
+  { value: "changes", label: "On change" },
+  { value: "hidden", label: "Hidden" }
+]
+
+const PRESS_LABELS: Readonly<Record<PressAction, { readonly label: string; readonly note: string }>> = {
+  run: { label: "Run", note: "Hold to run, or press to start and again to stop" },
+  crouch: { label: "Crouch", note: "Hold to stay down, or press to go down and again to stand" },
+  prone: { label: "Lie down", note: "Hold to stay down, or press to go down and again to get up" },
+  grenade: { label: "Grenade", note: "Hold to aim and let go to throw, or press to aim and again to throw" }
+}
+
+const PRESS_CHOICES: readonly { readonly value: PressMode; readonly label: string }[] = [
+  { value: "hold", label: "Hold" },
+  { value: "toggle", label: "Toggle" }
+]
+
+const CAP_CHOICES: readonly { readonly value: string; readonly label: string }[] = FRAME_CAPS.map((cap) => ({
+  value: String(cap),
+  label: cap === 0 ? "Off" : String(cap)
+}))
 
 function section(title: string, ...rows: HTMLElement[]): HTMLElement {
   return h("section", "ui-settings-section", h("h3", "ui-settings-heading", title), ...rows)
@@ -48,7 +90,7 @@ function section(title: string, ...rows: HTMLElement[]): HTMLElement {
 
 /** The display settings: graphics, renderer, scale, full screen. Those that need a reload offer one. */
 function displayTab({ renderer, reload }: OptionsContext): { root: HTMLElement; opened(): void; dispose(): void } {
-  const store = browserStore()
+  const store = browserStorage()
   const loadedQuality = graphicsQuality(store)
   const display = displaySettings()
   const loadedRenderer = display.current.renderer
@@ -95,6 +137,19 @@ function displayTab({ renderer, reload }: OptionsContext): { root: HTMLElement; 
   const scale = slider({ min: 0.5, max: 1, step: 0.05 }, display.current.renderScale, percent, (value) =>
     display.change({ renderScale: value })
   )
+  const cap = segmented(CAP_CHOICES, String(display.current.frameCap), (value) =>
+    display.change({ frameCap: FRAME_CAPS.find((each) => String(each) === value) ?? 0 })
+  )
+  // A night trench to judge it by: the mark in the dark should be just visible, the sky not washed out.
+  const test = h("div", "ui-brightness-test", h("span", "ui-brightness-mark"), h("span", "ui-brightness-sky"))
+  test.setAttribute("aria-hidden", "true")
+  const showTest = (value: number) => test.style.setProperty("--brightness", value.toFixed(2))
+  showTest(display.current.brightness)
+  const brightness = slider({ min: 0.6, max: 1.6, step: 0.05 }, display.current.brightness, percent, (value) => {
+    display.change({ brightness: value })
+    showTest(value)
+  })
+  const brightnessControl = h("div", "ui-brightness", test, brightness.root)
   const fullScreen = toggle(document.fullscreenElement !== null, (on) => {
     const request = on ? document.documentElement.requestFullscreen?.() : document.exitFullscreen?.()
     request?.catch(() => fullScreen.set(document.fullscreenElement !== null))
@@ -125,6 +180,16 @@ function displayTab({ renderer, reload }: OptionsContext): { root: HTMLElement; 
         "Draw the battle at less than the screen's resolution: faster, and softer.",
         scale.root
       ),
+      settingRow(
+        "Frame-rate cap",
+        "Draw no more frames a second than this: cooler, quieter, and kinder to a laptop's battery.",
+        cap.root
+      ),
+      settingRow(
+        "Brightness",
+        "Nights are dark. Set it so the mark in the trench is just visible, and the sky above it isn't white.",
+        brightnessControl
+      ),
       settingRow("Full screen", null, fullScreen.root)
     )
   )
@@ -154,8 +219,64 @@ function soundTab(): HTMLElement {
   return h("div", "ui-settings", section("Volume", ...rows))
 }
 
+/** The controls: hold or toggle for the held actions, and the camera's panning and dragging. Keys have their own page. */
+function controlsTab(): { root: HTMLElement; sync(): void } {
+  const hub = interfaceSettings()
+  const camera = cameraSettings()
+  const presses = PRESS_ACTIONS.map((action) => {
+    const choice = segmented(PRESS_CHOICES, hub.current.presses[action], (value) =>
+      hub.change({ presses: { ...hub.current.presses, [action]: value } })
+    )
+    return { action, choice, row: settingRow(PRESS_LABELS[action].label, PRESS_LABELS[action].note, choice.root) }
+  })
+  const edge = toggle(camera.current.edgePan, (on) => camera.change({ edgePan: on }))
+  const speed = slider({ min: 0.5, max: 2, step: 0.1 }, camera.current.panSpeed, percent, (value) =>
+    camera.change({ panSpeed: value })
+  )
+  const invert = toggle(camera.current.invertDrag, (on) => camera.change({ invertDrag: on }))
+  return {
+    root: h(
+      "div",
+      "ui-settings",
+      section("Hold or toggle", ...presses.map((each) => each.row)),
+      section(
+        "Camera",
+        settingRow("Edge panning", "The pointer resting at a screen edge pans the view.", edge.root),
+        settingRow("Pan speed", "Arrow keys and screen edges.", speed.root),
+        settingRow("Invert drag", "Middle-drag turns and tilts the other way.", invert.root)
+      ),
+      h("p", "ui-controls-intro", "Keys are moved on the Controls page, from the menu.")
+    ),
+    sync() {
+      for (const { action, choice } of presses) {
+        choice.set(hub.current.presses[action])
+      }
+      edge.set(camera.current.edgePan)
+      speed.set(camera.current.panSpeed)
+      invert.set(camera.current.invertDrag)
+    }
+  }
+}
+
 function interfaceTab(): { root: HTMLElement; sync(): void } {
   const hub = interfaceSettings()
+  const zones = HUD_ZONES.map((zone) => {
+    const choice = segmented(ZONE_CHOICES, hub.current.zones[zone], (value) =>
+      hub.change({ zones: { ...hub.current.zones, [zone]: value } })
+    )
+    return { zone, choice, row: settingRow(ZONE_LABELS[zone].label, ZONE_LABELS[zone].note, choice.root) }
+  })
+  const clock = segmented<"24" | "12">(
+    [
+      { value: "24", label: "24-hour" },
+      { value: "12", label: "12-hour" }
+    ],
+    hub.current.clock,
+    (value) => hub.change({ clock: value })
+  )
+  const markers = slider({ min: 0.75, max: 2, step: 0.05 }, hub.current.markers, percent, (value) =>
+    hub.change({ markers: value })
+  )
   const scale = slider({ min: 0.75, max: 2, step: 0.05 }, hub.current.scale, percent, (value) =>
     hub.change({ scale: value })
   )
@@ -164,7 +285,8 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
   )
   const hints = toggle(hub.current.hints, (on) => hub.change({ hints: on }))
   const again = button("Show the prompts again", () => {
-    resetHints()
+    // The prompts' module needs the battle's; it's loaded by the time anyone asks for them again.
+    void import("../hud/hints.ts").then(({ resetHints }) => resetHints())
     hub.change({ hints: true })
     again.textContent = "Prompts start over"
   })
@@ -179,8 +301,11 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
           "Backing",
           "How dark the plates behind the text are, for reading over snow and flares.",
           backing.root
-        )
+        ),
+        settingRow("Marks and pointer", "The size of the marks on the ground and of the aim pointer.", markers.root),
+        settingRow("Clock", "The army kept the 24-hour clock.", clock.root)
       ),
+      section("Each part of the screen", ...zones.map((each) => each.row)),
       section(
         "Prompts",
         settingRow("First-session prompts", "Short lines that teach the controls as you play.", hints.root),
@@ -190,6 +315,11 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
     sync() {
       scale.set(hub.current.scale)
       backing.set(hub.current.backing)
+      markers.set(hub.current.markers)
+      clock.set(hub.current.clock)
+      for (const { zone, choice } of zones) {
+        choice.set(hub.current.zones[zone])
+      }
       hints.set(hub.current.hints)
       again.textContent = "Show the prompts again"
     }
@@ -236,14 +366,16 @@ function accessibilityTab(): { root: HTMLElement; sync(): void } {
   }
 }
 
-/** The options screen (S3): display, sound, interface and accessibility, each applied at once and kept. */
+/** The options screen (S3): display, sound, controls, interface and accessibility, each applied at once and kept. */
 export function createOptionsPage(context: OptionsContext): MenuPage {
   const display = displayTab(context)
+  const controlsPane = controlsTab()
   const interfacePane = interfaceTab()
   const accessibilityPane = accessibilityTab()
   const panes: Readonly<Record<Tab, HTMLElement>> = {
     display: display.root,
     sound: soundTab(),
+    controls: controlsPane.root,
     interface: interfacePane.root,
     accessibility: accessibilityPane.root
   }
@@ -290,6 +422,7 @@ export function createOptionsPage(context: OptionsContext): MenuPage {
     title: "Options",
     root: h("div", "ui-options", tabList, body),
     opened() {
+      controlsPane.sync()
       interfacePane.sync()
       accessibilityPane.sync()
       select(current)

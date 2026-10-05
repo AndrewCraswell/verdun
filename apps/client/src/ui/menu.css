@@ -93,9 +93,28 @@
   background: rgb(10 9 7 / 82%);
 }
 
-body[data-front-door="true"] .hud,
-body[data-front-door="true"] .menu-hint {
+/* At the front door and while the battle loads, the HUD stays away. */
+body:not([data-screen="battle"]) .hud,
+body:not([data-screen="battle"]) .menu-hint {
   visibility: hidden;
+}
+
+/* A page on its own over the running battle (the sector map, the squad book): full width, no list, the battle seen
+   round it. */
+.ui[data-mode="alone"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ui[data-mode="alone"] .ui-column {
+  display: none;
+}
+
+.ui[data-mode="alone"] .ui-page {
+  margin: clamp(16px, 3vh, 40px) clamp(16px, 2vw, 40px);
+}
+
+.ui[data-mode="alone"] .ui-veil {
+  background: rgb(10 9 7 / 45%);
 }
 
 /* The list. */
@@ -161,6 +180,19 @@ body[data-front-door="true"] .menu-hint {
   margin-top: 0.15em;
   font-size: 0.82em;
   color: var(--ui-ink-2);
+}
+
+.ui-history {
+  max-width: 22em;
+  margin: 0.9em 0 0;
+  padding-left: 0.8em;
+  font: italic 400 0.95em/1.4 var(--ui-display);
+  color: var(--ui-ink-2);
+  border-left: 2px solid var(--ui-brass-dim);
+}
+
+.ui-history:empty {
+  display: none;
 }
 
 .ui-nav-list {
@@ -350,7 +382,8 @@ body[data-front-door="true"] .menu-hint {
   padding: 1em 1.4em 1.6em;
 }
 
-.ui[data-page="front"] .ui-page-body {
+.ui[data-page="front"] .ui-page-body,
+.ui[data-page="sector"] .ui-page-body {
   padding: 0;
   overflow: hidden;
 }
@@ -788,4 +821,205 @@ body[data-front-door="true"] .menu-hint {
   .ui * {
     transition: none !important;
   }
+}
+
+/* The loading screen (S6): a title card over Verdun's ground drawn faintly, and the loading's progress. */
+.ui-loading {
+  --ui-font: "Archivo Variable", "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --ui-display: "Bodoni Moda Variable", "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --ui-brass: #c9a35a;
+  --ui-brass-dim: rgb(201 163 90 / 40%);
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  padding: clamp(28px, 8vh, 96px) clamp(24px, 7vw, 120px);
+  font: 400 clamp(14px, 0.36vw + 9px, 19px) / 1.45 var(--ui-font);
+  color: #efe7d3;
+  background: radial-gradient(ellipse at 70% 40%, rgb(40 34 24 / 60%), transparent 70%), #0c0b08;
+  opacity: 1;
+  transition: opacity 700ms cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+.ui-loading[hidden] {
+  display: none;
+}
+
+.ui-loading--leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-loading-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+
+.ui-loading-map path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ui-loading-river {
+  stroke: rgb(135 160 180 / 45%);
+  stroke-width: 1.4px;
+}
+
+.ui-loading-line {
+  stroke-width: 2px;
+}
+
+.ui-loading-line--ours {
+  stroke: rgb(135 169 218 / 70%);
+}
+
+.ui-loading-line--theirs {
+  stroke: rgb(212 100 75 / 70%);
+}
+
+.ui-loading-line--before {
+  stroke: rgb(212 100 75 / 45%);
+  stroke-width: 1.2px;
+  stroke-dasharray: 2 5;
+}
+
+.ui-loading-card {
+  position: relative;
+  max-width: 40em;
+  padding: 1.6em 2em 1.8em;
+  background: linear-gradient(90deg, rgb(12 11 8 / 88%), rgb(12 11 8 / 70%));
+  border-left: 2px solid var(--ui-brass);
+}
+
+.ui-loading-title {
+  margin: 0.05em 0 0.1em;
+  font: 400 clamp(56px, 6.4vw, 112px) / 0.95 var(--ui-display);
+  font-variation-settings: "opsz" 96;
+}
+
+.ui-loading-where {
+  font: italic 400 1.25em/1.3 var(--ui-display);
+  color: rgb(239 231 211 / 85%);
+}
+
+.ui-loading-history {
+  margin: 1em 0 0;
+  font-size: 0.98em;
+  color: rgb(239 231 211 / 74%);
+}
+
+.ui-loading-history:empty {
+  display: none;
+}
+
+.ui-loading-progress {
+  margin-top: 1.6em;
+}
+
+.ui-loading-bar {
+  height: 2px;
+  overflow: hidden;
+  background: rgb(239 231 211 / 14%);
+}
+
+.ui-loading-fill {
+  height: 100%;
+  background: var(--ui-brass);
+  transform-origin: left;
+  transform: scaleX(0.03);
+  transition: transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.ui-loading-step {
+  margin-top: 0.5em;
+  font-size: 0.82em;
+  letter-spacing: 0.02em;
+  color: rgb(239 231 211 / 56%);
+}
+
+.ui-loading-note {
+  position: absolute;
+  right: clamp(24px, 7vw, 120px);
+  bottom: clamp(16px, 3vh, 32px);
+  margin: 0;
+  font-size: 0.72em;
+  color: rgb(239 231 211 / 40%);
+}
+
+/* The battle log's history. */
+.log-history {
+  max-width: 54em;
+  margin: 1em 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.log-history-line,
+.log-history-none {
+  display: grid;
+  grid-template-columns: 4em 5em minmax(0, 1fr);
+  gap: 1em;
+  padding: 0.45em 0;
+  font-size: 0.92em;
+  color: var(--ui-ink-2);
+  border-bottom: 1px solid rgb(239 231 211 / 6%);
+}
+
+.log-history-hour {
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-ink-3);
+}
+
+.log-history-kind {
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-ink-3);
+}
+
+.log-history-line--alarm .log-history-kind,
+.log-history-line--alarm .log-history-text {
+  color: var(--ui-caution);
+}
+
+/* The brightness test: a night trench, with a mark in it that should be just visible, and the sky above. */
+.ui-brightness {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
+.ui-brightness-test {
+  position: relative;
+  flex: none;
+  width: 5.5em;
+  height: 3em;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1d2430 0 38%, #0b0a08 38% 100%);
+  border: 1px solid var(--ui-hairline-strong);
+  filter: brightness(var(--brightness, 1));
+}
+
+.ui-brightness-mark {
+  position: absolute;
+  left: 42%;
+  top: 58%;
+  width: 0.9em;
+  height: 0.9em;
+  background: #17150f;
+  border-radius: 50%;
+}
+
+.ui-brightness-sky {
+  position: absolute;
+  inset: 0 0 62%;
+  background: linear-gradient(180deg, transparent, rgb(120 140 170 / 25%));
 }

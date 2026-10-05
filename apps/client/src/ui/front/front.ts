@@ -9,6 +9,9 @@ import type { Season } from "@verdun/sim"
  * maps, accurate to a kilometre or two: right for a map of the whole front, not for a trench map.
  */
 
+/** The war's seasons, as the simulation's calendar counts them; named here so the menus needn't load the simulation. */
+export const SEASONS: readonly Season[] = [1914, 1915, 1916, 1917, 1918]
+
 /** A point as longitude and latitude, in degrees. */
 export type LonLat = readonly [number, number]
 

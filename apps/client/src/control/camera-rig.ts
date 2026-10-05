@@ -1,6 +1,7 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { cameraSettings } from "../settings/camera.ts"
 import { canonicalCode, keymap } from "../ui/keymap.ts"
 import { type CameraRigModel, createCameraRigModel, ZOOM_RANGE } from "./camera-rig-model.ts"
 import { groundUnderPointer } from "./ground-pick.ts"
@@ -81,6 +82,9 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
       pitch: camera.beta
     }
   )
+  // The player's camera settings: edge panning, pan speed and the drag's direction, changed at once from the options.
+  const settings = cameraSettings()
+  const unlistenSettings = settings.listen(({ panSpeed }) => model.setPanSpeed(panSpeed))
   const canvas = scene.getEngine().getRenderingCanvas()
   const keys = keymap()
   // The pan keys physically down, and what they do: a key moved in the menu while held is never left stuck down.
@@ -99,7 +103,7 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
 
   /** How far into each screen edge the pointer is, from 0 to 1, right and up; zero away from the edges. */
   function edgePush(): { right: number; forward: number } {
-    if (!pointer || !canvas || dragging || aiming || !document.hasFocus()) {
+    if (!pointer || !canvas || dragging || aiming || !document.hasFocus() || !settings.current.edgePan) {
       return { right: 0, forward: 0 }
     }
     const { clientWidth: width, clientHeight: height } = canvas
@@ -205,7 +209,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
           (2 * model.view.distance * Math.tan(camera.fov / 2)) / Math.max(1, canvas?.clientHeight ?? 1)
         model.drag(-dx * metresPerPixel, dy * metresPerPixel)
       } else {
-        model.rotate(-dx * DRAG_TURN, -dy * DRAG_TILT)
+        const invert = settings.current.invertDrag ? -1 : 1
+        model.rotate(-dx * DRAG_TURN * invert, -dy * DRAG_TILT * invert)
       }
     }
     shift = event.shiftKey
@@ -276,6 +281,7 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     dispose() {
       scene.onBeforeRenderObservable.remove(frame)
       unlistenKeys()
+      unlistenSettings()
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)

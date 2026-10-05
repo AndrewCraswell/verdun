@@ -18,6 +18,7 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.ts",
         "src/main.ts",
+        "src/start-battle.ts",
         // Only carries messages between the page and sim-runner.ts, which is tested.
         "src/sim/sim-worker.ts",
         "src/dev/**",
@@ -36,6 +37,11 @@ export default defineConfig({
         "src/ui/credits.ts",
         "src/ui/fields.ts",
         "src/ui/front/front-map.ts",
+        "src/ui/sector/sector-map.ts",
+        "src/ui/loading.ts",
+        "src/ui/squad-book.ts",
+        "src/ui/log-page.ts",
+        "src/ui/join-page.ts",
         "src/debug/dock.ts",
         "src/debug/stats.ts"
       ],

@@ -1,4 +1,4 @@
-import { SEASONS, type Season, type WarDay } from "@verdun/sim"
+import type { Season, WarDay } from "@verdun/sim"
 import { h, setText } from "../../hud/dom.ts"
 import { button } from "../fields.ts"
 import type { MenuPage } from "../page.ts"
@@ -9,6 +9,7 @@ import {
   OPEN_SECTOR,
   type Sector,
   SEASON_NOTES,
+  SEASONS,
   type Theatre,
   theatresOf,
   TOWNS,

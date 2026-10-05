@@ -119,6 +119,19 @@ describe("camera rig", () => {
     expect(settle(far, 0.3).focusZ - 200).toBeGreaterThan(3 * (settle(near, 0.3).focusZ - 200))
   })
 
+  it("pans at the player's speed, and back to the usual for a nonsense one", () => {
+    const usual = createCameraRigModel(bounds, start)
+    const quick = createCameraRigModel(bounds, start)
+    quick.setPanSpeed(2)
+    for (const model of [usual, quick]) {
+      model.setPan(0, 1)
+    }
+    const gone = (model: typeof usual) => settle(model, 0.5).focusZ - 200
+    expect(gone(quick)).toBeCloseTo(2 * gone(usual), 0)
+    quick.setPanSpeed(Number.NaN)
+    quick.setPan(0, 0)
+  })
+
   it("drags the ground with a grab, and stays within the map", () => {
     const model = createCameraRigModel(bounds, start)
     model.drag(10, -5)
