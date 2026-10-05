@@ -7,9 +7,10 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { aimedTarget, isAlive, type Simulation, type Squad } from "@verdun/sim"
+import { isAlive, type Simulation, type Squad } from "@verdun/sim"
 import { type InstanceBuffer, instanceBuffer } from "../effects/instance-buffer.ts"
 import { keepsOffSoldiers } from "../render/marker-stencil.ts"
+import { aimedTargetNow } from "./aimed-target.ts"
 
 /** Length of the aim line in front of the controlled soldier with no one in his sights, in metres. */
 const AIM_LENGTH = 4
@@ -108,7 +109,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         leader.rotation.y = Math.atan2(sim.soldiers.facing.x[soldier], sim.soldiers.facing.z[soldier])
       }
       // The sight picture: the line runs out to whoever a shot would strike now, and he's ringed.
-      const aimed = soldier >= 0 ? aimedTarget(sim, soldier) : -1
+      const aimed = soldier >= 0 ? aimedTargetNow(sim, soldier) : -1
       aimingAt = aimed
       let reach = AIM_LENGTH
       if (aimed >= 0) {

@@ -473,8 +473,9 @@ export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
   const facingX = sim.soldiers.facing.x[shooter]
   const facingZ = sim.soldiers.facing.z[shooter]
   const side = sim.soldiers.side.value[shooter]
-  let best: EntityId = -1
-  let bestDistance = Infinity
+  // The enemies within about 4 degrees of the aim, nearest first (and by id between equals), then a sight line to each
+  // in turn until one is clear: what's behind the nearest visible man is never looked at.
+  const inLine: { soldier: EntityId; distance: number }[] = []
   for (const soldier of soldierIds(sim)) {
     if (sim.soldiers.side.value[soldier] === side) {
       continue
@@ -482,18 +483,12 @@ export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
     const dx = sim.soldiers.position.x[soldier] - x
     const dz = sim.soldiers.position.z[soldier] - z
     const distance = Math.sqrt(dx * dx + dz * dz)
-    // Within about 4 degrees of the aim.
-    if (
-      distance > 0 &&
-      (dx * facingX + dz * facingZ) / distance > 0.9975 &&
-      distance < bestDistance &&
-      canEngage(sim, shooter, soldier)
-    ) {
-      best = soldier
-      bestDistance = distance
+    if (distance > 0 && (dx * facingX + dz * facingZ) / distance > 0.9975) {
+      inLine.push({ soldier, distance })
     }
   }
-  return best
+  inLine.sort((a, b) => a.distance - b.distance || a.soldier - b.soldier)
+  return inLine.find(({ soldier }) => canEngage(sim, shooter, soldier))?.soldier ?? -1
 }
 
 /** Lowers the morale of a fallen soldier's squadmates. Call when a soldier dies. */

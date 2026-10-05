@@ -70,15 +70,17 @@ function sceneryTops(map: BattlefieldMap): SceneryTops {
   return made
 }
 
-/** The top of whatever scenery stands at a ground point, in metres, or -Infinity where nothing does. */
-export function sceneryTopAt(map: BattlefieldMap, x: number, z: number): number {
+/** Reads the top of whatever scenery stands at a ground point, in metres, or -Infinity where nothing does. */
+export function sceneryTopAt(map: BattlefieldMap): (x: number, z: number) => number {
   const { columns, rows, tops } = sceneryTops(map)
-  const column = Math.floor(x / SCENERY_CELL)
-  const row = Math.floor(z / SCENERY_CELL)
-  if (column < 0 || row < 0 || column >= columns || row >= rows) {
-    return -Infinity
+  return (x, z) => {
+    const column = Math.floor(x / SCENERY_CELL)
+    const row = Math.floor(z / SCENERY_CELL)
+    if (column < 0 || row < 0 || column >= columns || row >= rows) {
+      return -Infinity
+    }
+    return tops[row * columns + column] ?? -Infinity
   }
-  return tops[row * columns + column] ?? -Infinity
 }
 
 /**

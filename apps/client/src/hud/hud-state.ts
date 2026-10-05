@@ -1,5 +1,4 @@
 import {
-  aimedTarget,
   hitChance,
   WEAPONS,
   arrivalOf,
@@ -16,6 +15,7 @@ import {
   type WarDay,
   woundedIds
 } from "@verdun/sim"
+import { aimedTargetNow } from "../control/aimed-target.ts"
 import { type Attention, createAttentionWatch } from "./attention.ts"
 import { type Banner, createBannerQueue } from "./banners.ts"
 import { type BattleLog, createBattleLog, type LogMessage } from "./battle-log.ts"
@@ -235,7 +235,7 @@ export function createHudModel(
     if (soldier.weapon.ready < 1) {
       return { state: "reload", ready: soldier.weapon.ready, shaken, chance: null }
     }
-    const target = aimedTarget(sim, soldier.id)
+    const target = aimedTargetNow(sim, soldier.id)
     if (target < 0) {
       return { state: "aim", ready: 1, shaken, chance: null }
     }

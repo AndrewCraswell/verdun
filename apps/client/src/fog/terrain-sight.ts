@@ -15,6 +15,8 @@ const TARGET_CLEARANCE = 0.1
  * craters and all, so there is nothing to rebuild.
  */
 export function createTerrainSight(map: BattlefieldMap): LineOfSight {
+  // The scenery's tops, looked up once rather than at every half-metre step of every sight line.
+  const topAt = sceneryTopAt(map)
   return {
     isClear(from, to) {
       const dx = to.x - from.x
@@ -31,7 +33,7 @@ export function createTerrainSight(map: BattlefieldMap): LineOfSight {
         const x = from.x + dx * along
         const y = from.y + dy * along
         const z = from.z + dz * along
-        if (y < heightAt(map, x, z) || y < sceneryTopAt(map, x, z)) {
+        if (y < heightAt(map, x, z) || y < topAt(x, z)) {
           return false
         }
       }
