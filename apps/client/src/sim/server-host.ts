@@ -1,12 +1,11 @@
 import type { BattlefieldMap } from "@verdun/map"
 import {
+  type Acknowledgement,
   acknowledgement,
   type CommandBatch,
-  decodeJoined,
   type JoinOptions,
   MESSAGE,
-  SECTOR_ROOM,
-  type SyncDecoder
+  SECTOR_ROOM
 } from "@verdun/net"
 import {
   applySync,
@@ -20,6 +19,8 @@ import {
 } from "@verdun/sim"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
 import { createCloudEasing } from "./cloud-easing.ts"
+import { createDecodingWorker } from "./decoding-thread.ts"
+import { createInlineDecoding, type Decoding } from "./decoding.ts"
 import { createPrediction } from "./prediction.ts"
 import type { SimHost, StepTaken } from "./sim-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
@@ -86,7 +87,8 @@ export async function serverHost(
   map: BattlefieldMap,
   setup: BattleSetup,
   connection: SectorConnection,
-  now: () => number = () => performance.now()
+  now: () => number = () => performance.now(),
+  decoding: Decoding = typeof Worker === "undefined" ? createInlineDecoding(map) : createDecodingWorker(map)
 ): Promise<ServerHost> {
   const mirror = createSimulation({
     map,
@@ -97,9 +99,6 @@ export async function serverHost(
   mirror.lineOfSight = sightLines
   let arrived: StepTaken[] = []
   let left: number | null = null
-  // Each message is what changed since the one before: the welcome starts the reading, and messages before it are
-  // passed over, as they build on a battle this page never had.
-  let decoder: SyncDecoder | null = null
   const prediction = createPrediction(mirror)
   const smoothing = createSmoothing(mirror)
   // The smoke comes twice a second: the page shows it drifting between.
@@ -111,13 +110,18 @@ export async function serverHost(
   // The soldier the player controls, once the battle has come.
   let controlled = (): number => -1
 
+  // Messages still being read, and acknowledgements waiting on them: a command is acknowledged only once the battle
+  // that has it in is in the mirror.
+  let reading = 0
+  let acknowledgements: Acknowledgement[] = []
+  const acknowledge = (applied: Acknowledgement) => prediction.acknowledged(applied.step, applied.tick)
   const joined = new Promise<{ playerSquad: number; schedule: WarSchedule }>((resolve, reject) => {
     connection.onMessage(MESSAGE.joined, (payload) => {
-      const welcome = decodeJoined(bytesOf(payload), map)
-      decoder = welcome.decoder
-      applySync(mirror, welcome.sync)
-      smoothing.synced(now(), -1)
-      resolve(welcome)
+      decoding.welcome(bytesOf(payload), (welcome) => {
+        applySync(mirror, welcome.sync)
+        smoothing.synced(now(), -1)
+        resolve(welcome)
+      })
     })
     connection.onLeave((code) => {
       left = code
@@ -125,23 +129,32 @@ export async function serverHost(
     })
   })
   connection.onMessage(MESSAGE.sync, (payload) => {
-    if (!decoder) {
-      return
+    reading++
+    const answered = decoding.decode(bytesOf(payload), (sync) => {
+      reading--
+      smoke.synced(now(), sync.smoke.concentration)
+      applySync(mirror, sync)
+      smoke.advance(now())
+      smoothing.synced(now(), controlled())
+      prediction.synced(sync.tick)
+      if (reading === 0) {
+        acknowledgements.forEach(acknowledge)
+        acknowledgements = []
+      }
+      prediction.predict(step, controlled())
+      arrived.push(...sync.steps)
+      arrived.splice(0, Math.max(0, arrived.length - MOST_STEPS_KEPT))
+    })
+    if (!answered) {
+      reading--
     }
-    const sync = decoder.decode(bytesOf(payload))
-    smoke.synced(now(), sync.smoke.concentration)
-    applySync(mirror, sync)
-    smoke.advance(now())
-    smoothing.synced(now(), controlled())
-    prediction.synced(sync.tick)
-    prediction.predict(step, controlled())
-    arrived.push(...sync.steps)
-    arrived.splice(0, Math.max(0, arrived.length - MOST_STEPS_KEPT))
   })
   connection.onMessage(MESSAGE.ack, (payload) => {
     const applied = acknowledgement(payload)
-    if (applied) {
-      prediction.acknowledged(applied.step, applied.tick)
+    if (applied && reading > 0) {
+      acknowledgements.push(applied)
+    } else if (applied) {
+      acknowledge(applied)
     }
   })
   // Listening now: the battle can come.
@@ -163,7 +176,7 @@ export async function serverHost(
     remote: true,
     sight: null,
     // Of the enemy, the page is kept up to date on only the men its side can see.
-    known: (soldier) => decoder?.seen?.has(soldier) ?? true,
+    known: (soldier) => decoding.seen?.has(soldier) ?? true,
     update() {
       // The server keeps its own time: the page takes the steps that have come, and sends what it has commanded. Its
       // own clock moves the player's soldier on meanwhile.
@@ -189,6 +202,7 @@ export async function serverHost(
     },
     dispose() {
       connection.leave()
+      decoding.dispose()
     }
   }
 }

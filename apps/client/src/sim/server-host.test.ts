@@ -13,6 +13,7 @@ import {
   type SyncSource
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
+import { createInlineDecoding, type Decoding } from "./decoding.ts"
 import { type SectorConnection, serverHost } from "./server-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
 
@@ -172,6 +173,42 @@ describe("the battle on a server, as the page sees it", () => {
     expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
     server.sync()
     expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
+  })
+
+  it("acknowledges a command only once the message being read in a worker is in the mirror", async () => {
+    const server = new FakeServer()
+    // Reading as the worker does: the sync comes back later, when let go.
+    const inline = createInlineDecoding(map())
+    const held: (() => void)[] = []
+    const late: Decoding = {
+      welcome: (bytes, taken) => inline.welcome(bytes, taken),
+      decode: (bytes, taken) => {
+        held.push(() => inline.decode(bytes, taken))
+        return true
+      },
+      get seen() {
+        return inline.seen
+      },
+      dispose: () => inline.dispose()
+    }
+    let now = 0
+    const host = await serverHost(map(), setup, server, () => now, late)
+    const leader = host.playerSquad.leader
+    const x = host.sim.soldiers.position.x[leader]
+    enqueueCommand(host.sim, { type: "steer", soldier: leader, x: 1, z: 0 })
+    host.update(0)
+    server.sync()
+    server.acknowledge({ step: 0, tick: server.sim.tick + 1 })
+    now += 1000
+    host.update(0)
+    expect(host.sim.soldiers.position.x[leader] - x).toBeLessThan(0.1)
+
+    for (const letGo of held.splice(0)) {
+      letGo()
+    }
+    host.update(0)
+    expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
+    host.dispose()
   })
 
   it("stops sending once the server has gone, and leaves when done", async () => {

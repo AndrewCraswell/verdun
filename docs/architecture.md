@@ -142,6 +142,10 @@ before, for development and `pnpm perf`.
   move orders, steering, the gas mask's time. Other men are drawn from the rest (their firing from `weapon.firedAt`,
   which changes once a shot, not the cooldown, which counts down every step). Which soldiers have which components goes
   as a flag a soldier, so a man gaining or losing one changes a byte rather than shifting a list of ids.
+- **The page reads each message in a worker** (`decoding-thread.ts`): inflating, unpacking and building on the last
+  takes about 2 ms a message there, and the page only takes the sync in (about 1 ms with the hand-over), so the frame
+  never waits on it. A command's acknowledgement is held until the message with it in has been read. Rebuilding only the
+  components whose members changed, rather than every one each message, took reading from 4.3 ms to 1.9.
 - **A hidden tab** draws no frames, so it sends no commands and plays out no steps; its mirror stays up to date, and it
   keeps only the last two seconds of steps to play on coming back (`server-host.ts`).
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which

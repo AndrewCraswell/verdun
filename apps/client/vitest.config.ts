@@ -21,6 +21,9 @@ export default defineConfig({
         "src/start-battle.ts",
         // Only carries messages between the page and sim-runner.ts, which is tested.
         "src/sim/sim-worker.ts",
+        // Only carry the server's messages to decoding.ts and back, off the page's thread; decoding.ts is tested.
+        "src/sim/decoding-thread.ts",
+        "src/sim/decode-worker.ts",
         "src/dev/**",
         "src/control/browser-input.ts",
         "src/audio/battle-sounds.ts",

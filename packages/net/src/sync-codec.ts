@@ -388,13 +388,36 @@ interface Format {
 }
 
 /** Each component's soldiers, by id, from its flags. */
-function membersOf(view: GlobalView): SimSync["members"] {
-  return Object.fromEntries(
-    Object.entries(view.members).map(([name, flags]) => [
-      name,
-      Int32Array.from(flags.keys()).filter((soldier) => flags[soldier] === 1)
-    ])
-  )
+function idsOf(flags: Uint8Array): Int32Array {
+  let count = 0
+  for (const flag of flags) {
+    count += flag
+  }
+  const ids = new Int32Array(count)
+  let at = 0
+  for (let soldier = 0; soldier < flags.length; soldier++) {
+    if (flags[soldier] === 1) {
+      ids[at++] = soldier
+    }
+  }
+  return ids
+}
+
+/**
+ * Each component's soldiers, by id, from its flags. Given the last ids and `changed`, the patch to the flags, only the
+ * components it changes are counted again: most messages change one or two.
+ */
+function membersOf(
+  view: GlobalView,
+  last: SimSync["members"] | null = null,
+  changed: Patch | null = null
+): SimSync["members"] {
+  const members: Record<string, Int32Array> = {}
+  for (const [name, flags] of Object.entries(view.members)) {
+    const before = last?.[name]
+    members[name] = before && !field(changed, name) ? before : idsOf(flags)
+  }
+  return members
 }
 
 /**
@@ -853,7 +876,7 @@ function decoderFrom(start: GlobalView, mirrored: Mirrored, format: Format): Syn
       }
       // Most messages change no one's components: the last ids serve.
       if (field(globalPart.v, "members")) {
-        members = membersOf(view)
+        members = membersOf(view, members, field(globalPart.v, "members"))
       }
       show(mirrored, format.unit, view.tick, view.soldiers)
       return syncOf(view, mirrored, format, globalPart.v, globalPart, members)
