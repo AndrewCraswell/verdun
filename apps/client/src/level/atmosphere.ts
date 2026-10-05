@@ -9,7 +9,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { type Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import { Frustum } from "@babylonjs/core/Maths/math.frustum"
 import type { Plane } from "@babylonjs/core/Maths/math.plane"
-import { type Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
@@ -18,6 +18,7 @@ import type { Immutable, Nullable } from "@babylonjs/core/types"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { trimCascadeVaryings } from "../render/cascade-varyings.ts"
 import { nearestDepth } from "../render/nearest-depth.ts"
+import { lowestGround, shadowCasterCulling, sunShadowInView } from "../render/shadow-reach.ts"
 import { displaySettings } from "../settings/display.ts"
 
 /** Effect sprites from the level kit. */
@@ -57,10 +58,11 @@ const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, offAbove
  * dress-battlefield.ts), further off than shadows reach: spread over three kilometres, they were seven tenths of every
  * cascade's triangles. And the see-through pieces of flares and gunfire (stars, glare, parachutes, streaks, flashes),
  * which a shadow map leaves out however it's handed them: they were sorted for every cascade, every frame all the same,
- * a dozen flares' worth burning or not.
+ * a dozen flares' worth burning or not. And the crows, birds too small for a shadow that reads, which as instanced
+ * meshes of their own were up to a dozen draws in every shadow map.
  */
 const NO_SHADOW =
-  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|Railway_Track|^backdrop$|^backdrop-far-|^flare-|^bullet-streaks|^tracer-rounds|^muzzle-flashes/
+  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|Railway_Track|^backdrop$|^backdrop-far-|^flare-|^bullet-streaks|^tracer-rounds|^muzzle-flashes|^crow-/
 
 /** Wind out of the west, carrying smoke and mist east, until the weather's wind takes over (see `environment/`). */
 const WIND = new Vector3(0.12, 0, 0.03)
@@ -233,6 +235,8 @@ interface Cascades extends CascadeSplit {
     readonly minZ: number
     readonly maxZ: number
     getDirectionToRef(localAxis: Vector3, result: Vector3): void
+    /** The camera's view and projection: given, casters whose shadows can't fall in its view are left out. */
+    getTransformationMatrix?(): Matrix
   }>
   getCascadeTransformMatrix(cascade: number): Nullable<Matrix>
   getLight(): { readonly direction: Vector3 }
@@ -244,6 +248,11 @@ interface Cascades extends CascadeSplit {
  * takes in, by its sides and its far end. Not by its near end, toward the sun: whatever stands between the sun and the
  * slice shades it, and depth clamping draws it.
  *
+ * Nor, of what it takes in, the casters whose shadows can't fall within the camera's own view (see
+ * render/shadow-reach.ts): a slice's box from the sun is much wider than the camera's view of it, and in the far slice
+ * took in some 40 chunks of ground, and trees, sandbags and crows, that shade only ground off the screen. `floor` is the
+ * lowest the ground can be, where the longest shadows end.
+ *
  * Meshes Babylon must never cull are kept, but for the layers of the soldiers' crowds, which have no bounds to cull by:
  * each is left out of a slice that ends nearer the camera than its nearest man drawn, by more than his shadow can fall
  * toward it (see render/nearest-depth.ts), and out of every slice when it draws no one. In the play view the first
@@ -251,10 +260,12 @@ interface Cascades extends CascadeSplit {
  * every soldier was skinned into it: about a third of all the soldiers' vertex work.
  */
 export function castersInCascade(
-  shadows: Cascades
+  shadows: Cascades,
+  floor?: number
 ): (cascade: number, casters: Nullable<Immutable<AbstractMesh[]>>, count: number) => AbstractMesh[] {
   const planes: Plane[][] = []
   const kept: AbstractMesh[][] = []
+  const seen = Frustum.GetPlanes(Matrix.Identity())
   return (cascade, casters, count) => {
     const inView = (kept[cascade] ??= [])
     inView.length = 0
@@ -273,10 +284,26 @@ export function castersInCascade(
     // A crowd whose nearest man drawn is this far into the camera's view, or nearer, can shade the slice.
     const camera = shadows.camera
     camera?.getDirectionToRef(AHEAD, looking)
-    const reach = cascadeEnd(shadows, cascade) + crowdShadowReach(shadows.getLight().direction, camera ? looking : null)
+    const way = shadows.getLight().direction
+    const reach = cascadeEnd(shadows, cascade) + crowdShadowReach(way, camera ? looking : null)
+    // The camera's own view, where the shadows must fall to be seen.
+    const seeing = camera?.getTransformationMatrix?.()
+    if (seeing) {
+      Frustum.GetPlanesToRef(seeing, seen)
+    }
+    const seenShadow = (mesh: AbstractMesh) => {
+      if (!seeing || floor === undefined || !shadowCasterCulling.enabled) {
+        return true
+      }
+      const { minimumWorld, maximumWorld } = mesh.getBoundingInfo().boundingBox
+      return sunShadowInView(minimumWorld, maximumWorld, way, floor, seen)
+    }
     for (let index = 0; index < count; index++) {
       const mesh = casters[index]
-      if (mesh && (mesh.alwaysSelectAsActiveMesh ? within(nearestDepth(mesh), reach) : mesh.isInFrustum(view))) {
+      if (
+        mesh &&
+        (mesh.alwaysSelectAsActiveMesh ? within(nearestDepth(mesh), reach) : mesh.isInFrustum(view) && seenShadow(mesh))
+      ) {
         inView.push(mesh)
       }
     }
@@ -316,7 +343,7 @@ function createShadows(
   const casters = shadowCasters(scene)
   if (shadowMap) {
     shadowMap.renderList = casters
-    shadowMap.getCustomRenderList = castersInCascade(shadows)
+    shadowMap.getCustomRenderList = castersInCascade(shadows, lowestGround(map.heights))
   }
   return shadows
 }

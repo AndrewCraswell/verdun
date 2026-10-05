@@ -236,6 +236,41 @@ describe("castersInCascade", () => {
     expect(cull(0, casters, casters.length)).toEqual([near, close, far, unmeasured])
   })
 
+  it("leaves out casters in a slice whose shadows can't fall within the camera's own view", () => {
+    const { scene } = field()
+    let sun = sunFrom(90)
+    // The camera sees the ground from x -10 to 0 and z -10 to 10, from 100 m below to 100 m above.
+    const seeing = Matrix.FromValues(0.2, 0, 0, 0, 0, 0, 0.01, 0, 0, 0.1, 0, 0, 1, 0, 0, 1)
+    const camera = { ...looking(new Vector3(0, -1, 0)), getTransformationMatrix: () => seeing }
+    const shadows = {
+      ...SPLIT,
+      camera,
+      getCascadeTransformMatrix: () => transform,
+      getLight: () => ({ direction: sun })
+    }
+    const cull = castersInCascade(shadows, -1)
+    const box = (name: string, x: number, height: number) => {
+      const mesh = CreateBox(name, { width: 1, depth: 1, height }, scene)
+      mesh.position.set(x, height / 2 - 0.5, 0)
+      mesh.computeWorldMatrix(true)
+      return mesh
+    }
+    const seen = box("in view", -5, 1)
+    const aside = box("beside the view", 5, 1)
+    const tall = box("tall beside the view", 5, 30)
+    const crowd = box("crowd", 5, 1)
+    crowd.alwaysSelectAsActiveMesh = true
+    const casters = [seen, aside, tall, crowd]
+
+    // The sun overhead: every shadow falls straight down, and only what's in view shades anything seen.
+    expect(cull(0, casters, casters.length)).toEqual([seen, crowd])
+    // The sun low in the east: the tall one's shadow falls 30 m west, across the view; the short one's 1 m.
+    sun = new Vector3(-1, -1, 0)
+    expect(cull(0, casters, casters.length)).toEqual([seen, tall, crowd])
+    // Without the lowest ground given, how far a shadow falls isn't known: all are kept.
+    expect(castersInCascade(shadows)(0, casters, casters.length)).toEqual(casters)
+  })
+
   it("reaches only as far toward the camera as the way it looks lets the shadows fall", () => {
     const { scene } = field()
     let forward = new Vector3(1, 0, 0)

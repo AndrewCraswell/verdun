@@ -45,6 +45,7 @@ import type { KitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
 import { useHeightFog } from "./level/particle-fog.ts"
 import { selectEnabledMeshes } from "./render/active-meshes.ts"
+import { shadowCasterCulling } from "./render/shadow-reach.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
@@ -435,7 +436,8 @@ export async function startBattle(
         tracers,
         grenades,
         trace: stats.tracer,
-        snapshots
+        snapshots,
+        shadowCasterCulling
       }
     })
     const { installInspectorToggle } = await import("./dev/inspector.ts")

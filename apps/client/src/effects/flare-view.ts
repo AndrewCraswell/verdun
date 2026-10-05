@@ -7,7 +7,8 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Frustum } from "@babylonjs/core/Maths/math.frustum"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder"
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
@@ -18,6 +19,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, type Simulation } from "@verdun/sim"
 import { setInFog } from "../level/particle-light.ts"
+import { lowestGround, pointShadowInView, shadowCasterCulling } from "../render/shadow-reach.ts"
 import type { GraphicsQuality } from "../settings/graphics.ts"
 
 /**
@@ -312,6 +314,35 @@ export function createFlareView(
   }
   const shadowMap = shadows?.getShadowMap() ?? null
   const none: AbstractMesh[] = []
+  if (shadowMap) {
+    // Of the casters in the leading flare's light, only those whose shadows can fall within the camera's view (see
+    // render/shadow-reach.ts): its light reaches some 280 m across, the camera's view a good deal less, and the ground
+    // and trees beyond the view were most of its draws.
+    const floor = lowestGround(sources.sim.map.heights)
+    const seen = Frustum.GetPlanes(Matrix.Identity())
+    const shown: AbstractMesh[] = []
+    shadowMap.getCustomRenderList = (_layer, list, count) => {
+      shown.length = 0
+      const camera = scene.activeCamera
+      const light = lights[0]
+      // Without a camera to see by, Babylon draws its own list (null).
+      if (!list || !camera || !light || !shadowCasterCulling.enabled) {
+        return null
+      }
+      Frustum.GetPlanesToRef(camera.getTransformationMatrix(), seen)
+      for (let index = 0; index < count; index++) {
+        const mesh = list[index]
+        if (!mesh) {
+          continue
+        }
+        const { minimumWorld, maximumWorld } = mesh.getBoundingInfo().boundingBox
+        if (pointShadowInView(minimumWorld, maximumWorld, light.position, floor, seen)) {
+          shown.push(mesh)
+        }
+      }
+      return shown
+    }
+  }
   // What throws a flare's shadow: found when the first flare casts, once the level is dressed, then kept up to date as
   // meshes come and go rather than sought out every frame.
   let throwing: AbstractMesh[] | null = null
