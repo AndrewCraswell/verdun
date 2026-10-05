@@ -127,3 +127,11 @@ In order, each verified in the browser and committed on its own:
   Drawing the scene in 11-11-10 floats instead of half floats measured 1.5-2.2 ms faster on High, but the Radeon 860M
   truncates rather than rounds as it writes and blends the format: twelve thin layers of mist left blue at 0.31 rather
   than 0.37, a visible darkening and tint. It's kept on the branch `perf/rg11b10`, for GPUs that round.
+- **Performance, the page's share**: by day the main thread now sets the frame by a few milliseconds, and under fire by
+  6-8 ms; at night the GPU does. Encoding the GPU's commands is only about 3 ms of the page's 20; Babylon working
+  through the scene (choosing meshes, the shadow casters, materials' checks and binding, sorting) is about 16 ms, and a
+  barrage's particles add about 4 ms. Keeping each draw as a render bundle (Babylon's non-compatibility mode, on the
+  branch `perf/bundles`) saved 0.6 ms of the page's time by day and none under fire, and cost the GPU 0.6-0.9 ms: not
+  kept. With bundles on, `pnpm perf`'s draw count would see only the bundles, not the draws in them. Switching the sun's
+  shadows off saves 148 draws and 4.6 ms of GPU a frame by day, the costliest single part after the scene itself.
+  `pnpm perf --budget` now holds what each scenario draws to `scripts/perf-budget.json`, recorded on 5 October 2026.
