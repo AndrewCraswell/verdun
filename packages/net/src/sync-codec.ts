@@ -1,10 +1,11 @@
 import type { BattlefieldMap } from "@verdun/map"
-import { Side, type SimSync, type WarSchedule } from "@verdun/sim"
+import { Side, type SimSync, TICK_RATE, type WarSchedule } from "@verdun/sim"
 import { deflateSync, inflateSync } from "fflate"
 import { Packr } from "msgpackr"
 import { apply, diff, isPatch, type Patch } from "./delta.ts"
 import { type GroundMovement, groundFromMovement } from "./ground-movement.ts"
 import { createReckoner, nothingShown, RECKONED_FROM, reckonShown, type Shown } from "./reckoning.ts"
+import { createShotThinning, putShots, shotColumns, takeShots } from "./shots.ts"
 import { sideState, sideSteps } from "./side-view.ts"
 import {
   applyCellPatch,
@@ -587,6 +588,7 @@ export function createSyncEncoder(
   const grid = cellGrid(width, depth, cellSize)
   const unit = positionUnit(Math.max(width, depth))
   const reckoner = createReckoner(unit)
+  const thinShots = createShotThinning(grid, TICK_RATE)
   // What each side (or EVERYONE) was last told of the battle beyond the soldiers.
   const globals = new Map<number, GlobalView>()
   // The soldiers' arrays as sent (each man's position and facing reckoned), and as they are.
@@ -640,6 +642,9 @@ export function createSyncEncoder(
         }
       })
       const farTurn = messages % FAR_EVERY === 0
+      // Shots go apart from the other events, to each player by where they matter (shots.ts).
+      const { steps, shots } = takeShots(sync.steps)
+      const shotGroups = thinShots(shots)
       const sides = new Map<number, SideParts>()
       const sideOf = next["side.value"]
       for (const perspective of sight ? sight.keys() : [EVERYONE]) {
@@ -662,7 +667,7 @@ export function createSyncEncoder(
         globals.set(perspective, view)
         const global = pack({
           v: diff(was, view),
-          s: enemies ? sideSteps(sync.steps, side, knows) : sync.steps,
+          s: enemies ? sideSteps(steps, side, knows) : steps,
           g: sync.ground
         })
         // Men the side has just come to see go whole, as men crossing into a cell do.
@@ -741,9 +746,13 @@ export function createSyncEncoder(
           // Who the player's own men are, when that's changed: they're shown as they are, not reckoned.
           const ownChanged = !had || had.size !== own.length || own.some((soldier) => !had.has(soldier))
           ownFor.set(player, new Set(own))
+          const heard = shotGroups.flatMap((group) =>
+            wanted.has(group.from) || wanted.has(group.to) ? group.all : group.far
+          )
           return packr.pack({
             g: parts.global,
             c: cellParts,
+            ...(heard.length > 0 ? { h: shotColumns(heard, sync.tick, unit) } : {}),
             ...(parts.seen ? { k: parts.seen } : {}),
             ...(mine ? { p: mine } : {}),
             ...(ownChanged ? { o: Int32Array.from(own) } : {})
@@ -879,7 +888,9 @@ function decoderFrom(start: GlobalView, mirrored: Mirrored, format: Format): Syn
         members = membersOf(view, members, field(globalPart.v, "members"))
       }
       show(mirrored, format.unit, view.tick, view.soldiers)
-      return syncOf(view, mirrored, format, globalPart.v, globalPart, members)
+      const steps =
+        message["h"] === undefined ? globalPart.s : putShots(globalPart.s, message["h"], view.tick, format.unit)
+      return syncOf(view, mirrored, format, globalPart.v, { s: steps, g: globalPart.g }, members)
     }
   }
 }

@@ -132,12 +132,12 @@ before, for development and `pnpm perf`.
   the enemy's squads come without their orders or who leads them, and of the enemy's fire missions, reserves, gun crews,
   alarms and guns not yet placed, nothing; of what men did or came to (wounded, fallen, reloading, throwing), only its
   own men's and the enemy in sight's; of a side's news (zero hour, reserves sent up, guns out of shells), only its own;
-  and the enemy out of sight keep the components they had when last seen. Shots, bursts, cut wire and flares go to both,
-  as everyone on the field sees and hears them, and so do the shells in flight, for the sound of the guns and the
-  warning of what's coming in. The sight lines are cast in a worker thread (`sight-thread.ts`) with its own copy of the
-  ground, reshaped by each message's craters, so they cost the room's thread about 0.3 ms a message; until its first
-  answer, or if it fails, the room works them out itself. A line is kept while neither man moves a metre (most of a
-  trench line holds still), and a parapet within 6 m of either end is found from the heights without a cast.
+  and the enemy out of sight keep the components they had when last seen. Bursts, cut wire and flares go to both, as
+  everyone on the field sees and hears them, and so do the shells in flight, for the sound of the guns and the warning
+  of what's coming in. The sight lines are cast in a worker thread (`sight-thread.ts`) with its own copy of the ground,
+  reshaped by each message's craters, so they cost the room's thread about 0.3 ms a message; until its first answer, or
+  if it fails, the room works them out itself. A line is kept while neither man moves a metre (most of a trench line
+  holds still), and a parapet within 6 m of either end is found from the heights without a cast.
 - **What only a man's own squad uses goes to his squad's player alone** (`OWN_SQUAD_ONLY`): breath, rounds, cooldowns,
   move orders, steering, the gas mask's time. Other men are drawn from the rest (their firing from `weapon.firedAt`,
   which changes once a shot, not the cooldown, which counts down every step). Which soldiers have which components goes
@@ -228,9 +228,14 @@ What it said, and what was done about it:
   step's worst p95 fell from 45 to 76 ms to 39.
 - **Telling each side only its own** (squads' orders, fire missions, events) costs the encoding's worker about 2.5 ms a
   message more, 13 ms in all, and sends no fewer bytes: shots, which both sides get, are most of the events.
-- **What players are sent now**, per message: soldiers' arrays about 55% (their anchors, paces and facing 40%), events
-  17%, smoke 5%.
-- **Hosting**: at 100 players a sector sends about 2.8 MB/s (23 Mbit/s), which matters for Railway's egress pricing.
+- **Shots by where they matter** (`shots.ts`): every shot fired from or landing in the cells near a player's men, and of
+  the rest one from each gun every 1.5 s, no more than three between two cells a message, for the distant crackle; each
+  player's as one set of columns, positions in the soldiers' units and heights in centimetres. Shots and the other
+  events fell from 4.6 KB/s to about 2, and each player's share to 26 KB/s (28 at most). Making each player's columns
+  costs the encoding's worker a few milliseconds a message.
+- **What players are sent now**, per message: soldiers' arrays about 60% (their anchors, paces and facing 45%), smoke
+  6%, shots 5%, the other events 4%.
+- **Hosting**: at 100 players a sector sends about 2.5 MB/s (21 Mbit/s), which matters for Railway's egress pricing.
 - **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
   over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
   algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module

@@ -9,6 +9,7 @@ import {
   Shell,
   Side,
   type Simulation,
+  type SimSync,
   soldierArrayLayout,
   soldierIds,
   spawnSoldier,
@@ -251,6 +252,42 @@ describe("the battle's messages", () => {
     steps(sim, source, 2)
     const fresh = encoder.encode(source.take())
     expect(fresh.for("player", to(new Set())).byteLength).toBe(fresh.for("newcomer", to(new Set())).byteLength)
+  })
+
+  it("send every shot near a player's men, and only a few of the rest", () => {
+    const sim = fight()
+    const source = createSyncSource(sim)
+    const encoder = encoderFor(sim)
+    encoder.encode(source.take())
+    const near = decodeJoined(encoder.welcome(0, Side.French, schedule, null), battlefield()).decoder
+    const far = decodeJoined(encoder.welcome(0, Side.French, schedule, null), battlefield()).decoder
+    const shotsIn = (sync: SimSync) =>
+      sync.steps.flatMap((step) => step.events.filter((event) => event.type === "shot")).length
+    let fired = 0
+    let nearShots = 0
+    let farShots = 0
+    // Three men of each side fire every step, from their trenches across the wire.
+    const firing = [...(sim.squads[0]?.members ?? []).slice(0, 3), ...(sim.squads[1]?.members ?? []).slice(0, 3)]
+    for (let message = 0; message < 200; message++) {
+      for (let step = 0; step < 2; step++) {
+        stepSimulation(sim)
+        for (const shooter of firing) {
+          const from = { x: sim.soldiers.position.x[shooter] ?? 0, y: 6.5, z: sim.soldiers.position.z[shooter] ?? 0 }
+          sim.events.push({ type: "shot", shooter, target: -1, hit: false, from, to: { ...from, z: 150 - from.z } })
+        }
+        source.stepped()
+      }
+      const sync = source.take()
+      fired += shotsIn(sync)
+      const encoded = encoder.encode(sync)
+      nearShots += shotsIn(near.decode(encoded.for("near", to(EVERY_CELL))))
+      farShots += shotsIn(far.decode(encoded.for("far", to(new Set()))))
+    }
+
+    expect(fired).toBeGreaterThan(20)
+    expect(nearShots).toBe(fired)
+    expect(farShots).toBeGreaterThan(0)
+    expect(farShots).toBeLessThan(fired / 2)
   })
 
   it("send a quiet battle in a few bytes", () => {
