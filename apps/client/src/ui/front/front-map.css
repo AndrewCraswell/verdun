@@ -1,0 +1,521 @@
+/*
+ * The war map: a staff map on paper, in the manner of the plans directeurs, beside a panel in the menus' ink. Our line
+ * in blue and theirs in red, as the period maps drew them; inked dark enough to read on the paper, with the HUD's
+ * colour-vision sets carried over.
+ */
+.front-page {
+  --paper: #e9e0c8;
+  --paper-deep: #ddd1b3;
+  --paper-ink: #2c261b;
+  --paper-ink-2: rgb(44 38 27 / 72%);
+  --paper-ink-3: rgb(44 38 27 / 48%);
+  --paper-rule: rgb(44 38 27 / 14%);
+  --paper-water: #5d7f99;
+  --paper-sea: rgb(93 127 153 / 22%);
+  --paper-ours: #2f5d9e;
+  --paper-theirs: #b0341f;
+  --paper-brass: #8a6420;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17em, 22em);
+  height: 100%;
+}
+
+.ui[data-vision="deuteranopia"] .front-page,
+.ui[data-vision="protanopia"] .front-page {
+  --paper-ours: #1f5fc4;
+  --paper-theirs: #b0610b;
+}
+
+.ui[data-vision="tritanopia"] .front-page {
+  --paper-ours: #187c86;
+  --paper-theirs: #c2264a;
+}
+
+.front-map {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgb(120 96 52 / 18%) 100%), var(--paper);
+  color: var(--paper-ink);
+}
+
+.front-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.front-svg path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.front-graticule-line {
+  stroke: var(--paper-rule);
+  stroke-width: 0.6px;
+}
+
+.front-sea-line {
+  stroke: var(--paper-sea);
+  stroke-width: 9px;
+}
+
+.front-coast-line {
+  stroke: var(--paper-ink-2);
+  stroke-width: 1.1px;
+}
+
+.front-border-line {
+  stroke: var(--paper-ink-3);
+  stroke-width: 1px;
+  stroke-dasharray: 6 3 1.5 3;
+}
+
+.front-river-line {
+  stroke: var(--paper-water);
+  stroke-width: 1.1px;
+  opacity: 0.8;
+}
+
+.front-page[data-view="verdun"] .front-river-line {
+  stroke-width: 2.2px;
+}
+
+.front-line {
+  stroke-width: 2.4px;
+}
+
+.front-line--ours {
+  stroke: var(--paper-ours);
+}
+
+.front-line--theirs {
+  stroke: var(--paper-theirs);
+}
+
+.front-line--before {
+  stroke: var(--paper-theirs);
+  stroke-width: 1.4px;
+  stroke-dasharray: 2 4;
+  opacity: 0.7;
+}
+
+.front-page[data-view="verdun"] .front-line {
+  stroke-width: 3px;
+}
+
+/* Marks: placed in pixels over the drawing, centred on their spot. */
+.front-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.front-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+}
+
+.front-town,
+.front-village,
+.front-fort,
+.front-river-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin: -0.5em 0 0 -0.2em;
+  font: 500 0.72em/1 var(--ui-font);
+  letter-spacing: 0.02em;
+  color: var(--paper-ink-2);
+  text-shadow:
+    0 0 2px var(--paper),
+    0 0 4px var(--paper);
+}
+
+.front-town::before,
+.front-village::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  background: var(--paper-ink-2);
+  border-radius: 50%;
+}
+
+.front-town--capital {
+  font: 600 0.92em/1 var(--ui-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper-ink);
+}
+
+.front-town--capital::before {
+  width: 7px;
+  height: 7px;
+  background: none;
+  border: 2px solid var(--paper-ink);
+}
+
+.front-town--occupied {
+  font-style: italic;
+  color: var(--paper-ink-3);
+}
+
+.front-village {
+  font-size: 0.68em;
+  color: var(--paper-ink-3);
+}
+
+.front-village::before {
+  width: 4px;
+  height: 4px;
+}
+
+/* The forts round Verdun were polygonal works: a pentagon. */
+.front-fort {
+  font-size: 0.68em;
+  font-weight: 600;
+  color: var(--paper-ink-2);
+}
+
+.front-fort::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  background: var(--paper-ink-2);
+  clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
+}
+
+.front-river-name {
+  font: italic 500 0.82em/1 var(--ui-display);
+  letter-spacing: 0.2em;
+  color: var(--paper-water);
+}
+
+.front-theatre,
+.front-sector {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin: -0.75em 0 0 -0.75em;
+  padding: 0.25em 0.55em 0.25em 0.3em;
+  font: 600 0.82em/1 var(--ui-font);
+  color: var(--paper-ink);
+  background: rgb(233 224 200 / 78%);
+  border: 1px solid var(--paper-ink-3);
+  border-radius: 1em;
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    background-color var(--ui-fast) var(--ui-ease),
+    border-color var(--ui-fast) var(--ui-ease);
+}
+
+.front-theatre:hover,
+.front-sector:hover,
+.front-theatre[aria-pressed="true"],
+.front-sector[aria-pressed="true"] {
+  background: #fff8e6;
+  border-color: var(--paper-ink);
+}
+
+.front-theatre:focus-visible,
+.front-sector:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--paper-ink);
+}
+
+.front-theatre-dot,
+.front-sector-dot {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid var(--paper-ink-2);
+  border-radius: 50%;
+}
+
+.front-theatre--open .front-theatre-dot,
+.front-sector--open .front-sector-dot {
+  background: var(--paper-brass);
+  border-color: var(--paper-brass);
+  box-shadow: 0 0 0 3px rgb(138 100 32 / 22%);
+}
+
+.front-theatre--open,
+.front-sector--open {
+  border-color: var(--paper-brass);
+}
+
+.front-theatre--off-season {
+  display: none;
+}
+
+.front-sector {
+  font-size: 0.78em;
+}
+
+/* Over the map: what it shows, the way back out, the key and the scale. */
+.front-caption {
+  position: absolute;
+  left: 1em;
+  top: 0.8em;
+  font: italic 400 1.05em/1.2 var(--ui-display);
+  color: var(--paper-ink);
+}
+
+.front-map .front-back {
+  position: absolute;
+  right: 1em;
+  top: 0.8em;
+  color: var(--paper-ink);
+  background: rgb(233 224 200 / 90%);
+  border-color: var(--paper-ink-3);
+}
+
+.front-map .front-back:hover {
+  background: #fff8e6;
+}
+
+.front-legend {
+  position: absolute;
+  left: 1em;
+  bottom: 0.9em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1.1em;
+  max-width: calc(100% - 12em);
+  padding: 0.45em 0.7em;
+  font-size: 0.74em;
+  color: var(--paper-ink-2);
+  background: rgb(233 224 200 / 88%);
+  border: 1px solid var(--paper-rule);
+}
+
+.front-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.front-legend-item::before {
+  content: "";
+  width: 1.6em;
+  height: 3px;
+}
+
+.front-legend-item--ours::before {
+  background: var(--paper-ours);
+}
+
+.front-legend-item--theirs::before {
+  background: var(--paper-theirs);
+}
+
+.front-legend-item--before::before {
+  height: 0;
+  border-top: 2px dotted var(--paper-theirs);
+}
+
+.front-legend-item--open::before,
+.front-legend-item--closed::before {
+  width: 0.8em;
+  height: 0.8em;
+  border: 2px solid var(--paper-ink-2);
+  border-radius: 50%;
+}
+
+.front-legend-item--open::before {
+  background: var(--paper-brass);
+  border-color: var(--paper-brass);
+}
+
+.front-scale {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2em;
+  font-size: 0.72em;
+  color: var(--paper-ink-2);
+}
+
+.front-scale-bar {
+  height: 5px;
+  border: 1.5px solid var(--paper-ink-2);
+  border-top: 0;
+}
+
+/* The panel beside the map. */
+.front-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  min-height: 0;
+  padding: 1.1em 1.3em 1.4em;
+  overflow-y: auto;
+  border-left: 1px solid var(--ui-hairline);
+}
+
+.front-seasons {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgb(0 0 0 / 30%);
+  border: 1px solid var(--ui-hairline);
+}
+
+.front-season {
+  position: relative;
+  flex: 1;
+  padding: 0.35em 0;
+  font: 600 0.88em var(--ui-font);
+  color: var(--ui-ink-3);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.front-season:hover {
+  color: var(--ui-ink);
+}
+
+.front-season[aria-selected="true"] {
+  color: #1a1610;
+  background: var(--ui-brass);
+}
+
+.front-season--now::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.front-season:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus);
+}
+
+.front-season-note {
+  margin: 0;
+  font-size: 0.88em;
+  color: var(--ui-ink-2);
+}
+
+.front-theatres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+}
+
+.front-theatre-item,
+.front-sector-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.3em 0.7em;
+  font: 500 0.86em var(--ui-font);
+  color: var(--ui-ink);
+  background: rgb(239 231 211 / 6%);
+  border: 1px solid var(--ui-hairline-strong);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.front-theatre-item:hover,
+.front-sector-item:hover {
+  background: rgb(239 231 211 / 12%);
+}
+
+.front-theatre-item:focus-visible,
+.front-sector-item:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus);
+}
+
+.front-theatre-item-state {
+  font-size: 0.82em;
+  font-weight: 600;
+  color: var(--ui-brass-bright);
+}
+
+.front-detail {
+  padding-top: 1em;
+  border-top: 1px solid var(--ui-hairline);
+}
+
+.front-detail-kicker {
+  font-size: 0.7em;
+  font-weight: 600;
+  font-stretch: 112%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-brass);
+}
+
+.front-detail-title {
+  margin: 0.15em 0 0.4em;
+  font: 400 1.7em/1.1 var(--ui-display);
+}
+
+.front-detail-key {
+  margin: 0 0 0.3em;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.front-detail-text,
+.front-hint {
+  margin: 0 0 0.8em;
+  font-size: 0.9em;
+  color: var(--ui-ink-2);
+}
+
+.front-detail-status {
+  margin: 0 0 0.9em;
+  font-size: 0.84em;
+  color: var(--ui-ink-3);
+}
+
+.front-detail-status--open {
+  color: var(--ui-brass-bright);
+}
+
+.front-enter {
+  width: 100%;
+  padding: 0.7em 1em;
+  font-size: 1em;
+}
+
+.front-sector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.front-sector-item {
+  justify-content: space-between;
+}
+
+.front-sector-item-state {
+  font-size: 0.82em;
+  color: var(--ui-ink-3);
+}
+
+.front-sector-item--open .front-sector-item-state {
+  font-weight: 600;
+  color: var(--ui-brass-bright);
+}

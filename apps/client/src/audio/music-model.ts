@@ -8,9 +8,12 @@ import type { SquadOrder } from "@verdun/sim"
 
 export type Mood = "theme" | "waiting" | "dread" | "attack"
 
+/** The main theme, La Verdun: the main menu's music, and the battle's first track when the menu hasn't played it. */
+export const THEME = "la-verdun"
+
 /** Each mood's tracks, by the slug scripts/build-music.mjs gives each master. */
 export const MOOD_TRACKS: Readonly<Record<Mood, readonly string[]>> = {
-  theme: ["la-verdun"],
+  theme: [THEME],
   waiting: ["awaiting-the-whistle", "tactical-silence", "sacred-stillness"],
   dread: ["trench-dread", "four-descending-notes", "mournful-ostinato", "the-unresolved-drum"],
   attack: ["the-unresolved-charge", "the-unresolved-bugle-call", "muddy-forward-momentum", "the-advance-gains-ground"]
@@ -76,11 +79,20 @@ export interface MusicModel {
   readonly playing: Mood | null
 }
 
+export interface MusicModelOptions {
+  /** Open on the theme; false starts with a track for the mood, after the usual silence. */
+  readonly theme?: boolean
+}
+
 /**
  * The soundtrack's choices among `available` tracks: those the build has. A mood with none of its tracks built borrows
  * from the others, so a partial build still plays.
  */
-export function createMusicModel(available: readonly string[], random: () => number = Math.random): MusicModel {
+export function createMusicModel(
+  available: readonly string[],
+  random: () => number = Math.random,
+  { theme: opensOnTheme = true }: MusicModelOptions = {}
+): MusicModel {
   const built = new Set(available)
   const tracks = (mood: Mood): readonly string[] => {
     const own = MOOD_TRACKS[mood].filter((track) => built.has(track))
@@ -106,8 +118,9 @@ export function createMusicModel(available: readonly string[], random: () => num
   }
 
   let playing: Mood | null = null
-  let silence = FIRST_SILENCE
-  let theme = true
+  // After the menu's theme, the battle opens on its own sounds for a while before the first track.
+  let silence = opensOnTheme ? FIRST_SILENCE : SILENCE[0] + random() * (SILENCE[1] - SILENCE[0])
+  let theme = opensOnTheme
   const start = (mood: Mood, fade: number): MusicCue | null => {
     const track = deal(mood)
     if (track === undefined) {

@@ -96,6 +96,14 @@ describe("createMusicModel", () => {
     expect(model.playing).toBe("attack")
   })
 
+  it("opens on a track for the mood, after a silence, when the menu has played the theme", () => {
+    const model = createMusicModel(ALL, () => 0, { theme: false })
+    for (let second = 0; second < 24; second++) {
+      expect(model.update(1, QUIET, false)).toBeNull()
+    }
+    expect(model.update(1, QUIET, false)?.mood).toBe("waiting")
+  })
+
   it("skips the theme when the battle opens with an attack", () => {
     expect(next(createMusicModel(ALL), ATTACK)?.mood).toBe("attack")
   })

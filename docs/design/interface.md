@@ -66,9 +66,14 @@ colours, sizes and timings are tokens.
 The grenade throw (H9, W7) is built too: hold Q for the arc, reach, scatter and blast, and the grenade itself is drawn
 from the hand to where it bursts.
 
-Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), the options screen
-(S3; the settings exist, `hud.configure`), the sector map as a screen (S4), the squad book (S5) and every stage 2-3
-screen. The menu (S1) still only lists the controls.
+The menus are built too, in `apps/client/src/ui/`: the game opens on a front door (a first cut of S13) with the battle
+loading behind it, and Esc opens the same list over the battle (S1). Both open the war map (a first cut of S15: the
+Western Front in each season, the theatres each season opens, Verdun's sectors, Fleury playable), the options (S3:
+display, sound, interface, accessibility), the controls with rebinding (S2) and the credits. `?play` and `?debug` go
+straight into the line.
+
+Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), the sector map as a
+screen (S4), the squad book (S5), the loading screen's line of history (S6) and the rest of stage 2-3's screens.
 
 ## Principles
 
@@ -735,6 +740,11 @@ or replacements are on their way.
 
 **Stage** Now (redesign). **Kind** Screen.
 
+**Built** (`ui/menu.ts`): Esc opens a list down the left over the darkened battle: back to the battle, the front (the
+war map), options, controls, credits, restart the skirmish, and leave for the front door. Pages open beside the list;
+Esc closes a page, then the menu. The front door the game opens on shares the list, with "Into the line" in place of
+"Back to the battle", and shows the loading on it until the battle is ready. Below: the spec as first written.
+
 Today Esc opens a dimmed backdrop and a panel listing the controls with "Back to the battle" (`menu.ts`). The battle
 carries on behind it, and the menu takes key presses away from the game while open.
 
@@ -780,6 +790,11 @@ Ctrl+W closes the tab.
 
 **Stage** P (first set), later as noted. **Kind** Screen, inside the menu. Settings persist in the browser (local
 storage today; on the account in stage 3) and apply at once where they can.
+
+**Built** (`ui/options.ts`), the settings that exist: graphics (low, high) and renderer (automatic, WebGL), each on
+reload; render scale and full screen at once; the five volumes; interface scale, backing and the prompts (with "show
+them again"); colour vision, high contrast and screen effects' strength. Not yet: frame-rate cap, brightness, per-zone
+visibility, captions, hold-or-toggle, camera speeds.
 
 **Display**
 

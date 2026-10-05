@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs"
 import type { ServerResponse } from "node:http"
@@ -157,8 +158,20 @@ function music(): Plugin {
   }
 }
 
-export default defineConfig({
+/** The build's name for the menu's footer: the commit it was built from, or "dev" where git can't say. */
+function buildName(): string {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim()
+  } catch {
+    return "dev"
+  }
+}
+
+export default defineConfig(({ command }) => ({
   plugins: [levelKit(), assetPack(), music()],
+  define: {
+    "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev")
+  },
   server: {
     port: 5173,
     strictPort: true,
@@ -172,4 +185,4 @@ export default defineConfig({
   build: {
     target: "es2024"
   }
-})
+}))

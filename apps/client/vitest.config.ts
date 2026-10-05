@@ -29,6 +29,11 @@ export default defineConfig({
         "src/hud/elements/**",
         "src/control/camera-rig.ts",
         "src/ui/menu.ts",
+        "src/ui/options.ts",
+        "src/ui/controls.ts",
+        "src/ui/credits.ts",
+        "src/ui/fields.ts",
+        "src/ui/front/front-map.ts",
         "src/debug/dock.ts",
         "src/debug/stats.ts"
       ],

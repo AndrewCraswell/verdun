@@ -49,10 +49,10 @@ Decisions still to make. Move each to the relevant doc once decided.
 
 ## Technical
 
-- **UI library for menus, HUD and war map.** No Fluent UI. Leaning **shadcn/ui** (Radix + Tailwind): we own the
-  component source, so it can be restyled to the period art direction instead of looking like a web app. Mantine is the
-  faster, batteries-included alternative. The in-game HUD itself should stay custom and minimal. Decide when the first
-  HUD lands (M2–M3); nothing is installed until then.
+- **UI library for menus, HUD and war map.** No Fluent UI. The HUD and the first menus (front door, options, controls,
+  war map) are plain DOM and CSS on the HUD's tokens, with no library, which has been enough so far. Revisit
+  **shadcn/ui** (Radix + Tailwind) or Mantine when stage 3's screens (communiqué, service record, regiment) need tables,
+  forms and dialogs in quantity.
 - **Terrain resolution.** 0.5 m cells for the simulation is the working assumption
   ([architecture](architecture.md#world)); confirm with line-of-sight and crater tests.
 - **Map authoring.** Tiled first, in-game editor later ([editor plan](tooling.md#editor-plan)). Confirm Tiled polylines

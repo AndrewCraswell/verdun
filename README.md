@@ -75,9 +75,11 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | J                               | Dev builds only: mark where soldiers have fallen                               |
 | \`                              | Dev builds only: open Babylon's Inspector                                      |
 
-Dev builds also read the address: `?webgl` draws with WebGL instead of WebGPU, `?war=1916-02-21` puts today's turn in
-the war's week of that date (`?war=reset` forgets it), and `?standto=0` plays straight through the stand-to after each
-daily cutoff. See [time and weather](docs/time-and-weather.md#the-wars-calendar).
+The game opens on its front door, with the battle loading behind it; `?play` goes straight into the line (as does
+`?debug`, for measuring). Dev builds also read the address: `?webgl` draws with WebGL instead of WebGPU,
+`?war=1916-02-21` puts today's turn in the war's week of that date (`?war=reset` forgets it), and `?standto=0` plays
+straight through the stand-to after each daily cutoff. See
+[time and weather](docs/time-and-weather.md#the-wars-calendar).
 
 ## Credits
 
@@ -90,6 +92,8 @@ Weather of 1914–1918: NOAA-CIRES-DOE [20th Century Reanalysis version 3](https
 by the National Oceanic and Atmospheric Administration Climate Program Office, and by the NOAA Earth System Research
 Laboratory Physical Sciences Laboratory. Corrected with Météo-France daily station records, under
 [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
+
+The map of the Western Front: [Natural Earth](https://www.naturalearthdata.com), in the public domain.
 
 Type: [Archivo](https://github.com/Omnibus-Type/Archivo), © 2020 The Archivo Project Authors, and
 [Bodoni Moda](https://github.com/indestructible-type/Bodoni), © 2020 The Bodoni Moda Project Authors, both under the

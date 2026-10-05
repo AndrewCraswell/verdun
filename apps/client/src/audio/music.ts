@@ -1,7 +1,7 @@
 import type { Scene } from "@babylonjs/core/scene"
 import { isInTrench, type Simulation, type Squad } from "@verdun/sim"
 import { getMixer } from "./mixer.ts"
-import { createMusicModel, isAttacking, type Mood, type MusicCue } from "./music-model.ts"
+import { CUT_FADE, createMusicModel, FADE_IN, isAttacking, type Mood, type MusicCue, THEME } from "./music-model.ts"
 
 /**
  * Where the soundtrack built by scripts/build-music.mjs is: served by the dev server, and copied into a build when it has
@@ -38,6 +38,88 @@ async function builtTracks(): Promise<string[] | null> {
   }
 }
 
+/** Fades a track out over `fade` seconds, then lets go of its stream. */
+function fadeOut(context: AudioContext, old: Playing, fade: number): void {
+  old.gain.gain.setTargetAtTime(0, context.currentTime, fade / 3)
+  setTimeout(
+    () => {
+      old.element.pause()
+      old.source.disconnect()
+      old.gain.disconnect()
+      old.element.removeAttribute("src")
+      old.element.load()
+    },
+    fade * 1000 + 500
+  )
+}
+
+/** Streams `track` through the music bus, fading in over `fade` seconds. One that won't load or play counts as ended. */
+function stream(track: string, fade: number, loop = false): Playing {
+  const mixer = getMixer()
+  const { context } = mixer
+  const element = new Audio(`${MUSIC_ROUTE}${track}.ogg`)
+  element.preload = "auto"
+  element.loop = loop
+  const source = context.createMediaElementSource(element)
+  const gain = context.createGain()
+  gain.gain.value = 0
+  source.connect(gain).connect(mixer.music)
+  gain.gain.setTargetAtTime(1, context.currentTime, fade / 3)
+  const playing: Playing = { track, element, source, gain, ended: false }
+  const over = () => {
+    playing.ended = true
+  }
+  element.addEventListener("ended", over)
+  element.addEventListener("error", () => {
+    console.warn(`Music ${track} couldn't be played; rebuild the soundtrack with pnpm sound:music.`)
+    over()
+  })
+  element.play().catch(over)
+  return playing
+}
+
+export interface MenuMusic {
+  /** Fades the theme out over `fade` seconds (2.5 by default), as the battle begins. */
+  stop(fade?: number): void
+}
+
+/**
+ * The theme, *La Verdun*, looping for the main menu. Browsers keep audio off until the player clicks or presses a key,
+ * so it starts then. Resolves null when no soundtrack has been built.
+ */
+export async function startMenuMusic(): Promise<MenuMusic | null> {
+  const tracks = await builtTracks()
+  if (!tracks?.includes(THEME)) {
+    return null
+  }
+  const { context } = getMixer()
+  let playing: Playing | null = null
+  let stopped = false
+  const begin = () => {
+    if (!stopped && !playing && context.state === "running") {
+      playing = stream(THEME, FADE_IN, true)
+      context.removeEventListener("statechange", begin)
+    }
+  }
+  context.addEventListener("statechange", begin)
+  begin()
+  return {
+    stop(fade = CUT_FADE) {
+      stopped = true
+      context.removeEventListener("statechange", begin)
+      if (playing) {
+        fadeOut(context, playing, fade)
+        playing = null
+      }
+    }
+  }
+}
+
+export interface MusicOptions {
+  /** Open on the theme: false when the main menu has just played it. */
+  readonly theme?: boolean
+}
+
 /**
  * Plays the soundtrack for the player's squad: the theme, then tracks for the battle's mood (music-model.ts), streamed
  * one at a time through the mixer's music bus. Resolves null when no soundtrack has been built, and the game is silent
@@ -47,7 +129,8 @@ export async function startMusic(
   scene: Scene,
   sim: Simulation,
   squad: Squad,
-  fighting: () => number
+  fighting: () => number,
+  { theme = true }: MusicOptions = {}
 ): Promise<Music | null> {
   const tracks = await builtTracks()
   if (!tracks) {
@@ -55,44 +138,12 @@ export async function startMusic(
   }
   const mixer = getMixer()
   const { context } = mixer
-  const model = createMusicModel(tracks)
+  const model = createMusicModel(tracks, Math.random, { theme })
   let playing: Playing | null = null
-
-  const fadeOut = (old: Playing, fade: number) => {
-    old.gain.gain.setTargetAtTime(0, context.currentTime, fade / 3)
-    setTimeout(
-      () => {
-        old.element.pause()
-        old.source.disconnect()
-        old.gain.disconnect()
-        // Let go of the stream.
-        old.element.removeAttribute("src")
-        old.element.load()
-      },
-      fade * 1000 + 500
-    )
-  }
   const play = (cue: MusicCue) => {
-    const element = new Audio(`${MUSIC_ROUTE}${cue.track}.ogg`)
-    element.preload = "auto"
-    const source = context.createMediaElementSource(element)
-    const gain = context.createGain()
-    gain.gain.value = 0
-    source.connect(gain).connect(mixer.music)
-    gain.gain.setTargetAtTime(1, context.currentTime, cue.fade / 3)
-    const next: Playing = { track: cue.track, element, source, gain, ended: false }
-    // A track that won't load or play counts as over, and the model moves on to the next.
-    const over = () => {
-      next.ended = true
-    }
-    element.addEventListener("ended", over)
-    element.addEventListener("error", () => {
-      console.warn(`Music ${cue.track} couldn't be played; rebuild the soundtrack with pnpm sound:music.`)
-      over()
-    })
-    element.play().catch(over)
+    const next = stream(cue.track, cue.fade)
     if (playing) {
-      fadeOut(playing, cue.fade)
+      fadeOut(context, playing, cue.fade)
     }
     playing = next
   }
@@ -123,7 +174,7 @@ export async function startMusic(
     dispose() {
       observer.remove()
       if (playing) {
-        fadeOut(playing, 1)
+        fadeOut(context, playing, 1)
         playing = null
       }
     }

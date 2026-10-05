@@ -17,7 +17,7 @@ import {
   stepSimulation
 } from "@verdun/sim"
 import { createBattleSounds } from "./audio/battle-sounds.ts"
-import { startMusic } from "./audio/music.ts"
+import { type Music, startMenuMusic, startMusic } from "./audio/music.ts"
 import { createBattlefieldScene } from "./battlefield-scene.ts"
 import { createBrowserInput } from "./control/browser-input.ts"
 import { createPlayerControl } from "./control/player-control.ts"
@@ -41,6 +41,7 @@ import { openKitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
 import { useHeightFog } from "./level/particle-fog.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
+import { displaySettings } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
@@ -49,13 +50,14 @@ import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
 import { createMenu } from "./ui/menu.ts"
 
 /**
- * WebGPU first, WebGL2 where the browser lacks it. Dev builds take `?webgl` to force WebGL2, for testing it. `?gputime`
+ * WebGPU first, WebGL2 where the browser lacks it or the player chose it in the options. Dev builds also take `?webgl`
+ * to force WebGL2, for testing it. `?gputime`
  * times each frame's passes on the GPU, where the browser allows timestamp queries (see scripts/perf.mjs): asked for at
  * the start, since each render target takes its timer as it's made.
  */
 async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
   const parameters = new URLSearchParams(location.search)
-  const forceWebGL = import.meta.env.DEV && parameters.has("webgl")
+  const forceWebGL = displaySettings().current.renderer === "webgl" || (import.meta.env.DEV && parameters.has("webgl"))
   if (!forceWebGL && (await WebGPUEngine.IsSupportedAsync)) {
     const gpuTime = parameters.has("gputime")
     const engine = new WebGPUEngine(canvas, {
@@ -75,7 +77,25 @@ async function start(): Promise<void> {
     throw new Error("Battlefield canvas is missing from the page")
   }
 
+  // The front door the game opens on, with the battle coming up behind it; ?play goes straight into the line, and so
+  // does ?debug, for measuring (scripts/perf.mjs).
+  const address = new URLSearchParams(location.search)
+  const frontDoor = !address.has("play") && !address.has("debug")
+  const build: unknown = import.meta.env.VERDUN_BUILD
+  const menu = createMenu(document.body, {
+    development: import.meta.env.DEV,
+    frontDoor,
+    build: typeof build === "string" ? build : "dev"
+  })
+  // The theme plays at the front door, and fades as the player goes into the line.
+  if (frontDoor) {
+    void startMenuMusic().then((theme) => menu.entered.then(() => theme?.stop()))
+  }
+  menu.progress("Starting the renderer", 0.04)
   const engine = await createEngine(canvas)
+  // The battle draws at the player's render scale, changed at once from the options.
+  displaySettings().listen(({ renderScale }) => engine.setHardwareScalingLevel(1 / renderScale))
+  menu.progress("Surveying the ground", 0.12)
   // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
   const elevation = decodeElevation(await (await fetch(elevationUrl)).arrayBuffer())
   const map = generateFleurySector({ seed: 1916, elevation })
@@ -83,6 +103,7 @@ async function start(): Promise<void> {
   // the battle needs it; the seed drives gusts and showers.
   const weatherSeed = 1916
   const region = WEATHER_REGIONS.find((name) => name === map.weatherRegion) ?? "fleury"
+  menu.progress("Reading the war's weather", 0.2)
   await loadWeatherRegion(region)
   const sim = createSimulation({
     map,
@@ -102,6 +123,7 @@ async function start(): Promise<void> {
     })
   )
 
+  menu.attach({ war, renderer: engine.isWebGPU ? "WebGPU" : "WebGL" })
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
   // The war map's view shows the enemy only where the fog of war does: the men our side can see.
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE, {
@@ -120,7 +142,6 @@ async function start(): Promise<void> {
     : null
   stats.watchSnapshots(snapshots)
   bucketInstanceCounts(snapshots !== null)
-  const menu = createMenu(document.body, { development: import.meta.env.DEV })
   // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
   const kitFiles = openKitFiles()
   // The real ground round the sector out to the horizon: a 3 km survey centred on it (scripts/fetch-elevation.mjs).
@@ -129,6 +150,7 @@ async function start(): Promise<void> {
     sectorBase: elevation.base,
     sectorOrigin: { x: 1200, z: 1300 }
   }
+  menu.progress("Dressing the battlefield", 0.3)
   const level = await dressLevel(view, map, {
     wind: () => sim.wind,
     files: kitFiles,
@@ -137,6 +159,7 @@ async function start(): Promise<void> {
     weather: () => sim.environment.weather
   })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
+  menu.progress("Bringing up the battalion", 0.6)
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
   kitFiles?.close?.()
   const soldiers = soldierKit ? createSoldierCrowd(view.scene, sim, soldierKit) : null
@@ -162,7 +185,6 @@ async function start(): Promise<void> {
   const stepper = createFixedStepper(STEP_SECONDS)
   // The graphics setting (Low drops the costliest effects), and the low-lying fog, on for now only with ?heightfog
   // until it's been measured: it replaces Babylon's distance fog on the ground, props, soldiers and smoke together.
-  const address = new URLSearchParams(location.search)
   const quality = graphicsQuality(browserStore(), address)
   const lowFog = address.has("heightfog")
   const environment = createEnvironmentView(view.scene, sim, view.camera, {
@@ -206,6 +228,7 @@ async function start(): Promise<void> {
   })
   const markers = createSquadMarkers(view.scene, sim, playerSquad)
   // The battle's sound effects, heard from the camera, when the kit has them.
+  menu.progress("Listening for the guns", 0.8)
   const sounds = level?.sfx
     ? await createBattleSounds(level.sfx, sim, view.camera, {
         soldier: () => (control.soldier >= 0 ? control.soldier : null),
@@ -213,8 +236,13 @@ async function start(): Promise<void> {
         lightning: environment?.onLightning
       })
     : null
-  // The soundtrack, following the player's squad, when it has been built (pnpm sound:music).
-  const music = await startMusic(view.scene, sim, playerSquad, () => sounds?.fighting() ?? 0)
+  // The soundtrack, following the player's squad, when it has been built (pnpm sound:music): from when the player goes
+  // into the line, and not opening on the theme again when the front door has just played it.
+  let music: Music | null = null
+  void menu.entered.then(async () => {
+    music = await startMusic(view.scene, sim, playerSquad, () => sounds?.fighting() ?? 0, { theme: !frontDoor })
+  })
+  menu.progress("Plotting what each man can see", 0.9)
   const lineOfSight = await createLineOfSight(map)
   sim.lineOfSight = lineOfSight
   const tracers = createTracers(view.scene, {
@@ -224,7 +252,7 @@ async function start(): Promise<void> {
     quality
   })
   // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
-  tracers.onStrike.add(({ at, time }) => sounds?.strike(at.x, at.z, time))
+  tracers.onStrike.add(({ at, time, on }) => sounds?.strike(at.x, at.z, time, on))
   const explosions = createExplosions(view.scene)
   // Grenades on their way, from the thrower's hand to where they burst.
   const grenades = createGrenadeView(view.scene, { sim, tick: () => sim.tick + stepper.alpha })
@@ -256,7 +284,10 @@ async function start(): Promise<void> {
         environment,
         soldiers,
         sounds,
-        music,
+        get music() {
+          return music
+        },
+        menu,
         night,
         war,
         flares,
@@ -335,6 +366,7 @@ async function start(): Promise<void> {
     stats.update()
   })
   window.addEventListener("resize", () => engine.resize())
+  menu.ready()
 }
 
 start().catch((error: unknown) => {
