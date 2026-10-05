@@ -3,6 +3,7 @@ import { barrageLine } from "./artillery.ts"
 import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
+import { coverNear } from "./cover.ts"
 import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 
@@ -139,8 +140,9 @@ function followSlot(sim: Simulation, leader: EntityId, slot: number): { x: numbe
 }
 
 /**
- * Where a member should stand after an advance: a line running east-west across the target, parallel to the front.
- * Fixed to the front rather than to the direction of travel, so the line stays put as soldiers arrive.
+ * Where a member should be after an advance: his place in a line running east-west across the target, parallel to the
+ * front, or the nearest cover to it (see `coverNear`). Fixed to the front rather than to the direction of travel, so
+ * the line stays put as soldiers arrive.
  */
 function advanceSlot(
   sim: Simulation,
@@ -149,7 +151,8 @@ function advanceSlot(
   count: number
 ): { x: number; z: number } {
   const lateral = (slot - (count - 1) / 2) * FORMATION_SPACING
-  return clampToMap(sim, order.x + lateral, order.z)
+  const place = clampToMap(sim, order.x + lateral, order.z)
+  return coverNear(sim, place.x, place.z)
 }
 
 /**
@@ -174,12 +177,18 @@ function creepSlot(
   return advanceSlot(sim, { x: order.x, z }, slot, count)
 }
 
-/** Whether a creeping barrage has lifted past a squad's objective, or finished. */
+/**
+ * The barrage must be this far past the objective, in metres, before the infantry rush it: its shells fall about 20 m
+ * either side of where they're laid, and men running into the objective as it lifted a metre beyond ran into them.
+ */
+const RUSH_CLEARANCE = 30
+
+/** Whether a creeping barrage has lifted well past a squad's objective, or finished. */
 function barrageLifted(sim: Simulation, order: { mission: number; objectiveZ: number }): boolean {
   const line = barrageLine(sim, order.mission)
   const start = sim.artillery.missions[order.mission]?.z ?? order.objectiveZ
   const direction = Math.sign(order.objectiveZ - start) || 1
-  return line === null || (line - order.objectiveZ) * direction > 0
+  return line === null || (line - order.objectiveZ) * direction > RUSH_CLEARANCE
 }
 
 /**
@@ -205,6 +214,14 @@ function orderMoveTo(
   }
 }
 
+/**
+ * A squad advancing under fire goes by bounds: half dash this far on to the nearest cover, in metres, while the other
+ * half lie and fire, and then they change about. Fire and movement, as the infantry learned it by 1916.
+ */
+// Eight seconds of twenty steps; a literal, since importing TICK_RATE here would be circular at load time.
+const BOUND = { metres: 15, steps: 8 * 20 } as const
+/** Suppression at which a member counts his squad under fire. */
+const UNDER_FIRE = 0.15
 /** Advancing squads head for a stretch of ground this wide around their point, in metres. */
 const ADVANCE_GOAL_RADIUS = 12
 /** Squads following their leader head for ground this close to him, in metres, his place snapped to this grid. */
@@ -232,6 +249,12 @@ export function squadSystem(sim: Simulation): void {
     // In an advance an AI squad's leader goes too; a player's leader goes where the player steers.
     const leaderMoves = order.kind !== "follow" && squad.controller === "ai"
     const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
+    const bounding =
+      order.kind === "advance" &&
+      squad.controller === "ai" &&
+      followers.some((member) => sim.soldiers.suppression.value[member] >= UNDER_FIRE)
+    // Which half is on the move: they change about every bound, by the clock, so every squad keeps the same rhythm.
+    const movingHalf = Math.floor(sim.tick / BOUND.steps) % 2
     followers.forEach((member, slot) => {
       if (sim.soldiers.morale.value[member] < BROKEN_MORALE) {
         // Broken soldiers go to ground where they are.
@@ -262,12 +285,26 @@ export function squadSystem(sim: Simulation): void {
         return
       }
       const goal = order.kind === "raid" ? raidGoal(order) : order
-      orderMoveTo(sim, member, advanceSlot(sim, goal, slot, followers.length), {
-        kind: "point",
-        x: goal.x,
-        z: goal.z,
-        radius: ADVANCE_GOAL_RADIUS
-      })
+      const navGoal: NavGoal = { kind: "point", x: goal.x, z: goal.z, radius: ADVANCE_GOAL_RADIUS }
+      const place = advanceSlot(sim, goal, slot, followers.length)
+      if (!bounding) {
+        orderMoveTo(sim, member, place, navGoal)
+        return
+      }
+      const { x, z } = sim.soldiers.position
+      if (slot % 2 !== movingHalf) {
+        // Down where he is, firing, while the others go.
+        applyCommand(sim, { type: "move-to", soldier: member, x: x[member], z: z[member] })
+        return
+      }
+      const dx = place.x - x[member]
+      const dz = place.z - z[member]
+      const distance = Math.sqrt(dx * dx + dz * dz)
+      const next =
+        distance > BOUND.metres
+          ? coverNear(sim, x[member] + (dx / distance) * BOUND.metres, z[member] + (dz / distance) * BOUND.metres)
+          : place
+      orderMoveTo(sim, member, next, navGoal, true)
     })
   }
 }

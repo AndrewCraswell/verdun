@@ -341,7 +341,7 @@ describe("creeping barrage attack", () => {
 })
 
 describe("protective barrage", () => {
-  it("lifts a full lift beyond the objective, then jumps to a protective line beyond it and holds", async () => {
+  it("lifts well clear of the objective, then jumps to a protective line beyond it and holds", async () => {
     const sim = await field()
     enqueueCommand(sim, {
       type: "barrage-attack",
@@ -364,7 +364,8 @@ describe("protective barrage", () => {
       linesSeen.add(Math.round(mission?.lineZ ?? 0))
     }
 
-    expect([...linesSeen]).toEqual([60, 80, 100, 130, 260])
+    // Off the objective, 80 m beyond it rather than one 20 m lift: clear of the shells' scatter.
+    expect([...linesSeen]).toEqual([60, 80, 100, 190, 260])
     expect(mission?.finished).toBe(true)
   })
 })

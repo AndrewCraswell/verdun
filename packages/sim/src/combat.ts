@@ -30,13 +30,14 @@ interface WeaponStats {
 
 /**
  * Bolt-action rifles (Lebel, Gewehr 98) and medium machine guns (Hotchkiss, MG 08). Accuracy is for men under fire,
- * not on a range: an aimed rifle shot at a man walking 150 m away hits about one time in sixteen. A machine gun's
- * rounds hit less often each, but it fires twenty times as many, and its misses still sweep the ground around the
- * target.
+ * not on a range: an aimed rifle shot at a man walking 100 m away hits about one time in thirteen. A machine gun fires
+ * 600 rounds a minute from a steady mount, each round likelier to hit than a rifleman's hurried aim, and its misses
+ * still sweep the ground around the target: while it fires it's worth fifty rifles and more, as contemporary reckoning
+ * had it, and that, not their number, is what made a handful of guns hold a kilometre of front (machine-guns.md).
  */
 export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
-  [Weapon.Rifle]: { interval: 3, accuracy: 0.45, falloff: 100, range: 400, suppression: 0.25 },
-  [Weapon.MachineGun]: { interval: 0.15, accuracy: 0.1, falloff: 220, range: 600, suppression: 0.12 }
+  [Weapon.Rifle]: { interval: 3, accuracy: 0.2, falloff: 100, range: 400, suppression: 0.25 },
+  [Weapon.MachineGun]: { interval: 0.1, accuracy: 0.35, falloff: 220, range: 600, suppression: 0.12 }
 }
 
 /** Seconds from deciding to throw until the grenade bursts: pull the pin or the cord, throw, and a 4-5 s fuse. */
@@ -66,13 +67,20 @@ const THINK_INTERVAL = 10
  * a quiet line most men have nothing to shoot at.
  */
 const IDLE_THINK_INTERVAL = 40
-/** Of the nearest enemies, at most this many are checked for a sight line when picking a target. */
+/** Of the nearest enemies, at most this many are checked for a sight line when picking a target... */
 const CANDIDATES = 6
+/** ...and this many by a machine gun, which sweeps a wide arc and looks along it for men up and moving. */
+const GUN_CANDIDATES = 24
 /** How far below the eye a target's waist is: hidden waists mean the target is behind cover. */
 const WAIST_DROP = 0.8
 const COVER_FACTOR = 0.35
 /** A prone soldier shows a third of a standing man's height, and less again of his width end-on. */
 const PRONE_FACTOR = 0.3
+/**
+ * Lying flat in the open is less use against a machine gun: its grazing fire skims the ground at knee height for a long
+ * way, and a man lying in its path is half as safe from it as from a rifle. Shell holes and trenches still protect.
+ */
+const GRAZED_FACTOR = 0.6
 /** A crouching soldier in the open shows about two thirds of a standing man. */
 const CROUCH_FACTOR = 0.6
 /** A crouching man's waist is this far below his eye. */
@@ -172,7 +180,10 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   let chance = stats.accuracy * Math.exp(-Math.sqrt(dx * dx + dz * dz) / stats.falloff)
   if (sim.soldiers.stance.value[target] === Stance.Prone) {
-    chance *= PRONE_FACTOR
+    const grazed =
+      sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun &&
+      !isInTrench(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target])
+    chance *= grazed ? GRAZED_FACTOR : PRONE_FACTOR
   } else if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
     // A pinned target is flat in the bottom of a trench or crater: as good as covered.
     chance *= COVER_FACTOR
@@ -234,14 +245,28 @@ function pickTarget(sim: Simulation, shooter: EntityId): EntityId {
   const x = sim.soldiers.position.x[shooter]
   const z = sim.soldiers.position.z[shooter]
   const side = sim.soldiers.side.value[shooter]
+  const gun = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun
   const nearest = nearestSoldiers(
     sim,
     x,
     z,
-    CANDIDATES,
+    gun ? GUN_CANDIDATES : CANDIDATES,
     weaponOf(sim, shooter).range,
     (other) => sim.soldiers.side.value[other] !== side && isAlive(sim, other)
   )
+  if (gun) {
+    // A gun traverses to men up and moving in the open, rather than keep on at one it has already put down.
+    const upright = nearest.find(
+      (enemy) =>
+        sim.soldiers.stance.value[enemy] !== Stance.Prone &&
+        sim.soldiers.suppression.value[enemy] < PINNED &&
+        isExposed(sim, shooter, enemy) &&
+        canEngage(sim, shooter, enemy)
+    )
+    if (upright !== undefined) {
+      return upright
+    }
+  }
   return (
     nearest.find((enemy) => {
       const distance = (sim.soldiers.position.x[enemy] - x) ** 2 + (sim.soldiers.position.z[enemy] - z) ** 2

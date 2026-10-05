@@ -203,3 +203,41 @@ describe("snapshots with squads", () => {
     expect(takeSnapshot(restored)).toEqual(takeSnapshot(sim))
   })
 })
+
+describe("advancing under fire", () => {
+  it("goes by bounds: half dash on while the other half go to ground, then they change about", () => {
+    const { sim, squad, members } = squadOfEight()
+    squad.order = { kind: "advance", x: 90, z: 150 }
+    /** Steps on with the squad kept under fire. */
+    const underFire = (seconds: number) => {
+      for (let step = 0; step < seconds * TICK_RATE; step++) {
+        for (const member of members) {
+          sim.soldiers.suppression.value[member] = 0.4
+        }
+        stepSimulation(sim)
+      }
+    }
+    const dashing = () =>
+      members.filter(
+        (member) => hasComponent(sim.world, member, sim.soldiers.moveOrder) && sim.soldiers.moveOrder.run[member] === 1
+      )
+    underFire(1)
+    const first = dashing()
+
+    expect(first.length).toBeGreaterThanOrEqual(3)
+    expect(first.length).toBeLessThanOrEqual(5)
+    // A bound on, the other half go.
+    underFire(8)
+    const second = dashing()
+    expect(second.length).toBeGreaterThanOrEqual(3)
+    expect(second.some((member) => first.includes(member))).toBe(false)
+  })
+
+  it("advances all together when no one is shooting at the squad", () => {
+    const { sim, squad, members } = squadOfEight()
+    squad.order = { kind: "advance", x: 90, z: 150 }
+    stepFor(sim, 1)
+
+    expect(members.filter((member) => hasComponent(sim.world, member, sim.soldiers.moveOrder)).length).toBe(8)
+  })
+})

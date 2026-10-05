@@ -231,6 +231,14 @@ function refresh(sim: Simulation, state: NavState): void {
 }
 
 /**
+ * Changes whenever the costs are brought up to date with the ground: anything worked out from the ground's shape or its
+ * wire (where cover lies, say) holds until it changes. -1 before the costs are first laid.
+ */
+export function groundVersion(sim: Simulation): number {
+  return states.get(sim)?.builtAt ?? -1
+}
+
+/**
  * Tells navigation the ground has been reshaped in an area, as a crater does: its costs there are brought up to date
  * with the next refresh.
  */

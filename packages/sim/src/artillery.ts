@@ -381,6 +381,12 @@ function steadyError(id: number, axis: number): number {
   return (Math.sqrt(-2 * Math.log(hash(1))) * Math.cos(2 * Math.PI * hash(2))) / 0.6745
 }
 
+/**
+ * A creeping barrage's first lift off its objective falls at least this far beyond it, in metres: a field shell lands
+ * some 20 m either side of where it's laid, and the attackers are in the objective within the lift.
+ */
+const CLEAR_OF_OBJECTIVE = 80
+
 /** Fires one round of a mission: aims somewhere in the target band and adds dispersion, then sends it on its flight. */
 function fireRound(sim: Simulation, mission: FireMission): void {
   const stats = SHELLS[mission.shell]
@@ -658,13 +664,13 @@ export function artillerySystem(sim: Simulation): void {
         continue
       }
       const protect = mission.creep.protect
-      // Off the objective, the first lift drops a full lift beyond it, keeping its garrison's heads down while the
-      // attackers rush in without landing among them; after that, the protective line.
+      // Off the objective, the first lift drops a full lift beyond it, and at least far enough that its shells' scatter
+      // misses the attackers rushing in, who reach the objective inside that lift; after that, the protective line.
       const beyond = protect ? (creepingLine - protect.objectiveZ) * direction : 0
       if (!protect || beyond <= 0) {
         mission.lineZ = creepingLine
       } else if (beyond <= mission.creep.lift) {
-        mission.lineZ = protect.objectiveZ + direction * mission.creep.lift
+        mission.lineZ = protect.objectiveZ + direction * Math.max(mission.creep.lift, CLEAR_OF_OBJECTIVE)
       } else {
         mission.lineZ = protect.lineZ
       }
