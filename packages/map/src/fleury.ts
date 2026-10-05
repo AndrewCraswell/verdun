@@ -1,3 +1,4 @@
+import fleuryFile from "../sectors/fleury.json" with { type: "json" }
 import { type Crater, slumpGround, stampCrater } from "./craters.ts"
 import { type Elevation, elevationAt } from "./elevation.ts"
 import { type BattlefieldMap, createFlatMap, sampleIndex, Surface } from "./format.ts"
@@ -13,6 +14,7 @@ import {
   type WireBelt
 } from "./scenery.ts"
 import { sculptForRailways, sculptForScenery } from "./sculpt.ts"
+import { fromTiledSector } from "./sector-file.ts"
 import { type Bay, communicationRoute, crenellatedTrace, junctionNear, TRENCH_GRID } from "./trench-trace.ts"
 import { carveTrenches, type GroundPoint, type Trench, TRENCH_PROFILE } from "./trenches.ts"
 
@@ -28,8 +30,23 @@ import { carveTrenches, type GroundPoint, type Trench, TRENCH_PROFILE } from "./
  * belts of wire, machine guns and a battery of field guns behind.
  */
 
-const WIDTH = 600
-const DEPTH = 400
+/**
+ * The sector's lie of the ground and what stands on it, as laid out in Tiled (sectors/fleury.json, see sector-file.ts):
+ * the generator fills in the trenches, shell holes and scenery round them.
+ */
+const FEATURES = fromTiledSector(fleuryFile)
+
+/** The one feature of a kind the generator works with in Fleury, which has exactly one. */
+function only<T>(list: readonly T[], what: string): T {
+  const [first] = list
+  if (list.length !== 1 || first === undefined) {
+    throw new Error(`The Fleury sector needs exactly one ${what}, and its file has ${list.length}`)
+  }
+  return first
+}
+
+const WIDTH = FEATURES.width
+const DEPTH = FEATURES.depth
 
 export interface FleurySectorOptions {
   readonly seed?: number
@@ -62,76 +79,32 @@ const SEEDS = {
 } as const
 
 /** Ground height across the sector from south to north, before local landforms: a valley between two rises. */
-const RISE: readonly GroundPoint[] = [
-  [0, 4],
-  [70, 5],
-  [125, 6.5],
-  [195, 3],
-  [265, 9],
-  [330, 13],
-  [400, 16]
-]
+const RISE = FEATURES.rise
 
-const VILLAGE = { x: 505, z: 205, radius: 72, height: 7.5 } as const
+const VILLAGE = only(FEATURES.villages, "village")
 /** The ravine's bed from its head on the German ridge down into no man's land. */
-const RAVINE: readonly GroundPoint[] = [
-  [62, 400],
-  [110, 335],
-  [168, 268],
-  [212, 216],
-  [250, 182]
-]
-const RAVINE_HALF_WIDTH = 16
+const RAVINE_LINE = only(FEATURES.ravines, "ravine")
+const RAVINE = RAVINE_LINE.points
+const RAVINE_HALF_WIDTH = RAVINE_LINE.halfWidth
 /** Deep enough, with steep enough sides, that only guns looking straight down it can see into its bed. */
-const RAVINE_DEPTH = 9
+const RAVINE_DEPTH = RAVINE_LINE.depth
 /** The chemin creux: a lane worn below the fields, running west out of the village. */
-const SUNKEN_ROAD: readonly GroundPoint[] = [
-  [452, 200],
-  [405, 195],
-  [352, 189]
-]
+const SUNKEN_ROAD_LINE = only(FEATURES.sunkenRoads, "sunken road")
+const SUNKEN_ROAD = SUNKEN_ROAD_LINE.points
 /**
  * Fleury's main street, where the survey still shows it a century on: a smooth band running down the plateau from the
  * German line in the north-west to the French line in the south-east.
  */
-const MAIN_STREET: readonly GroundPoint[] = [
-  [471, 270],
-  [502, 215],
-  [533, 160]
-]
+const MAIN_STREET = FEATURES.streets[0] ?? []
 /** Chalk roads: through the village from the French rear to the German rear, and the lateral supply roads. */
-const ROADS: readonly (readonly GroundPoint[])[] = [
-  [[468, 0], [478, 60], [505, 112], ...MAIN_STREET.toReversed(), [480, 330], [510, 400]],
-  [
-    [0, 20],
-    [150, 27],
-    [300, 23],
-    [474, 14]
-  ],
-  [
-    [250, 383],
-    [400, 380],
-    [524, 376],
-    [600, 384]
-  ]
-]
+const ROADS = FEATURES.roads
 /** The village's other streets: the cross street the survey shows meeting the main street near the French line, and
  * the lane out to the sunken road. */
-const SIDE_STREETS: readonly (readonly GroundPoint[])[] = [
-  [
-    [480, 152],
-    [526, 174],
-    [595, 207]
-  ],
-  [
-    [452, 200],
-    [507, 207]
-  ]
-]
+const SIDE_STREETS = FEATURES.streets.slice(1)
 /** Where the cross street meets the main street. */
-const CROSSROADS: GroundPoint = [526, 174]
+const CROSSROADS = FEATURES.crossroads
 /** Roads behind the lines keep their surface; the one through no man's land and the village is shelled to nothing. */
-const REAR_ROAD_LIMITS = { french: 110, german: 300 } as const
+const REAR_ROAD_LIMITS = FEATURES.rearRoads
 const ROAD_HALF_WIDTH = 2.4
 
 /**
@@ -140,52 +113,31 @@ const ROAD_HALF_WIDTH = 2.4
  * to a railhead, its shells and stores carried on up to the line by hand. The rest of the French rear falls a tenth of
  * its length toward the Meuse, too steep for the line, and the reserve line and the road leave it no room further north.
  */
-const FRENCH_RAILWAY: readonly GroundPoint[] = [
-  [575, 0],
-  [565, 9],
-  [540, 14],
-  [500, 12],
-  [470, 9],
-  [440, 7],
-  [400, 6],
-  [372, 7],
-  [350, 8]
-]
+const RAILWAYS = FEATURES.railways
 /**
  * Fleury's church, sited as near here as the trenches and the shelling allow: behind the German front on the village's
  * north side, east of the main road, its tower to the west and its apse to the east. It's the landmark's second
  * variant; the great barn is the first.
  */
-const CHURCH = { x: 500, z: 292, variant: 1, heading: Math.PI / 2 } as const
+const CHURCH = only(FEATURES.churches, "church")
 /** The church keeps this far, in metres from its middle, from trenches and everything else. */
 const CHURCH_CLEARANCE = 9
 /**
  * An orchard behind the French support line, east of the main road: `rows` rows of `trees` fruit trees, `spacing`
  * metres apart each way from its south-west tree at (x, z), with the shelling's gaps and stumps among them.
  */
-const ORCHARD = { x: 526, z: 47, rows: 3, trees: 9, spacing: 6.5, jitter: 1.2 } as const
+const ORCHARD = only(FEATURES.orchards, "orchard")
 
 /** Nothing is placed within this many metres of a railway's track: half a wagon's width and a margin. */
 const RAILWAY_CLEARANCE = 1.8
 /** The dumps the railway serves: one by the main road, and the railhead's at its end. */
-const RAILWAY_DUMPS: readonly GroundPoint[] = [
-  [500, 4],
-  [342, 10]
-]
+const RAILWAY_DUMPS = FEATURES.dumps
 
-const WOODS = [
-  /** Bois de la Caillette, through which the French front line runs. */
-  { x: 118, z: 112, radiusX: 112, radiusZ: 78, density: 1 },
-  /** Bois des Corbeaux, at the head of the ravine. */
-  { x: 92, z: 368, radiusX: 72, radiusZ: 40, density: 0.75 },
-  /** Bois Fumin, behind the German lines. */
-  { x: 512, z: 372, radiusX: 112, radiusZ: 36, density: 0.6 }
-] as const
+/** Bois de la Caillette, through which the French front line runs; Bois des Corbeaux at the head of the ravine; and Bois
+ * Fumin behind the German lines. */
+const WOODS = FEATURES.woods
 
-const MINE_CRATERS: readonly Crater[] = [
-  { x: 296, z: 210, radius: 13, depth: 6 },
-  { x: 323, z: 229, radius: 9, depth: 4.2 }
-]
+const MINE_CRATERS = FEATURES.craters
 
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)))
@@ -339,9 +291,10 @@ function heightAtSample(seed: number, x: number, z: number, elevation: Elevation
     height -= depth * (1 - smoothstep(0.3, 1, across))
   }
 
-  const lane = nearestOnLine(SUNKEN_ROAD, x, z, 4.5)
-  if (lane.distance < 4.5) {
-    height -= 2.3 * (1 - smoothstep(1.8, 4.5, lane.distance)) * window(lane.along, 0.08, 0.92, 0.08)
+  const { halfWidth, depth } = SUNKEN_ROAD_LINE
+  const lane = nearestOnLine(SUNKEN_ROAD, x, z, halfWidth)
+  if (lane.distance < halfWidth) {
+    height -= depth * (1 - smoothstep(1.8, halfWidth, lane.distance)) * window(lane.along, 0.08, 0.92, 0.08)
   }
   return height
 }
@@ -1200,13 +1153,13 @@ export function generateFleurySector({
 
   const map = {
     ...createFlatMap({
-      name: "Fleury sector",
+      name: FEATURES.name,
       cellSize,
       columns: Math.round(WIDTH / cellSize),
       rows: Math.round(DEPTH / cellSize)
     }),
     // Verdun's right bank: history's weather as recorded round Fleury.
-    weatherRegion: "fleury"
+    weatherRegion: FEATURES.weatherRegion
   }
   for (let row = 0; row <= map.rows; row++) {
     for (let column = 0; column <= map.columns; column++) {
@@ -1226,7 +1179,7 @@ export function generateFleurySector({
   carveTrenches(map, trenches)
 
   const sceneryRandom = createRandom(seed + SEEDS.scenery)
-  const railways = layout?.railways ?? [{ points: FRENCH_RAILWAY }]
+  const railways = layout?.railways ?? RAILWAYS.map((points) => ({ points }))
   const placer = createPlacer(segments, sceneryRandom)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)

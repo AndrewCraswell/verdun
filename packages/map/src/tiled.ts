@@ -33,10 +33,10 @@ const TILED_LAYERS = {
 } as const
 
 /** Positions are written to the nearest millimetre, headings to a hundredth of a degree and scales to 1/10000. */
-const PIXEL_DECIMALS = 2
-const HEADING_DECIMALS = 2
+export const PIXEL_DECIMALS = 2
+export const HEADING_DECIMALS = 2
 const SCALE_DECIMALS = 4
-const METRE_DECIMALS = 3
+export const METRE_DECIMALS = 3
 
 /** What a Tiled map holds: everything a designer lays out by hand. */
 export interface TiledLayout {
@@ -54,7 +54,7 @@ export interface TiledImport extends TiledLayout {
   readonly warnings: readonly string[]
 }
 
-interface TiledProperty {
+export interface TiledProperty {
   readonly name: string
   readonly type: "string" | "float" | "int"
   readonly value: string | number
@@ -65,7 +65,8 @@ interface TiledPoint {
   readonly y: number
 }
 
-interface TiledObject {
+export interface TiledObject {
+  readonly ellipse?: true
   readonly height: number
   readonly id: number
   readonly name: string
@@ -80,7 +81,7 @@ interface TiledObject {
   readonly y: number
 }
 
-interface TiledObjectLayer {
+export interface TiledObjectLayer {
   readonly draworder: "index"
   readonly id: number
   readonly name: string
@@ -117,17 +118,17 @@ type TiledSource = Pick<
   "name" | "cellSize" | "columns" | "rows" | "trenches" | "wire" | "scenery" | "objectives" | "railways"
 >
 
-function round(value: number, decimals: number): number {
+export function round(value: number, decimals: number): number {
   const factor = 10 ** decimals
   // Adding zero turns -0 into 0, which JSON would write as 0 anyway but tests compare exactly.
   return Math.round(value * factor) / factor + 0
 }
 
-function toDegrees(radians: number): number {
+export function toDegrees(radians: number): number {
   return (radians * 180) / Math.PI
 }
 
-function toRadians(degrees: number): number {
+export function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180
 }
 
@@ -247,15 +248,15 @@ export function toTiledMap(map: TiledSource): TiledMap {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function isFiniteNumber(value: unknown): value is number {
+export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-function isPositiveNumber(value: unknown): value is number {
+export function isPositiveNumber(value: unknown): value is number {
   return isFiniteNumber(value) && value > 0
 }
 
@@ -264,7 +265,7 @@ function isSceneryKind(value: unknown): value is SceneryKind {
 }
 
 /** Custom properties of a map or object, by name. */
-function propertiesOf(owner: Record<string, unknown>, label: string): Map<string, unknown> {
+export function propertiesOf(owner: Record<string, unknown>, label: string): Map<string, unknown> {
   const { properties } = owner
   const found = new Map<string, unknown>()
   if (properties === undefined) {
@@ -282,12 +283,12 @@ function propertiesOf(owner: Record<string, unknown>, label: string): Map<string
   return found
 }
 
-interface Frame {
+export interface Frame {
   readonly ppm: number
   readonly bottom: number
 }
 
-function toGround(frame: Frame, x: number, y: number): GroundPoint {
+export function toGround(frame: Frame, x: number, y: number): GroundPoint {
   return [round(x / frame.ppm, METRE_DECIMALS), round((frame.bottom - y) / frame.ppm, METRE_DECIMALS)]
 }
 
@@ -296,7 +297,7 @@ function objectLabel(layer: string, object: unknown, index: number): string {
   return `Tiled ${id} in layer "${layer}"`
 }
 
-function objectPosition(object: Record<string, unknown>, label: string): { x: number; y: number } {
+export function objectPosition(object: Record<string, unknown>, label: string): { x: number; y: number } {
   const { x, y } = object
   if (!isFiniteNumber(x) || !isFiniteNumber(y)) {
     throw new TypeError(`${label} needs a numeric x and y`)
@@ -305,7 +306,7 @@ function objectPosition(object: Record<string, unknown>, label: string): { x: nu
 }
 
 /** A polyline's points in map coordinates, turned by the object's rotation (degrees clockwise about its origin). */
-function polylinePoints(frame: Frame, object: Record<string, unknown>, label: string): GroundPoint[] {
+export function polylinePoints(frame: Frame, object: Record<string, unknown>, label: string): GroundPoint[] {
   const { polyline, rotation = 0 } = object
   if (!Array.isArray(polyline)) {
     throw new TypeError(`${label} must be a polyline`)
@@ -408,7 +409,7 @@ function layerObjects(layers: readonly unknown[], name: string): { objects: unkn
   return { objects: layer.objects }
 }
 
-function readLayer<T>(
+export function readLayer<T>(
   layers: readonly unknown[],
   name: string,
   read: (object: Record<string, unknown>, label: string) => T

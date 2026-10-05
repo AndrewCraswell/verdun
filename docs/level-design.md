@@ -524,6 +524,30 @@ The level kit is committed, through Git LFS (`.gitattributes`), so CI builds the
 `pnpm assets:pack` and builds with the pack under a fresh key, as a deploy would. Commit the kit's files with the change
 that rebuilds them.
 
+## Sector files
+
+Each sector's features live in a Tiled map: [packages/map/sectors/fleury.json](../packages/map/sectors/fleury.json).
+Tiled opens JSON maps as they are, and the game, the simulation's worker and the server import the same file. The
+designer lays out the lie of the ground and what stands on it; the generator fills in the rest (trench bays, shell
+holes, scenery, surfaces) round them. [sector-file.ts](../packages/map/src/sector-file.ts) reads and writes the format.
+
+It's in the frame described under Editing in Tiled below: one-metre tiles at 10 px a metre, y flipped so north is up.
+The map's size is the sector's, and its properties hold its `name`, `weatherRegion` and `rise`, the generated ground's
+height south to north as `z:height` pairs. One object layer for each kind of feature, each object's class saying what it
+is:
+
+| Layer       | Objects                                                                                                                                                                             |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ground`    | `ravine` and `sunken-road` polylines (`halfWidth`, `depth`), `village` circles (`height`), `crater` circles (`depth`)                                                               |
+| `woods`     | `wood` ellipses, named, with a `density` from 0 to 1                                                                                                                                |
+| `roads`     | `road` and `street` polylines (the street named `main street` first), a `crossroads` point; the layer's `frenchRear` and `germanRear` properties are where roads keep their surface |
+| `railways`  | `railway` polylines along the track, `dump` points                                                                                                                                  |
+| `landmarks` | `church` points (`heading` in degrees, `variant`), `orchard` points at the south-west tree (`rows`, `trees`, `spacing`, `jitter`)                                                   |
+
+Fleury's file holds what fleury.ts used to: the map it generates is the same to the byte. Its trench lines, batteries
+and objectives are still worked out in code; drawing the trench lines in the file comes next, and with it sectors traced
+from the trench maps of 1916.
+
 ## Editing in Tiled
 
 The layout (trench lines, wire belts, railways and scenery) can be edited in [Tiled](https://www.mapeditor.org), as the
