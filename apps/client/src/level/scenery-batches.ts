@@ -41,12 +41,8 @@ export interface SceneryBatches {
 
 /** A kit piece placed this many times or fewer goes in one batch for the whole map. */
 const RARE = 48
-/**
- * Otherwise its batches cover square cells this many metres on a side: six over the sector. Each batch costs the page
- * a draw in the main pass and again in each shadow cascade, while smaller cells saved little by culling: at 128 m the
- * battle drew a tenth fewer triangles, but in a third more draws.
- */
-const CELL = 256
+/** Otherwise its batches cover square cells this many metres on a side. */
+const CELL = 128
 /** The index for finding pieces near a point buckets them in cells this many metres on a side. */
 const INDEX_CELL = 8
 /** A removed piece's matrix: scaled to nothing where it stood, so its batch's bounds stay put. */
@@ -155,7 +151,7 @@ function distanceSquaredToBox(point: Vector3, min: Vector3, max: Vector3): numbe
 }
 
 /**
- * Batches the battlefield's static props: every placement of a kit piece within a 256 m cell of the map (or the whole
+ * Batches the battlefield's static props: every placement of a kit piece within a 128 m cell of the map (or the whole
  * map, for pieces placed only a few dozen times) becomes a thin instance of one mesh. The scene then holds a few
  * hundred meshes instead of one per prop, which is what Babylon pays for every frame in choosing what's visible, again
  * for each shadow cascade and again for the depth pass. Batches are culled whole by their bounds and drawn in one call.
