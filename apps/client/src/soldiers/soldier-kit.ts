@@ -427,7 +427,12 @@ function findMesh(container: AssetContainer, name: string): Mesh {
   return mesh
 }
 
-/** A bone's weight too slight to count: it moves a vertex of a man less than a millimetre. */
+/**
+ * A bone's weight too slight to count. Babylon sums each bone's matrix times its weight without making the weights add
+ * up again, so leaving one out moves the vertex by that weight of the bone's whole transform: at most a ten-thousandth
+ * of the way from where it is to the origin, a fraction of a millimetre for a man at the origin, where the bake poses
+ * him.
+ */
 const SLIGHT = 1e-4
 
 /**
@@ -441,6 +446,10 @@ function influencesUsed(mesh: Mesh): number {
     mesh.getVerticesData(VertexBuffer.MatricesWeightsKind),
     mesh.getVerticesData(VertexBuffer.MatricesWeightsExtraKind)
   ]
+  // Weights that can't be read from here can't be counted: then it reads as many slots as it did.
+  if (!slots.some(Boolean)) {
+    return mesh.numBoneInfluencers
+  }
   for (const [set, weights] of slots.entries()) {
     if (!weights) {
       continue
