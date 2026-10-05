@@ -1,6 +1,7 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { canonicalCode, keymap } from "../ui/keymap.ts"
 import { type CameraRigModel, createCameraRigModel, ZOOM_RANGE } from "./camera-rig-model.ts"
 import { groundUnderPointer } from "./ground-pick.ts"
 
@@ -29,9 +30,15 @@ const LINES_PER_NOTCH = 3
 /** At most this many notches from one wheel event. */
 const MAX_NOTCHES = 3
 
-/** The camera's keys, by `KeyboardEvent.code`: the arrows pan (or with Shift, turn), Space recentres. */
-export const CAMERA_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"])
-const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"])
+/**
+ * The camera's keys, by their default `KeyboardEvent.code`: the arrows pan (or with Shift, turn), Space recentres. The
+ * player can move them (ui/keymap.ts); keys are read through the keymap.
+ */
+const ARROWS: ReadonlySet<string> = new Set(
+  (["pan-forward", "pan-back", "pan-left", "pan-right"] as const).map(canonicalCode)
+)
+const RECENTRE = canonicalCode("recentre")
+export const CAMERA_KEYS: ReadonlySet<string> = new Set([...ARROWS, RECENTRE])
 
 const rigs = new WeakMap<ArcRotateCamera, CameraRig>()
 
@@ -75,6 +82,9 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     }
   )
   const canvas = scene.getEngine().getRenderingCanvas()
+  const keys = keymap()
+  // The pan keys physically down, and what they do: a key moved in the menu while held is never left stuck down.
+  const down = new Set<string>()
   const arrows = new Set<string>()
   let pointer: { x: number; y: number } | null = null
   let dragging: { x: number; y: number; grab: boolean } | null = null
@@ -133,25 +143,40 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     return { right: (pointer.x - width / 2) / (width / 2), up: (height / 2 - pointer.y) / (height / 2) }
   }
 
+  function arrowsAgain(): void {
+    arrows.clear()
+    for (const physical of down) {
+      const code = keys.canonical(physical)
+      if (code && ARROWS.has(code)) {
+        arrows.add(code)
+      }
+    }
+  }
+  const unlistenKeys = keys.listen(arrowsAgain)
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (typing(event)) {
       return
     }
     shift = event.shiftKey
-    if (ARROWS.has(event.code)) {
+    const code = keys.canonical(event.code)
+    if (code && ARROWS.has(code)) {
       // Arrows would otherwise scroll the page.
       event.preventDefault()
-      arrows.add(event.code)
-    } else if (event.code === "Space" && !event.repeat) {
+      down.add(event.code)
+      arrowsAgain()
+    } else if (code === RECENTRE && !event.repeat) {
       event.preventDefault()
       model.recenter()
     }
   }
   const onKeyUp = (event: KeyboardEvent) => {
     shift = event.shiftKey
-    arrows.delete(event.code)
+    down.delete(event.code)
+    arrowsAgain()
   }
   const onBlur = () => {
+    down.clear()
     arrows.clear()
     pointer = null
     dragging = null
@@ -250,6 +275,7 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     },
     dispose() {
       scene.onBeforeRenderObservable.remove(frame)
+      unlistenKeys()
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)

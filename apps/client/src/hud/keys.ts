@@ -15,7 +15,7 @@ const ACTIONS = {
   fire: ["Call artillery", "V"],
   gas: ["Call a gas shoot", "X"],
   whistle: ["Whistle", "G"],
-  grenade: ["Throw a grenade", "Q"],
+  grenade: ["Hold to aim a grenade", "Q"],
   prone: ["Lie down", "Z"],
   switch: ["Switch to the next soldier", "Tab"]
 } as const

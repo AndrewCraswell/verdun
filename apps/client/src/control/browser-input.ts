@@ -1,14 +1,26 @@
 import type { Scene } from "@babylonjs/core/scene"
 import type { BattlefieldMap } from "@verdun/map"
+import { canonicalCode, type Keymap, keymap } from "../ui/keymap.ts"
 import { groundUnderPointer } from "./ground-pick.ts"
 import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.ts"
 
-/** Keys held to steer the soldier under control, by `KeyboardEvent.code`. */
+/**
+ * Keys by their default `KeyboardEvent.code`. The player can move any of them (ui/keymap.ts); a pressed key is turned
+ * into its action's default code before it's looked at here, so this module never needs to know where they are.
+ */
+
+/** Keys held to steer the soldier under control. */
 export const MOVEMENT_KEYS: ReadonlySet<string> = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
 /** Keys held to run rather than walk. */
 export const RUN_KEYS: ReadonlySet<string> = new Set(["ShiftLeft", "ShiftRight"])
 /** Keys that act on the ground under the pointer: a grenade, the squad sent there, a call for fire, a gas shoot. */
 export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyE", "KeyV", "KeyX"])
+
+/**
+ * The grenade's key: held, the HUD shows where the throw would go (its arc, where it lands, its blast); let go, it's
+ * thrown at the pointer. A quick tap throws at once, as before.
+ */
+export const THROW_KEY = canonicalCode("throw")
 
 /** What each pointer key does to the ground point under the pointer. */
 function pointerAction(code: string, x: number, z: number): PlayerAction | null {
@@ -61,30 +73,61 @@ export function actionForKey(code: string): PlayerAction | null {
 
 /**
  * Keyboard and mouse input from the browser. Uses `KeyboardEvent.code`, so keys stay in the same place on AZERTY and
- * other layouts. Held keys are released when the window loses focus, so a soldier never walks off on their own.
- * Left-click fires; the right button aims (see camera-rig.ts), and E sends the squad to the ground under the pointer.
+ * other layouts, and reads them through the player's keymap. Held keys are released when the window loses focus, so a
+ * soldier never walks off on their own. Left-click fires; the right button aims (see camera-rig.ts), and E sends the
+ * squad to the ground under the pointer.
  */
-export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInput {
+export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keymap = keymap()): PlayerInput {
   const held = new Set<string>()
+  // The movement and run keys physically down, which `held` names by what they do: a key moved in the menu while held
+  // moves with it, and is never left stuck down.
+  const down = new Set<string>()
   let actions: PlayerAction[] = []
+  // Held since its key went down: the grenade is thrown when the key comes up.
+  let aimingThrow = false
 
   // Marched over the map's heights rather than picked against the terrain's meshes: it's asked every frame.
   const pointerGround = (): GroundVector | null => groundUnderPointer(scene, map)
 
+  function heldAgain(): void {
+    held.clear()
+    for (const physical of down) {
+      const code = keys.canonical(physical)
+      if (code && (MOVEMENT_KEYS.has(code) || RUN_KEYS.has(code))) {
+        held.add(code)
+      }
+    }
+  }
+  keys.listen(heldAgain)
+
   window.addEventListener("keydown", (event) => {
-    if (MOVEMENT_KEYS.has(event.code) || RUN_KEYS.has(event.code)) {
-      held.add(event.code)
+    const code = keys.canonical(event.code)
+    if (!code) {
       return
     }
-    if (POINTER_KEYS.has(event.code)) {
+    // A key the player bound does what they bound it to, not what the browser would do with it (Tab moving focus off
+    // the game, say). Chords with Ctrl, Alt or the system key stay the browser's.
+    if (keys.actionOf(event.code) && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault()
+    }
+    if (MOVEMENT_KEYS.has(code) || RUN_KEYS.has(code)) {
+      down.add(event.code)
+      heldAgain()
+      return
+    }
+    if (code === THROW_KEY) {
+      aimingThrow = aimingThrow || !event.repeat
+      return
+    }
+    if (POINTER_KEYS.has(code)) {
       const point = event.repeat ? null : pointerGround()
-      const action = point ? pointerAction(event.code, point.x, point.z) : null
+      const action = point ? pointerAction(code, point.x, point.z) : null
       if (action) {
         actions.push(action)
       }
       return
     }
-    const action = event.repeat ? null : actionForKey(event.code)
+    const action = event.repeat ? null : actionForKey(code)
     if (action) {
       // Tab would otherwise move focus off the game.
       event.preventDefault()
@@ -92,10 +135,22 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap): PlayerInp
     }
   })
   window.addEventListener("keyup", (event) => {
-    held.delete(event.code)
+    down.delete(event.code)
+    heldAgain()
+    if (keys.canonical(event.code) === THROW_KEY && aimingThrow) {
+      aimingThrow = false
+      const point = pointerGround()
+      const action = point ? pointerAction(THROW_KEY, point.x, point.z) : null
+      if (action) {
+        actions.push(action)
+      }
+    }
   })
   window.addEventListener("blur", () => {
+    down.clear()
     held.clear()
+    // Losing the window mid-aim puts the grenade away rather than throwing it blind.
+    aimingThrow = false
   })
   const canvas = scene.getEngine().getRenderingCanvas()
   canvas?.addEventListener("pointerdown", (event) => {

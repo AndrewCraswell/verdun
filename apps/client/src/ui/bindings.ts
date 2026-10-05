@@ -27,7 +27,7 @@ export const CONTROLS: readonly BindingGroup[] = [
       { keys: "Mouse", action: "Face the pointer" },
       { keys: "Right mouse, held", action: "Aim: the view leans toward the pointer" },
       { keys: "Left-click", action: "Fire" },
-      { keys: "Q", action: "Throw a grenade at the pointer" },
+      { keys: "Q", action: "Hold to aim a grenade at the pointer, let go to throw" },
       { keys: "C", action: "Crouch: below the parapet on a fire step, or get back up" },
       { keys: "Z", action: "Lie down and crawl, or get back up" }
     ]

@@ -25,6 +25,7 @@ import { createSquadMarkers } from "./control/soldier-marker.ts"
 import { createDebugStats } from "./debug/stats.ts"
 import { createExplosions } from "./effects/explosions.ts"
 import { createFlareView } from "./effects/flare-view.ts"
+import { createGrenadeView } from "./effects/grenades.ts"
 import { bucketInstanceCounts } from "./effects/instance-buffer.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
@@ -225,6 +226,8 @@ async function start(): Promise<void> {
   // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
   tracers.onStrike.add(({ at, time }) => sounds?.strike(at.x, at.z, time))
   const explosions = createExplosions(view.scene)
+  // Grenades on their way, from the thrower's hand to where they burst.
+  const grenades = createGrenadeView(view.scene, { sim, tick: () => sim.tick + stepper.alpha })
   // Fog starts off while artillery and the attack are being tuned; O turns it on.
   const fog = createFogOfWar(view.scene, sim, lineOfSight, {
     squad: playerSquad,
@@ -258,6 +261,7 @@ async function start(): Promise<void> {
         war,
         flares,
         tracers,
+        grenades,
         trace: stats.tracer,
         snapshots
       }
@@ -283,6 +287,7 @@ async function start(): Promise<void> {
         trace("sound: step", () => sounds?.step())
         const shots = shotEvents(sim.events)
         tracers.add(shots)
+        grenades.add(sim.events)
         night?.flash(shots.map((shot) => shot.from))
         for (const event of sim.events) {
           if (event.type === "burst") {
@@ -310,6 +315,7 @@ async function start(): Promise<void> {
     trace("effects", () => {
       tracers.update(frameSeconds)
       explosions.update(frameSeconds)
+      grenades.update()
     })
     trace("hud", () => hud.update(frameSeconds))
     const sightChanged = trace("fog", () => fog.update(frameSeconds))

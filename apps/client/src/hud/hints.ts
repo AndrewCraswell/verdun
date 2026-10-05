@@ -122,7 +122,9 @@ const LESSONS: readonly Lesson[] = [
   },
   {
     id: "grenade",
-    text: "[Q] throws a grenade at the pointer, 6 to 25 m off. Into the next bay, round the traverse.",
+    text:
+      `Hold [${keyOf("grenade")}] to see where a grenade would go: its arc, its blast, how far you can throw. ` +
+      "Let go to throw. Too low in a trench, it won't clear the parapet.",
     done: (sim, squad, start) =>
       squad.leader === start.leader && sim.soldiers.grenades.count[start.leader] < start.grenades
   },

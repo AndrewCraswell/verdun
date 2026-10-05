@@ -55,6 +55,48 @@ export interface SettingsStore {
   save(settings: InterfaceSettings): void
 }
 
+/**
+ * The settings as one live value the HUD and the menu share: the menu changes them, the HUD applies each change at
+ * once, and every change is kept for the next visit. Neither needs the other.
+ */
+export interface InterfaceSettingsHub {
+  readonly current: InterfaceSettings
+  /** Changes some settings and keeps them; every listener hears. */
+  change(update: Partial<InterfaceSettings>): void
+  /** Hears every change, the current settings first. Returns a function that stops listening. */
+  listen(listener: (settings: InterfaceSettings) => void): () => void
+}
+
+export function createSettingsHub(store: SettingsStore): InterfaceSettingsHub {
+  let current = store.load()
+  const listeners = new Set<(settings: InterfaceSettings) => void>()
+  return {
+    get current() {
+      return current
+    },
+    change(update) {
+      current = readSettings({ ...current, ...update })
+      store.save(current)
+      for (const listener of listeners) {
+        listener(current)
+      }
+    },
+    listen(listener) {
+      listeners.add(listener)
+      listener(current)
+      return () => listeners.delete(listener)
+    }
+  }
+}
+
+let shared: InterfaceSettingsHub | null = null
+
+/** The page's one hub, kept in the browser: what the HUD and the menu both use. */
+export function interfaceSettings(): InterfaceSettingsHub {
+  shared ??= createSettingsHub(browserSettingsStore())
+  return shared
+}
+
 /** The browser's local storage, where it's allowed; elsewhere the defaults, every visit. */
 export function browserSettingsStore(key = "verdun.interface"): SettingsStore {
   return {

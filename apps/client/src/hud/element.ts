@@ -45,6 +45,8 @@ export interface HudContext {
   cameraDistance(): number
   /** Whether the player's side can see a soldier now, by the fog of war's rule: enemies are drawn only if so. */
   seen(soldier: EntityId): boolean
+  /** The ground under the pointer, or null when it's over the sky or off the map. */
+  pointerGround(): { readonly x: number; readonly z: number } | null
   /** Where a soldier stands now, for marks that follow men between the HUD's redraws. */
   positionOf(soldier: EntityId): { readonly x: number; readonly z: number }
   /** Take control of a man of the squad, as the number keys do. */

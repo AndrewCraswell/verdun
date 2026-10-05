@@ -13,6 +13,7 @@ import { rosterStrip } from "./elements/roster-strip.ts"
 import { screenEffects } from "./elements/screen-effects.ts"
 import { soldierCard } from "./elements/soldier-card.ts"
 import { strengthPanel } from "./elements/strength-panel.ts"
+import { throwPreviewMarks } from "./elements/throw-preview.ts"
 import { warMap } from "./elements/war-map.ts"
 import { wipedPanel } from "./elements/wiped-panel.ts"
 import { worldMarks } from "./elements/world-marks.ts"
@@ -30,6 +31,8 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   screenEffects,
   warMap,
   worldMarks,
+  // H9 and W7: the grenade's arc, reach and blast while the throw key is held, over every other mark.
+  throwPreviewMarks,
   // Bottom left, from the bottom: H1, H3 and H4; H5; H6; H2 beside them.
   soldierCard,
   rosterStrip,

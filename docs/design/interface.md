@@ -63,9 +63,12 @@ handover, the squad-lost panel, prompts, screen effects, the aim cursor, marks o
 follows [at rest, overview and the war map](#at-rest-overview-and-the-war-map). Type is Archivo and Bodoni Moda;
 colours, sizes and timings are tokens.
 
-Still to come: the order radial (H7), the grenade and call previews (H9, H10), operations, tasks and chat (H19-H21), the
-options screen (S3; the settings exist, `hud.configure`), the sector map as a screen (S4), the squad book (S5) and every
-stage 2-3 screen. The menu (S1) still only lists the controls.
+The grenade throw (H9, W7) is built too: hold Q for the arc, reach, scatter and blast, and the grenade itself is drawn
+from the hand to where it bursts.
+
+Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), the options screen
+(S3; the settings exist, `hud.configure`), the sector map as a screen (S4), the squad book (S5) and every stage 2-3
+screen. The menu (S1) still only lists the controls.
 
 ## Principles
 
@@ -397,6 +400,15 @@ player can set.
 ### H9 Grenade throw
 
 **Stage** P. **Kind** World. **Zone** the pointer.
+
+**Built** (`hud/elements/throw-preview.ts`, from `hud/throw-preview.ts`): held, Q shows the arc from the hand and its
+shadow on the ground, a ring as far as the man can throw from where he stands and how (32 m standing, 85% kneeling, 55%
+lying, half from cover; `throwReach`), the scatter, and the blast where the grenade would come to rest. If the arc would
+strike the ground short (the trench wall in front of a man too low to throw clear, a parapet, a crater's rim), a red
+cross marks where, with the roll back from there ("Won't clear"). Out of reach, the stretch of the ring the throw runs
+up against lights amber, a dashed line runs on to a hollow mark where the pointer is, and the label says how far too far
+and where it will land. Release throws. The grenade then flies its arc, rolls and lies where it came to rest until it
+bursts (`effects/grenades.ts`). Below: the spec as first written.
 
 Today Q throws at once at the pointer, or does nothing (silently) if the pointer is off the map or out of grenades.
 

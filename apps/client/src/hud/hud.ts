@@ -10,12 +10,13 @@ import {
   type Squad,
   type WarDay
 } from "@verdun/sim"
+import { groundUnderPointer } from "../control/ground-pick.ts"
 import { registerBindings } from "../ui/bindings.ts"
 import type { HudContext, HudElement, HudElementFactory, HudZone } from "./element.ts"
 import { browserHintStore } from "./hints.ts"
 import { createHudModel, type HudModel, type HudState, type HudView } from "./hud-state.ts"
 import { installIcons } from "./icons.ts"
-import { browserSettingsStore, type InterfaceSettings } from "./interface-settings.ts"
+import { type InterfaceSettings, interfaceSettings } from "./interface-settings.ts"
 import { OVERVIEW_KEY } from "./keys.ts"
 import { projectPoint, screenAngleBetween } from "./projection.ts"
 import { HUD_ELEMENTS } from "./registry.ts"
@@ -108,8 +109,8 @@ export function createHud(
   }
   parent.append(root)
 
-  const settingsStore = browserSettingsStore()
-  let settings = settingsStore.load()
+  const hub = interfaceSettings()
+  let settings = hub.current
   const seconds = () => performance.now() / 1000
   const model: HudModel = createHudModel(sim, squad, tickRate, {
     ...(war ? { war } : {}),
@@ -143,6 +144,7 @@ export function createHud(
     },
     heightAt: (x, z) => heightAt(sim.map, x, z),
     cameraDistance: () => view?.camera.radius ?? 0,
+    pointerGround: () => (view ? groundUnderPointer(view.scene, sim.map) : null),
     seen: (soldier) => seen?.(soldier) ?? true,
     positionOf: (soldier) => ({ x: sim.soldiers.position.x[soldier], z: sim.soldiers.position.z[soldier] }),
     takeSoldier(soldier) {
@@ -267,7 +269,8 @@ export function createHud(
     }
     model.hints.enabled = next.hints
   }
-  apply(settings)
+  // The menu changes the settings through the same hub: each change shows at once.
+  const unlisten = hub.listen(apply)
 
   return {
     record(events) {
@@ -301,8 +304,7 @@ export function createHud(
       }
     },
     configure(next) {
-      apply(next)
-      settingsStore.save(next)
+      hub.change(next)
     },
     get settings() {
       return settings
@@ -312,6 +314,7 @@ export function createHud(
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
       unbind()
+      unlisten()
       if (afterRender) {
         view?.scene.onAfterRenderObservable.remove(afterRender)
       }
