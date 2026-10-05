@@ -10,13 +10,14 @@ import {
   FULL_STAMINA,
   type Simulation,
   spawnSoldier,
+  STEP_SECONDS,
   stepSimulation,
   TICK_RATE,
   WALKING_SPEED
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { isInTrench, seesOverParapet, soldierEye } from "./stance.ts"
-import { canRun, WINDED } from "./systems/movement.ts"
+import { canRun, movementSystem, steeredPosition, WINDED } from "./systems/movement.ts"
 
 const opened: LineOfSight[] = []
 afterEach(() => {
@@ -247,5 +248,40 @@ describe("movement state", () => {
     run(restored, 5)
 
     expect(takeSnapshot(restored)).toEqual(takeSnapshot(sim))
+  })
+})
+
+describe("where a steered soldier gets to", () => {
+  it("is where the step takes him, walking, running and crawling, over the trench and out of it", () => {
+    const sim = field(true)
+    const men = [
+      steered(sim, 30, 40, "standing", true),
+      steered(sim, 50, 44, "crouching"),
+      steered(sim, 70, 47, "prone"),
+      steered(sim, 20, 99.9, "standing")
+    ]
+    const stillMan = spawnSoldier(sim, { side: Side.French, x: 60, z: 20 })
+    stepSimulation(sim)
+    for (let step = 0; step < 200; step++) {
+      const turn = step % 40 < 20 ? 1 : -1
+      for (const soldier of men) {
+        enqueueCommand(sim, { type: "steer", soldier, x: 0.3 * turn, z: turn, run: soldier === men[0] })
+      }
+      stepSimulation(sim)
+      const expected = men.map((soldier) =>
+        steeredPosition(sim, soldier, { x: 0.3 * turn, z: turn, run: soldier === men[0] }, STEP_SECONDS)
+      )
+      // The movement system alone: in a whole step, the systems before it can change a man's breath or the ground's
+      // wetness first, which a client's prediction, made before the step, can't know.
+      movementSystem(sim, STEP_SECONDS)
+      men.forEach((soldier, index) => {
+        expect(sim.soldiers.position.x[soldier]).toBeCloseTo(expected[index]?.x ?? 0, 4)
+        expect(sim.soldiers.position.z[soldier]).toBeCloseTo(expected[index]?.z ?? 0, 4)
+      })
+    }
+    expect(steeredPosition(sim, stillMan, { x: 0, z: 0, run: false }, STEP_SECONDS)).toEqual({
+      x: sim.soldiers.position.x[stillMan],
+      z: sim.soldiers.position.z[stillMan]
+    })
   })
 })

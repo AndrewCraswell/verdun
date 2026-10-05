@@ -152,7 +152,7 @@ export {
   SHELTER_CALM,
   soldierEye
 } from "./stance.ts"
-export { canRun, WINDED } from "./systems/movement.ts"
+export { canRun, type Steering, steeredPosition, WINDED } from "./systems/movement.ts"
 export { blockReach, insideBlock, type SightBlock, sightBlocks } from "./sight-shapes.ts"
 export { climbLimit } from "./terrain.ts"
 export {

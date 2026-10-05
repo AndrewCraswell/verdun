@@ -53,6 +53,66 @@ const STANCE_PACE: Readonly<Record<number, number>> = {
   [Stance.Crouching]: CROUCH_FACTOR
 }
 
+/** How far a soldier gets in a step heading along (dx, dz), a unit vector, and whether he's running and over what. */
+interface Pace {
+  readonly stride: number
+  readonly running: boolean
+  /** The ground's pace under him (`groundPace`): below 1 for mud, churned ground and slopes. */
+  readonly ground: number
+}
+
+function paceOf(sim: Simulation, soldier: EntityId, dx: number, dz: number, run: boolean, stepSeconds: number): Pace {
+  const { position, speed, stance, mask, stamina } = sim.soldiers
+  const x = position.x[soldier]
+  const z = position.z[soldier]
+  const posture = stance.value[soldier]
+  const running = run && posture === Stance.Standing && canRun(sim, soldier)
+  const ground = groundPace(sim.map, x, z, dx, dz)
+  const walk =
+    speed.value[soldier] *
+    (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1) *
+    Math.max(wirePace(sim.wire, x, z), wirePace(sim.wire, x + dx * WIRE_STEP, z + dz * WIRE_STEP)) *
+    weatherPace(sim, x, z) *
+    ground *
+    (STANCE_PACE[posture] ?? 1) *
+    (stamina.spent[soldier] === 1 ? SPENT_PACE : 1) *
+    (running ? RUN_FACTOR : 1)
+  const climb = climbLimit(sim.map, x, z, dx, dz) * (posture === Stance.Prone ? PRONE_CLIMB : 1)
+  return { stride: Math.min(walk, climb) * stepSeconds, running, ground }
+}
+
+/** A player's steering: a direction on the ground plane, whose length (up to 1) is the fraction of walking pace. */
+export interface Steering {
+  readonly x: number
+  readonly z: number
+  readonly run: boolean
+}
+
+/**
+ * Where a soldier steered by a player gets to in one step, without taking it: the movement system's own arithmetic, so a
+ * client can move the soldier its player controls before the server's word comes back (client-side prediction), and
+ * land where the server will. The caller leaves out a man climbing a fence, who goes over whatever the steering.
+ */
+export function steeredPosition(
+  sim: Simulation,
+  soldier: EntityId,
+  steering: Steering,
+  stepSeconds: number
+): { readonly x: number; readonly z: number } {
+  const { x, z } = sim.soldiers.position
+  // Steering as the `steer` command keeps it: no longer than 1, in the steer component's 32-bit floats.
+  const given = Math.sqrt(steering.x * steering.x + steering.z * steering.z)
+  if (!(given > 0)) {
+    return { x: x[soldier], z: z[soldier] }
+  }
+  const scale = given > 1 ? 1 / given : 1
+  const sx = Math.fround(steering.x * scale)
+  const sz = Math.fround(steering.z * scale)
+  const length = Math.sqrt(sx * sx + sz * sz)
+  const { stride } = paceOf(sim, soldier, sx / length, sz / length, steering.run, stepSeconds)
+  return clampToMap(sim, x[soldier] + sx * stride, z[soldier] + sz * stride)
+}
+
 /**
  * Moves soldiers for one step, and spends or restores their breath. Directly steered soldiers walk where the player
  * pushes them, run while the run key is held, crouch-walk or crawl. Soldiers with a move order walk, or run if told to,
@@ -62,34 +122,18 @@ const STANCE_PACE: Readonly<Record<number, number>> = {
  * so does breathing through a gas mask. Running costs stamina; a man run out walks slowly until he gets his breath.
  */
 export function movementSystem(sim: Simulation, stepSeconds: number): void {
-  const { position, speed, moveOrder, facing, steer, stance, suppression, mask, morale, stamina, vault } = sim.soldiers
+  const { position, moveOrder, facing, steer, stance, suppression, mask, morale, stamina, vault } = sim.soldiers
   const activity = new Map<EntityId, Activity>()
   const strideFor = (soldier: EntityId, dx: number, dz: number, run: boolean): number => {
-    const x = position.x[soldier]
-    const z = position.z[soldier]
-    const posture = stance.value[soldier]
-    const running = run && posture === Stance.Standing && canRun(sim, soldier)
-    const ground = groundPace(sim.map, x, z, dx, dz)
-    const walk =
-      speed.value[soldier] *
-      (mask.state[soldier] === MaskState.On ? MASKED_PACE : 1) *
-      Math.max(wirePace(sim.wire, x, z), wirePace(sim.wire, x + dx * WIRE_STEP, z + dz * WIRE_STEP)) *
-      weatherPace(sim, x, z) *
-      ground *
-      (STANCE_PACE[posture] ?? 1) *
-      (stamina.spent[soldier] === 1 ? SPENT_PACE : 1) *
-      (running ? RUN_FACTOR : 1)
-    const climb = climbLimit(sim.map, x, z, dx, dz) * (posture === Stance.Prone ? PRONE_CLIMB : 1)
+    const { stride, running, ground } = paceOf(sim, soldier, dx, dz, run, stepSeconds)
     if (running) {
       activity.set(soldier, Activity.Running)
-    } else {
-      activity.set(soldier, posture === Stance.Prone ? Activity.Crawling : Activity.Walking)
-    }
-    if (running) {
       // Hard going costs breath as well as pace.
       stamina.value[soldier] += STAMINA.run * stepSeconds * (Math.min(HARD_GOING, 1 / ground) - 1)
+    } else {
+      activity.set(soldier, stance.value[soldier] === Stance.Prone ? Activity.Crawling : Activity.Walking)
     }
-    return Math.min(walk, climb) * stepSeconds
+    return stride
   }
   const leftTrench = (soldier: EntityId, wasInTrench: boolean) => {
     if (wasInTrench && !isInTrench(sim.map, position.x[soldier], position.z[soldier])) {
