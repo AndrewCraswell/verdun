@@ -45,6 +45,10 @@ a sector.
 | **Support weapon team** | Leader, gunner, 6 riflemen who feed and carry for the weapon; one machine gun, trench mortar, or (1918) two anti-tank rifles | 2   | All (mortars 1915–) |
 | **Engineer section**    | Leader, 6 engineers, 1 rifleman                                                                                              | 2   | All                 |
 
+Built in the skirmish today: rifle sections with a machine gun in every fifth squad, a sniper in every sixth and a rifle
+grenadier in every fourth ([skirmish.ts](../../apps/client/src/skirmish.ts)); the four squad types and loadouts are
+still to come.
+
 The familiar specialist squads are loadouts of these four:
 
 | Specialist squad                | Is                                                                                 |

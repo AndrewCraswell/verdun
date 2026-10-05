@@ -228,9 +228,12 @@ matters most. A human commander can post, edit and remove orders, and sees the A
 Each side in each sector has one commander.
 
 - **The commander AI** is always there. Built: every 5 s it checks its front line, and when the line is lost it shells
-  it and sends the reserves in behind a creeping barrage. Planned: it runs quiet war (harassing fire, wire repair),
-  plans its own operations from the budget, answers enemy bombardments by reinforcing, and orders bot squads to support
-  where human squads are fighting.
+  it and sends the reserves in behind a creeping barrage. Before that, two faster reactions (built,
+  [defence.ts](../../packages/sim/src/defence.ts)): when the side calls its SOS barrage, half its reserves go up to man
+  the front line; and wherever the enemy breaks into a stretch of the line without being outnumbered there, the nearest
+  reserves go straight up to throw them out, the German Gegenstoß. Planned: it runs quiet war (harassing fire, wire
+  repair), plans its own operations from the budget, answers enemy bombardments by reinforcing, and orders bot squads to
+  support where human squads are fighting.
 - **A human commander** can take over in stage 2: a player of the right [rank](progression-and-community.md#ranks)
   volunteers, and the AI hands over planning, the budget and the bot squads. They command from the map, not as a
   soldier. If they leave or the side votes them out, the AI takes over again with no gap.

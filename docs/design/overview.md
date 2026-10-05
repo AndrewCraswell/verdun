@@ -111,41 +111,43 @@ already exists), wire cut by hand, flares, signal rockets, a mine going up, and 
 What the simulation already does, and where everything else lands. Stages are the ones in the
 [roadmap](../roadmap.md#stages).
 
-| Mechanic                                                                                | Status                           |
-| --------------------------------------------------------------------------------------- | -------------------------------- |
-| Direct control, switching, succession on death                                          | Built (M2–M3)                    |
-| Squad orders: follow, hold, advance, reserve                                            | Built                            |
-| Rifles, machine guns with beaten zone and grazing fire, grenades                        | Built (M4, later)                |
-| Suppression, morale, breaking, surrender and prisoners                                  | Built                            |
-| Stance: standing, prone, sheltering in dugouts; running                                 | Built                            |
-| Artillery: fire missions, bombardments, creeping, standing, SOS and protective barrages | Built (M5)                       |
-| Craters, churned ground, ground pace, barrage smoke                                     | Built                            |
-| Gas, masks and wind                                                                     | Built (M6)                       |
-| Barbed wire, wire cutting by shells, detours through gaps; flow-field navigation        | Built                            |
-| Objectives and sector control share                                                     | Built                            |
-| Reserves and the commander AI's counter-attack                                          | Built                            |
-| Week of the war, 117-minute day and night, weather, sight range                         | Built                            |
-| Night fighting: flares and muzzle flashes                                               | Built                            |
-| Squad wipe, redeploy from the manpower pool                                             | Built                            |
-| Joining by taking over a bot squad                                                      | Stage 1–2, next                  |
-| Orders for players                                                                      | Stage 2                          |
-| Shell stocks by type                                                                    | In progress (gameplay session)   |
-| Wounded and killed, AI stretcher bearers, the aid post                                  | Built                            |
-| Stamina, morale additions, rally, shell shock                                           | Stage 1, next                    |
-| Territory cells, consolidation, the day's line                                          | Stage 1, headless                |
-| Operations: planning, assembly, waves, counter-preparation                              | Stage 1 (single player), stage 2 |
-| Small-arms ammunition, dumps, carrying parties                                          | Stage 1–2                        |
-| Squad types, roles and loadouts; trench mortars, flamethrowers                          | Stage 2                          |
-| Field works: trench stages, repair, blocks, nests, shelters                             | Stage 2                          |
-| Raids, patrols, intelligence, signal rockets, telephone lines                           | Stage 2                          |
-| Batteries as places, observation, counter-battery                                       | Stage 2                          |
-| Balloons, air superiority, reconnaissance, ground attack                                | Stage 2–3                        |
-| Sector commander role for humans                                                        | Stage 2                          |
-| Tanks, anti-tank weapons, armoured cars                                                 | Stage 3 (the 1917–18 seasons)    |
-| War map, daily turn, allocations, supply routes, seasons                                | Stage 3 (headless model earlier) |
-| Active sectors opened by population                                                     | Stage 3                          |
-| Ranks, service record, veterans, regiments, communiqué                                  | Stage 3                          |
-| New trenches and saps at runtime, mining, bunkers, booby traps                          | Stage 3                          |
+| Mechanic                                                                                | Status                                |
+| --------------------------------------------------------------------------------------- | ------------------------------------- |
+| Direct control, switching, succession on death                                          | Built (M2–M3)                         |
+| Squad orders: follow, hold, advance, reserve                                            | Built                                 |
+| Rifles, machine guns with beaten zone and grazing fire, grenades                        | Built (M4, later)                     |
+| Suppression, morale, breaking, surrender and prisoners                                  | Built                                 |
+| Stance: standing, prone, sheltering in dugouts; running                                 | Built                                 |
+| Artillery: fire missions, bombardments, creeping, standing, SOS and protective barrages | Built (M5)                            |
+| Craters, churned ground, ground pace, barrage smoke                                     | Built                                 |
+| Gas, masks and wind                                                                     | Built (M6)                            |
+| Barbed wire, wire cutting by shells, detours through gaps; flow-field navigation        | Built                                 |
+| Objectives and sector control share                                                     | Built                                 |
+| Reserves, the counter-thrust, reserves up on the alarm, the commander's counter-attack  | Built                                 |
+| Week of the war, 117-minute day and night, weather, sight range                         | Built                                 |
+| Night fighting: flares and muzzle flashes                                               | Built                                 |
+| Squad wipe, redeploy from the manpower pool                                             | Built                                 |
+| Taking over a bot squad when yours is wiped (T)                                         | Built                                 |
+| Orders for players                                                                      | Stage 2                               |
+| Shell stocks by type                                                                    | Built                                 |
+| Wounded and killed, AI stretcher bearers, the aid post                                  | Built                                 |
+| Machine guns as the killer: spotted guns, gun crews, counter-fire on seen guns          | Built                                 |
+| Snipers and rifle grenadiers                                                            | Built                                 |
+| Stamina, crouching, peeking; morale additions, rally, shell shock                       | Stamina built; the rest stage 1, next |
+| Territory cells, consolidation, the day's line                                          | Stage 1, headless                     |
+| Operations: planning, assembly, waves, counter-preparation                              | Stage 1 (single player), stage 2      |
+| Small-arms ammunition, dumps, carrying parties                                          | Stage 1–2                             |
+| Squad types, roles and loadouts; trench mortars, flamethrowers                          | Stage 2                               |
+| Field works: trench stages, repair, blocks, nests, shelters                             | Stage 2                               |
+| Raids, patrols, intelligence, signal rockets, telephone lines                           | Stage 2                               |
+| Batteries as places, observation, counter-battery                                       | Stage 2                               |
+| Balloons, air superiority, reconnaissance, ground attack                                | Stage 2–3                             |
+| Sector commander role for humans                                                        | Stage 2                               |
+| Tanks, anti-tank weapons, armoured cars                                                 | Stage 3 (the 1917–18 seasons)         |
+| War map, daily turn, allocations, supply routes, seasons                                | Stage 3 (headless model earlier)      |
+| Active sectors opened by population                                                     | Stage 3                               |
+| Ranks, service record, veterans, regiments, communiqué                                  | Stage 3                               |
+| New trenches and saps at runtime, mining, bunkers, booby traps                          | Stage 3                               |
 
 ## Suggested next steps
 

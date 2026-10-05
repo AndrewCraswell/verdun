@@ -7,16 +7,26 @@ The weapon that defined the Western Front, and the tactical problem every attack
 it, keep its crew down, flank it or destroy it before they can cross. Knocking out a gun should be one of the most
 satisfying things a squad does.
 
-## How it is today
+## Built so far
 
-Built in [combat.ts](../../packages/sim/src/combat.ts): a Hotchkiss or MG 08 fires a round every 0.15 s (400 rounds a
-minute), hits with 0.1 at point blank falling by a factor of e every 220 m, engages men lying in the open at any range
-(grazing fire), and its misses can hit the nearest other man in a beaten zone 3 m wide. Crews climb out of their dugouts
-in 3–8 s, faster than riflemen. In the skirmish the last man of every fifth squad carries one: 7 guns a side.
+| Piece            | Commit    | What it does                                                                                                                                                                    |
+| ---------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gun numbers      | `14c3c66` | A round every 0.1 s, accuracy 0.35; rifles 0.2; men lying in the open 0.6 as safe from a gun; guns pick upright men from the 24 nearest; crews stay up under their own shells   |
+| Spotted guns     | `2a11c04` | A gun that fires is marked for the enemy if heard within 150 m or seen, for a minute after its last burst ([spotting.ts](../../packages/sim/src/spotting.ts))                   |
+| Counter-fire     | `2a11c04` | The commander brings a field battery down on a gun its men can see, every 3 minutes at most, never within 60 m of its own men                                                   |
+| Gun crews        | `2a11c04` | The nearest squadmate walks to a fallen gunner's gun and has it firing 5 s after reaching it ([gun-crews.ts](../../packages/sim/src/gun-crews.ts))                              |
+| Snipers          | `e68f6b1` | A scoped rifle (0.6, 400 m falloff, a shot every 6 s) that goes for spotted gunners, then leaders; a head over a parapet is 0.7 as hard to hit. One in every sixth squad        |
+| Rifle grenadiers | `e68f6b1` | Eight VB grenades lobbed 40–180 m at spotted guns or men in trenches, one every 15 s ([rifle-grenades.ts](../../packages/sim/src/rifle-grenades.ts)). One in every fourth squad |
 
-Measured with the [balance harness](balance.md#battle-matrix-built), machine guns cause only **2–8% of attackers'
-losses** in every scenario, including infantry advancing with no artillery at all; rifles cause 50–70%. Sampling every
-German gunner through an infantry-only attack showed where the guns' time goes:
+With all of it (10 seeds each way): guns cause 41–44% of an unsupported attack's losses, inside the target; prepared
+attacks hold 8 of 10 from both sides at 54–58% losses. Still to come: fixed lines at night, fields of fire from
+emplacements, the spotted-gun markers on the HUD (the HUD session), and players firing rifle grenades themselves.
+
+## How it was
+
+Before the gun rework, measured with the [balance harness](balance.md#battle-matrix-built), machine guns caused only
+**2–8% of attackers' losses** in every scenario, including infantry advancing with no artillery at all; rifles caused
+50–70%. Sampling every German gunner through an infantry-only attack showed where the guns' time went:
 
 | A gun's time in an infantry-only attack                               | Share |
 | --------------------------------------------------------------------- | ----- |
@@ -27,9 +37,9 @@ German gunner through an infantry-only attack showed where the guns' time goes:
 | Firing                                                                | 10%   |
 | Pinned                                                                | 2%    |
 
-When it does fire, a gun hits with about 1% of its rounds. Its own fire pins its target, the target goes flat, a flat
-man is 30% as easy to hit, and the gun keeps firing at him instead of traversing to the next man standing. It picks
-targets only among the 6 nearest enemies, often men hidden in shell holes.
+When it fired, a gun hit with about 1% of its rounds: its own fire pinned its target, the target went flat, a flat man
+was 30% as easy to hit, and the gun kept firing at him instead of traversing to the next man standing. It picked targets
+only among the 6 nearest enemies, often men hidden in shell holes.
 
 ## Numbers are not the problem
 
