@@ -322,6 +322,24 @@ describe("joining the battle with a squad of your choosing", () => {
     expect(held.every((member) => sim.soldiers.squad.id[member] === bots.id)).toBe(true)
   })
 
+  it("sends replacements already on their way after the men they replace, and keeps the pool as it was", () => {
+    const sim = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
+    const { player, bots, members } = line(sim)
+    const fallen = [...player.members]
+    wipeOut(sim, player)
+    stepFor(sim, 1)
+    const coming = arrivalOf(sim, player)
+    const pool = sim.reinforcements.pool[Side.French]
+    expect(coming).toBeGreaterThan(sim.tick)
+
+    expect(joinSquad(sim, player, bots)).toBe(true)
+    expect(player.members).toEqual(members)
+    expect(bots.members).toEqual(fallen)
+    expect(arrivalOf(sim, player)).toBe(-1)
+    expect(arrivalOf(sim, bots)).toBe(coming)
+    expect(sim.reinforcements.pool[Side.French]).toBe(pool)
+  })
+
   it("refuses a squad in contact, an understrength one, the enemy's, or the player's own", () => {
     const sim = createSimulation({ map: sector(), seed: 1 })
     const { player, bots, members } = line(sim)

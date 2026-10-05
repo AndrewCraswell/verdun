@@ -335,7 +335,8 @@ export function joinRefusal(sim: Simulation, squad: Squad, from: Squad): "not-ou
 /**
  * A player joining the battle takes a bot squad in the line in place of the one held for them: the two squads swap their
  * men and their orders, so the player leads the chosen men where they stand, and bots carry on with the stretch the
- * player's squad held. Returns whether it happened; see `joinRefusal` for when it doesn't.
+ * player's squad held. Replacements on their way to either squad go with the men they replace. Returns whether it
+ * happened; see `joinRefusal` for when it doesn't.
  */
 export function joinSquad(sim: Simulation, squad: Squad, from: Squad): boolean {
   if (joinRefusal(sim, squad, from) !== null) {
@@ -356,5 +357,13 @@ export function joinSquad(sim: Simulation, squad: Squad, from: Squad): boolean {
   const order = squad.order
   squad.order = from.order
   from.order = order
+  // Replacements already on their way follow the men they replace: a wiped squad's go to whichever squad has its men
+  // now. Nothing comes back to the pool or leaves it.
+  const arrivals = sim.reinforcements.arrivals
+  for (const [index, arrival] of arrivals.entries()) {
+    if (arrival.squad === squad.id || arrival.squad === from.id) {
+      arrivals[index] = { ...arrival, squad: arrival.squad === squad.id ? from.id : squad.id }
+    }
+  }
   return true
 }
