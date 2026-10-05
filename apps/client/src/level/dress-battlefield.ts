@@ -9,6 +9,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
 import type { WireField } from "@verdun/sim"
 import type { BattleSoundFiles } from "../audio/battle-sounds.ts"
+import type { GraphicsQuality } from "../settings/graphics.ts"
 import { backdropGround, backdropTrees, createBackdrop, type Surroundings } from "../terrain/backdrop.ts"
 import { GroundSplatPlugin } from "../terrain/ground-splat-plugin.ts"
 import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
@@ -325,6 +326,8 @@ export interface LevelDressing extends BattlefieldDressing {
 
 /** What the level reads from the running battle. */
 interface LevelOptions {
+  /** The graphics setting, which the post-process reads: high by default. */
+  readonly quality?: GraphicsQuality
   /** The wind near the ground, metres per second, which carries the smoke. Defaults to a light westerly. */
   readonly wind?: () => { readonly x: number; readonly z: number }
   /** Where to read the kit from, when the caller reads more from it; by default the level opens and closes its own. */
@@ -371,7 +374,7 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY, files, surroundings, wire, weather }: LevelOptions = {}
+  { wind = () => WESTERLY, files, surroundings, wire, weather, quality }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
   const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
@@ -430,7 +433,8 @@ export async function dressLevel(
     // The depth of field blurs by the ground's depth alone: from the game's camera, looking down on the battlefield,
     // what stands on the ground is near enough the ground's depth, and every prop drawn again costs a draw call.
     postProcess: createPostProcess(view.scene, view.camera, {
-      inDepth: (mesh) => mesh.name.startsWith("terrain-") || mesh.name === "backdrop"
+      inDepth: (mesh) => mesh.name.startsWith("terrain-") || mesh.name === "backdrop",
+      quality
     }),
     materials: [
       ...kit.materials,

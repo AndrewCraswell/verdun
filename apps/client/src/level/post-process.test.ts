@@ -41,9 +41,19 @@ describe("createPostProcess", () => {
     // The focal length grows with the distance, keeping the same model-like focus.
     expect(overview.pipeline.depthOfField.focalLength / closeUp.pipeline.depthOfField.focalLength).toBeCloseTo(160 / 15)
     expect(closeUp.pipeline.samples).toBe(4)
+    expect(closeUp.pipeline.fxaaEnabled).toBe(false)
     expect(closeUp.pipeline.bloomEnabled && closeUp.pipeline.grainEnabled).toBe(true)
     closeUp.dispose()
     overview.dispose()
+  })
+
+  it("smooths edges with FXAA instead of multisampling on the low setting", () => {
+    const { scene, camera } = setup(40)
+    const low = createPostProcess(scene, camera, { quality: "low" })
+
+    expect(low?.pipeline.samples).toBe(1)
+    expect(low?.pipeline.fxaaEnabled).toBe(true)
+    low?.dispose()
   })
 
   it("draws the depth the focus reads at half the screen's size, leaving out what it's told to", () => {

@@ -466,6 +466,7 @@ Low drops what costs most for least:
 | Rain splashes                       | None                                                             |
 | Flares                              | One light, for the brightest flare, instead of three; no shadows |
 | Gunfire                             | No muzzle smoke; two grains of dirt a strike instead of five     |
+| Edges                               | FXAA instead of 4× multisampling (about 5 ms a frame at 1080p)   |
 
 Cloud shadows, lying snow, rain and snow falling, and the fog stay on both settings. Other sessions' costly effects (the
 post-process, the sun's shadows) can read the same setting.

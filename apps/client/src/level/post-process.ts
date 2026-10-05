@@ -5,6 +5,7 @@ import "@babylonjs/core/Rendering/depthRendererSceneComponent"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline"
 import type { Scene } from "@babylonjs/core/scene"
+import type { GraphicsQuality } from "../settings/graphics.ts"
 
 /**
  * The miniature look: the battlefield seen as a model on a table, sharp where the camera looks and soft nearer and
@@ -29,12 +30,21 @@ const MINIATURE = {
  */
 const DEPTH_MAP_SCALE = 0.5
 
+/**
+ * Samples a pixel for its edges. Four cost about 5 ms a frame at 1080p on an integrated GPU, for edges that the depth
+ * of field softens over most of the picture anyway: the low setting draws one and smooths edges with FXAA instead.
+ * WebGPU allows only one or four.
+ */
+const SAMPLES: Readonly<Record<GraphicsQuality, number>> = { high: 4, low: 1 }
+
 interface PostProcessOptions {
   /**
    * What the depth map draws, out of what the camera sees. Leave out what lies flat on the ground, such as grass and
    * litter: the ground under it has the same depth, near enough.
    */
   readonly inDepth?: (mesh: AbstractMesh) => boolean
+  /** The graphics setting: high by default. */
+  readonly quality?: GraphicsQuality
 }
 
 export interface PostProcess {
@@ -45,14 +55,14 @@ export interface PostProcess {
 }
 
 /**
- * The image after the scene is drawn: multisampled edges, the miniature's depth of field, bloom so flames, flashes and
- * sparks glow, and a little film grain over it all. The scene's colour grade (see atmosphere.ts) runs in the pipeline's
- * image processing pass. Resolves null where the engine can't run it.
+ * The image after the scene is drawn: multisampled edges (FXAA on the low setting), the miniature's depth of field,
+ * bloom so flames, flashes and sparks glow, and a little film grain over it all. The scene's colour grade (see
+ * atmosphere.ts) runs in the pipeline's image processing pass. Resolves null where the engine can't run it.
  */
 export function createPostProcess(
   scene: Scene,
   camera: TargetCamera,
-  { inDepth }: PostProcessOptions = {}
+  { inDepth, quality = "high" }: PostProcessOptions = {}
 ): PostProcess | null {
   // The depth renderer the depth of field will use, made first so it's made smaller: the pipeline takes it as it finds it.
   const engine = scene.getEngine()
@@ -83,7 +93,8 @@ export function createPostProcess(
     resized.remove()
     return null
   }
-  pipeline.samples = 4
+  pipeline.samples = SAMPLES[quality]
+  pipeline.fxaaEnabled = SAMPLES[quality] === 1
   pipeline.imageProcessingEnabled = true
 
   pipeline.bloomEnabled = true
