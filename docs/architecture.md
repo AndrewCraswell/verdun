@@ -104,11 +104,9 @@ before, for development and `pnpm perf`.
   every time, it was 1.4 to 2.8 MB/s and 1.75 MB. Encoding takes about 4 ms a message, once for every player. What's
   left: smoke drifting (about 6 KB/s), all the soldiers' arrays together (5), shells and fire missions (2), craters
   (1.3).
-- **Relevance filtering isn't done.** Every player is sent the whole battle. Sending far soldiers less often would save
-  only part of the soldiers' 5 KB/s at this sector's 500 men, and would end the one encoding shared by every player:
-  each player would need what they've been sent kept apart. It earns its place when the stage 2 load test, with its
-  1,000 men, shows soldiers' data dominating. Visibility filtering (sending only what a player's men can see) waits on
-  fog of war being on.
+- **Relevance filtering isn't done yet; the load test says it's needed** (see [the load test](#the-load-test)). Every
+  player is sent the whole battle, and with 100 players' squads on the move the soldiers' arrays are three quarters of
+  it. Visibility filtering (sending only what a player's men can see) waits on fog of war being on.
 - **A hidden tab** draws no frames, so it sends no commands and plays out no steps; its mirror stays up to date, and it
   keeps only the last two seconds of steps to play on coming back (`server-host.ts`).
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
@@ -127,8 +125,47 @@ before, for development and `pnpm perf`.
 
 In order, what comes next:
 
-1. The stage 2 load test, which decides whether relevance filtering is needed.
-2. Hosting on Railway, with the database on a volume.
+1. Profiling the step under the load test's 100 players (see [the load test](#the-load-test)).
+2. Relevance filtering by map cells, and positions as 16-bit movements.
+3. Hosting on Railway, with the database on a volume.
+
+### The load test
+
+`pnpm load-test` (`scripts/load-test.mjs`) starts a sector server with a battle of its own (`--soldiers`, men a side),
+joins it with bot players (`--players`) who each lead a squad of their side: they walk and run about, aim, fire, and
+every 20 s or so send their squad at the objective. Most bots only count what they're sent; a few (`--decoders`) read
+every message into a mirror as a player's page does. The server logs how it keeps up every 10 s (`--stats`), and the
+script reports steps a second, step and encoding time, what each player is sent and what fills it.
+
+First results, 5 October 2026: 100 players and 500 men a side (about 1,100 men, 126 squads to lead), 3 minutes, on the
+development machine with other sessions' work running alongside, so the worst stretches are partly theirs:
+
+|                                  | 1 player  | 100 players                                                      |
+| -------------------------------- | --------- | ---------------------------------------------------------------- |
+| Steps a second (20 is the clock) | 20.1      | 16.8 mean, 7.7 at worst                                          |
+| Step, mean (budget 50 ms)        | 12 ms     | 22 to 45 ms when keeping up, 90 to 120 ms in the worst stretches |
+| Encoding a message, once for all | 7 ms      | 8 to 10 ms when keeping up                                       |
+| Each player is sent              | 12 KB/s   | 95 to 127 KB/s when keeping up (11 to 13 KB a message)           |
+| The server sends                 |           | about 12 MB/s in all when keeping up                             |
+| A player's page reads a message  | 3 ms mean | 5 ms mean, 14 ms p95                                             |
+| Joining                          |           | 215 KB welcome, under 0.5 s                                      |
+
+What a message holds with 100 players: the soldiers' arrays 74% (positions alone 40%), smoke 9%, which soldiers have
+which components 6%, events 5%. Server memory stayed under 100 MB.
+
+What it says:
+
+- **The simulation's own step is the first limit.** Players' squads walking, running, navigating to the objective and
+  fighting take the step from 12 ms to 22 to 45 ms mean, with a p95 near or past the 50 ms budget; when it falls behind
+  the battle slows (fewer steps a second) rather than stuttering. Before any more players or men, profile the step under
+  this load: what 100 players' squads cost the navigation, the sight lines and the AI.
+- **Relevance filtering is worth doing**, but not at the step's expense: per-player encoding on the room's thread would
+  cost what the step can't spare. The shape to build is encoding by map cells, each cell's soldiers once a message for
+  everyone, every player sent the cells near their men every message and the rest a few times a second; or encoding
+  moved to a worker thread. Positions sent as centimetre movements in 16 bits, rather than 32-bit floats, would halve
+  the biggest part of every message in any case.
+- **Hosting**: at 100 players a sector sends about 12 MB/s (100 Mbit/s) as things stand, which matters for Railway's
+  egress pricing until relevance filtering lands.
 
 ### ECS decision
 
@@ -335,8 +372,9 @@ first candidate for Rust/WebAssembly if profiling demands it.
 - **Trenches dug during a battle.** [Field works](design/field-works.md#engineering-in-the-code) need trench polylines
   carved into the height grid at runtime, with the sight heightfield, navigation and trench kit rebuilt locally. Trench
   stages on existing trenches are cheap; new trenches need a spike on local rebuild cost.
-- **One room is one thread.** A sector's whole simulation shares one Node event loop, so the stage 2 load test sets the
-  sector size.
+- **One room is one thread.** A sector's whole simulation shares one Node event loop. The first load test (see
+  [above](#the-load-test)) puts 100 players and 1,100 men at the edge of it: the step needs profiling before the sector
+  grows, and whatever relevance filtering costs must stay off that thread.
 
 ## Considered and not chosen
 
