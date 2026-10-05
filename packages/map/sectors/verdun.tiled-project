@@ -1,0 +1,729 @@
+{
+ "automappingRulesFile": "",
+ "commands": [],
+ "compatibilityVersion": 1100,
+ "extensionsPath": "extensions",
+ "folders": [
+  "."
+ ],
+ "properties": [],
+ "propertyTypes": [
+  {
+   "id": 1,
+   "name": "Side",
+   "storageType": "string",
+   "type": "enum",
+   "values": [
+    "french",
+    "german"
+   ],
+   "valuesAsFlags": false
+  },
+  {
+   "id": 2,
+   "name": "Line",
+   "storageType": "string",
+   "type": "enum",
+   "values": [
+    "front",
+    "support",
+    "reserve"
+   ],
+   "valuesAsFlags": false
+  },
+  {
+   "id": 3,
+   "name": "From",
+   "storageType": "string",
+   "type": "enum",
+   "values": [
+    "support",
+    "reserve"
+   ],
+   "valuesAsFlags": false
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 4,
+   "members": [
+    {
+     "name": "halfWidth",
+     "type": "float",
+     "value": 16
+    },
+    {
+     "name": "depth",
+     "type": "float",
+     "value": 9
+    }
+   ],
+   "name": "ravine",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 5,
+   "members": [
+    {
+     "name": "halfWidth",
+     "type": "float",
+     "value": 4.5
+    },
+    {
+     "name": "depth",
+     "type": "float",
+     "value": 2.3
+    }
+   ],
+   "name": "sunken-road",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 6,
+   "members": [
+    {
+     "name": "height",
+     "type": "float",
+     "value": 7.5
+    }
+   ],
+   "name": "village",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 7,
+   "members": [
+    {
+     "name": "depth",
+     "type": "float",
+     "value": 4
+    }
+   ],
+   "name": "crater",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 8,
+   "members": [
+    {
+     "name": "density",
+     "type": "float",
+     "value": 1
+    }
+   ],
+   "name": "wood",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 9,
+   "members": [],
+   "name": "road",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 10,
+   "members": [],
+   "name": "street",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 11,
+   "members": [],
+   "name": "crossroads",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 12,
+   "members": [],
+   "name": "railway",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 13,
+   "members": [],
+   "name": "dump",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 14,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "variant",
+     "type": "int",
+     "value": 1
+    }
+   ],
+   "name": "church",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 15,
+   "members": [
+    {
+     "name": "rows",
+     "type": "int",
+     "value": 3
+    },
+    {
+     "name": "trees",
+     "type": "int",
+     "value": 9
+    },
+    {
+     "name": "spacing",
+     "type": "float",
+     "value": 6.5
+    },
+    {
+     "name": "jitter",
+     "type": "float",
+     "value": 1.2
+    }
+   ],
+   "name": "orchard",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 16,
+   "members": [
+    {
+     "name": "side",
+     "propertyType": "Side",
+     "type": "string",
+     "value": "french"
+    },
+    {
+     "name": "line",
+     "propertyType": "Line",
+     "type": "string",
+     "value": "front"
+    },
+    {
+     "name": "wire",
+     "type": "string",
+     "value": ""
+    }
+   ],
+   "name": "line",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 17,
+   "members": [
+    {
+     "name": "side",
+     "propertyType": "Side",
+     "type": "string",
+     "value": "french"
+    },
+    {
+     "name": "from",
+     "propertyType": "From",
+     "type": "string",
+     "value": "support"
+    }
+   ],
+   "name": "communication",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 18,
+   "members": [
+    {
+     "name": "side",
+     "propertyType": "Side",
+     "type": "string",
+     "value": "french"
+    }
+   ],
+   "name": "sap",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 19,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    }
+   ],
+   "name": "battery",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 20,
+   "members": [
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 16
+    }
+   ],
+   "name": "objective",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 21,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "ruin",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 22,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "landmark",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 23,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "rubble",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 24,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "wall",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 25,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "tree",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 26,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "stump",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 27,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "log",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 28,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "fruit-tree",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 29,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "gun",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 30,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "wrecked-gun",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 31,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "wrecked-plane",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 32,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "bunker",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 33,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "machine-gun",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 34,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "knife-rest",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 35,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "stores",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 36,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "bridge",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  },
+  {
+   "color": "#ff9e9e9e",
+   "drawFill": true,
+   "id": 37,
+   "members": [
+    {
+     "name": "heading",
+     "type": "float",
+     "value": 0
+    },
+    {
+     "name": "radius",
+     "type": "float",
+     "value": 3
+    }
+   ],
+   "name": "pool",
+   "type": "class",
+   "useAs": [
+    "object"
+   ]
+  }
+ ]
+}

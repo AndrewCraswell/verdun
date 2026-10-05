@@ -17,6 +17,19 @@
    "y": 0
   },
   {
+   "id": 10,
+   "image": "fleury-generated.png",
+   "locked": true,
+   "name": "generated",
+   "opacity": 1,
+   "repeatx": false,
+   "repeaty": false,
+   "type": "imagelayer",
+   "visible": false,
+   "x": 0,
+   "y": 0
+  },
+  {
    "draworder": "index",
    "id": 1,
    "name": "ground",
@@ -2789,7 +2802,7 @@
    "y": 0
   }
  ],
- "nextlayerid": 10,
+ "nextlayerid": 11,
  "nextobjectid": 66,
  "orientation": "orthogonal",
  "properties": [

@@ -26,6 +26,7 @@
     "assets:backup": "node scripts/backup-assets.mjs",
     "assets:fetch": "node scripts/backup-assets.mjs --fetch",
     "map:backdrop": "node scripts/sector-backdrop.mjs",
+    "map:check": "node scripts/check-sector.mjs",
     "map:export-tiled": "node scripts/export-tiled.mjs",
     "prepare": "lefthook install",
     "map:analyze": "node scripts/analyze-sector.mjs",

@@ -5,8 +5,8 @@
 // Usage: pnpm map:backdrop [elevation .bin] [out .png]
 //        (defaults: packages/map/data/fleury-elevation.bin packages/map/sectors/fleury-ground.png)
 
-import { readFileSync, writeFileSync } from "node:fs"
-import { deflateSync } from "node:zlib"
+import { readFileSync } from "node:fs"
+import { writePng } from "./png.mjs"
 
 const print = (line) => process.stdout.write(`${line}\n`)
 
@@ -55,49 +55,13 @@ for (let row = 0; row <= rows; row++) {
     )
   }
 }
-// Greyscale PNG, north at the top.
-const raw = Buffer.alloc((width + 1) * tall)
+// Greyscale, north at the top.
+const pixels = new Uint8Array(width * tall)
 for (let y = 0; y < tall; y++) {
   const row = rows - 1 - Math.floor(y / step)
-  raw[y * (width + 1)] = 0
   for (let x = 0; x < width; x++) {
-    raw[y * (width + 1) + 1 + x] = shade[row * (columns + 1) + Math.floor(x / step)] ?? 0
+    pixels[y * width + x] = shade[row * (columns + 1) + Math.floor(x / step)] ?? 0
   }
 }
-const table = Array.from({ length: 256 }, (_, n) => {
-  let c = n
-  for (let k = 0; k < 8; k++) {
-    c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-  }
-  return c >>> 0
-})
-const crc = (data) => {
-  let c = 0xffffffff
-  for (const byte of data) {
-    c = (table[(c ^ byte) & 255] ?? 0) ^ (c >>> 8)
-  }
-  return (c ^ 0xffffffff) >>> 0
-}
-const chunk = (type, data) => {
-  const length = Buffer.alloc(4)
-  length.writeUInt32BE(data.length)
-  const body = Buffer.concat([Buffer.from(type), data])
-  const sum = Buffer.alloc(4)
-  sum.writeUInt32BE(crc(body))
-  return Buffer.concat([length, body, sum])
-}
-const header = Buffer.alloc(13)
-header.writeUInt32BE(width, 0)
-header.writeUInt32BE(tall, 4)
-header[8] = 8
-header[9] = 0
-writeFileSync(
-  out,
-  Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(raw, { level: 9 })),
-    chunk("IEND", Buffer.alloc(0))
-  ])
-)
+writePng(out, width, tall, 1, pixels)
 print(`Drew ${width} x ${tall} px of shaded relief into ${out}`)

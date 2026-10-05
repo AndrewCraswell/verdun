@@ -34,3 +34,6 @@ Thumbs.db
 
 # The built client CI copies in to deploy (deploy/Dockerfile).
 deploy/site/
+
+# What pnpm map:check draws of a sector as generated, for its Tiled file.
+packages/map/sectors/*-generated.png

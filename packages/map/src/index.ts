@@ -49,3 +49,4 @@ export {
   type TiledMap,
   type TrenchKitWarning
 } from "./tiled.ts"
+export { fromTiledSector, type SectorFeatures, toTiledProject, toTiledSector } from "./sector-file.ts"

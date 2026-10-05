@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { fromTiledSector, lineZ, toTiledSector } from "./sector-file.ts"
+import { fromTiledSector, lineZ, toTiledProject, toTiledSector } from "./sector-file.ts"
 
 const FILE = new URL("../sectors/fleury.json", import.meta.url)
 
@@ -49,9 +49,8 @@ describe("sector files", () => {
 
   it("name the object they can't read", () => {
     expect(() => fromTiledSector({ type: "tileset" })).toThrow("orthogonal Tiled map")
-    expect(() => fromTiledSector(edited("ground", (ravine) => (ravine.properties = [])))).toThrow(
-      /object 1 in layer "ground" needs a positive halfWidth/
-    )
+    const shallow = edited("ground", (ravine) => (ravine.properties = [{ name: "halfWidth", value: -1 }]))
+    expect(() => fromTiledSector(shallow)).toThrow(/object 1 in layer "ground" needs a positive halfWidth/)
     expect(() => fromTiledSector(edited("landmarks", (church) => (church.type = "castle")))).toThrow(
       /expected church or orchard/
     )
@@ -189,13 +188,11 @@ describe("sector files' trenches", () => {
     })
     expect(() => fromTiledSector(wire)).toThrow("wire as distances")
     const marker = (object: Record<string, unknown>) => object.type === "communication"
-    expect(() =>
-      fromTiledSector(editing(marker, (object) => (object.properties = [{ name: "side", value: "french" }])))
-    ).toThrow("from of support or reserve")
+    const from = editing(marker, (object) => (object.properties = [{ name: "from", value: "front" }]))
+    expect(() => fromTiledSector(from)).toThrow("from of support or reserve")
     expect(() => fromTiledSector(editing(marker, (object) => (object.type = "tunnel")))).toThrow('class "tunnel"')
-    expect(() => fromTiledSector(editing(marker, (object) => (object.properties = [])))).toThrow(
-      "side of french or german"
-    )
+    const british = editing(marker, (object) => (object.properties = [{ name: "side", value: "british" }]))
+    expect(() => fromTiledSector(british)).toThrow("side of french or german")
   })
 })
 
@@ -237,5 +234,55 @@ describe("sector files' positions and objectives", () => {
     const heading = edited("positions", (battery) => (battery.properties = [{ name: "heading", value: "north" }]))
     expect(() => fromTiledSector(heading)).toThrow("heading in degrees")
     expect(() => fromTiledSector(edited("objectives", (objective) => (objective.name = "")))).toThrow("needs a name")
+  })
+})
+
+describe("the Tiled project", () => {
+  it("is the one committed beside the sector files, so each class's form matches what the reader expects", () => {
+    const committed: unknown = JSON.parse(
+      readFileSync(new URL("../sectors/verdun.tiled-project", import.meta.url), "utf8")
+    )
+    expect(committed).toEqual(toTiledProject())
+  })
+
+  it("lets an object leave a property at its class's default, as Tiled does", () => {
+    const features = fromTiledSector(edited("ground", (ravine) => (ravine.properties = [])))
+    expect(features.ravines[0]?.halfWidth).toBe(16)
+    expect(features.ravines[0]?.depth).toBe(9)
+  })
+})
+
+describe("sector files, as Tiled may save them", () => {
+  it("read a sector with no survey or preview, objects classed the newer way, and objects without names", () => {
+    const { backdrop: _backdrop, preview: _preview, ...bare } = fromTiledSector(fleury())
+    const written = structuredClone(toTiledSector(bare))
+    expect(written.layers.some((layer) => layer.type === "imagelayer")).toBe(false)
+    expect(fromTiledSector(written)).toEqual(bare)
+    const renamed = edited("ground", (ravine) => {
+      ravine.class = ravine.type
+      delete ravine.type
+      delete ravine.name
+    })
+    expect(fromTiledSector(renamed).ravines[0]?.name).toBe("")
+  })
+
+  it("refuse a class that isn't a name, and wire that isn't distances", () => {
+    expect(() => fromTiledSector(edited("ground", (ravine) => (ravine.type = 5)))).toThrow("class 5")
+    const json = fleury()
+    if (isObject(json) && Array.isArray(json.layers)) {
+      for (const layer of json.layers) {
+        if (isObject(layer) && layer.name === "trenches" && Array.isArray(layer.objects)) {
+          const front = layer.objects.find((object) => isObject(object) && object.name === "french front")
+          if (isObject(front)) {
+            front.properties = [
+              { name: "side", value: "french" },
+              { name: "line", value: "front" },
+              { name: "wire", value: 22 }
+            ]
+          }
+        }
+      }
+    }
+    expect(() => fromTiledSector(json)).toThrow("wire as distances")
   })
 })

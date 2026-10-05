@@ -1,5 +1,5 @@
 import type { Crater } from "./craters.ts"
-import type { Objective, SceneryKind } from "./scenery.ts"
+import { type Objective, SCENERY_KINDS, type SceneryKind } from "./scenery.ts"
 import {
   type Frame,
   HEADING_DECIMALS,
@@ -71,6 +71,8 @@ export interface SectorFeatures {
   readonly objectives: readonly Objective[]
   /** The surveyed ground drawn as shaded relief (scripts/sector-backdrop.mjs), shown under the features in Tiled. */
   readonly backdrop?: string
+  /** The battlefield as last generated from it (pnpm map:check), shown over the features in Tiled when switched on. */
+  readonly preview?: string
 }
 
 /**
@@ -156,6 +158,7 @@ export interface Wood {
 /** Layer names, as Tiled shows them. */
 const LAYERS = {
   survey: "survey",
+  generated: "generated",
   trenches: "trenches",
   positions: "positions",
   objectives: "objectives",
@@ -165,6 +168,100 @@ const LAYERS = {
   woods: "woods",
   landmarks: "landmarks"
 } as const
+
+/** A property a class of object carries in Tiled: its type, default and, for a choice, the enum it picks from. */
+interface Member {
+  readonly type: "float" | "int" | "string"
+  readonly value: number | string
+  readonly choices?: keyof typeof ENUMS
+}
+
+/** The choices a property can take, as drop-downs in Tiled. */
+const ENUMS = {
+  Side: ["french", "german"],
+  Line: ["front", "support", "reserve"],
+  From: ["support", "reserve"]
+} as const
+
+const float = (value: number): Member => ({ type: "float", value })
+const int = (value: number): Member => ({ type: "int", value })
+const choice = (choices: keyof typeof ENUMS, value: string): Member => ({ type: "string", value, choices })
+
+/**
+ * Every class of object a sector file holds, with its properties and their defaults. The Tiled project
+ * (sectors/verdun.tiled-project, see toTiledProject) is made from this table, so picking an object's class in Tiled
+ * gives a form to fill in; Tiled leaves out a property left at its default, so the reader takes it from here too.
+ */
+const CLASSES: Readonly<Record<string, Readonly<Record<string, Member>>>> = {
+  ravine: { halfWidth: float(16), depth: float(9) },
+  "sunken-road": { halfWidth: float(4.5), depth: float(2.3) },
+  village: { height: float(7.5) },
+  crater: { depth: float(4) },
+  wood: { density: float(1) },
+  road: {},
+  street: {},
+  crossroads: {},
+  railway: {},
+  dump: {},
+  church: { heading: float(0), variant: int(1) },
+  orchard: { rows: int(3), trees: int(9), spacing: float(6.5), jitter: float(1.2) },
+  line: { side: choice("Side", "french"), line: choice("Line", "front"), wire: { type: "string", value: "" } },
+  communication: { side: choice("Side", "french"), from: choice("From", "support") },
+  sap: { side: choice("Side", "french") },
+  battery: { heading: float(0) },
+  objective: { radius: float(16) },
+  // Anything of the scenery's own kinds can be placed by hand, at the nearest clear spot to where it's drawn.
+  ...Object.fromEntries(SCENERY_KINDS.map((kind) => [kind, { heading: float(0), radius: float(3) }]))
+}
+
+/** An object's properties: those it has, and its class's defaults for those Tiled left out. */
+function propertiesWithDefaults(object: Record<string, unknown>, label: string): Map<string, unknown> {
+  const own = propertiesOf(object, label)
+  const kind = kindOf(object)
+  const members = typeof kind === "string" ? CLASSES[kind] : undefined
+  for (const [name, member] of Object.entries(members ?? {})) {
+    if (!own.has(name)) {
+      own.set(name, member.value)
+    }
+  }
+  return own
+}
+
+/** A Tiled project for editing sector files: every class in CLASSES, with its form, and the choices' enums. */
+export function toTiledProject(): unknown {
+  let id = 1
+  const enums = Object.entries(ENUMS).map(([name, values]) => ({
+    id: id++,
+    name,
+    storageType: "string",
+    type: "enum",
+    values,
+    valuesAsFlags: false
+  }))
+  const classes = Object.entries(CLASSES).map(([name, members]) => ({
+    color: "#ff9e9e9e",
+    drawFill: true,
+    id: id++,
+    members: Object.entries(members).map(([member, { type, value, choices }]) => ({
+      name: member,
+      ...(choices ? { propertyType: choices } : {}),
+      type,
+      value
+    })),
+    name,
+    type: "class",
+    useAs: ["object"]
+  }))
+  return {
+    automappingRulesFile: "",
+    commands: [],
+    compatibilityVersion: 1100,
+    extensionsPath: "extensions",
+    folders: ["."],
+    properties: [],
+    propertyTypes: [...enums, ...classes]
+  }
+}
 
 /** Writes a sector's features as a Tiled map, one object layer for each kind. */
 /** A sector's Tiled map: its object layers, and the survey drawn under them. */
@@ -334,23 +431,22 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
     y: 0
   })
 
-  const survey: TiledImageLayer[] = features.backdrop
-    ? [
-        {
-          id: 6,
-          image: features.backdrop,
-          locked: true,
-          name: LAYERS.survey,
-          opacity: 0.85,
-          repeatx: false,
-          repeaty: false,
-          type: "imagelayer",
-          visible: true,
-          x: 0,
-          y: 0
-        }
-      ]
-    : []
+  const image = (id: number, name: string, file: string, visible: boolean, opacity: number): TiledImageLayer => ({
+    id,
+    image: file,
+    locked: true,
+    name,
+    opacity,
+    repeatx: false,
+    repeaty: false,
+    type: "imagelayer",
+    visible,
+    x: 0,
+    y: 0
+  })
+  const survey = features.backdrop ? [image(6, LAYERS.survey, features.backdrop, true, 0.85)] : []
+  // Over the survey, under the features: hidden until wanted.
+  const generated = features.preview ? [image(10, LAYERS.generated, features.preview, false, 1)] : []
   return {
     compressionlevel: -1,
     height: features.depth,
@@ -358,6 +454,7 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
     // Tiled draws the first layer lowest: the survey under everything.
     layers: [
       ...survey,
+      ...generated,
       layer(1, LAYERS.ground, ground),
       layer(7, LAYERS.trenches, trenches),
       layer(8, LAYERS.positions, positions),
@@ -370,7 +467,7 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
       layer(4, LAYERS.railways, railways),
       layer(5, LAYERS.landmarks, landmarks)
     ],
-    nextlayerid: 10,
+    nextlayerid: 11,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -476,7 +573,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
   const craters: Crater[] = []
   readLayer(layers, LAYERS.ground, (object, label) => {
     const kind = kindOf(object)
-    const own = propertiesOf(object, label)
+    const own = propertiesWithDefaults(object, label)
     if (kind === "ravine" || kind === "sunken-road") {
       const line = {
         name: nameOf(object),
@@ -547,7 +644,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
       z,
       radiusX,
       radiusZ,
-      density: positive(propertiesOf(object, label), "density", label)
+      density: positive(propertiesWithDefaults(object, label), "density", label)
     }
   }).items
 
@@ -555,7 +652,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
   const orchards: Orchard[] = []
   readLayer(layers, LAYERS.landmarks, (object, label) => {
     const kind = kindOf(object)
-    const own = propertiesOf(object, label)
+    const own = propertiesWithDefaults(object, label)
     const [x, z] = pointOf(frame, object, label)
     if (kind === "church") {
       const heading = own.get("heading") ?? 0
@@ -582,7 +679,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
   const placed: Placed[] = []
   readLayer(layers, LAYERS.positions, (object, label) => {
     const kind = kindOf(object)
-    const own = propertiesOf(object, label)
+    const own = propertiesWithDefaults(object, label)
     const heading = own.get("heading") ?? 0
     if (!isFiniteNumber(heading)) {
       throw new TypeError(`${label} needs a heading in degrees, got ${JSON.stringify(heading)}`)
@@ -599,6 +696,9 @@ export function fromTiledSector(json: unknown): SectorFeatures {
   const objectives = readLayer(layers, LAYERS.objectives, (object, label) => readObjective(frame, object, label)).items
   const survey = layers.find((layer) => isRecord(layer) && layer.name === LAYERS.survey)
   const backdrop = isRecord(survey) && typeof survey.image === "string" ? survey.image : undefined
+  const generatedLayer = layers.find((layer) => isRecord(layer) && layer.name === LAYERS.generated)
+  const preview =
+    isRecord(generatedLayer) && typeof generatedLayer.image === "string" ? generatedLayer.image : undefined
   const [cross] = crossroads
   if (!cross) {
     throw new TypeError('Tiled layer "roads" needs a crossroads point')
@@ -635,7 +735,8 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     batteries,
     placed,
     objectives,
-    ...(backdrop ? { backdrop } : {})
+    ...(backdrop ? { backdrop } : {}),
+    ...(preview ? { preview } : {})
   }
 }
 
@@ -693,7 +794,7 @@ function readTrenchSides(frame: Frame, layers: readonly unknown[]): TrenchSide[]
   const drawn: Record<(typeof SIDES)[number], DrawnSide> = { french: empty(), german: empty() }
   readLayer(layers, LAYERS.trenches, (object, label) => {
     const kind = kindOf(object)
-    const own = propertiesOf(object, label)
+    const own = propertiesWithDefaults(object, label)
     const side = drawn[oneOf(SIDES, own.get("side"), "side", label)]
     if (kind === "line") {
       const line = oneOf(LINES, own.get("line"), "line", label)

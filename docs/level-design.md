@@ -557,6 +557,21 @@ New sectors are 1 km wide along the front and 800 m deep; Fleury, the first, sta
 Their trench lines are traced from the trench maps of 1916: the sources and how to trace from them are in
 [historical maps](historical-maps.md).
 
+**Editing a sector.** Open `packages/map/sectors/verdun.tiled-project` in Tiled (File > Open Project), then the sector's
+file. The project gives every class of object a form: pick an object's class and its properties appear with their
+defaults, and the choices (a line's side and kind, where a communication trench leaves from) are drop-downs. A property
+left at its default isn't written into the file, and the reader takes it from the same table the project is made from
+(`CLASSES` in sector-file.ts). After editing, run
+
+```
+pnpm map:check [sector]
+```
+
+It reads the file and names any object it can't use, generates the battlefield and sums it up, and draws the sector's
+"generated" layer (`<sector>-generated.png`, git-ignored): the ground the generator dug and heaped (trenches, shell
+holes, gun pits) over the survey, the wire in red and the scenery's footprints in blue. Switch that layer on in Tiled to
+see the battlefield as the game will make it. It also rewrites the project file, so it stays in step with the reader.
+
 Fleury's file holds what fleury.ts used to. Its trench lines were sampled every metre from the formulas that made them
 for seed 1916 and simplified to within 5 cm, so they moved by at most 4.4 cm, and the seed no longer moves them; the
 scenery placed round them shuffled once. Nothing of Fleury's own is left in the generator: everything placed by hand is
