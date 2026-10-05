@@ -29,12 +29,13 @@ stacking was an artefact and Game mechanics is retuning how a stretch counts as 
 
 ## What's left
 
-- **Rain's cost**: the sheets of rain beyond the streaks run over the whole screen, so rain costs 1.8 ms of GPU in light
-  rain where it cost 0.9 ms (2.3 against 1.9 ms in heavy). Drawing them inside an existing post-process pass would take
-  their own blend away. Splashes show on any ground near the camera, not only on duckboards and water.
-- **Mixamo clips**: the "Mixamo animations" session is bringing in the full set
-  ([Mixamo clips](../assets/mixamo-clips.md)), including a wall climb; the fence climb stays the keyed one unless a
-  Mixamo clip fits its 3 s.
+- **Rain's cost**: the sheets of rain beyond the streaks cover the screen, about 1.4 ms of GPU at 1080p whatever the
+  rate, so they're left out in drizzle (under 0.3 mm an hour) and on Low graphics (`48066ab`); in rain proper the new
+  rain costs 1.8 to 2.3 ms against the old 0.9 to 1.9. Splashes show on any ground near the camera, not only on
+  duckboards and water.
+- **Mixamo clips**: in (`ba4345e`, the "Mixamo animations" session): wall scrambles loop Mixamo's climb up a slope; the
+  fence climb stays the keyed one, since Mixamo's vault lasts 1.25 s and the fence takes 3. A ledge pull-up for trench
+  walls is left for later.
 - **`clearLine` seeing walls** (section 3) and a stuck monitor with memory: not done. Men on orders climb what they head
   at within 45°, so they rarely box themselves in; when they do they sidestep (`wayOut`).
 - **The soldier's body** still turns when the worker's step comes back, about 100 ms after the pointer; the aim line,
