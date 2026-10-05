@@ -613,7 +613,8 @@ async function main() {
     }
     const results = []
     for (const scenario of AB ? abScenarios() : SCENARIOS) {
-      if (ONLY.length > 0 && !ONLY.includes(scenario.name)) {
+      // --only picks among the usual scenarios; --ab brings its own.
+      if (!AB && ONLY.length > 0 && !ONLY.includes(scenario.name)) {
         continue
       }
       await evaluate(scenario.setup)
