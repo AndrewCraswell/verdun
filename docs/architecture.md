@@ -89,12 +89,13 @@ before, for development and `pnpm perf`.
   runs of each soldier array (apart, by `soldierArrayLayout`), the wire and the clouds, and lists that only lose
   elements and gain new ones at the end (the shells in flight) as just that. It goes as MessagePack that keeps typed
   arrays (msgpackr's `moreTypes`), deflated once for every player (fflate). A joining player is welcomed to the battle
-  as of the last message, and every message after builds on it. Players get soldiers' positions to the centimetre and
-  their facing, morale, suppression and breath to the hundredth, so a value that ebbs a little every step is sent only
-  when it has changed enough to tell. Gas and smoke go as a byte a cell on a log scale (about 7% a step), and a cell
-  moves a step only once the cloud has moved it two, so cells on the edge between steps don't flicker. The ground a late
-  joiner gets is how far shells have moved each sample, in millimetres, against the map they generate themselves.
-  Commands go in Colyseus's own encoding.
+  as of the last message, and every message after builds on it. Players get their own squad's men's positions to the
+  centimetre and their facing, morale, suppression and breath to the hundredth, so a value that ebbs a little every step
+  is sent only when it has changed enough to tell; other men's morale and suppression go in twentieths, which is all
+  their poses and sounds use, and where they are by dead reckoning (below). Gas and smoke go as a byte a cell on a log
+  scale (about 7% a step), and a cell moves a step only once the cloud has moved it two, so cells on the edge between
+  steps don't flicker. The ground a late joiner gets is how far shells have moved each sample, in millimetres, against
+  the map they generate themselves. Commands go in Colyseus's own encoding.
 - **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
   their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
   keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
@@ -107,9 +108,15 @@ before, for development and `pnpm perf`.
 - **Relevance filtering by map cells** (`packages/net/src/soldier-cells.ts`): the soldiers' changes are encoded once a
   message by 100 m cell, and each player is sent the cells within 120 m of their men every message and the rest every
   fifth (`FAR_EVERY`), each built on what that player had: a player's cells change only at those messages, and a man who
-  crosses into a cell is sent whole. The global part (state, clouds, events, craters) goes to everyone. Positions go as
-  16 bits on a grid fitted to the map (a centimetre on Fleury). The page eases every man between the server's word on
-  him (`smoothing.ts`), so the far ones walk rather than hop.
+  crosses into a cell is sent whole. The global part (state, clouds, events, craters) goes to everyone. The page eases
+  every man between the server's word on him (`smoothing.ts`).
+- **Dead reckoning** (`packages/net/src/reckoning.ts`): where a man is goes as where he was (16 bits a coordinate, on a
+  grid fitted to the map: a centimetre on Fleury), the pace he was going at (millimetres a second) and the step that
+  was, and the page carries him along from it every message. The server sends him anew only when where the page has him
+  has drifted 15 cm from where he is, or a moving man's anchor is ten seconds old: a man walking a straight line or
+  standing still is sent once. Far cells' men walk on between their updates rather than wait. Which way a man faces goes
+  as a byte of a turn. The player's own squad's men go as they are, every message they change, so the man they steer
+  never jumps by a reckoning's error; an enemy out of the side's sight is held where he was last seen.
 - **Each side is sent only the enemy it can see** (`apps/server/src/sight.ts`): every message's cells are encoded once
   for each side, with its own men and the enemies it can make out, and each player gets their side's. A man is seen when
   one of the ten nearest living enemies within 300 m (the page's fog range) has a clear line to him through the ground
@@ -200,11 +207,13 @@ What it said, and what was done about it:
   each player's share from about 75 to 58 KB/s, and sending which soldiers have which components as flags to 44 KB/s (50
   at most). In this test each side sees about 40% of the enemy at any time: everyone fights over one objective in the
   open. Sight lines cast on the room's thread cost 30 ms a message at first; in a worker they cost it 0.3 ms.
-- **What players are sent now**, per message: soldiers' arrays about 65% (positions 40%, facing 13%), smoke 12%, events
-  11%. Positions are the next saving: sending a moving man's velocity when it changes, and letting the page carry him
-  along between (dead reckoning), rather than his position every message. Smoke goes to everyone whole; sending it at a
-  lower rate, or by cells too, is the one after.
-- **Hosting**: at 100 players a sector sends about 4.3 MB/s (35 Mbit/s), which matters for Railway's egress pricing.
+- **Dead reckoning**, with facing as a byte, took it to 40 KB/s (positions and facing from 22 to 16 KB/s, though every
+  bot in the test turns every second); letting other men drift 15 cm rather than 5, and sending their morale and
+  suppression in twentieths, to 37 KB/s (39 at most).
+- **What players are sent now**, per message: soldiers' arrays about 42% (their anchors, paces and facing 30%), smoke 16
+  to 23%, events 12 to 14%. Smoke goes to everyone whole, in every message it drifts: sending it at a lower rate, or by
+  cells as the soldiers are, is the next saving.
+- **Hosting**: at 100 players a sector sends about 3.6 MB/s (30 Mbit/s), which matters for Railway's egress pricing.
 - **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
   over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
   algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module

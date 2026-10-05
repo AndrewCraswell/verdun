@@ -4,6 +4,7 @@ import { deflateSync, inflateSync } from "fflate"
 import { Packr } from "msgpackr"
 import { apply, diff, isPatch, type Patch } from "./delta.ts"
 import { type GroundMovement, groundFromMovement } from "./ground-movement.ts"
+import { createReckoner, nothingShown, RECKONED_FROM, reckonShown, type Shown } from "./reckoning.ts"
 import {
   applyCellPatch,
   type CellGrid,
@@ -193,6 +194,16 @@ const PRECISION: Readonly<Record<string, number>> = {
 }
 
 /**
+ * Values players are sent coarser than `PRECISION` of other squads' men, which only show in how they're drawn and
+ * heard, by thresholds on these steps (a man pinned at 0.6 suppression, broken below 0.25 morale): their own squad's
+ * player gets them as they are, for the HUD.
+ */
+const COARSE: Readonly<Record<string, number>> = {
+  "morale.value": 0.05,
+  "suppression.value": 0.05
+}
+
+/**
  * What only a man's own squad's player is sent of him: what the HUD shows of their own men (breath, rounds, the gas
  * mask's time) and what steering them needs, none of which drawing other men uses. A man's firing is drawn from
  * `weapon.firedAt`, not his cooldown, which counts down every step.
@@ -253,16 +264,32 @@ function unpacked(sync: SimSync, layout: ArrayLayout, unit: number): Record<stri
   return arrays
 }
 
-/** The soldier arrays packed again, in the layout's order, as the mirror takes them in: positions back in metres. */
-function packed(arrays: SoldierArrays, layout: ArrayLayout, unit: number, soldiers: number): ArrayBuffer {
+/**
+ * The soldier arrays packed again, in the layout's order, as the mirror takes them in: where each man is and which way
+ * he faces as `mirrored` shows him, the player's own men's `COARSE` values as they are, the rest as sent.
+ */
+function packed(mirrored: Mirrored, layout: ArrayLayout, soldiers: number): ArrayBuffer {
+  const { arrays, shown, own, exact } = mirrored
+  const fromShown: Readonly<Record<string, Float32Array>> = {
+    "position.x": shown.x,
+    "position.z": shown.z,
+    "facing.x": shown.facingX,
+    "facing.z": shown.facingZ
+  }
   const parts = layout.map(({ name, type }) => {
-    const array = arrays[name]
+    let array = fromShown[name] ?? arrays[name]
     if (!array) {
       throw new TypeError(`The battle as sent has no ${name}`)
     }
-    const values = POSITIONS.has(name) ? Float32Array.from(array, (steps) => steps * unit) : array
+    const ownValues = name in COARSE ? exact[name] : undefined
+    if (ownValues) {
+      array = array.slice()
+      for (const soldier of own) {
+        array[soldier] = ownValues[soldier] ?? 0
+      }
+    }
     const sized = soldierArray(type, soldiers)
-    sized.set(values.subarray(0, soldiers))
+    sized.set(array.subarray(0, soldiers))
     return new Uint8Array(sized.buffer)
   })
   const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0))
@@ -322,12 +349,12 @@ function membersOf(view: GlobalView): SimSync["members"] {
 }
 
 /**
- * The sync for the mirror, from the views as they now stand: the wire and the clouds only where they changed, and
- * `members`, each component's soldiers (`membersOf`).
+ * The sync for the mirror, from the views as they now stand: the wire and the clouds only where they changed,
+ * `members`, each component's soldiers (`membersOf`), and the soldiers as `mirrored` has them.
  */
 function syncOf(
   view: GlobalView,
-  arrays: SoldierArrays,
+  mirrored: Mirrored,
   format: Format,
   patch: Patch | null,
   message: Pick<GlobalMessage, "s" | "g">,
@@ -345,7 +372,7 @@ function syncOf(
   return {
     tick: view.tick,
     soldiers: view.soldiers,
-    arrays: packed(arrays, format.layout, format.unit, view.soldiers),
+    arrays: packed(mirrored, format.layout, view.soldiers),
     members,
     state: view.state,
     wire: field(patch, "wire") ? view.wire : null,
@@ -435,7 +462,13 @@ function newlySent(sent: Uint8Array, before: Uint8Array | undefined): Set<number
   return found
 }
 
-/** What a player's own men's `OWN_SQUAD_ONLY` values changed by, or all of them for men new to their squad. */
+/** What only a player's own men are sent: their `OWN_SQUAD_ONLY` values, and where they are and face, exactly. */
+const OWN_ARRAYS: readonly string[] = [...OWN_SQUAD_ONLY, ...RECKONED_FROM, ...Object.keys(COARSE)]
+
+/** What a player keeps of their own men apart from the arrays the cells patch: they're shown as they are. */
+const isExact = (name: string) => RECKONED_FROM.has(name) || name in COARSE
+
+/** What a player's own men's `OWN_ARRAYS` values changed by, or all of them for men new to their squad. */
 function ownPatch(
   previous: SoldierArrays | null,
   next: SoldierArrays,
@@ -443,7 +476,7 @@ function ownPatch(
   had: ReadonlySet<number> | undefined
 ): CellPatch | null {
   const patch: Record<string, readonly [Uint16Array, SoldierArray]> = {}
-  for (const name of OWN_SQUAD_ONLY) {
+  for (const name of OWN_ARRAYS) {
     const values = next[name]
     if (!values) {
       continue
@@ -477,8 +510,11 @@ export function createSyncEncoder(
 ): SyncEncoder {
   const grid = cellGrid(width, depth, cellSize)
   const unit = positionUnit(Math.max(width, depth))
+  const reckoner = createReckoner(unit)
   let global: GlobalView | null = null
+  // The soldiers' arrays as sent (each man's position and facing reckoned), and as they are.
   let arrays: SoldierArrays | null = null
+  let actual: SoldierArrays | null = null
   let cells: Int32Array = new Int32Array(0)
   // The soldiers as of the last message far cells were sent at, which the next builds on.
   let farBase: SoldierArrays | null = null
@@ -501,7 +537,18 @@ export function createSyncEncoder(
       const globalPart = pack({ v: diff(global, nextGlobal), s: sync.steps, g: sync.ground })
       global = nextGlobal
       const previous = arrays
-      const next = unpacked(sync, layout, unit)
+      const previousActual = actual
+      const nextActual = unpacked(sync, layout, unit)
+      // Where men are and which way they face go reckoned (reckoning.ts).
+      const next: Record<string, SoldierArray> = reckoner.reckon(nextActual, sync.tick, sync.soldiers)
+      for (const [name, values] of Object.entries(nextActual)) {
+        const step = COARSE[name]
+        if (step && values instanceof Float32Array) {
+          next[name] = values.map((value) => Math.round(value / step) * step)
+        } else if (!RECKONED_FROM.has(name)) {
+          next[name] = values
+        }
+      }
       // Cells carry what's drawn of every man; the rest goes to his own squad's player alone.
       const drawn: Record<string, SoldierArray> = {}
       for (const [name, values] of Object.entries(next)) {
@@ -509,7 +556,7 @@ export function createSyncEncoder(
           drawn[name] = values
         }
       }
-      const nextCells = cellsOf(next, grid, unit, sync.soldiers)
+      const nextCells = cellsOf(nextActual, grid, unit, sync.soldiers)
       // A man who's crossed into another cell goes whole, for the players who follow it and didn't follow him before.
       const crossed = new Set<number>()
       nextCells.forEach((cell, soldier) => {
@@ -561,6 +608,7 @@ export function createSyncEncoder(
         })
       }
       arrays = next
+      actual = nextActual
       cells = nextCells
       if (farTurn) {
         farBase = next
@@ -595,13 +643,17 @@ export function createSyncEncoder(
           if (farTurn) {
             nearFor.set(player, wanted)
           }
-          const mine = ownPatch(previous, next, own, ownFor.get(player))
+          const had = ownFor.get(player)
+          const mine = ownPatch(previousActual, nextActual, own, had)
+          // Who the player's own men are, when that's changed: they're shown as they are, not reckoned.
+          const ownChanged = !had || had.size !== own.length || own.some((soldier) => !had.has(soldier))
           ownFor.set(player, new Set(own))
           return packr.pack({
             g: globalPart,
             c: cellParts,
             ...(parts.seen ? { k: parts.seen } : {}),
-            ...(mine ? { p: mine } : {})
+            ...(mine ? { p: mine } : {}),
+            ...(ownChanged ? { o: Int32Array.from(own) } : {})
           })
         }
       }
@@ -612,15 +664,15 @@ export function createSyncEncoder(
       }
       // Of the enemy their side can't see, a newcomer isn't told where they are.
       const sent = sentTo.get(side) ?? sentTo.get(EVERYONE)
-      const shown: Record<string, SoldierArray> = { ...arrays }
-      for (const name of POSITIONS) {
+      const told: Record<string, SoldierArray> = { ...arrays }
+      for (const name of ["anchor.x", "anchor.z", "pace.x", "pace.z"]) {
         const values = arrays[name]
         if (values && sent) {
-          shown[name] = values.map((value, soldier) => (sent[soldier] === 1 ? value : 0))
+          told[name] = values.map((value, soldier) => (sent[soldier] === 1 ? value : 0))
         }
       }
       const seen = seenBy.get(side) ?? null
-      return pack({ playerSquad, schedule, layout, unit, view: global, arrays: shown, seen, ground })
+      return pack({ playerSquad, side, schedule, layout, unit, view: global, arrays: told, seen, ground })
     },
     forget(player) {
       nearFor.delete(player)
@@ -633,19 +685,42 @@ function isSeenChange(value: unknown): value is { readonly a: Int32Array; readon
   return isRecord(value) && value["a"] instanceof Int32Array && value["r"] instanceof Int32Array
 }
 
-function decoderFrom(
-  start: GlobalView,
-  startArrays: Record<string, SoldierArray>,
-  startSeen: Int32Array | null,
-  format: Format
-): SyncDecoder {
+/** A player's copy of the battle's soldiers as sent, from which their mirror's arrays are made. */
+interface Mirrored {
+  /** The soldiers' arrays as sent: positions and facing reckoned. */
+  readonly arrays: Record<string, SoldierArray>
+  /** The player's own men's positions (in the position's units), facing and `COARSE` values, as they are. */
+  readonly exact: Record<string, SoldierArray>
+  own: ReadonlySet<number>
+  /** The enemy the player's side can see; null when everyone is sent. */
+  seen: Set<number> | null
+  /** The player's side. */
+  readonly side: number
+  shown: Shown
+}
+
+/** Works out where `mirrored` shows each man at `tick`: the enemy out of sight left where they were last seen. */
+function show(mirrored: Mirrored, unit: number, tick: number, soldiers: number): void {
+  const sides = mirrored.arrays["side.value"]
+  const { seen } = mirrored
+  mirrored.shown = reckonShown(
+    mirrored.shown,
+    mirrored.arrays,
+    unit,
+    tick,
+    soldiers,
+    (soldier) => seen !== null && sides?.[soldier] !== mirrored.side && !seen.has(soldier),
+    { has: (soldier) => mirrored.own.has(soldier), arrays: mirrored.exact }
+  )
+}
+
+function decoderFrom(start: GlobalView, mirrored: Mirrored, format: Format): SyncDecoder {
   let view = start
-  const arrays = startArrays
-  let seen: Set<number> | null = startSeen ? new Set(startSeen) : null
+  const { arrays, exact } = mirrored
   let members = membersOf(start)
   return {
     get seen() {
-      return seen
+      return mirrored.seen
     },
     decode(bytes) {
       const message: unknown = packr.unpack(bytes)
@@ -667,27 +742,50 @@ function decoderFrom(
         }
         applyCellPatch(arrays, unpack(part[1]), view.soldiers)
       }
-      if (message["p"] !== undefined) {
-        applyCellPatch(arrays, message["p"], view.soldiers)
+      const own = message["p"]
+      if (own !== undefined) {
+        if (!isRecord(own)) {
+          throw new TypeError("A cell's changes aren't a record")
+        }
+        // What's shown of the own men as they are goes apart; the rest as the arrays have it.
+        const exactPart: Record<string, unknown> = {}
+        const rest: Record<string, unknown> = {}
+        for (const [name, change] of Object.entries(own)) {
+          if (isExact(name)) {
+            exactPart[name] = change
+          } else {
+            rest[name] = change
+          }
+        }
+        applyCellPatch(exact, exactPart, view.soldiers)
+        applyCellPatch(arrays, rest, view.soldiers)
+      }
+      if (message["o"] !== undefined) {
+        if (!(message["o"] instanceof Int32Array)) {
+          throw new TypeError("The server sent a squad this client can't read")
+        }
+        mirrored.own = new Set(message["o"])
       }
       if (message["k"] !== undefined) {
         const change = message["k"] instanceof Uint8Array ? unpack(message["k"]) : null
         if (!isSeenChange(change)) {
           throw new TypeError("The server sent a sight this client can't read")
         }
-        seen ??= new Set()
+        const seen = mirrored.seen ?? new Set()
         for (const soldier of change.r) {
           seen.delete(soldier)
         }
         for (const soldier of change.a) {
           seen.add(soldier)
         }
+        mirrored.seen = seen
       }
       // Most messages change no one's components: the last ids serve.
       if (field(globalPart.v, "members")) {
         members = membersOf(view)
       }
-      return syncOf(view, arrays, format, globalPart.v, globalPart, members)
+      show(mirrored, format.unit, view.tick, view.soldiers)
+      return syncOf(view, mirrored, format, globalPart.v, globalPart, members)
     }
   }
 }
@@ -715,6 +813,7 @@ export function decodeJoined(bytes: Uint8Array, map: BattlefieldMap): Joined {
     typeof welcome["unit"] !== "number" ||
     !isGlobalView(welcome["view"]) ||
     !isArrays(welcome["arrays"]) ||
+    typeof welcome["side"] !== "number" ||
     !(welcome["seen"] === null || welcome["seen"] instanceof Int32Array) ||
     !(welcome["ground"] === null || isMovement(welcome["ground"]))
   ) {
@@ -722,17 +821,33 @@ export function decodeJoined(bytes: Uint8Array, map: BattlefieldMap): Joined {
   }
   const { layout, unit, view, arrays, seen, ground } = welcome
   const format = { layout, unit }
+  const mirrored: Mirrored = {
+    arrays,
+    exact: {
+      "position.x": new Uint16Array(0),
+      "position.z": new Uint16Array(0),
+      "facing.x": new Float32Array(0),
+      "facing.z": new Float32Array(0),
+      "morale.value": new Float32Array(0),
+      "suppression.value": new Float32Array(0)
+    },
+    own: new Set(),
+    seen: seen ? new Set(seen) : null,
+    side: welcome["side"],
+    shown: nothingShown()
+  }
+  show(mirrored, unit, view.tick, view.soldiers)
   return {
     playerSquad: welcome["playerSquad"],
     schedule: welcome["schedule"],
     sync: syncOf(
       view,
-      arrays,
+      mirrored,
       format,
       { f: view },
       { s: [], g: ground ? [groundFromMovement(map, ground)] : [] },
       membersOf(view)
     ),
-    decoder: decoderFrom(view, arrays, seen, format)
+    decoder: decoderFrom(view, mirrored, format)
   }
 }
