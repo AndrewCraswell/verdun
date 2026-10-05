@@ -58,8 +58,29 @@ export interface SectorFeatures {
   readonly woods: readonly Wood[]
   /** Craters older than the battle, such as mines blown under the lines. */
   readonly craters: readonly Crater[]
+  /** Each side's trench system: the French first, then the Germans. */
+  readonly sides: readonly TrenchSide[]
   /** The surveyed ground drawn as shaded relief (scripts/sector-backdrop.mjs), shown under the features in Tiled. */
   readonly backdrop?: string
+}
+
+/**
+ * One side's trench system as drawn: the course of its front, support and reserve lines, each from west to east, which
+ * the generator traces into bays and traverses; where communication trenches and saps leave them; and its belts of wire.
+ */
+export interface TrenchSide {
+  readonly side: "french" | "german"
+  readonly front: readonly GroundPoint[]
+  readonly support: readonly GroundPoint[]
+  readonly reserve: readonly GroundPoint[]
+  /** Where communication trenches run up from the support line to the front line, by x. */
+  readonly forward: readonly number[]
+  /** Where they run up from the reserve line to the support line. */
+  readonly rear: readonly number[]
+  /** Where saps push out from the front line toward the enemy. */
+  readonly saps: readonly number[]
+  /** How far in front of the front line each belt of wire is staked, in metres. */
+  readonly wire: readonly number[]
 }
 
 export interface Village {
@@ -111,6 +132,7 @@ export interface Wood {
 /** Layer names, as Tiled shows them. */
 const LAYERS = {
   survey: "survey",
+  trenches: "trenches",
   ground: "ground",
   roads: "roads",
   railways: "railways",
@@ -238,6 +260,25 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
     )
   ]
 
+  // Each line, then a marker where each communication trench and sap leaves it, on the line it leaves, for the eye.
+  const label = (name: string, value: string): TiledProperty => ({ name, type: "string", value })
+  const trenches = features.sides.flatMap((side) => [
+    ...LINES.map((line) =>
+      polyline("line", `${side.side} ${line}`, side[line], [
+        label("line", line),
+        label("side", side.side),
+        ...(line === "front" ? [label("wire", side.wire.join(" "))] : [])
+      ])
+    ),
+    ...side.forward.map((x) =>
+      point("communication", "", [x, lineZ(side.support, x)], [label("from", "support"), label("side", side.side)])
+    ),
+    ...side.rear.map((x) =>
+      point("communication", "", [x, lineZ(side.reserve, x)], [label("from", "reserve"), label("side", side.side)])
+    ),
+    ...side.saps.map((x) => point("sap", "", [x, lineZ(side.front, x)], [label("side", side.side)]))
+  ])
+
   const layer = (
     id: number,
     name: string,
@@ -281,6 +322,7 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
     layers: [
       ...survey,
       layer(1, LAYERS.ground, ground),
+      layer(7, LAYERS.trenches, trenches),
       layer(2, LAYERS.woods, woods),
       layer(3, LAYERS.roads, roads, [
         float("frenchRear", metres(features.rearRoads.french)),
@@ -289,7 +331,7 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
       layer(4, LAYERS.railways, railways),
       layer(5, LAYERS.landmarks, landmarks)
     ],
-    nextlayerid: 7,
+    nextlayerid: 8,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -496,6 +538,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     }
   })
 
+  const sides = readTrenchSides(frame, layers)
   const survey = layers.find((layer) => isRecord(layer) && layer.name === LAYERS.survey)
   const backdrop = isRecord(survey) && typeof survey.image === "string" ? survey.image : undefined
   const [cross] = crossroads
@@ -530,6 +573,115 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     orchards,
     woods,
     craters,
+    sides,
     ...(backdrop ? { backdrop } : {})
   }
+}
+
+/** A line's z where it crosses x: along the drawn course, held level past its ends. Lines run west to east. */
+export function lineZ(course: readonly GroundPoint[], x: number): number {
+  const first = course[0]
+  const last = course.at(-1)
+  if (!first || !last) {
+    return 0
+  }
+  if (x <= first[0]) {
+    return first[1]
+  }
+  if (x >= last[0]) {
+    return last[1]
+  }
+  let low = 0
+  let high = course.length - 1
+  while (high - low > 1) {
+    const middle = (low + high) >> 1
+    if ((course[middle]?.[0] ?? 0) <= x) {
+      low = middle
+    } else {
+      high = middle
+    }
+  }
+  const [x0, z0] = course[low] ?? first
+  const [x1, z1] = course[high] ?? last
+  return x1 === x0 ? z0 : z0 + ((z1 - z0) * (x - x0)) / (x1 - x0)
+}
+
+const SIDES = ["french", "german"] as const
+const LINES = ["front", "support", "reserve"] as const
+
+function oneOf<T extends string>(choices: readonly T[], value: unknown, what: string, label: string): T {
+  const found = choices.find((choice) => choice === value)
+  if (!found) {
+    throw new TypeError(`${label} needs a ${what} of ${choices.join(" or ")}, got ${JSON.stringify(value)}`)
+  }
+  return found
+}
+
+/** What's drawn of one side, as the trenches layer is read. */
+interface DrawnSide {
+  readonly lines: Map<(typeof LINES)[number], GroundPoint[]>
+  readonly forward: number[]
+  readonly rear: number[]
+  readonly saps: number[]
+  readonly wire: number[]
+}
+
+/** The trenches layer: each side's three lines, and where its communication trenches and saps leave them. */
+function readTrenchSides(frame: Frame, layers: readonly unknown[]): TrenchSide[] {
+  const empty = (): DrawnSide => ({ lines: new Map(), forward: [], rear: [], saps: [], wire: [] })
+  const drawn: Record<(typeof SIDES)[number], DrawnSide> = { french: empty(), german: empty() }
+  readLayer(layers, LAYERS.trenches, (object, label) => {
+    const kind = kindOf(object)
+    const own = propertiesOf(object, label)
+    const side = drawn[oneOf(SIDES, own.get("side"), "side", label)]
+    if (kind === "line") {
+      const line = oneOf(LINES, own.get("line"), "line", label)
+      const points = polylinePoints(frame, object, label)
+      if (points.some(([x], index) => index > 0 && x <= (points[index - 1]?.[0] ?? x))) {
+        throw new TypeError(`${label} must run west to east, each point east of the last`)
+      }
+      if (side.lines.has(line)) {
+        throw new TypeError(`${label} is a second ${line} line for its side`)
+      }
+      side.lines.set(line, points)
+      if (line === "front") {
+        const wire = own.get("wire") ?? ""
+        const distances = typeof wire === "string" ? wire.split(/\s+/).filter(Boolean).map(Number) : [Number.NaN]
+        if (!distances.every(isPositiveNumber)) {
+          throw new TypeError(
+            `${label} needs its wire as distances in metres, such as "22 33", got ${JSON.stringify(wire)}`
+          )
+        }
+        side.wire.push(...distances)
+      }
+    } else if (kind === "communication") {
+      const [x] = pointOf(frame, object, label)
+      const from = oneOf(["support", "reserve"], own.get("from"), "from", label)
+      ;(from === "support" ? side.forward : side.rear).push(x)
+    } else if (kind === "sap") {
+      side.saps.push(pointOf(frame, object, label)[0])
+    } else {
+      throw new TypeError(`${label} has class ${JSON.stringify(kind)}; expected line, communication or sap`)
+    }
+  })
+  return SIDES.map((name) => {
+    const side = drawn[name]
+    const line = (which: (typeof LINES)[number]) => {
+      const points = side.lines.get(which)
+      if (!points) {
+        throw new TypeError(`Tiled layer "trenches" needs a ${name} ${which} line`)
+      }
+      return points
+    }
+    return {
+      side: name,
+      front: line("front"),
+      support: line("support"),
+      reserve: line("reserve"),
+      forward: side.forward,
+      rear: side.rear,
+      saps: side.saps,
+      wire: side.wire
+    }
+  })
 }

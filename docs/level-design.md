@@ -541,22 +541,23 @@ The map's size is the sector's, and its properties hold its `name`, `weatherRegi
 height south to north as `z:height` pairs. One object layer for each kind of feature, each object's class saying what it
 is:
 
-| Layer       | Objects                                                                                                                                                                             |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `survey`    | an image layer, locked: the surveyed ground as shaded relief to lay out on, drawn by `pnpm map:backdrop`                                                                            |
-| `ground`    | `ravine` and `sunken-road` polylines (`halfWidth`, `depth`), `village` circles (`height`), `crater` circles (`depth`)                                                               |
-| `woods`     | `wood` ellipses, named, with a `density` from 0 to 1                                                                                                                                |
-| `roads`     | `road` and `street` polylines (the street named `main street` first), a `crossroads` point; the layer's `frenchRear` and `germanRear` properties are where roads keep their surface |
-| `railways`  | `railway` polylines along the track, `dump` points                                                                                                                                  |
-| `landmarks` | `church` points (`heading` in degrees, `variant`), `orchard` points at the south-west tree (`rows`, `trees`, `spacing`, `jitter`)                                                   |
+| Layer       | Objects                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `survey`    | an image layer, locked: the surveyed ground as shaded relief to lay out on, drawn by `pnpm map:backdrop`                                                                                                                                                                                                                                                                                        |
+| `trenches`  | each side's three `line` polylines, drawn west to east (`side` french or german, `line` front, support or reserve; the front line's `wire`, the distances of its belts in metres, such as "22 33"), and `communication` points (`from` support or reserve) and `sap` points where trenches leave them; the generator traces the lines into bays and traverses and routes the trenches from them |
+| `ground`    | `ravine` and `sunken-road` polylines (`halfWidth`, `depth`), `village` circles (`height`), `crater` circles (`depth`)                                                                                                                                                                                                                                                                           |
+| `woods`     | `wood` ellipses, named, with a `density` from 0 to 1                                                                                                                                                                                                                                                                                                                                            |
+| `roads`     | `road` and `street` polylines (the street named `main street` first), a `crossroads` point; the layer's `frenchRear` and `germanRear` properties are where roads keep their surface                                                                                                                                                                                                             |
+| `railways`  | `railway` polylines along the track, `dump` points                                                                                                                                                                                                                                                                                                                                              |
+| `landmarks` | `church` points (`heading` in degrees, `variant`), `orchard` points at the south-west tree (`rows`, `trees`, `spacing`, `jitter`)                                                                                                                                                                                                                                                               |
 
 New sectors are 1 km wide along the front and 800 m deep; Fleury, the first, stays 600 m by 400 m until it's remade.
 Their trench lines are traced from the trench maps of 1916: the sources and how to trace from them are in
 [historical maps](historical-maps.md).
 
-Fleury's file holds what fleury.ts used to: the map it generates is the same to the byte. Its trench lines, batteries
-and objectives are still worked out in code; drawing the trench lines in the file comes next, and with it sectors traced
-from the trench maps of 1916.
+Fleury's file holds what fleury.ts used to. Its trench lines were sampled every metre from the formulas that made them
+for seed 1916 and simplified to within 5 cm, so they moved by at most 4.4 cm, and the seed no longer moves them; the
+scenery placed round them shuffled once. Its batteries, wrecks, concrete posts and objectives are still placed in code.
 
 ## Editing in Tiled
 

@@ -14,7 +14,7 @@ import {
   type WireBelt
 } from "./scenery.ts"
 import { sculptForRailways, sculptForScenery } from "./sculpt.ts"
-import { fromTiledSector } from "./sector-file.ts"
+import { fromTiledSector, lineZ, type TrenchSide } from "./sector-file.ts"
 import { type Bay, communicationRoute, crenellatedTrace, junctionNear, TRENCH_GRID } from "./trench-trace.ts"
 import { carveTrenches, type GroundPoint, type Trench, TRENCH_PROFILE } from "./trenches.ts"
 
@@ -64,9 +64,6 @@ export interface FleurySectorOptions {
 /** Seed offsets keep each noise field independent. */
 const SEEDS = {
   height: 0,
-  frenchFront: 101,
-  germanFront: 103,
-  reserve: 107,
   surface: 7_919,
   patch: 7_927,
   wire: 7_933,
@@ -251,18 +248,18 @@ function riseAt(z: number): number {
   return RISE[RISE.length - 1][1]
 }
 
-function frenchFront(seed: number, x: number): number {
-  return 126 + (valueNoise(seed + SEEDS.frenchFront, x, 0, 120) - 0.5) * 10 + 34 * window(x, 470, 540, 28)
+/** Each side's trench system, as drawn in the sector file. */
+const [FRENCH, GERMAN] = FEATURES.sides
+if (FRENCH?.side !== "french" || GERMAN?.side !== "german") {
+  throw new Error("The Fleury sector needs a French and a German trench system")
 }
-
-function germanFront(seed: number, x: number): number {
-  return 270 + (valueNoise(seed + SEEDS.germanFront, x, 0, 120) - 0.5) * 10 - 26 * window(x, 470, 540, 28)
-}
+const frenchFront = (x: number) => lineZ(FRENCH.front, x)
+const germanFront = (x: number) => lineZ(GERMAN.front, x)
 
 /** How hard the ground has been shelled, from 1 in no man's land falling away behind the lines. */
-function shelling(seed: number, x: number, z: number): number {
-  const french = frenchFront(seed, x)
-  const german = germanFront(seed, x)
+function shelling(x: number, z: number): number {
+  const french = frenchFront(x)
+  const german = germanFront(x)
   const behind = Math.max(french - z, z - german, 0)
   return behind === 0 ? 1 : 0.08 + 0.6 * Math.exp(-behind / 32)
 }
@@ -319,7 +316,7 @@ function levelsOf(elevation: Elevation): GroundLevels {
 }
 
 function surfaceAtSample(seed: number, x: number, z: number, height: number, levels: GroundLevels): Surface {
-  const intensity = shelling(seed, x, z)
+  const intensity = shelling(x, z)
   const grain = valueNoise(seed + SEEDS.surface, x, z, 9)
   const patch = valueNoise(seed + SEEDS.patch, x, z, 26)
   if (nearLine(RAVINE, x, z, 5) || nearLine(SUNKEN_ROAD, x, z, 2.5)) {
@@ -348,6 +345,12 @@ function surfaceAtSample(seed: number, x: number, z: number, height: number, lev
 
 interface SideLayout {
   readonly towardEnemy: 1 | -1
+  /** The lines as drawn, for where each starts and ends. */
+  readonly lines: {
+    readonly front: readonly GroundPoint[]
+    readonly support: readonly GroundPoint[]
+    readonly reserve: readonly GroundPoint[]
+  }
   readonly front: (x: number) => number
   readonly support: (x: number) => number
   readonly reserve: (x: number) => number
@@ -373,8 +376,10 @@ interface SideTrenches {
   readonly machineGunBays: Bay[]
 }
 
-const TRACE_FROM = 8
-const TRACE_TO = WIDTH - 8
+/** Where a drawn line starts and ends, west to east. */
+function extent(line: readonly GroundPoint[]): { fromX: number; toX: number } {
+  return { fromX: line[0]?.[0] ?? 0, toX: line.at(-1)?.[0] ?? 0 }
+}
 
 /** Lays out one side's trench system: three crenellated lines, communication trenches between them, and saps. */
 function layOutSide(layout: SideLayout, random: () => number): SideTrenches {
@@ -385,22 +390,19 @@ function layOutSide(layout: SideLayout, random: () => number): SideTrenches {
   const reserveSections = pick([8, 10, 12, 14])
 
   const front = crenellatedTrace({
-    fromX: TRACE_FROM,
-    toX: TRACE_TO,
+    ...extent(layout.lines.front),
     frontZ: layout.front,
     towardEnemy: layout.towardEnemy,
     sections: frontSections
   })
   const support = crenellatedTrace({
-    fromX: TRACE_FROM,
-    toX: TRACE_TO,
+    ...extent(layout.lines.support),
     frontZ: layout.support,
     towardEnemy: layout.towardEnemy,
     sections: supportSections
   })
   const reserve = crenellatedTrace({
-    fromX: TRACE_FROM,
-    toX: TRACE_TO,
+    ...extent(layout.lines.reserve),
     frontZ: layout.reserve,
     towardEnemy: layout.towardEnemy,
     sections: reserveSections
@@ -467,31 +469,18 @@ function layOutSide(layout: SideLayout, random: () => number): SideTrenches {
   return { trenches, frontBays: front.bays, sapHeads, communicationEnds, machineGunBays }
 }
 
-function frenchLayout(seed: number): SideLayout {
-  const front = (x: number) => frenchFront(seed, x)
+/** A side's layout as drawn: its lines' courses, where its communication trenches and saps go, and its wire. */
+function layoutOf(side: TrenchSide): SideLayout {
   return {
-    towardEnemy: 1,
-    front,
-    support: (x) => Math.min(front(x), 132) - 46,
-    reserve: (x) => 40 + (valueNoise(seed + SEEDS.reserve, x, 0, 90) - 0.5) * 8,
-    forward: [64, 186, 302, 412, 512],
-    rear: [124, 246, 362, 470],
-    saps: [128, 244, 352, 560],
-    wire: [22, 33]
-  }
-}
-
-function germanLayout(seed: number): SideLayout {
-  const front = (x: number) => germanFront(seed, x)
-  return {
-    towardEnemy: -1,
-    front,
-    support: (x) => Math.max(front(x), 268) + 46,
-    reserve: (x) => 362 + (valueNoise(seed + SEEDS.reserve + 1, x, 0, 90) - 0.5) * 8,
-    forward: [92, 230, 338, 446, 530],
-    rear: [56, 274, 392, 566],
-    saps: [40, 280, 396, 486],
-    wire: [18, 30, 42]
+    towardEnemy: side.side === "french" ? 1 : -1,
+    lines: { front: side.front, support: side.support, reserve: side.reserve },
+    front: (x) => lineZ(side.front, x),
+    support: (x) => lineZ(side.support, x),
+    reserve: (x) => lineZ(side.reserve, x),
+    forward: side.forward,
+    rear: side.rear,
+    saps: side.saps,
+    wire: side.wire
   }
 }
 
@@ -564,7 +553,8 @@ function wireBelts(
     // The belt's last post, and how many posts have been left out since.
     let last: GroundPoint | null = null
     let missing = 0
-    for (let x = TRACE_FROM; x <= TRACE_TO; x += 5) {
+    const { fromX, toX } = extent(layout.lines.front)
+    for (let x = fromX; x <= toX; x += 5) {
       const ragged = (valueNoise(seed + SEEDS.wire + beltIndex, x, 0, 24) - 0.5) * 6
       const ownEdge = forwardEdge(own.frontBays, layout.towardEnemy, x)
       const z = ownEdge + layout.towardEnemy * (offset + ragged)
@@ -732,7 +722,7 @@ function placeWoods(seed: number, placer: Placer, random: () => number): void {
         if (ragged > 1 || random() > wood.density * (1 - ragged ** 3) * 0.85 || !placer.isClear(px, pz, 1.2)) {
           continue
         }
-        placer.place(woodland(shelling(seed, px, pz), random()), px, pz, random() * Math.PI * 2, {
+        placer.place(woodland(shelling(px, pz), random()), px, pz, random() * Math.PI * 2, {
           scale: 0.8 + random() * 0.45
         })
       }
@@ -740,7 +730,7 @@ function placeWoods(seed: number, placer: Placer, random: () => number): void {
   }
 }
 
-function placeRoadsideTrees(seed: number, placer: Placer, random: () => number): void {
+function placeRoadsideTrees(placer: Placer, random: () => number): void {
   for (const road of ROADS) {
     for (let index = 1; index < road.length; index++) {
       const [ax, az] = road[index - 1]
@@ -751,7 +741,7 @@ function placeRoadsideTrees(seed: number, placer: Placer, random: () => number):
         const side = Math.floor(along / 13) % 2 === 0 ? 1 : -1
         const x = ax + (bx - ax) * t + ((bz - az) / length) * side * 5
         const z = az + (bz - az) * t - ((bx - ax) / length) * side * 5
-        if (shelling(seed, x, z) > 0.5 || random() < 0.25 || !placer.isClear(x, z, 1)) {
+        if (shelling(x, z) > 0.5 || random() < 0.25 || !placer.isClear(x, z, 1)) {
           continue
         }
         placer.place(random() < 0.7 ? "tree" : "stump", x, z, random() * Math.PI * 2, { scale: 1 + random() * 0.3 })
@@ -973,7 +963,7 @@ function placeCraters(
   for (let attempt = 0; attempt < 40_000 && craters.length < count; attempt++) {
     const x = random() * WIDTH
     const z = random() * DEPTH
-    if (random() > shelling(seed, x, z) ** 1.6) {
+    if (random() > shelling(x, z) ** 1.6) {
       continue
     }
     // Mostly field-gun shells; one in thirty from the heavy howitzers.
@@ -1062,7 +1052,7 @@ function paintRoads(seed: number, map: BattlefieldMap): void {
       for (let column = minColumn; column <= maxColumn; column++) {
         const x = column * map.cellSize
         const { distance } = nearestOnLine(road, x, z)
-        const survives = shelling(seed, x, z) < 0.9 || valueNoise(seed + SEEDS.surface, x, z, 6) > 0.62
+        const survives = shelling(x, z) < 0.9 || valueNoise(seed + SEEDS.surface, x, z, 6) > 0.62
         if (distance < ROAD_HALF_WIDTH && survives) {
           const index = sampleIndex(map, column, row)
           map.surfaces[index] = Surface.Chalk
@@ -1096,10 +1086,10 @@ function placeBridges(segments: readonly [GroundPoint, GroundPoint][], placer: P
 }
 
 /** Where the German front line crosses the ravine: the x along the line closest to the ravine's bed. */
-function ravineCrossing(seed: number): number {
+function ravineCrossing(): number {
   let best = { x: 0, distance: Infinity }
   for (let x = 100; x <= 260; x += 1) {
-    const { distance } = nearestOnLine(RAVINE, x, germanFront(seed, x))
+    const { distance } = nearestOnLine(RAVINE, x, germanFront(x))
     if (distance < best.distance) {
       best = { x, distance }
     }
@@ -1108,16 +1098,16 @@ function ravineCrossing(seed: number): number {
 }
 
 /** The ground both sides fight over. */
-function objectivesOf(seed: number): Objective[] {
+function objectivesOf(): Objective[] {
   const [mouthX, mouthZ] = RAVINE[RAVINE.length - 1] ?? [250, 182]
   const [crossroadsX, crossroadsZ] = CROSSROADS
-  const head = ravineCrossing(seed)
+  const head = ravineCrossing()
   return [
     { name: "Fleury", x: VILLAGE.x, z: VILLAGE.z, radius: 28 },
     { name: "Fleury crossroads", x: crossroadsX, z: crossroadsZ, radius: 14 },
     { name: "The mine craters", x: 308, z: 218, radius: 18 },
     { name: "Ravin de la Dame", x: mouthX - 10, z: mouthZ + 12, radius: 18 },
-    { name: "Ravine head", x: head, z: germanFront(seed, head), radius: 16 }
+    { name: "Ravine head", x: head, z: germanFront(head), radius: 16 }
   ]
 }
 
@@ -1144,8 +1134,8 @@ export function generateFleurySector({
 }: FleurySectorOptions = {}): BattlefieldMap {
   const levels = elevation ? levelsOf(elevation) : GENERATED_LEVELS
   const traceRandom = createRandom(seed + SEEDS.trace)
-  const french = frenchLayout(seed)
-  const german = germanLayout(seed)
+  const french = layoutOf(FRENCH)
+  const german = layoutOf(GERMAN)
   const frenchTrenches = layOutSide(french, traceRandom)
   const germanTrenches = layOutSide(german, traceRandom)
   const trenches = layout ? [...layout.trenches] : [...frenchTrenches.trenches, ...germanTrenches.trenches]
@@ -1183,7 +1173,7 @@ export function generateFleurySector({
   const placer = createPlacer(segments, sceneryRandom)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)
-  const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf(seed)
+  const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf()
   if (layout) {
     placer.layRailways(railways)
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
@@ -1217,9 +1207,9 @@ export function generateFleurySector({
   placeNear(placer, "wrecked-gun", 432, 388, 2.8, 3)
   placeNear(placer, "wrecked-plane", 262, 203, 2.2, 5)
   // Concrete machine-gun posts behind the German front, one of them sited to sweep the ravine.
-  const ravine = ravineCrossing(seed)
+  const ravine = ravineCrossing()
   for (const x of [ravine + 9, 258, 392]) {
-    placeNear(placer, "bunker", x, germanFront(seed, x) + 15, Math.PI, 4)
+    placeNear(placer, "bunker", x, germanFront(x) + 15, Math.PI, 4)
   }
   const frenchWire = wireBelts(seed, french, frenchTrenches, germanTrenches)
   const germanWire = wireBelts(seed, german, germanTrenches, frenchTrenches)
@@ -1245,7 +1235,7 @@ export function generateFleurySector({
       placer.place("knife-rest", x, z, heading + (sceneryRandom() - 0.5) * 0.4)
     }
   }
-  placeRoadsideTrees(seed, placer, sceneryRandom)
+  placeRoadsideTrees(placer, sceneryRandom)
   placeWoods(seed, placer, sceneryRandom)
   // The railway last, so everything else stands where it would without it, then the dumps it serves.
   placer.layRailways(railways)
