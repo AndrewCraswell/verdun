@@ -6,13 +6,13 @@ export type CaptionMode = (typeof CAPTION_MODES)[number]
 
 /** Settings for how the battle talks to the player and asks before acting (S3 in docs/design/interface.md). */
 export interface PlaySettings {
-  /** Captions for what's heard: the shouts in French and German, with their meaning, and on request the warnings. */
+  /** Captions for what's heard, off until the player asks: the shouts that matter, or everything heard. */
   readonly captions: CaptionMode
   /** Sector-wide fire (the bombardment, the whistle) asks for a second press, so a slip can't fire it. */
   readonly confirmSectorFire: boolean
 }
 
-export const DEFAULT_PLAY: PlaySettings = { captions: "voices", confirmSectorFire: true }
+export const DEFAULT_PLAY: PlaySettings = { captions: "off", confirmSectorFire: true }
 
 export function readPlay(stored: unknown): PlaySettings {
   if (typeof stored !== "object" || stored === null) {

@@ -1,15 +1,18 @@
 import { h, setText } from "../hud/dom.ts"
-import type { Captions } from "./captions.ts"
+import type { Caption, Captions } from "./captions.ts"
 import { button } from "./fields.ts"
 import type { FireConfirm, SectorFire } from "./fire-confirm.ts"
 import { keymap } from "./keymap.ts"
 import "./battle-notes.css"
 
-/** What each sector-wide call asks, with its key. */
+/** What a second press of each sector-wide call's key does, in a few words. */
 const QUESTIONS: Readonly<Record<SectorFire, string>> = {
-  bombard: "Bombard the enemy line for two minutes?",
-  whistle: "Blow the whistle? Every squad goes over behind a creeping barrage."
+  bombard: "again: bombard their line",
+  whistle: "again: every squad goes over"
 }
+
+/** Where a caption came from, as an arrow; its side is in the tint and the label. */
+const ARROWS: Readonly<Record<Caption["direction"], string>> = { left: "◀", ahead: "▲", right: "▶" }
 
 export interface BattleNotes {
   /** Redraws the captions and the question standing. Call once a frame. */
@@ -35,7 +38,7 @@ export function createBattleNotes(
   question.hidden = true
   const questionText = h("span", "notes-question-text")
   const questionKey = h("kbd", "ui-key notes-question-key")
-  question.append(questionText, h("span", "notes-question-again", "Press ", questionKey, " again to fire"))
+  question.append(questionKey, questionText)
   const notice = h("div", "notes-notice")
   notice.setAttribute("role", "status")
   notice.hidden = true
@@ -52,19 +55,25 @@ export function createBattleNotes(
         setText(questionKey, keymap().label(asking.kind))
       }
       const now = captions.update(frameSeconds)
-      const key = now.map((caption) => `${caption.key}:${caption.count}`).join("|")
+      const key = now.map((caption) => `${caption.key}:${caption.direction}:${caption.name ?? ""}`).join("|")
       if (key !== shown) {
         shown = key
         captionList.replaceChildren(
-          ...now.map((caption) =>
-            h(
-              "p",
-              `notes-caption notes-caption--${caption.kind}`,
-              h("span", "notes-caption-who", caption.who),
-              h("span", "notes-caption-text", caption.count > 1 ? `${caption.text} (×${caption.count})` : caption.text),
-              caption.words ? h("span", "notes-caption-words", caption.words) : null
+          ...now.map((caption) => {
+            const arrow = h(
+              "span",
+              `notes-caption-arrow notes-caption-arrow--${caption.side ?? "sound"}`,
+              ARROWS[caption.direction]
             )
-          )
+            arrow.setAttribute("aria-label", caption.side ? `${caption.side}, ${caption.direction}` : caption.direction)
+            return h(
+              "p",
+              "notes-caption",
+              arrow,
+              caption.name ? h("span", "notes-caption-name", `${caption.name}:`) : null,
+              h("span", "notes-caption-text", caption.text)
+            )
+          })
         )
       }
     },

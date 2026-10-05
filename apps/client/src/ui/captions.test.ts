@@ -1,36 +1,45 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import type { SoundCue } from "../audio/battle-sound-model.ts"
 import type { CaptionMode } from "../settings/play.ts"
 import { CAPTION_LINES } from "./caption-lines.ts"
 import { captionOf, createCaptions, type HeardSound } from "./captions.ts"
 
+const shout = (cue: HeardSound["cue"], extra: Partial<HeardSound> = {}): HeardSound => ({
+  cue,
+  volume: 0.5,
+  pan: 0,
+  ...extra
+})
+
 describe("captions", () => {
-  it("captions a shout with who and where, its meaning, and the words as shouted", () => {
-    expect(captionOf("voices", { cue: "voice-gas-de", volume: 0.5, pan: -0.8 }, "fr")).toEqual({
-      key: "voice-gas-de",
-      who: "The enemy, to the left",
-      text: "Gas! Masks on!",
-      words: "Gas! Masken auf!",
-      kind: "voice"
+  it("says what was shouted in one short line: where from, whose side, and the meaning", () => {
+    expect(captionOf("voices", shout("voice-gas-de", { pan: -0.8 }), "fr")).toEqual({
+      key: "Gas! Masks on!",
+      side: "theirs",
+      direction: "left",
+      name: null,
+      text: "Gas! Masks on!"
     })
-    expect(captionOf("voices", { cue: "voice-follow-fr", volume: 0.5, pan: 0 }, "fr")?.who).toBe("Ours, ahead")
   })
 
-  it("names a man of the player's squad, and leaves the rest to their side", () => {
-    const nameOf = (soldier: number) => (soldier === 7 ? "Caporal Vincent" : null)
-    const call: HeardSound = { cue: "voice-follow-fr", volume: 0.5, pan: 0 }
-    expect(captionOf("voices", { ...call, speaker: 7 }, "fr", nameOf)).toMatchObject({
-      who: "Caporal Vincent, ahead",
-      key: "voice-follow-fr:7"
+  it("captions only what the player can act on, unless they ask for everything", () => {
+    const nameOf = (soldier: number) => (soldier === 7 ? "Vincent" : null)
+    expect(captionOf("voices", shout("voice-grenade-fr"), "fr")?.text).toBe("Grenade!")
+    expect(captionOf("voices", shout("voice-follow-fr", { speaker: 7 }), "fr", nameOf)).toMatchObject({
+      name: "Vincent",
+      side: "ours",
+      text: "Follow me!"
     })
-    expect(captionOf("voices", { ...call, speaker: 9 }, "fr", nameOf)?.who).toBe("Ours, ahead")
+    // Another squad's orders, the wounded, the broken and the surrendering: only in "all".
+    expect(captionOf("voices", shout("voice-follow-fr", { speaker: 9 }), "fr", nameOf)).toBeNull()
+    expect(captionOf("voices", shout("voice-hit-fr"), "fr")).toBeNull()
+    expect(captionOf("all", shout("voice-hit-fr"), "fr")?.text).toBe("I'm hit!")
   })
 
-  it("matches the take that played, word for word, and knows every line recorded", () => {
-    expect(
-      captionOf("voices", { cue: "voice-charge-fr", volume: 0.5, pan: 0, line: "fr-charge-4" }, "fr")
-    ).toMatchObject({ text: "On your feet, you dead!", words: "Debout les morts !" })
+  it("says the take that played, and has a meaning for every line recorded", () => {
+    expect(captionOf("all", shout("voice-charge-fr", { line: "fr-charge-4" }), "fr")?.text).toBe(
+      "On your feet, you dead!"
+    )
     const recorded: unknown = JSON.parse(
       readFileSync(new URL("../../../../scripts/voice-lines.json", import.meta.url), "utf8")
     )
@@ -45,32 +54,29 @@ describe("captions", () => {
     }
   })
 
-  it("captions warning sounds only when asked, and nothing too faint or switched off", () => {
-    const whistle: { cue: SoundCue; volume: number; pan: number } = { cue: "whistle", volume: 0.6, pan: 0.6 }
-    expect(captionOf("voices", whistle, "fr")).toBeNull()
-    expect(captionOf("all", whistle, "fr")).toMatchObject({ text: "Whistles blow", who: "to the right", words: null })
-    expect(captionOf("all", { cue: "step-earth", volume: 1, pan: 0 }, "fr")).toBeNull()
-    expect(captionOf("voices", { cue: "voice-hit-fr", volume: 0.01, pan: 0 }, "fr")).toBeNull()
-    expect(captionOf("off", { cue: "voice-hit-fr", volume: 1, pan: 0 }, "fr")).toBeNull()
+  it("captions warning sounds only in all, and nothing too faint or switched off", () => {
+    expect(captionOf("voices", shout("whistle"), "fr")).toBeNull()
+    expect(captionOf("all", shout("whistle", { pan: 0.6 }), "fr")).toMatchObject({
+      text: "Whistles",
+      side: null,
+      direction: "right"
+    })
+    expect(captionOf("all", shout("step-earth"), "fr")).toBeNull()
+    expect(captionOf("voices", shout("voice-gas-fr", { volume: 0.01 }), "fr")).toBeNull()
+    expect(captionOf("off", shout("voice-gas-fr"), "fr")).toBeNull()
   })
 
-  it("counts a shout heard again rather than repeating it, keeps three, and lets them go", () => {
+  it("shows the same meaning once, two at most, briefly", () => {
     let mode: CaptionMode = "voices"
     const captions = createCaptions(() => mode, "fr")
-    captions.hear({ cue: "voice-hit-fr", volume: 1, pan: 0 })
-    captions.hear({ cue: "voice-hit-fr", volume: 1, pan: 0 })
-    expect(captions.update(0.1)).toMatchObject([{ key: "voice-hit-fr", count: 2 }])
-    const shouts: SoundCue[] = ["voice-gas-fr", "voice-hold-fr", "voice-taken-fr"]
-    for (const cue of shouts) {
-      captions.hear({ cue, volume: 1, pan: 0 })
-    }
-    expect(captions.update(0.1).map((caption) => caption.key)).toEqual([
-      "voice-gas-fr",
-      "voice-hold-fr",
-      "voice-taken-fr"
-    ])
-    expect(captions.update(5)).toEqual([])
-    captions.hear({ cue: "voice-hit-fr", volume: 1, pan: 0 })
+    captions.hear(shout("voice-gas-fr"))
+    captions.hear(shout("voice-gas-de"))
+    expect(captions.update(0.1).map((caption) => caption.text)).toEqual(["Gas! Masks on!"])
+    captions.hear(shout("voice-grenade-fr"))
+    captions.hear(shout("voice-cover-fr"))
+    expect(captions.update(0.1).map((caption) => caption.text)).toEqual(["Grenade!", "Get down!"])
+    expect(captions.update(3)).toEqual([])
+    captions.hear(shout("voice-gas-fr"))
     mode = "off"
     expect(captions.update(0.1)).toEqual([])
   })

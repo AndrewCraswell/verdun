@@ -221,8 +221,8 @@ function soundTab(): HTMLElement {
   const captions = segmented<CaptionMode>(
     [
       { value: "off", label: "Off" },
-      { value: "voices", label: "Voices" },
-      { value: "all", label: "Voices and warnings" }
+      { value: "voices", label: "What matters" },
+      { value: "all", label: "Everything" }
     ],
     play.current.captions,
     (value) => play.change({ captions: value })
@@ -235,7 +235,7 @@ function soundTab(): HTMLElement {
       "Captions",
       settingRow(
         "Captions",
-        "The men's shouts, in French and German, with who, where and what they mean; and on request the warnings: whistles, the gas gong, heavy shells coming in.",
+        "Short lines for what's shouted, in English, with an arrow for where. What matters: gas, grenades, take cover, your squad's orders. Everything adds the rest, whistles and shells coming in.",
         captions.root
       )
     )

@@ -1143,9 +1143,10 @@ Xbox's text and contrast guidance
 - **Colour**: no information by colour alone; colour-vision palettes for state and side colours.
 - **Captions**: every voice line captioned, with the speaker and its meaning in the interface language (the voices are
   French and German, `scripts/voice-lines.json`): "Sgt. Dubois: Gas! Masks on!" Optional captions for important sounds
-  (incoming shell, whistle, gas gong) and visual cues for them. Built (`ui/captions.ts`): each shout with its side and
-  direction ("The enemy, to the left"), its meaning and the words as shouted; the warnings on request. The speaker isn't
-  named yet: the sound engine doesn't say which man shouts.
+  (incoming shell, whistle, gas gong) and visual cues for them. Built (`ui/captions.ts`), off by default and kept short
+  at the developer's asking: one line each, an arrow for the direction tinted by side, a name only for the player's own
+  squad ("Vincent: Follow me!"), and the meaning of the take that played. "What matters" captions gas, grenades, take
+  cover and the squad's own orders; "Everything" adds the rest and the warning sounds. Two at most, for 2.5 s.
 - **Input**: every key rebindable; every hold also available as a toggle; no fast repeated presses required; the radial
   usable without precise mouse work.
 - **Motion and light**: screen effects, shake and flashes each reducible or off; nothing flashes more than three times a
