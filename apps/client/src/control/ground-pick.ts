@@ -65,12 +65,38 @@ export function marchToGround(map: BattlefieldMap, origin: Point, direction: Poi
   return null
 }
 
-/** The ground point under the pointer, from the scene's active camera. */
+/** Scenes picking from the middle of the screen rather than the pointer: the aim view's. */
+const centred = new WeakSet<Scene>()
+
+/**
+ * Picks from the middle of the screen, where the aim view's reticle is, rather than from the pointer, while on: the
+ * pointer is locked away there, and the man aims where the camera looks.
+ */
+export function pickFromCentre(scene: Scene, on: boolean): void {
+  if (on) {
+    centred.add(scene)
+  } else {
+    centred.delete(scene)
+  }
+}
+
+/** Where on the canvas the game picks from, in CSS pixels from its top left: the pointer, or the aim view's middle. */
+export function pickPoint(scene: Scene): { x: number; y: number } {
+  if (centred.has(scene)) {
+    const engine = scene.getEngine()
+    const scale = engine.getHardwareScalingLevel()
+    return { x: (engine.getRenderWidth() * scale) / 2, y: (engine.getRenderHeight() * scale) / 2 }
+  }
+  return { x: scene.pointerX, y: scene.pointerY }
+}
+
+/** The ground point under the pointer (the middle of the screen in the aim view), from the scene's active camera. */
 export function groundUnderPointer(scene: Scene, map: BattlefieldMap): { x: number; z: number } | null {
   const camera = scene.activeCamera
   if (!camera) {
     return null
   }
-  const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, IDENTITY, camera)
+  const { x, y } = pickPoint(scene)
+  const ray = scene.createPickingRay(x, y, IDENTITY, camera)
   return marchToGround(map, ray.origin, ray.direction)
 }

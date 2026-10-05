@@ -22,7 +22,7 @@ export interface BindingGroup {
 const FIXED: Readonly<Record<string, readonly Binding[]>> = {
   "Your soldier": [
     { keys: "Mouse", action: "Face the pointer" },
-    { keys: "Right mouse, held", action: "Aim: the view leans toward the pointer" },
+    { keys: "Right mouse, held", action: "Aim over his shoulder; the mouse turns him" },
     { keys: "Left-click", action: "Fire" }
   ],
   "Your squad": [{ keys: "1 to 8", action: "Switch to a squad slot" }],

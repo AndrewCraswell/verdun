@@ -2,7 +2,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import type { BattlefieldMap } from "@verdun/map"
 import { interfaceSettings } from "../hud/interface-settings.ts"
 import { canonicalCode, type Keymap, keymap } from "../ui/keymap.ts"
-import { groundUnderPointer } from "./ground-pick.ts"
+import { groundUnderPointer, pickPoint } from "./ground-pick.ts"
 import type { GroundVector, PlayerAction, PlayerInput } from "./player-control.ts"
 
 /**
@@ -92,8 +92,8 @@ export function actionForKey(code: string): PlayerAction | null {
 /**
  * Keyboard and mouse input from the browser. Uses `KeyboardEvent.code`, so keys stay in the same place on AZERTY and
  * other layouts, and reads them through the player's keymap. Held keys are released when the window loses focus, so a
- * soldier never walks off on their own. Left-click fires; the right button aims (see camera-rig.ts), and E sends the
- * squad to the ground under the pointer.
+ * soldier never walks off on their own. Left-click fires; the right button aims over his shoulder (see camera-rig.ts),
+ * and E sends the squad to the ground under the pointer.
  */
 export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keymap = keymap()): PlayerInput {
   const held = new Set<string>()
@@ -230,13 +230,27 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     aimingCall = null
   })
   const canvas = scene.getEngine().getRenderingCanvas()
+  /** The left button pulls the trigger, and holds it while it's down. */
+  function trigger(down: boolean): void {
+    if (down && !firing) {
+      actions.push({ kind: "fire" })
+    }
+    firing = down
+  }
   canvas?.addEventListener("pointerdown", (event) => {
     if (event.button === 0) {
-      firing = true
-      actions.push({ kind: "fire" })
+      firing = false
+      trigger(true)
     } else if (event.button === 2) {
       // The right button puts away a call being aimed.
       aimingCall = null
+    }
+  })
+  // A button pressed or let go while another is held comes as a move, not a press: firing with the right button held
+  // in the aim view, say.
+  canvas?.addEventListener("pointermove", (event) => {
+    if (event.button === 0) {
+      trigger((event.buttons & 1) !== 0)
     }
   })
 
@@ -252,6 +266,7 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
       return firing
     },
     pointerGround,
+    pointerScreen: () => pickPoint(scene),
     takeActions() {
       const taken = actions
       actions = []

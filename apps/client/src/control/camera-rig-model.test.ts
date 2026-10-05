@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createCameraRigModel, pitchForDistance, type RigView, ZOOM_RANGE } from "./camera-rig-model.ts"
+import { createCameraRigModel, pitchForDistance, type RigView, type Shoulder, ZOOM_RANGE } from "./camera-rig-model.ts"
 
 const flat = () => 0
 const bounds = { width: 600, depth: 400 }
@@ -244,5 +244,96 @@ describe("camera rig", () => {
     const left = settle(model, 3)
     expect(left.distance).toBeCloseTo(20, 0)
     expect(left.pitch).toBeCloseTo(pitchForDistance(20), 2)
+  })
+
+  describe("aim view", () => {
+    /** A rifleman at the focus, standing on flat ground, facing north. */
+    const rifleman: Shoulder = { eye: { x: 300, y: 1.65, z: 200 }, facing: { x: 0, z: 1 }, magnification: 2 }
+    /** Where the view's camera is. */
+    const cameraAt = (view: RigView) => ({
+      x: view.focusX + Math.cos(view.yaw) * Math.sin(view.pitch) * view.distance,
+      y: view.focusY + Math.cos(view.pitch) * view.distance,
+      z: view.focusZ + Math.sin(view.yaw) * Math.sin(view.pitch) * view.distance
+    })
+
+    it("swings behind his right shoulder in a quarter of a second, looking the way he faces, and back out", () => {
+      const model = createCameraRigModel(bounds, start)
+      model.follow(300, 200)
+      model.setShoulder(rifleman)
+      const field = settle(model, 1)
+      model.holdAim(true)
+      expect(model.aim).toEqual({ yaw: -Math.PI / 2, pitch: 0 })
+
+      const partway = settle(model, 0.125)
+      expect(model.aimShare).toBeCloseTo(0.5, 1)
+      expect(cameraAt(partway).y).toBeLessThan(cameraAt(field).y)
+      const behind = settle(model, 0.2)
+      expect(model.aimShare).toBe(1)
+      // 1.4 m behind his eye, 0.45 m to his right (east, facing north) and 0.25 m above it, looking level and north.
+      const camera = cameraAt(behind)
+      expect(camera.x).toBeCloseTo(300.45, 2)
+      expect(camera.y).toBeCloseTo(1.9, 2)
+      expect(camera.z).toBeCloseTo(198.6, 2)
+      expect(behind.yaw).toBeCloseTo(-Math.PI / 2, 3)
+      expect(behind.pitch).toBeCloseTo(Math.PI / 2, 3)
+      expect(model.magnification).toBeCloseTo(2)
+
+      model.holdAim(false)
+      expect(model.aim).toBeNull()
+      const back = settle(model, 0.3)
+      expect(model.aimShare).toBe(0)
+      expect(model.magnification).toBe(1)
+      expect(back).toEqual(field)
+    })
+
+    it("turns the aim with the mouse, tilting it only so far", () => {
+      const model = createCameraRigModel(bounds, start)
+      model.setShoulder(rifleman)
+      model.turnAim(1, 0)
+      expect(model.aim).toBeNull()
+
+      model.holdAim(true)
+      // A quarter turn right, from north to east.
+      model.turnAim(Math.PI / 2, 0.2)
+      const aim = model.aim
+      expect(-Math.cos(aim?.yaw ?? 0)).toBeCloseTo(1)
+      expect(aim?.pitch).toBeCloseTo(0.2)
+      const view = settle(model, 0.5)
+      expect(view.pitch).toBeCloseTo(Math.PI / 2 + 0.2, 3)
+      model.turnAim(0, 10)
+      expect(model.aim?.pitch).toBeCloseTo(0.45)
+      model.turnAim(0, -10)
+      expect(model.aim?.pitch).toBeCloseTo(-0.6)
+    })
+
+    it("pulls the camera in toward his eye where the ground rises behind him", () => {
+      const model = createCameraRigModel(bounds, start)
+      model.setShoulder({ ...rifleman, eye: { x: 300, y: 1.65, z: 200 } })
+      model.holdAim(true)
+      // A trench's back wall half a metre behind him, 3 m high.
+      const wall = (_x: number, z: number) => (z < 199.5 ? 3 : 0)
+      const camera = cameraAt(settle(model, 0.5, wall))
+      expect(camera.z).toBeGreaterThan(199.5)
+      expect(camera.y).toBeGreaterThan(1.65)
+    })
+
+    it("takes the view back to the soldier, and does nothing without a soldier to sit behind", () => {
+      const model = createCameraRigModel(bounds, start)
+      model.holdAim(true)
+      expect(model.aim).toBeNull()
+      expect(settle(model, 0.5)).toEqual(start)
+      model.holdAim(false)
+
+      model.setPan(1, 0)
+      settle(model, 0.5)
+      model.setPan(0, 0)
+      expect(model.following).toBe(false)
+      model.setShoulder(rifleman)
+      model.holdAim(true)
+      expect(model.following).toBe(true)
+      // He falls: out of the aim view at once.
+      model.setShoulder(null)
+      expect(model.aim).toBeNull()
+    })
   })
 })

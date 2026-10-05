@@ -9,6 +9,7 @@ import {
   type Simulation,
   type Squad,
   Stance,
+  soldierEye,
   takeOverCandidates,
   Weapon
 } from "@verdun/sim"
@@ -68,6 +69,11 @@ export interface PlayerInput {
   readonly firing?: boolean
   /** Ground point under the pointer, or null when it isn't over the battlefield. */
   pointerGround(): GroundVector | null
+  /**
+   * Where the game picks from on the canvas, in CSS pixels from its top left: the pointer, or the middle of the screen
+   * in the aim view.
+   */
+  pointerScreen?(): { readonly x: number; readonly y: number }
   /** One-off actions since the last call, oldest first. */
   takeActions(): readonly PlayerAction[]
 }
@@ -102,6 +108,24 @@ export function aimToward(from: GroundVector, target: GroundVector): GroundVecto
 /** The keys `steerFromKeys` reads, in a fixed order. */
 const STEER_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD"] as const
 
+/** How many times a weapon's sights magnify in the aim view: a scoped rifle's five, a machine gun's one and a half. */
+function sightsMagnify(weapon: number): number {
+  switch (weapon) {
+    case Weapon.Sniper:
+      return 5
+    case Weapon.MachineGun:
+      return 1.5
+    default:
+      return 2
+  }
+}
+
+/**
+ * Out of the aim view he keeps the aim he had until the pointer moves this many pixels: it comes back where it was
+ * locked, over whatever ground the view now shows.
+ */
+const POINTER_STILL = 3
+
 /** A call that would hit our own men needs calling again within this many milliseconds. */
 const CONFIRM_MS = 3000
 /** Aim changes smaller than about one degree aren't worth a command. */
@@ -130,6 +154,11 @@ export interface PlayerControl {
   readonly squad: Squad
   /** The soldier currently under the player's control: the squad's leader, or -1 once the squad is wiped out. */
   readonly soldier: EntityId
+  /**
+   * The way the page last turned him, a unit vector on the ground, or null before it has: ahead of the simulation's
+   * facing, which comes back from its worker a step or two later.
+   */
+  readonly facing: GroundVector | null
   /** Reads input, turns it into simulation commands, and moves the camera. Call once per frame. */
   update(frameSeconds: number): void
 }
@@ -154,6 +183,9 @@ export function createPlayerControl(
   // The movement keys held, and the camera's bearing when they last changed: what WASD steers by.
   let steerChord = ""
   let steerBearing = camera.alpha
+  // In the aim view last frame, and where the pick point was as it was left, until the pointer moves on.
+  let wasAiming = false
+  let leftAimAt: { readonly x: number; readonly y: number } | null = null
   camera.panningSensibility = 0
 
   function takeCommand(soldier: EntityId): void {
@@ -275,6 +307,9 @@ export function createPlayerControl(
     get soldier() {
       return squad.leader
     },
+    get facing() {
+      return squad.leader >= 0 && squad.leader === lastSoldier ? lastAim : null
+    },
     update(frameSeconds) {
       for (const action of input.takeActions()) {
         act(action)
@@ -291,16 +326,26 @@ export function createPlayerControl(
         lastAim = null
       }
 
+      const x = sim.soldiers.position.x[soldier]
+      const z = sim.soldiers.position.z[soldier]
+      const rig = cameraRigOf(camera)
+      const aimView = rig?.aim ?? null
+
       // WASD keeps the bearing the camera had when the keys went down until the keys held change, as a third-person
-      // game holds the stick's direction across a camera cut: turning the view mid-stride doesn't swing him round.
+      // game holds the stick's direction across a camera cut: turning the view mid-stride doesn't swing him round. In
+      // the aim view it goes by his aim, and keeps the last of it once he's out until the keys change.
       const chord = STEER_KEYS.filter((code) => input.held.has(code)).join(" ")
-      if (chord !== steerChord) {
+      if (aimView) {
+        steerChord = chord
+        steerBearing = aimView.yaw
+      } else if (chord !== steerChord) {
         steerChord = chord
         steerBearing = camera.alpha
       }
       const steer = steerFromKeys(input.held, steerBearing)
       const moving = steer.x !== 0 || steer.z !== 0
-      const run = moving && (input.held.has("ShiftLeft") || input.held.has("ShiftRight"))
+      // Aiming over his shoulder, he walks.
+      const run = moving && !aimView && (input.held.has("ShiftLeft") || input.held.has("ShiftRight"))
       if (run && !lastRun && sim.soldiers.stance.value[soldier] !== Stance.Standing) {
         // Breaking into a run gets a man up off his knees or his belly.
         enqueueCommand(sim, { type: "stance", soldier, stance: "standing" })
@@ -311,14 +356,37 @@ export function createPlayerControl(
         lastRun = run
       }
 
-      const x = sim.soldiers.position.x[soldier]
-      const z = sim.soldiers.position.z[soldier]
-      const pointer = input.pointerGround()
-      const aim = pointer ? aimToward({ x, z }, pointer) : null
+      let aim: GroundVector | null = null
+      const screen = input.pointerScreen?.() ?? null
+      if (aimView) {
+        aim = { x: -Math.cos(aimView.yaw), z: -Math.sin(aimView.yaw) }
+      } else {
+        if (wasAiming) {
+          leftAimAt = screen
+        }
+        // Just out of the aim view, with the pointer still where it was locked, he holds his aim.
+        const holding =
+          leftAimAt !== null &&
+          screen !== null &&
+          Math.hypot(screen.x - leftAimAt.x, screen.y - leftAimAt.y) <= POINTER_STILL
+        if (!holding) {
+          leftAimAt = null
+          const pointer = input.pointerGround()
+          aim = pointer ? aimToward({ x, z }, pointer) : null
+        }
+      }
+      wasAiming = aimView !== null
       if (aim && (!lastAim || (aim.x - lastAim.x) ** 2 + (aim.z - lastAim.z) ** 2 > AIM_EPSILON)) {
         enqueueCommand(sim, { type: "face", soldier, ...aim })
         lastAim = aim
       }
+
+      // The aim view sits behind him, and starts from the way the page last turned him.
+      rig?.setShoulder({
+        eye: soldierEye(sim, soldier),
+        facing: lastAim ?? { x: sim.soldiers.facing.x[soldier], z: sim.soldiers.facing.z[soldier] },
+        magnification: sightsMagnify(sim.soldiers.weapon.kind[soldier])
+      })
 
       const manning = sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun
       if (manning && input.firing) {
@@ -326,7 +394,6 @@ export function createPlayerControl(
         enqueueCommand(sim, { type: "fire", soldier })
       }
 
-      const rig = cameraRigOf(camera)
       if (rig) {
         rig.model.setGunView(manning)
         // Moving the soldier brings the camera back to them, as does switching to another.

@@ -37,11 +37,13 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
   never stops: bots fill every empty place, and the front moves a little each real day. See the [vision](../vision.md)
   and the [pillars](overview.md#pillars).
 - **The camera is top-down**, tilted about 55° like Company of Heroes (lower only under 12 m), zooming from 8 to 450 m.
-  It is not a first-person or shoulder camera. The **pointer is the aim point** on the ground, drawn as a reticle over
-  the battlefield: the soldier faces wherever it is, and left-click fires. Following him, the view leans a third of the
-  way toward the ground under the pointer, as Running With Rifles does; screen edges pan only once the view is off him.
-  E orders the squad to the ground under it. So the middle of the screen belongs to the battlefield, and anything on the
-  HUD that the pointer has to cross gets in the way of aiming.
+  It is not a first-person camera. The **pointer is the aim point** on the ground, drawn as a reticle over the
+  battlefield: the soldier faces wherever it is, and left-click fires. Holding the right button swings the camera behind
+  his shoulder in a quarter of a second (the aim view, magnified for his sights; a setting turns it off): the pointer
+  locks, the mouse turns his aim, he walks, and the middle of the screen is the aim point. Following him, the view leans
+  a third of the way toward the ground under the pointer, as Running With Rifles does; screen edges pan only once the
+  view is off him. E orders the squad to the ground under it. So the middle of the screen belongs to the battlefield,
+  and anything on the HUD that the pointer has to cross gets in the way of aiming.
 - **The player is two people at once**: a soldier (move, aim, fire, throw, lie down) and the squad's leader (orders,
   artillery, who to be next). Later some players are also commanders. The HUD has to serve the man and the squad without
   crowding either.
@@ -790,14 +792,14 @@ groups (`apps/client/src/ui/bindings.ts`, the single registry of keys). Keys are
 Add **rebinding**: click an action, press a key; conflicts shown and resolved; reset per group and for all. Show both
 the key and mouse bindings. The current list:
 
-| Group             | Keys and actions                                                                                                                                                                                           |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; left-click fire (hold on a machine gun); Q grenade; C crouch; Z lie down; Space vault the trench wall or wire fence ahead, or man the gun beside you |
-| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer                                                                                                                       |
-| Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                                                             |
-| Camera            | Arrows pan (screen edges too, once off your man); Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Home or L back to your man              |
-| Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                                                                 |
-| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; F7 sound mixer                                                                                                          |
+| Group             | Keys and actions                                                                                                                                                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; right button held aim over the shoulder; left-click fire (hold on a machine gun); Q grenade; C crouch; Z lie down; Space vault the trench wall or wire fence ahead, or man the gun beside you |
+| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer                                                                                                                                                                |
+| Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                                                                                                      |
+| Camera            | Arrows pan (screen edges too, once off your man); Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Home or L back to your man                                                       |
+| Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                                                                                                          |
+| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; F7 sound mixer                                                                                                                                                   |
 
 Proposed new keys, for the developer to confirm (E, I, L, R, T, U and Y are free today): **E** orders radial (H7), **M**
 sector map (S4; the dev sound mixer moves elsewhere), **R** rally (when built; or reload, if ammunition needs one),
@@ -839,13 +841,13 @@ confirming sector-wide fire.
 
 **Controls**
 
-| Setting                  | Values                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Rebinding                | [S2](#s2-controls)                                                                                           |
-| Hold or toggle           | Run, crouch, lie down, orders radial, grenade and call previews: each hold or toggle                         |
-| Edge panning             | On, off; edge width; speed                                                                                   |
-| Camera                   | Pan, turn and zoom speeds; invert drag; zoom toward the pointer on or off; camera follows your man on or off |
-| Confirm sector-wide fire | On (default), off                                                                                            |
+| Setting                  | Values                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Rebinding                | [S2](#s2-controls)                                                                                                                         |
+| Hold or toggle           | Run, crouch, lie down, orders radial, grenade and call previews: each hold or toggle                                                       |
+| Edge panning             | On, off; edge width; speed                                                                                                                 |
+| Camera                   | Pan, turn and zoom speeds; invert drag; zoom toward the pointer on or off; camera follows your man on or off; aim view on the right button |
+| Confirm sector-wide fire | On (default), off                                                                                                                          |
 
 **Interface**
 

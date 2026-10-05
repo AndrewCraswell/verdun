@@ -60,6 +60,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | W A S D                         | Move the soldier you control, relative to the camera                           |
 | Mouse                           | Aim; the view leans toward the pointer                                         |
 | Left-click                      | Fire                                                                           |
+| Right button, held              | Aim over the soldier's shoulder: the mouse turns him, and he walks             |
 | Arrow keys                      | Pan the camera; once it's off your man, screen edges pan too                   |
 | Shift + middle-drag             | Grab and drag the ground                                                       |
 | Middle-drag, Shift + Left/Right | Turn and tilt the camera                                                       |
@@ -67,7 +68,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | Home, L                         | Back to the soldier you control (moving them or switching soldier does it too) |
 | Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                 |
 | F, H                            | Squad order: follow me, hold                                                   |
-| Right-click                     | Squad order: advance to that point                                             |
+| E                               | Squad order: advance to the point under the pointer                            |
 | G, twice                        | Whistle: every French squad attacks behind a creeping barrage                  |
 | B, twice                        | Bombard the German front line for two minutes                                  |
 | V                               | Call artillery onto the point under the pointer                                |

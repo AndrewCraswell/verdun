@@ -260,6 +260,7 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
     camera.change({ panSpeed: value })
   )
   const invert = toggle(camera.current.invertDrag, (on) => camera.change({ invertDrag: on }))
+  const aimView = toggle(camera.current.aimView, (on) => camera.change({ aimView: on }))
   const play = playSettings()
   const confirmFire = toggle(play.current.confirmSectorFire, (on) => play.change({ confirmSectorFire: on }))
   return {
@@ -269,9 +270,18 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
       section("Hold or toggle", ...presses.map((each) => each.row)),
       section(
         "Camera",
-        settingRow("Edge panning", "The pointer resting at a screen edge pans the view.", edge.root),
+        settingRow(
+          "Edge panning",
+          "Once the view is off your man, the pointer resting at a screen edge pans it.",
+          edge.root
+        ),
         settingRow("Pan speed", "Arrow keys and screen edges.", speed.root),
-        settingRow("Invert drag", "Middle-drag turns and tilts the other way.", invert.root)
+        settingRow("Invert drag", "Middle-drag turns and tilts the other way.", invert.root),
+        settingRow(
+          "Aim view on right button",
+          "Holding the right button looks over your man's shoulder, and the mouse turns his aim.",
+          aimView.root
+        )
       ),
       section(
         "Orders",
@@ -290,6 +300,7 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
       confirmFire.set(play.current.confirmSectorFire)
       speed.set(camera.current.panSpeed)
       invert.set(camera.current.invertDrag)
+      aimView.set(camera.current.aimView)
     }
   }
 }

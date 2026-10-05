@@ -38,6 +38,24 @@ const LEAN = { share: 0.5, cap: 0.35 } as const
  * the open well before they're on him.
  */
 const GUN_VIEW = { distance: 45, pitch: 0.75 } as const
+/**
+ * The aim view, while the right button is held: the camera behind the soldier's right shoulder, `back` metres behind his
+ * eye along the aim, `right` to his right and `up` above it, looking along the aim (at a point `reach` metres on, which
+ * keeps the camera's own limits happy). It swings in and out over `seconds`. The aim tilts between `lowest` and
+ * `highest` radians from level, and the camera keeps `clearance` metres above the ground between his eye and it.
+ */
+const AIM_VIEW = {
+  back: 1.4,
+  right: 0.45,
+  up: 0.25,
+  reach: 8,
+  seconds: 0.25,
+  lowest: -0.6,
+  highest: 0.45,
+  clearance: 0.15
+} as const
+/** Points along the line from his eye to the camera checked against the ground. */
+const AIM_CLEARANCE_SAMPLES = 12
 
 /** The camera's lens: its field of view top to bottom, in radians, and the screen's width over its height. */
 export interface Lens {
@@ -52,6 +70,30 @@ const DEFAULT_LENS: Lens = { fov: 0.8, aspect: 16 / 9 }
 export interface ScreenPoint {
   readonly right: number
   readonly up: number
+}
+
+/** A point in the world, in metres: `x` east, `y` up, `z` north. */
+export interface WorldPoint {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
+
+/** The soldier the aim view sits behind. */
+export interface Shoulder {
+  readonly eye: WorldPoint
+  /** The way he faces on the ground, a unit vector: where the aim starts from. */
+  readonly facing: { readonly x: number; readonly z: number }
+  /** How many times his sights magnify: the aim view's field of view narrows by this. */
+  readonly magnification: number
+}
+
+/** Where the aim view looks. */
+export interface Aim {
+  /** The aim's bearing, as the alpha of an ArcRotateCamera looking along it: it faces (-cos yaw, -sin yaw). */
+  readonly yaw: number
+  /** Up from level, in radians. */
+  readonly pitch: number
 }
 
 export interface RigView {
@@ -102,6 +144,21 @@ export interface CameraRigModel {
   setDistance(distance: number): void
   /** Rises to the gun's view while the soldier mans a machine gun, and comes back down to the zoom when he leaves it. */
   setGunView(on: boolean): void
+  /** The soldier under control, for the aim view to sit behind; null without one. Call every frame. */
+  setShoulder(shoulder: Shoulder | null): void
+  /**
+   * Holds the aim view while on (the right button): the camera swings behind his shoulder and looks the way he faces,
+   * and the field view goes back to following him. Off swings back out to the field view.
+   */
+  holdAim(on: boolean): void
+  /** Turns the aim by radians, right and up. Only in the aim view. */
+  turnAim(right: number, up: number): void
+  /** Where the aim view looks while it's held over a soldier, or null in the field view. */
+  readonly aim: Aim | null
+  /** How far the camera has swung into the aim view: 0 in the field view, 1 behind his shoulder. */
+  readonly aimShare: number
+  /** How many times the camera magnifies now: 1 in the field view, his sights' behind his shoulder. */
+  readonly magnification: number
   /** Moves the view on by a frame. `ground` gives the terrain height at a point. */
   step(seconds: number, ground: (x: number, z: number) => number): RigView
 }
@@ -146,6 +203,66 @@ export function pitchForDistance(distance: number): number {
   return PITCH.field + (PITCH.map - PITCH.field) * smoothstep(out)
 }
 
+/** An angle brought within half a turn either side of zero. */
+function wrap(angle: number): number {
+  return angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI))
+}
+
+/** The bearing, as an ArcRotateCamera's alpha, of a camera looking along a ground direction. */
+function yawLookingAlong(direction: { readonly x: number; readonly z: number }): number {
+  return Math.atan2(-direction.z, -direction.x)
+}
+
+/**
+ * The aim view's camera and the point it looks at, behind the shoulder of a man with his eye at `eye`, pulled in toward
+ * his eye where the ground rises into the line between them.
+ */
+function shoulderView(
+  eye: WorldPoint,
+  aim: Aim,
+  ground: (x: number, z: number) => number
+): { camera: WorldPoint; target: WorldPoint } {
+  const level = Math.cos(aim.pitch)
+  const look = { x: -Math.cos(aim.yaw) * level, y: Math.sin(aim.pitch), z: -Math.sin(aim.yaw) * level }
+  const { right } = axes(aim.yaw)
+  const wanted = {
+    x: eye.x - look.x * AIM_VIEW.back + right.x * AIM_VIEW.right,
+    y: eye.y - look.y * AIM_VIEW.back + AIM_VIEW.up,
+    z: eye.z - look.z * AIM_VIEW.back + right.z * AIM_VIEW.right
+  }
+  let reach = 1
+  for (let sample = 1; sample <= AIM_CLEARANCE_SAMPLES; sample++) {
+    const t = sample / AIM_CLEARANCE_SAMPLES
+    const x = eye.x + (wanted.x - eye.x) * t
+    const z = eye.z + (wanted.z - eye.z) * t
+    if (ground(x, z) + AIM_VIEW.clearance > eye.y + (wanted.y - eye.y) * t) {
+      reach = (sample - 1) / AIM_CLEARANCE_SAMPLES
+      break
+    }
+  }
+  const camera = {
+    x: eye.x + (wanted.x - eye.x) * reach,
+    y: eye.y + (wanted.y - eye.y) * reach,
+    z: eye.z + (wanted.z - eye.z) * reach
+  }
+  const target = {
+    x: camera.x + look.x * AIM_VIEW.reach,
+    y: camera.y + look.y * AIM_VIEW.reach,
+    z: camera.z + look.z * AIM_VIEW.reach
+  }
+  return { camera, target }
+}
+
+/** Where a view's camera sits: (cos α sin β, cos β, sin α sin β) from its focus, `distance` away. */
+function cameraOf(view: RigView): WorldPoint {
+  const across = view.distance * Math.sin(view.pitch)
+  return {
+    x: view.focusX + Math.cos(view.yaw) * across,
+    y: view.focusY + view.distance * Math.cos(view.pitch),
+    z: view.focusZ + Math.sin(view.yaw) * across
+  }
+}
+
 /** The ground directions to the view's right and straight ahead, for a bearing. */
 function axes(bearing: number) {
   // ArcRotateCamera sits at (cos α, sin α) from its target, so it looks along the opposite way.
@@ -186,7 +303,15 @@ const TURN_SPEED = 1.6
 const ZOOM_PER_NOTCH = 1.12
 
 export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraRigModel {
+  // The field view, eased on from frame to frame; `view` is what's shown, swung toward the aim view while it's held.
+  let field: RigView = start
   let view: RigView = start
+  let shoulder: Shoulder | null = null
+  let aimHeld = false
+  let aim: Aim | null = null
+  // The aim the view last looked along, which it swings back out from once the button's let go.
+  let lastAim: Aim = { yaw: start.yaw, pitch: 0 }
+  let aimShare = 0
   let following = true
   let target = { x: start.focusX, z: start.focusZ }
   let followed = { x: start.focusX, z: start.focusZ }
@@ -212,9 +337,9 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     if (!pointer) {
       return { x: 0, z: 0 }
     }
-    const across = 2 * view.distance * Math.tan(lens.fov / 2) * lens.aspect
+    const across = 2 * field.distance * Math.tan(lens.fov / 2) * lens.aspect
     const cap = LEAN.cap * across
-    const offset = groundOffset(view, lens, pointer, cap / LEAN.share)
+    const offset = groundOffset(field, lens, pointer, cap / LEAN.share)
     const wanted = { x: offset.x * LEAN.share, z: offset.z * LEAN.share }
     const length = Math.hypot(wanted.x, wanted.z)
     return length > cap ? { x: (wanted.x / length) * cap, z: (wanted.z / length) * cap } : wanted
@@ -226,6 +351,38 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     },
     get following() {
       return following
+    },
+    get aim() {
+      return aim
+    },
+    get aimShare() {
+      return aimShare
+    },
+    get magnification() {
+      return 1 + ((shoulder?.magnification ?? 1) - 1) * smoothstep(aimShare)
+    },
+    setShoulder(next) {
+      shoulder = next
+      if (!shoulder) {
+        aim = null
+      } else if (aimHeld && !aim) {
+        aim = { yaw: yawLookingAlong(shoulder.facing), pitch: 0 }
+        following = true
+      }
+    },
+    holdAim(on) {
+      aimHeld = on
+      if (!on) {
+        aim = null
+      } else if (shoulder && !aim) {
+        aim = { yaw: yawLookingAlong(shoulder.facing), pitch: 0 }
+        following = true
+      }
+    },
+    turnAim(right, up) {
+      if (aim) {
+        aim = { yaw: aim.yaw - right, pitch: clamp(aim.pitch + up, AIM_VIEW.lowest, AIM_VIEW.highest) }
+      }
     },
     follow(x, z) {
       followed = { x, z }
@@ -286,7 +443,7 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
       yaw += turn * TURN_SPEED * seconds
       // Held pans ease in and out rather than starting and stopping dead.
       const { right, forward } = axes(yaw)
-      const speed = PAN_SPEED * panMultiple * view.distance
+      const speed = PAN_SPEED * panMultiple * field.distance
       const wanted = {
         x: (right.x * pan.right + forward.x * pan.forward) * speed,
         z: (right.z * pan.right + forward.z * pan.forward) * speed
@@ -308,8 +465,8 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
       clampTarget()
 
       const moveFocus = ease(RATES.focus, seconds)
-      const focusX = approach(view.focusX, target.x, moveFocus)
-      const focusZ = approach(view.focusZ, target.z, moveFocus)
+      const focusX = approach(field.focusX, target.x, moveFocus)
+      const focusZ = approach(field.focusZ, target.z, moveFocus)
       // Average the ground around the focus, so the view glides over craters and trench lips instead of bobbing.
       const reach = 4
       const groundHere =
@@ -319,13 +476,13 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
           ground(focusX, focusZ + reach) +
           ground(focusX, focusZ - reach)) /
         6
-      const focusY = approach(view.focusY, groundHere + FOCUS_HEIGHT, ease(RATES.height, seconds))
+      const focusY = approach(field.focusY, groundHere + FOCUS_HEIGHT, ease(RATES.height, seconds))
       const wantedDistance = gunView ? Math.max(distance, GUN_VIEW.distance) : distance
-      const nextDistance = approach(view.distance, wantedDistance, ease(RATES.distance, seconds))
-      const nextYaw = approach(view.yaw, yaw, ease(RATES.yaw, seconds))
+      const nextDistance = approach(field.distance, wantedDistance, ease(RATES.distance, seconds))
+      const nextYaw = approach(field.yaw, yaw, ease(RATES.yaw, seconds))
       let pitch = clamp(
         approach(
-          view.pitch,
+          field.pitch,
           (gunView ? GUN_VIEW.pitch : pitchForDistance(nextDistance)) + tilt,
           ease(RATES.pitch, seconds)
         ),
@@ -344,7 +501,40 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
         }
         pitch = Math.max(PITCH_LIMITS.min, Math.acos(clamp((floor - focusY) / nextDistance, -1, 1)))
       }
-      view = { focusX, focusY, focusZ, distance: nextDistance, yaw: nextYaw, pitch }
+      field = { focusX, focusY, focusZ, distance: nextDistance, yaw: nextYaw, pitch }
+
+      // Swing toward the aim view while it's held, and back out of it, at an even pace eased at both ends.
+      const swingTo = aim && shoulder ? 1 : 0
+      const swing = seconds / AIM_VIEW.seconds
+      aimShare = swingTo > aimShare ? Math.min(swingTo, aimShare + swing) : Math.max(swingTo, aimShare - swing)
+      if (aimShare === 0 || !shoulder) {
+        aimShare = 0
+        view = field
+        return view
+      }
+      if (aim) {
+        lastAim = aim
+      }
+      const behind = shoulderView(shoulder.eye, lastAim, ground)
+      const blend = smoothstep(aimShare)
+      const mix = (from: WorldPoint, to: WorldPoint): WorldPoint => ({
+        x: from.x + (to.x - from.x) * blend,
+        y: from.y + (to.y - from.y) * blend,
+        z: from.z + (to.z - from.z) * blend
+      })
+      const eye = mix(cameraOf(field), behind.camera)
+      const at = mix({ x: field.focusX, y: field.focusY, z: field.focusZ }, behind.target)
+      const offset = { x: eye.x - at.x, y: eye.y - at.y, z: eye.z - at.z }
+      const length = Math.max(1e-3, Math.hypot(offset.x, offset.y, offset.z))
+      view = {
+        focusX: at.x,
+        focusY: at.y,
+        focusZ: at.z,
+        distance: length,
+        // Kept within half a turn of the field view's bearing, so the angle never jumps a whole turn.
+        yaw: field.yaw + wrap(Math.atan2(offset.z, offset.x) - field.yaw),
+        pitch: Math.acos(clamp(offset.y / length, -1, 1))
+      }
       return view
     }
   }

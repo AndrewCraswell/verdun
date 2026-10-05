@@ -8,9 +8,11 @@ export interface CameraSettings {
   readonly panSpeed: number
   /** Middle-drag turns and tilts the other way. */
   readonly invertDrag: boolean
+  /** Holding the right button swings the camera behind the soldier's shoulder to aim. */
+  readonly aimView: boolean
 }
 
-export const DEFAULT_CAMERA: CameraSettings = { edgePan: true, panSpeed: 1, invertDrag: false }
+export const DEFAULT_CAMERA: CameraSettings = { edgePan: true, panSpeed: 1, invertDrag: false, aimView: true }
 
 export function readCamera(stored: unknown): CameraSettings {
   if (typeof stored !== "object" || stored === null) {
@@ -20,7 +22,8 @@ export function readCamera(stored: unknown): CameraSettings {
   return {
     edgePan: typeof record.edgePan === "boolean" ? record.edgePan : DEFAULT_CAMERA.edgePan,
     panSpeed: within(record.panSpeed, DEFAULT_CAMERA.panSpeed, 0.5, 2),
-    invertDrag: typeof record.invertDrag === "boolean" ? record.invertDrag : DEFAULT_CAMERA.invertDrag
+    invertDrag: typeof record.invertDrag === "boolean" ? record.invertDrag : DEFAULT_CAMERA.invertDrag,
+    aimView: typeof record.aimView === "boolean" ? record.aimView : DEFAULT_CAMERA.aimView
   }
 }
 

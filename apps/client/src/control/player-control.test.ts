@@ -18,7 +18,8 @@ import {
   Weapon
 } from "@verdun/sim"
 import { createLineOfSight } from "@verdun/sim/physics"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { createCameraRig } from "./camera-rig.ts"
 import {
   aimToward,
   createPlayerControl,
@@ -67,6 +68,7 @@ afterEach(() => {
   for (const engine of engines.splice(0)) {
     engine.dispose()
   }
+  vi.unstubAllGlobals()
 })
 
 /** A squad of three in a row at z = 50, the first leading, on flat ground 3 m up. */
@@ -84,11 +86,12 @@ function setup(debugActions = false) {
   const held = new Set<string>()
   const actions: PlayerAction[] = []
   let pointer: GroundVector | null = null
+  let screen = { x: 400, y: 300 }
   const control = createPlayerControl(
     sim,
     squad,
     camera,
-    { held, pointerGround: () => pointer, takeActions: () => actions.splice(0) },
+    { held, pointerGround: () => pointer, pointerScreen: () => screen, takeActions: () => actions.splice(0) },
     { debugActions }
   )
   const frame = () => {
@@ -106,7 +109,8 @@ function setup(debugActions = false) {
     actions,
     control,
     frame,
-    point: (value: GroundVector | null) => (pointer = value)
+    point: (value: GroundVector | null) => (pointer = value),
+    pointAt: (value: { x: number; y: number }) => (screen = value)
   }
 }
 
@@ -195,6 +199,41 @@ describe("createPlayerControl", () => {
     expect(sim.soldiers.facing.x[soldier]).toBeCloseTo(1)
     expect(sim.soldiers.facing.z[soldier]).toBeCloseTo(0)
     expect(sim.pendingCommands).toHaveLength(0)
+  })
+
+  it("in the aim view faces along the aim and walks by it, and holds that aim once out until the pointer moves", () => {
+    // The rig listens on the window, which Node hasn't got.
+    vi.stubGlobal("window", new EventTarget())
+    const { scene, sim, soldier, camera, held, control, point, pointAt } = setup()
+    const rig = createCameraRig(camera, scene, sim.map)
+    const faces = () => sim.pendingCommands.filter((command) => command.type === "face")
+    point({ x: 60, z: 50 })
+    control.update(0.05)
+    expect(control.facing).toEqual({ x: 1, z: 0 })
+
+    // Into the aim view, looking east the way he faces; a quarter turn left with the mouse, to the north.
+    rig.model.holdAim(true)
+    expect(rig.aiming).toBe(true)
+    rig.model.turnAim(-Math.PI / 2, 0)
+    held.add("KeyW")
+    held.add("ShiftLeft")
+    sim.pendingCommands.length = 0
+    control.update(0.05)
+    expect(faces()).toEqual([{ type: "face", soldier, x: expect.closeTo(0), z: expect.closeTo(1) }])
+    expect(sim.pendingCommands).toContainEqual({ type: "steer", soldier, x: expect.closeTo(0), z: 1, run: false })
+
+    // Out of it, with the pointer still where it was: he keeps his aim, and keeps walking north.
+    rig.model.holdAim(false)
+    held.delete("ShiftLeft")
+    sim.pendingCommands.length = 0
+    control.update(0.05)
+    control.update(0.05)
+    expect(faces()).toEqual([])
+    expect(control.facing).toMatchObject({ x: expect.closeTo(0), z: expect.closeTo(1) })
+    pointAt({ x: 420, y: 300 })
+    control.update(0.05)
+    expect(faces()).toEqual([{ type: "face", soldier, x: 1, z: 0 }])
+    rig.dispose()
   })
 
   it("keeps the camera on the soldier, easing toward them", () => {

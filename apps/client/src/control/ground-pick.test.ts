@@ -1,6 +1,8 @@
+import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
+import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, sampleIndex } from "@verdun/map"
 import { describe, expect, it } from "vitest"
-import { marchToGround } from "./ground-pick.ts"
+import { marchToGround, pickFromCentre, pickPoint } from "./ground-pick.ts"
 
 /** 100 m square, flat at 5 m, with a 10 m wall of ground along x = 70 to 72. */
 function field() {
@@ -34,5 +36,27 @@ describe("marchToGround", () => {
   it("comes in over the map's edge, and misses a ray looking at the sky", () => {
     expect(marchToGround(field(), { x: -50, y: 60, z: 50 }, down45)?.x).toBeCloseTo(5, 1)
     expect(marchToGround(field(), { x: 50, y: 20, z: 50 }, { x: 0, y: 1, z: 0 })).toBeNull()
+  })
+})
+
+describe("pickPoint", () => {
+  it("picks from the pointer, or from the middle of the screen while the aim view holds it there", () => {
+    const engine = new NullEngine({
+      renderWidth: 800,
+      renderHeight: 600,
+      textureSize: 512,
+      deterministicLockstep: false,
+      lockstepMaxSteps: 1
+    })
+    const scene = new Scene(engine)
+    scene.pointerX = 100
+    scene.pointerY = 40
+    expect(pickPoint(scene)).toEqual({ x: 100, y: 40 })
+
+    pickFromCentre(scene, true)
+    expect(pickPoint(scene)).toEqual({ x: 400, y: 300 })
+    pickFromCentre(scene, false)
+    expect(pickPoint(scene)).toEqual({ x: 100, y: 40 })
+    engine.dispose()
   })
 })
