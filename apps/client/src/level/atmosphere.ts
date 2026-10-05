@@ -16,6 +16,7 @@ import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import type { Immutable, Nullable } from "@babylonjs/core/types"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { trimCascadeVaryings } from "../render/cascade-varyings.ts"
 import { displaySettings } from "../settings/display.ts"
 
 /** Effect sprites from the level kit. */
@@ -161,6 +162,7 @@ function createShadows(
   if (!CascadedShadowGenerator.IsSupported) {
     return null
   }
+  trimCascadeVaryings()
   const shadows = new CascadedShadowGenerator(SHADOW.mapSize, sun)
   shadows.numCascades = SHADOW.cascades
   shadows.shadowMaxZ = SHADOW.maxZ
