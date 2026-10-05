@@ -363,7 +363,8 @@ won't decode is left out with a warning rather than stopping the game.
     is down in the trench) lose more highs and some level, checked with the simulation's sight lines.
   - Down in a trench, in the controlled soldier's dugout or among Fleury's ruins, a reverb made in code colours what is
     heard: tight earthy walls, a small dead room, slapback off broken walls. It fades out as the camera climbs.
-  - At most 48 battle sounds play at once; the quietest gives way.
+  - At most 48 battle sounds play at once. The least needed give way first: shouts, whistles and rounds cracking past
+    over the fight close by, that over the far battle and footsteps; within each, the quietest.
 - **Ambience** ([ambience.ts](../apps/client/src/level/ambience.ts)) crossfades four looping beds by where the camera
   looks: wind over no man's land with the guns rumbling in it, creaking shattered trees in the woods, crows over
   Fleury's ruins and birdsong behind the lines. A distant gun fires every few seconds from a random side. After dark the

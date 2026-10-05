@@ -18,6 +18,7 @@ import {
 import { createFootstepModel } from "./footstep-model.ts"
 import { createLevelSoundModel, fireLevel, type LevelSources } from "./level-sound-model.ts"
 import { type Bed, getMixer } from "./mixer.ts"
+import { priorityOf } from "./voice-priority.ts"
 import { playerVolume, volumeGain } from "./volume.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
@@ -257,6 +258,7 @@ async function startBattleSounds(
         delay: call.delay,
         cutoff: call.cutoff,
         reverb: bus === "battle" ? REVERB_SEND : 0,
+        priority: priorityOf(call.cue),
         detune: EARS.has(call.cue)
           ? 0
           : (Math.random() * 2 - 1) * (call.cue.startsWith("voice-") ? VOICE_DETUNE : DETUNE),

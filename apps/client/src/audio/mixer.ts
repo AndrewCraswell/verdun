@@ -13,6 +13,7 @@
  */
 
 import { createTuning, type Tuning } from "./tuning.ts"
+import { giveWay, Priority, type Sounding } from "./voice-priority.ts"
 import { playerVolume, type VolumeChannel, volumeGain } from "./volume.ts"
 
 /** How the listener's surroundings colour what they hear, each from 0 (not there) to 1. */
@@ -43,6 +44,8 @@ export interface Voice {
   readonly loop?: boolean
   /** What's playing, for the mixer panel's readout. */
   readonly name?: string
+  /** How much it matters when voices run short (voice-priority.ts); the least needed give way first. */
+  readonly priority?: Priority
 }
 
 /** A sound that started lately, for the mixer panel. */
@@ -66,7 +69,10 @@ export interface Mixer {
   readonly ambience: AudioNode
   /** The bus the soundtrack plays into. */
   readonly music: AudioNode
-  /** Plays a voice, or drops it when MAX_VOICES are sounding and it is quieter than all of them. */
+  /**
+   * Plays a voice. When MAX_VOICES are sounding, the least needed of them gives way (voice-priority.ts), or this one is
+   * dropped when it matters no more than any of them.
+   */
   play(voice: Voice): AudioBufferSourceNode | null
   /** Starts a looping bed on the ambience bus, silent until its level is set. */
   bed(buffer: AudioBuffer): Bed
@@ -255,7 +261,7 @@ function createMixer(context: AudioContext): Mixer {
     globalThis.addEventListener?.(type, resume, { capture: true })
   }
 
-  const active: { readonly source: AudioBufferSourceNode; readonly volume: number }[] = []
+  const active: (Sounding & { readonly source: AudioBufferSourceNode })[] = []
   const forget = (source: AudioBufferSourceNode) => {
     const index = active.findIndex((voice) => voice.source === source)
     if (index >= 0) {
@@ -274,15 +280,10 @@ function createMixer(context: AudioContext): Mixer {
     recent,
     daylight: 1,
     play(voice) {
+      const priority = voice.priority ?? Priority.Far
       if (voice.bus === "battle" && active.length >= MAX_VOICES) {
-        let quietest = 0
-        for (let index = 1; index < active.length; index++) {
-          if ((active[index]?.volume ?? 1) < (active[quietest]?.volume ?? 1)) {
-            quietest = index
-          }
-        }
-        const victim = active[quietest]
-        if (!victim || victim.volume >= voice.volume) {
+        const victim = active[giveWay(active, { priority, volume: voice.volume }) ?? -1]
+        if (!victim) {
           return null
         }
         victim.source.stop()
@@ -311,7 +312,7 @@ function createMixer(context: AudioContext): Mixer {
           wet.gain.value = voice.reverb
           gain.connect(wet).connect(send)
         }
-        active.push({ source, volume: voice.volume })
+        active.push({ source, volume: voice.volume, priority })
       }
       source.onended = () => {
         forget(source)

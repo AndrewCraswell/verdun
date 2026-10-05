@@ -45,7 +45,7 @@ happen in the game but have no event or hook yet, or a hook that only plays a st
 - **3D**: sounds are panned in stereo, not placed with HRTF, so there is no above or behind.
 - **Mix**: nobody has listened yet. Levels were set by measurement; the sound mixer panel (F7, dev builds) is for
   setting them by ear, and its Copy button gives the values to ship in audio/tuning.ts. Battery reports under a heavy
-  bombardment may be too dense, and the voice limit has no priority between kinds of sound beyond loudness.
+  bombardment may be too dense.
 - **Close bullets**: rounds crack, zip past, ricochet and strike earth, mud, snow, water, stone, wire and parapets (The
   Recordist's Bullets 3), but nothing is heard of a round striking a man or a steel helmet: a flesh-impact library is
   needed (SoundMorph "Gore" or 344 Audio's, [notes](research/notes/audio/whistles_and_bullets.md)). Bullets 3's rounds
