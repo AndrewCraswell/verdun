@@ -20,6 +20,7 @@ or hit a man, men get stuck, and the rain looks cheap. The developer took the pr
 | The sight picture at the screen's centre in the aim view                                                  | `3cee5d2` |
 | The ring on the man in the sights as wide as the shot's spread                                            | `de853ca` |
 | Climbing a wire fence, keyed on the Synty rig; the Mixamo bone map                                        | `2d641bb` |
+| Rain as a camera sees it: GPU streaks round the camera, sheets beyond, ripples, no puffs                  | `eefebe5` |
 
 Measured after: the sim's step for 520 soldiers took 3.76 ms against 3.70 ms before (four alternating rounds, within
 noise). Balance, three bombardments over 15 seeds: the French attack held 47% before and after; the German attack fell
@@ -28,7 +29,9 @@ stacking was an artefact and Game mechanics is retuning how a stretch counts as 
 
 ## What's left
 
-- **Rain** (section 6): in progress.
+- **Rain's cost**: the sheets of rain beyond the streaks run over the whole screen, so rain costs 1.8 ms of GPU in light
+  rain where it cost 0.9 ms (2.3 against 1.9 ms in heavy). Drawing them inside an existing post-process pass would take
+  their own blend away. Splashes show on any ground near the camera, not only on duckboards and water.
 - **Mixamo clips**: the "Mixamo animations" session is bringing in the full set
   ([Mixamo clips](../assets/mixamo-clips.md)), including a wall climb; the fence climb stays the keyed one unless a
   Mixamo clip fits its 3 s.
