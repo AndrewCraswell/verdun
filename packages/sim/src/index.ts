@@ -122,7 +122,17 @@ export type { GunMannedEvent } from "./gun-crews.ts"
 export { gunPartner } from "./man-gun.ts"
 export { vaultLanding } from "./vault.ts"
 export type { CounterThrustEvent, StandToEvent } from "./defence.ts"
-export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
+export {
+  createSquad,
+  isAlive,
+  nextLivingMember,
+  orderRefusal,
+  type Squad,
+  type SquadOrder,
+  type SquadOrderKind,
+  SQUAD_THINK_INTERVAL,
+  withdrawPoint
+} from "./squads.ts"
 export {
   restoreSimulation,
   SIM_STATE_VERSION,
@@ -225,4 +235,11 @@ export {
 } from "./skirmish.ts"
 export { type DayOutlook, dayOutlook, type ForecastDay, forecastDay, forecastFrom, windFrom } from "./outlook.ts"
 export { loadWeatherRegion, WEATHER_REGIONS, type WeatherRegion } from "./records.ts"
-export { applySync, createSyncSource, type GroundPatch, type SimSync, type SyncSource } from "./sync.ts"
+export {
+  applySync,
+  createSyncSource,
+  type GroundPatch,
+  type SimSync,
+  soldierArrayLayout,
+  type SyncSource
+} from "./sync.ts"

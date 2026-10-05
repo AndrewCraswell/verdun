@@ -105,6 +105,23 @@ function soldierArrays(sim: Simulation): NumberArray[] {
   return arrays
 }
 
+/**
+ * What the sync's packed soldier arrays (`SimSync.arrays`) hold, in order: each array's name, as `component.field`, and
+ * its kind of typed array, as `Float32Array` and the like. Each runs `SimSync.soldiers` elements, one after another.
+ */
+export function soldierArrayLayout(sim: Simulation): readonly { readonly name: string; readonly type: string }[] {
+  const layout: { name: string; type: string }[] = []
+  for (const [component, fields] of soldierComponents(sim)) {
+    for (const key of Object.keys(fields).sort()) {
+      const array = fields[key]
+      if (isNumberArray(array)) {
+        layout.push({ name: `${component}.${key}`, type: array.constructor.name })
+      }
+    }
+  }
+  return layout
+}
+
 /** A plain copy of a value: typed arrays copied, functions left out, ready to post or to clone. */
 function plain(value: unknown): unknown {
   if (isNumberArray(value)) {

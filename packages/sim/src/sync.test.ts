@@ -12,7 +12,7 @@ import {
 } from "./simulation.ts"
 import { takeSnapshot } from "./snapshot.ts"
 import { createSquad } from "./squads.ts"
-import { applySync, createSyncSource } from "./sync.ts"
+import { applySync, createSyncSource, soldierArrayLayout } from "./sync.ts"
 
 function battlefield() {
   const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 300, rows: 300 }, 5, Surface.Grass)
@@ -108,5 +108,28 @@ describe("keeping a mirror in step", () => {
     expect(squad?.order).toEqual(sim.squads[0]?.order)
     // Every step's events come across, in order, for whatever plays them out step by step.
     expect(sync.steps.map((step) => step.tick)).toEqual(Array.from({ length: 40 }, (_, index) => index + 2))
+  })
+})
+
+describe("the layout of the packed soldier arrays", () => {
+  it("names every array the sync packs, in order, with its kind", () => {
+    const sim = fight()
+    const sync = createSyncSource(sim).take()
+    const layout = soldierArrayLayout(sim)
+    const sizes: Record<string, number> = {
+      Float32Array: 4,
+      Int32Array: 4,
+      Uint32Array: 4,
+      Uint16Array: 2,
+      Int16Array: 2,
+      Uint8Array: 1,
+      Int8Array: 1
+    }
+
+    expect(layout.map((entry) => entry.name)).toContain("position.x")
+    expect(layout.find((entry) => entry.name === "position.x")?.type).toBe("Float32Array")
+    expect(layout.reduce((sum, entry) => sum + (sizes[entry.type] ?? 0), 0) * sync.soldiers).toBe(
+      sync.arrays.byteLength
+    )
   })
 })
