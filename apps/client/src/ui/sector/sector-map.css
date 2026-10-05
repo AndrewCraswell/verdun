@@ -38,6 +38,8 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  touch-action: none;
 }
 
 .sector-base,

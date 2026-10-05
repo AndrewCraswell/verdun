@@ -76,15 +76,18 @@ export function drawPlan(
   {
     margin = 36,
     objectives = [],
-    area
+    area,
+    fit: given
   }: {
     readonly margin?: number
     readonly objectives?: readonly { readonly name: string; readonly x: number; readonly z: number }[]
     /** The stretch of ground to fit; the whole sector without one. */
     readonly area?: GroundArea
+    /** Exactly how to place it, as the player has zoomed and panned: overrides `area`. */
+    readonly fit?: PlanFit
   } = {}
 ): PlanFit {
-  const fit = area ? fitArea(map, area, width, height, margin) : fitPlan(map, width, height, margin)
+  const fit = given ?? (area ? fitArea(map, area, width, height, margin) : fitPlan(map, width, height, margin))
   const drawing = sizeCanvas(canvas, width, height)
   if (!drawing) {
     return fit

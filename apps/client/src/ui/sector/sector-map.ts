@@ -1,3 +1,4 @@
+import { mapDepth, mapWidth } from "@verdun/map"
 import { enqueueCommand, isAlive, soldierIds } from "@verdun/sim"
 import { h, setText } from "../../hud/dom.ts"
 import { clockSeconds, metres } from "../../hud/format.ts"
@@ -5,7 +6,9 @@ import type { HudState } from "../../hud/hud-state.ts"
 import type { BattleParts } from "../battle.ts"
 import type { MenuPage } from "../page.ts"
 import { drawPlan, planInks, sizeCanvas } from "./plan-canvas.ts"
+import { createPlanZoom } from "./plan-zoom.ts"
 import { fromPlan, type PlanFit, squareName, toPlan } from "./plan.ts"
+import { fitOfView, type PlanView, viewOfArea } from "./view.ts"
 import "./sector-map.css"
 
 /** How often the men and the fire on the map are redrawn while it's open, in milliseconds. */
@@ -79,11 +82,39 @@ export function createSectorMapPage({
   let flashTimer = 0
 
   /** The ground, the squares, the trenches, the wire and what stands on the ground: drawn once a size. */
+  /** The whole sector, fitted to the box: where the map opens, and what Fit goes back to. */
+  function home(): PlanView | null {
+    const parts = battle()
+    if (!parts) {
+      return null
+    }
+    const map = parts.sim.map
+    const whole = { minX: 0, maxX: mapWidth(map), minZ: 0, maxZ: mapDepth(map) }
+    return viewOfArea(map, whole, canvasBox.clientWidth, canvasBox.clientHeight, 36)
+  }
+  const zoom = createPlanZoom(canvasBox, {
+    map: () => battle()?.sim.map ?? null,
+    home,
+    changed: () => {
+      const parts = battle()
+      if (parts) {
+        drawBase(parts)
+        redraw()
+      }
+    }
+  })
+  canvasBox.append(zoom.controls)
+
   function drawBase(parts: BattleParts): void {
     const width = canvasBox.clientWidth
     const height = canvasBox.clientHeight
     colours = planInks(root)
-    fit = drawPlan(base, parts.sim.map, parts.squad.side, width, height, colours)
+    const view = zoom.view ?? home()
+    if (view) {
+      zoom.set(view)
+    }
+    const placed = view ? fitOfView(parts.sim.map, view, width, height) : undefined
+    fit = drawPlan(base, parts.sim.map, parts.squad.side, width, height, colours, placed ? { fit: placed } : {})
     sizeCanvas(live, width, height)
   }
 
@@ -292,6 +323,10 @@ export function createSectorMapPage({
     readout.hidden = true
   })
   live.addEventListener("click", (event) => {
+    // The end of a drag across the map is a pan, not a click.
+    if (zoom.dragged()) {
+      return
+    }
     const point = groundUnder(event)
     if (point) {
       lookThere(point.x, point.z)
@@ -318,7 +353,14 @@ export function createSectorMapPage({
   })
 
   const resize = new ResizeObserver(() => {
+    if (!zoom.resized()) {
+      return
+    }
     const parts = battle()
+    const fitted = home()
+    if (fitted) {
+      zoom.set(fitted)
+    }
     if (parts) {
       drawBase(parts)
       redraw()
@@ -331,8 +373,12 @@ export function createSectorMapPage({
     root,
     opened() {
       readout.hidden = true
-      // Drawn at once, at the size it opens at; the observer redraws it when that changes.
+      // Drawn at once, the whole sector at the size it opens at; the observer redraws it when that changes.
       const parts = battle()
+      const fitted = home()
+      if (fitted) {
+        zoom.set(fitted)
+      }
       if (parts) {
         drawBase(parts)
         redraw()

@@ -36,6 +36,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
 }
 
 .join-plan {

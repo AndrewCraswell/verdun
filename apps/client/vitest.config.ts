@@ -41,9 +41,11 @@ export default defineConfig({
         "src/ui/loading.ts",
         "src/ui/squad-book.ts",
         "src/ui/log-page.ts",
-        "src/ui/join-page.ts",
         "src/ui/battle-notes.ts",
         "src/ui/operation-pages.ts",
+        "src/ui/join-map.ts",
+        "src/ui/sector/plan-canvas.ts",
+        "src/ui/sector/plan-zoom.ts",
         "src/debug/dock.ts",
         "src/debug/stats.ts"
       ],

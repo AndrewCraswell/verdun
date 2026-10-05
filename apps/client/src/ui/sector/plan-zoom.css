@@ -1,0 +1,40 @@
+/* Zooming a plan: + and − and Fit in the corner; the ground grabbed while dragging. */
+.plan-zoom {
+  position: absolute;
+  right: 0.8em;
+  top: 0.8em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 2;
+}
+
+.plan-zoom-button {
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  font: 700 1em/1 var(--ui-font);
+  color: var(--paper-ink);
+  background: rgb(233 224 200 / 92%);
+  border: 1px solid var(--paper-ink-3);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.plan-zoom-fit {
+  font-size: 0.7em;
+  width: 2.86em;
+  height: 2.4em;
+}
+
+.plan-zoom-button:hover,
+.plan-zoom-button:focus-visible {
+  background: #fff8e6;
+  outline: none;
+  border-color: var(--paper-ink);
+}
+
+.plan-dragging,
+.plan-dragging * {
+  cursor: grabbing !important;
+}

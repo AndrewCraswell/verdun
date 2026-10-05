@@ -7,7 +7,9 @@ import { type JoinChoice, joinArea, joinChoices } from "./join.ts"
 import { attackPlan, minutes } from "./operation-report.ts"
 import type { MenuPage } from "./page.ts"
 import { drawPlan, planInks } from "./sector/plan-canvas.ts"
+import { createPlanZoom } from "./sector/plan-zoom.ts"
 import { type PlanFit, toPlan, trenchOwner } from "./sector/plan.ts"
+import { fitOfView, viewOfArea } from "./sector/view.ts"
 import "./join-map.css"
 
 /**
@@ -142,7 +144,13 @@ export function createJoinMap({
     drawing.textAlign = "left"
   }
 
-  function draw(): void {
+  /** The view the map opens at, and fits back to: every squad, and out to the enemy's nearest line. */
+  const home = () => viewOfArea(sim.map, joinArea(sim, held.side, choices), box.clientWidth, box.clientHeight, 24)
+  const zoom = createPlanZoom(box, { map: () => sim.map, home, changed: () => render() })
+  box.append(zoom.controls)
+
+  /** Reads the squads as they stand: the choices, the reserves and the first wave. */
+  function refresh(): void {
     wave.clear()
     if (sim.operation && sim.operation.result === null) {
       for (const each of firstWave(sim, sim.operation)) {
@@ -155,12 +163,17 @@ export function createJoinMap({
       reserves.add(each.squad)
     }
     choices = [all.held, ...all.line, ...all.reserve]
+  }
+
+  /** Draws the plan and the pins as the map is zoomed and panned. */
+  function render(): void {
     const width = box.clientWidth
     const height = box.clientHeight
+    const view = zoom.view ?? home()
+    zoom.set(view)
     const fit = drawPlan(plan, sim.map, held.side, width, height, planInks(root), {
       objectives: sim.objectives,
-      margin: 24,
-      area: joinArea(sim, held.side, choices)
+      fit: fitOfView(sim.map, view, width, height)
     })
     drawStretch(fit)
     pins.replaceChildren(
@@ -209,7 +222,13 @@ export function createJoinMap({
     )
   }
 
-  const resize = new ResizeObserver(draw)
+  // A new size fits the map again.
+  const resize = new ResizeObserver(() => {
+    if (zoom.resized()) {
+      zoom.set(home())
+      render()
+    }
+  })
   return {
     id: "join",
     title: "Choose your squad",
@@ -217,7 +236,9 @@ export function createJoinMap({
     opened() {
       chosen = held.id
       drawAttack()
-      draw()
+      refresh()
+      zoom.set(home())
+      render()
       resize.observe(box)
       startButton.focus()
     },
@@ -226,6 +247,7 @@ export function createJoinMap({
     },
     dispose() {
       resize.disconnect()
+      zoom.dispose()
     }
   }
 }
