@@ -76,6 +76,7 @@ describe("the simulation's host", () => {
     const taken = host.update(3)
 
     expect(host.inWorker).toBe(false)
+    expect(host.sight).toBeNull()
     expect(taken.map((step) => step.tick)).toEqual([1, 2, 3])
     expect(host.sim.tick).toBe(3)
     expect(host.playerSquad.side).toBe(Side.French)
@@ -93,6 +94,11 @@ describe("the simulation's host", () => {
     const taken = await stepsTaken(host, 3)
     expect(taken.map((step) => step.tick)).toEqual([1, 2, 3])
     expect(host.sim.tick).toBe(3)
+    // What the squad can see comes with the steps, worked out in the worker, once.
+    const look = host.sight?.take()
+    expect(look?.ground.some((cell) => cell > 0)).toBe(true)
+    expect(look?.enemies).toBeInstanceOf(Int32Array)
+    expect(host.sight?.take()).toBeNull()
   })
 
   it("sends the commands queued on the mirror to the simulation, and asks for no more than a batch at a time", async () => {

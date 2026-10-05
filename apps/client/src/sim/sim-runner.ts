@@ -9,8 +9,14 @@ import {
   stepSimulation,
   type SyncSource
 } from "@verdun/sim"
+import { createSightModel, type SightModel } from "../fog/sight-model.ts"
 import { setupSkirmish } from "../skirmish.ts"
-import type { BattleSetup, FromWorker, ToWorker } from "./sim-protocol.ts"
+import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
+
+/** The squad's sight is looked at again every this many steps (a quarter of a second), and whenever orders come. */
+const STEPS_PER_LOOK = 5
+/** How far the squad can see by day, in metres, as the fog of war draws it. */
+const SIGHT_RANGE = 300
 
 /** Sends a message to the page, handing over the buffers listed. */
 export type PostToPage = (message: FromWorker, transfer: Transferable[]) => void
@@ -21,7 +27,9 @@ function transferables(message: FromWorker): Transferable[] {
     return []
   }
   const { arrays, wire, ground, members, gas, smoke } = message.sync
+  const sight = message.type === "stepped" ? message.sight : null
   return [
+    ...(sight ? [sight.ground.buffer, sight.enemies.buffer] : []),
     arrays,
     ...(wire ? [wire.density.buffer] : []),
     ...ground.flatMap((patch) => [patch.heights.buffer, patch.surfaces.buffer]),
@@ -41,6 +49,8 @@ function transferables(message: FromWorker): Transferable[] {
 export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
   let sim: Simulation | null = null
   let source: SyncSource | null = null
+  let sight: SightModel | null = null
+  let sinceLook = STEPS_PER_LOOK
   const send = (message: FromWorker) => post(message, transferables(message))
 
   async function start(setup: BattleSetup): Promise<void> {
@@ -52,10 +62,23 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
       environment: { forecast: { kind: "records", seed: setup.weatherSeed, region: setup.region } }
     })
     const { playerSquad } = setupSkirmish(battle)
-    battle.lineOfSight = await createLineOfSight(map)
+    const lineOfSight = await createLineOfSight(map)
+    battle.lineOfSight = lineOfSight
+    sight = createSightModel(battle, lineOfSight, playerSquad, SIGHT_RANGE)
     sim = battle
     source = createSyncSource(battle)
     send({ type: "started", playerSquad: playerSquad.id, sync: source.take() })
+  }
+
+  /** The squad's sight, looked at whole, when it's due: plain code off the page, so there's no need to spread it out. */
+  function look(ordered: boolean): SightLook | null {
+    if (!sight || (sinceLook < STEPS_PER_LOOK && !ordered)) {
+      return null
+    }
+    sinceLook = 0
+    sight.begin()
+    sight.advance(1)
+    return { ground: sight.grid.values.slice(), enemies: Int32Array.from(sight.visibleEnemies) }
   }
 
   return (message) => {
@@ -75,6 +98,7 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
       stepSimulation(sim)
       source.stepped()
     }
-    send({ type: "stepped", sync: source.take() })
+    sinceLook += message.steps
+    send({ type: "stepped", sync: source.take(), sight: look(message.commands.length > 0) })
   }
 }

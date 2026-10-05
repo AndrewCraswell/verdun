@@ -16,9 +16,16 @@ export type ToWorker =
   /** Commands the page has queued, then this many steps to take. */
   | { readonly type: "step"; readonly commands: readonly Command[]; readonly steps: number }
 
+/** What the player's squad can see, worked out beside the simulation: the fog's ground cells, and the enemies in sight. */
+export interface SightLook {
+  readonly ground: Uint8Array
+  readonly enemies: Int32Array
+}
+
 /** From the worker to the page. */
 export type FromWorker =
   /** The battle is set up: the player's squad, and the state to mirror. */
   | { readonly type: "started"; readonly playerSquad: number; readonly sync: SimSync }
-  | { readonly type: "stepped"; readonly sync: SimSync }
+  /** Steps taken, and, when it has looked again, what the squad can see. */
+  | { readonly type: "stepped"; readonly sync: SimSync; readonly sight: SightLook | null }
   | { readonly type: "failed"; readonly message: string }

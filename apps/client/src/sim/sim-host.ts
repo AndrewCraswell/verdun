@@ -9,8 +9,9 @@ import {
   type Squad,
   stepSimulation
 } from "@verdun/sim"
+import type { SightFeed } from "../fog/fog-of-war.ts"
 import { setupSkirmish } from "../skirmish.ts"
-import type { BattleSetup, FromWorker, ToWorker } from "./sim-protocol.ts"
+import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
 
 /** A step taken, as the page plays it out: its tick and what happened in it. */
 export interface StepTaken {
@@ -29,6 +30,8 @@ export interface SimHost {
   readonly playerSquad: Squad
   /** Whether the simulation runs in a worker. */
   readonly inWorker: boolean
+  /** What the player's squad can see, worked out in the worker beside the simulation; null when it runs inline. */
+  readonly sight: SightFeed | null
   /**
    * Called once a frame: sends the commands queued on `sim`, asks for `steps` more steps, and returns every step taken
    * since the last call, oldest first. In a worker the steps asked for come back a frame or so later.
@@ -60,6 +63,7 @@ function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
     sim,
     playerSquad,
     inWorker: false,
+    sight: null,
     update(steps) {
       const taken: StepTaken[] = []
       for (let step = 0; step < steps; step++) {
@@ -88,6 +92,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   let lineOfSight: LineOfSight | null = null
   let unseenGround: ChangedArea | null = null
   let sightRebuiltAt = 0
+  let latestSight: SightLook | null = null
 
   const started = new Promise<number>((resolve, reject) => {
     worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
@@ -103,6 +108,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
       }
       inFlight = false
       arrived.push(...message.sync.steps)
+      latestSight = message.sight ?? latestSight
       for (const step of message.sync.steps) {
         for (const event of step.events) {
           if (event.type === "burst" && event.crater) {
@@ -124,6 +130,13 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
     sim: mirror,
     playerSquad,
     inWorker: true,
+    sight: {
+      take() {
+        const look = latestSight
+        latestSight = null
+        return look
+      }
+    },
     update(steps) {
       // Commands queued on the mirror go to the simulation, in order, with the next batch.
       commands.push(...mirror.pendingCommands.splice(0))
