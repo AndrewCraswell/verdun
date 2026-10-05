@@ -116,7 +116,7 @@ const schedule = scheduleForWeek(Date.UTC(1916, 5, 20), NOW)
 /** The battlefield is 150 m square: four cells, the French in the south-west one (0), the Germans north of it (2). */
 const EVERY_CELL = new Set([0, 1, 2, 3])
 
-const encoderFor = (sim: Simulation) => createSyncEncoder(soldierArrayLayout(sim), 150, 150)
+const encoderFor = (sim: Simulation) => createSyncEncoder(soldierArrayLayout(sim), 150, 150, 100)
 
 describe("the battle's messages", () => {
   it("keep a player's mirror in step with what changed, craters, cut wire, gas and smoke and all", () => {
@@ -303,9 +303,9 @@ describe("the battle's messages", () => {
   it("refuse soldiers' arrays they can't carry, and a welcome short of an array its layout names", () => {
     const sim = fight()
     const sync = createSyncSource(sim).take()
-    expect(() => createSyncEncoder([{ name: "position.x", type: "BigInt64Array" }], 150, 150).encode(sync)).toThrow(
-      "The soldiers' arrays hold a BigInt64Array, which can't be sent"
-    )
+    expect(() =>
+      createSyncEncoder([{ name: "position.x", type: "BigInt64Array" }], 150, 150, 100).encode(sync)
+    ).toThrow("The soldiers' arrays hold a BigInt64Array, which can't be sent")
 
     const encoder = encoderFor(sim)
     encoder.encode(sync)

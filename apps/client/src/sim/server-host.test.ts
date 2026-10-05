@@ -25,8 +25,6 @@ const setup: BattleSetup = {
   weatherSeed: 1916
 }
 const map = () => generateFleurySector({ seed: 1916, elevation: decodeElevation(setup.elevation) })
-/** Every one of Fleury's cells, so the page is sent every man every message. */
-const EVERY_CELL = new Set(Array.from({ length: 24 }, (_, cell) => cell))
 const schedule = scheduleForWeek(Date.UTC(1916, 5, 20), Date.UTC(2027, 5, 10, 18))
 
 /** A sector server in this thread: the battle stepped by hand, sent to the page as the real one sends it. */
@@ -92,7 +90,10 @@ class FakeServer implements SectorConnection {
   }
 
   sync(): void {
-    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()).for("page", EVERY_CELL))
+    // Every one of the map's cells, so the page is sent every man every message.
+    const { columns, rows } = this.encoder.grid
+    const everyCell = new Set(Array.from({ length: columns * rows }, (_, cell) => cell))
+    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()).for("page", everyCell))
   }
 
   sendJunk(): void {

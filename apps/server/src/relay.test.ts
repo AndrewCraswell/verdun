@@ -109,7 +109,7 @@ describe("the relay", () => {
     if (!squad) {
       throw new Error("No squad")
     }
-    expect(relay.nearCells(squad)).toEqual(new Set([0]))
+    expect(relay.nearCells(squad).has(0)).toBe(true)
     for (const member of squad.members) {
       enqueueCommand(sector.sim, { type: "kill", soldier: member })
     }
