@@ -216,8 +216,12 @@ Mixamo bone map retargets them, and
   nearest, his drawn facing held until it's done; a man aiming turns smoothly to keep his sights on.
 - **Changing stance**: standing, crouching and lying go up and down by a kneel.
 
-Left for the clips that need more: the wall climb (the Character controller session has Mixamo's pull up onto a ledge in
-hand), the walking wounded and the wounded lying out, stretcher-bearers and officers' signals.
+A scramble up a trench wall or a crater's lip plays Mixamo's climb up a slope. Its pull up onto a ledge is left out: it
+starts hanging from a ledge 2.2 m up while the simulation lifts the man as well, so it would need its own rise taken out
+first.
+
+Left for the clips that need more: the walking wounded and the wounded lying out, stretcher-bearers and officers'
+signals.
 
 **Later**, once the simulation has them; their clips can wait until then:
 
