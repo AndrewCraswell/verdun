@@ -316,7 +316,9 @@ async function start(): Promise<void> {
     const taken = stats.time("simulation", () => host.update(steps))
     stats.time("simulation: events", () => {
       for (const step of taken) {
-        // Each step's events, played out in order: what reads `sim.events` sees the step's own.
+        // Each step played out in order: what reads `sim.tick` and `sim.events` sees the step's own. The last step's is
+        // the batch's, so the mirror ends where it should.
+        sim.tick = step.tick
         sim.events.length = 0
         sim.events.push(...step.events)
         trace("hud: log", () => hud.record(sim.events))

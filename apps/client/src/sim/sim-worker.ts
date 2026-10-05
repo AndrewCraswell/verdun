@@ -30,12 +30,16 @@ function transferables(sync: FromWorker): Transferable[] {
   if (sync.type === "failed") {
     return []
   }
-  const { arrays, wire, ground, members } = sync.sync
+  const { arrays, wire, ground, members, gas, smoke } = sync.sync
   return [
     arrays,
     ...(wire ? [wire.density.buffer] : []),
     ...ground.flatMap((patch) => [patch.heights.buffer, patch.surfaces.buffer]),
-    ...Object.values(members).map((ids) => ids.buffer)
+    ...Object.values(members).map((ids) => ids.buffer),
+    ...[gas, smoke].flatMap((cloud) => [
+      ...(cloud.concentration ? [cloud.concentration.buffer] : []),
+      ...(cloud.ground ? [cloud.ground.floor.buffer, cloud.ground.ground.buffer, cloud.ground.hollow.buffer] : [])
+    ])
   ]
 }
 

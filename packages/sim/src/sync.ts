@@ -28,6 +28,8 @@ export interface SimSync {
   readonly wire: { readonly density: Float32Array; readonly cuts: number } | null
   /** The ground craters reshaped, as rectangles of the map's height and surface samples. */
   readonly ground: readonly GroundPatch[]
+  readonly gas: CloudSync
+  readonly smoke: CloudSync
 }
 
 /** A rectangle of the map's samples, `minColumn`..`maxColumn` by `minRow`..`maxRow`, row by row. */
@@ -52,8 +54,17 @@ const NOT_SYNCED = new Set([
   "capacity",
   "events",
   "tick",
-  "wire"
+  "wire",
+  "gas",
+  "smoke"
 ])
+
+/** Gas and smoke: the grids' concentration while there's any about, and the ground under them when craters changed it. */
+export interface CloudSync {
+  readonly active: boolean
+  readonly concentration: Float32Array | null
+  readonly ground: { readonly floor: Float32Array; readonly ground: Float32Array; readonly hollow: Uint8Array } | null
+}
 
 type NumberArray = Float32Array | Int32Array | Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array
 
@@ -183,6 +194,22 @@ export function createSyncSource(sim: Simulation): SyncSource {
   let ground: GroundPatch[] = []
   // The wire as last sent: -1 sends it with the first sync.
   let wireCuts = -1
+  // Whether each cloud's grid was last sent empty, and whether the ground under them has been sent at all.
+  const quiet = { gas: false, smoke: false }
+  let groundSent = false
+  const cloud = (name: "gas" | "smoke", reshaped: boolean): CloudSync => {
+    const field = sim[name]
+    // An empty grid goes once, then not again until there's something in it.
+    const send = field.active || !quiet[name]
+    quiet[name] = !field.active
+    return {
+      active: field.active,
+      concentration: send ? field.concentration.slice() : null,
+      ground: reshaped
+        ? { floor: field.floor.slice(), ground: field.ground.slice(), hollow: field.hollow.slice() }
+        : null
+    }
+  }
   return {
     stepped() {
       // Events are plain data already; copied, since the next step clears the array.
@@ -216,7 +243,20 @@ export function createSyncSource(sim: Simulation): SyncSource {
       }
       const wire = sim.wire.cuts === wireCuts ? null : { density: sim.wire.density.slice(), cuts: sim.wire.cuts }
       wireCuts = sim.wire.cuts
-      const sync: SimSync = { tick: sim.tick, soldiers, arrays: packed, members, state, steps, wire, ground }
+      const reshaped = ground.length > 0 || !groundSent
+      groundSent = true
+      const sync: SimSync = {
+        tick: sim.tick,
+        soldiers,
+        arrays: packed,
+        members,
+        state,
+        steps,
+        wire,
+        ground,
+        gas: cloud("gas", reshaped),
+        smoke: cloud("smoke", reshaped)
+      }
       steps = []
       ground = []
       return sync
@@ -256,6 +296,19 @@ export function applySync(mirror: Simulation, sync: SimSync): void {
   }
   for (const [key, value] of Object.entries(sync.state)) {
     Reflect.set(mirror, key, assign(Reflect.get(mirror, key), value))
+  }
+  for (const name of ["gas", "smoke"] as const) {
+    const field = mirror[name]
+    const update = sync[name]
+    field.active = update.active
+    if (update.concentration) {
+      field.concentration.set(update.concentration)
+    }
+    if (update.ground) {
+      field.floor.set(update.ground.floor)
+      field.ground.set(update.ground.ground)
+      field.hollow.set(update.ground.hollow)
+    }
   }
   if (sync.wire) {
     mirror.wire.density.set(sync.wire.density)
