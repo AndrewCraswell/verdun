@@ -31,3 +31,6 @@ unreal/
 # OS and editor
 .DS_Store
 Thumbs.db
+
+# The built client CI copies in to deploy (deploy/Dockerfile).
+deploy/site/
