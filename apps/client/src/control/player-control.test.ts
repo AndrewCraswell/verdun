@@ -1,6 +1,8 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
+import { Constants } from "@babylonjs/core/Engines/constants"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { RenderingGroup } from "@babylonjs/core/Rendering/renderingGroup"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, Surface } from "@verdun/map"
 import {
@@ -620,6 +622,27 @@ describe("createSquadMarkers", () => {
     expect(sim.soldiers.facing.x[soldier]).toBe(1)
     expect(sim.soldiers.target.id[soldier]).toBe(-1)
     lineOfSight.dispose()
+  })
+
+  it("draws over the battlefield without clearing its depth, the aim line across the other rings", () => {
+    const { scene, sim, squad } = setup()
+    const markers = createSquadMarkers(scene, sim, squad)
+    const marks = [markers.target, ...markers.leader.getChildMeshes(), markers.members]
+
+    for (const mark of marks) {
+      expect(mark.renderingGroupId).toBe(1)
+      expect(mark.material?.depthFunction).toBe(Constants.ALWAYS)
+      expect(mark.material?.disableDepthWrite).toBe(true)
+    }
+    // A depth clear partway through the frame would split WebGPU's multisampled pass in two.
+    expect(scene.getAutoClearDepthStencilSetup(1).autoClear).toBe(false)
+    // Without depth, the last drawn shows on top: the group draws in Babylon's painter's order.
+    const drawn = marks
+      .flatMap((mark) => mark.subMeshes)
+      .sort(RenderingGroup.PainterSortCompare)
+      .map((subMesh) => subMesh.getMesh().name)
+    expect(drawn.indexOf("squad-member-rings")).toBeLessThan(drawn.indexOf("squad-leader-aim"))
+    expect(drawn.at(-1)).toBe("aimed-target-ring")
   })
 })
 

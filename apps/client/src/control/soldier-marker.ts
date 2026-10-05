@@ -1,3 +1,4 @@
+import { Constants } from "@babylonjs/core/Engines/constants"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
@@ -46,7 +47,10 @@ const AIM_WIDTH = 0.06
 /**
  * The markers are drawn after the battlefield, over it: a man in a trench has its walls and parapet all round him, and
  * his ring and aim line drawn among them were mostly hidden. They keep off the soldiers themselves, by the stencil the
- * soldiers write (render/marker-stencil.ts): a ring goes round a man, not across him.
+ * soldiers write (render/marker-stencil.ts): a ring goes round a man, not across him. They pass the depth test wherever
+ * they are, rather than have the battlefield's depth cleared for them: on WebGPU a clear partway through the frame
+ * splits its multisampled pass in two, resolving the whole picture and loading it back. Among themselves, the last
+ * drawn shows on top.
  */
 const MARKER_GROUP = 1
 
@@ -69,6 +73,9 @@ function markerMaterial(scene: Scene, name: string, color: Color3): StandardMate
   const material = new StandardMaterial(name, scene)
   material.emissiveColor = color
   material.disableLighting = true
+  // Over whatever is already drawn, leaving its depth as it is.
+  material.depthFunction = Constants.ALWAYS
+  material.disableDepthWrite = true
   keepsOffSoldiers(material)
   return material
 }
@@ -78,8 +85,10 @@ function markerMaterial(scene: Scene, name: string, color: Color3): StandardMate
  * the facing ring, the aim line and the ring on the man in his sights follow it at once, rather than the simulation's.
  */
 export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad, page?: PageAim): SquadMarkers {
-  const bright = markerMaterial(scene, "squad-leader-marker", new Color3(0.95, 0.85, 0.45))
+  // Babylon draws the group by material, in the order the materials are made: the other members' rings first, so the
+  // leader's aim line crosses them, and the ring on the man in the sights last.
   const dim = markerMaterial(scene, "squad-member-marker", new Color3(0.62, 0.58, 0.4))
+  const bright = markerMaterial(scene, "squad-leader-marker", new Color3(0.95, 0.85, 0.45))
 
   let aimingAt = -1
   let spread = { tick: -1, shooter: -1, target: -1, radius: 0 }
@@ -138,8 +147,8 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad, 
   for (const marker of [ring, aim, target, members]) {
     marker.renderingGroupId = MARKER_GROUP
   }
-  // Over the battlefield: its depth is cleared for the markers, but not the stencil the soldiers wrote.
-  scene.setRenderingAutoClearDepthStencil(MARKER_GROUP, true, true, false)
+  // Over the battlefield, with its depth and the stencil the soldiers wrote left as they are.
+  scene.setRenderingAutoClearDepthStencil(MARKER_GROUP, false)
 
   return {
     leader,

@@ -68,6 +68,10 @@ import type { Menu } from "./ui/menu.ts"
  * to force WebGL2, for testing it. `?gputime`
  * times each frame's passes on the GPU, where the browser allows timestamp queries (see scripts/perf.mjs): asked for at
  * the start, since each render target takes its timer as it's made.
+ *
+ * Neither engine multisamples the canvas. The post-process pipeline multisamples the scene in a target of its own
+ * (level/post-process.ts) and the canvas gets only the finished picture, so a multisampled canvas would add a resolve
+ * of its own, and the memory for it, for nothing. The greybox, drawn without the pipeline, shows jagged edges.
  */
 async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
   const parameters = new URLSearchParams(location.search)
@@ -75,7 +79,7 @@ async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> 
   if (!forceWebGL && (await WebGPUEngine.IsSupportedAsync)) {
     const gpuTime = parameters.has("gputime")
     const engine = new WebGPUEngine(canvas, {
-      antialias: true,
+      antialias: false,
       ...(gpuTime ? { deviceDescriptor: { requiredFeatures: ["timestamp-query"] } } : {})
     })
     await engine.initAsync()
@@ -87,7 +91,7 @@ async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> 
     throw unsupported()
   }
   try {
-    return new Engine(canvas, true)
+    return new Engine(canvas, false)
   } catch {
     throw unsupported()
   }
