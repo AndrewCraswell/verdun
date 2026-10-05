@@ -1,4 +1,4 @@
-import { beltLayout, createFlatMap, Surface, type WireBelt } from "@verdun/map"
+import { beltLayout, createFlatMap, sampleIndex, Surface, type WireBelt } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -10,7 +10,8 @@ import {
   stepSimulation,
   TICK_RATE
 } from "./simulation.ts"
-import { vaultLanding } from "./vault.ts"
+import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
+import { startVault, vaultLanding } from "./vault.ts"
 
 /** A belt of wire running east-west across a flat field at z = 50, 100 m long: ten lengths of fence. */
 const BELT: WireBelt = {
@@ -73,5 +74,80 @@ describe("vaulting a wire fence", () => {
     const away = spawnSoldier(sim, { side: Side.French, x: 50, z: 20 })
     sim.soldiers.facing.z[away] = 1
     expect(vaultLanding(sim, away)).toBeNull()
+  })
+
+  it("won't climb a belt too deep to get over in one go, out of breath, or while already climbing", () => {
+    const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
+    // Three belts one behind another: twelve metres of wire.
+    const deep = [48, 52, 56].map((z): WireBelt => ({
+      points: [
+        [0, z],
+        [100, z]
+      ]
+    }))
+    const sim = createSimulation({ map: { ...map, wire: deep }, seed: 1 })
+    const soldier = facingTheWire(sim, 50)
+    expect(vaultLanding(sim, soldier)).toBeNull()
+
+    const fresh = field()
+    const winded = facingTheWire(fresh, bare?.x ?? 0)
+    fresh.soldiers.stamina.spent[winded] = 1
+    expect(startVault(fresh, winded)).toBe(false)
+    fresh.soldiers.stamina.spent[winded] = 0
+    expect(startVault(fresh, winded)).toBe(true)
+    expect(startVault(fresh, winded)).toBe(false)
+
+    const still = spawnSoldier(fresh, { side: Side.French, x: 30, z: 47 })
+    fresh.soldiers.facing.x[still] = 0
+    fresh.soldiers.facing.z[still] = 0
+    expect(vaultLanding(fresh, still)).toBeNull()
+  })
+})
+
+describe("vaulting a trench wall", () => {
+  /** A field 3 m up with a trench 2 m deep along z = 48 to 52, and a soldier on its floor facing the far wall. */
+  function inTheTrench() {
+    const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 3, Surface.Grass)
+    for (let row = 0; row <= map.rows; row++) {
+      const z = row * map.cellSize
+      if (z >= 48 && z <= 52) {
+        for (let column = 0; column <= map.columns; column++) {
+          map.heights[sampleIndex(map, column, row)] = 1
+        }
+      }
+    }
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 50, z: 51 })
+    sim.soldiers.facing.x[soldier] = 0
+    sim.soldiers.facing.z[soldier] = 1
+    return { sim, soldier }
+  }
+
+  it("vaults onto the parapet in a couple of seconds", () => {
+    const { sim, soldier } = inTheTrench()
+    const landing = vaultLanding(sim, soldier)
+    expect(landing?.z).toBeGreaterThan(52)
+
+    enqueueCommand(sim, { type: "vault", soldier })
+    for (let step = 0; step < 3 * TICK_RATE; step++) {
+      stepSimulation(sim)
+    }
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(52)
+    expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(false)
+  })
+
+  it("keeps a vault in a snapshot, and finds nothing to vault facing along the trench", () => {
+    const { sim, soldier } = inTheTrench()
+    enqueueCommand(sim, { type: "vault", soldier })
+    stepSimulation(sim)
+    const saved = takeSnapshot(sim)
+    expect(saved.soldiers.find((state) => state.id === soldier)?.vault).toBeDefined()
+    const restored = restoreSimulation(sim.map, saved)
+    expect(hasComponent(restored.world, soldier, restored.soldiers.vault)).toBe(true)
+
+    sim.soldiers.facing.x[soldier] = 1
+    sim.soldiers.facing.z[soldier] = 0
+    sim.soldiers.position.z[soldier] = 50
+    expect(vaultLanding(sim, soldier)).toBeNull()
   })
 })

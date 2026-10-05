@@ -1,7 +1,8 @@
-import { type BattlefieldMap, beltLayout, mapDepth, mapWidth, type WireTangle } from "@verdun/map"
+import { type BattlefieldMap, beltLayout, heightAt, mapDepth, mapWidth, type WireTangle } from "@verdun/map"
 import { addComponent, type EntityId, hasComponent } from "bitecs"
 import { Stance } from "./components.ts"
 import type { Simulation } from "./simulation.ts"
+import { climbLimit } from "./terrain.ts"
 import { wireAt } from "./wire.ts"
 
 /** A belt's fence must stand within this far ahead of him, in metres, for him to climb it. */
@@ -16,6 +17,12 @@ const CLEAR = 0.15
 const LANDING = 0.6
 /** A tangle of loose coils this near his way over, in metres, snares him: only the staked fence can be climbed. */
 const TANGLE_REACH = 1.4
+/** A trench wall must rise within this far ahead of him, in metres, for him to vault it. */
+const WALL_REACH = 1.5
+/** He gets over a wall no wider than this from its foot to the top, in metres: a fire step and parapet, not a cliff. */
+const WALL_SPAN = 3.5
+/** The top must be at least this much higher than where he stands, in metres: below that it's a step, walked up. */
+const WALL_RISE = 0.8
 /** Metres a second he makes over a fence: a hand on a stake, a leg over, the wire plucking at his coat. */
 export const VAULT_PACE = 1.2
 /** The breath a climb costs him at once, of 100. */
@@ -53,10 +60,51 @@ function headingOf(sim: Simulation, soldier: EntityId): { x: number; z: number }
   return length > 0 ? { x: x / length, z: z / length } : null
 }
 
+/** A point on the map: inside its edges. */
+function onMap(sim: Simulation, point: { x: number; z: number }): boolean {
+  return point.x >= 0 && point.z >= 0 && point.x <= mapWidth(sim.map) && point.z <= mapDepth(sim.map)
+}
+
 /**
- * Where a soldier would come down climbing the belt of wire ahead of him: past its staked fence, where the fence stands
- * within reach the way he's going, the belt is shallow enough to climb in one go, and no tangle of loose coils lies in
- * his way. Null where there's no fence to climb.
+ * Where a soldier would come down vaulting the trench wall ahead of him: the wall rising within reach the way he's
+ * going, on its top, where the ground goes on walkable and stands well above him. Null where there's no wall to vault.
+ */
+function wallLanding(
+  sim: Simulation,
+  x: number,
+  z: number,
+  heading: { x: number; z: number }
+): { x: number; z: number } | null {
+  const at = (distance: number) => ({ x: x + heading.x * distance, z: z + heading.z * distance })
+  const steep = (distance: number) => {
+    const point = at(distance)
+    return Number.isFinite(climbLimit(sim.map, point.x, point.z, heading.x, heading.z))
+  }
+  let foot = -1
+  for (let distance = 0; distance <= WALL_REACH; distance += STEP) {
+    if (steep(distance)) {
+      foot = distance
+      break
+    }
+  }
+  if (foot < 0) {
+    return null
+  }
+  const floor = heightAt(sim.map, x, z)
+  for (let distance = foot + STEP; distance <= foot + WALL_SPAN; distance += STEP) {
+    const point = at(distance)
+    if (!steep(distance) && heightAt(sim.map, point.x, point.z) - floor >= WALL_RISE) {
+      const landing = at(distance + LANDING)
+      return onMap(sim, landing) ? landing : null
+    }
+  }
+  return null
+}
+
+/**
+ * Where a soldier would come down vaulting what's ahead of him, the way he's going: a belt of wire, over its staked
+ * fence, where the fence stands within reach, the belt is shallow enough to climb in one go and no tangle of loose
+ * coils lies in his way; or else a trench wall, onto its top. Null where there's nothing he can vault.
  */
 export function vaultLanding(sim: Simulation, soldier: EntityId): { x: number; z: number } | null {
   const heading = headingOf(sim, soldier)
@@ -75,7 +123,7 @@ export function vaultLanding(sim: Simulation, soldier: EntityId): { x: number; z
     }
   }
   if (entry < 0) {
-    return null
+    return wallLanding(sim, x, z, heading)
   }
   let exit = -1
   for (let distance = entry + STEP; distance <= entry + SPAN; distance += STEP) {
@@ -94,10 +142,7 @@ export function vaultLanding(sim: Simulation, soldier: EntityId): { x: number; z
     (tangle) => distanceSquaredToSegment(tangle.x, tangle.z, from.x, from.z, to.x, to.z) < TANGLE_REACH * TANGLE_REACH
   )
   const landing = at(exit + LANDING)
-  if (snared || landing.x < 0 || landing.z < 0 || landing.x > mapWidth(sim.map) || landing.z > mapDepth(sim.map)) {
-    return null
-  }
-  return landing
+  return snared || !onMap(sim, landing) ? null : landing
 }
 
 /** Sets a soldier climbing the fence ahead of him, if there's one he can climb. Whether he does. */
