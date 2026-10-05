@@ -80,7 +80,6 @@ Several agents work in this checkout at once, all on `main`.
   the encrypted runtime pack. Only CC0 may ship raw; CC-BY ships raw with credit.
 - **Never use TurboSquid or Reallusion assets.** See [licensing](docs/assets/licensing.md).
 - **Add every shipped third-party asset to the [register](docs/assets/register.md).**
-- Never upload purchased assets to AI generation services.
 
 ## MCP servers
 
