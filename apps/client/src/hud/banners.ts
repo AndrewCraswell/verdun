@@ -40,15 +40,15 @@ const OVER: Readonly<Record<OperationResult, readonly [readonly [string, BannerT
   {
     taken: [
       ["Their line taken", "won"],
-      ["Our line lost", "alarm"]
+      ["Line lost", "alarm"]
     ],
     footing: [
       ["A footing gained", "won"],
-      ["They hold a footing", "alarm"]
+      ["A footing lost", "alarm"]
     ],
     repulsed: [
       ["Thrown back", "alarm"],
-      ["Their attack thrown back", "won"]
+      ["Held", "won"]
     ]
   }
 
@@ -103,7 +103,7 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
             // The attack is on a stretch of the line; the player's squad holds its own.
             raise("Zero hour", "The attack goes in", "Hold your ground: the first wave is going over", "attack")
           } else {
-            raise("Alarm", "They're coming over", "Every man up on the fire step", "alarm")
+            raise("Alarm", "They're coming!", "Every man up on the fire step", "alarm")
           }
         } else if (event.type === "operation-over") {
           const attacking = sim.operation?.plan.side === side

@@ -19,8 +19,11 @@ describe("the operation's countdown", () => {
 
     sim.tick = operation.zeroHourAt - 60 * TICK_RATE
     expect(operationView(sim, Side.French, TICK_RATE)).toMatchObject({ seconds: 60, note: "Our guns are firing" })
+    // The defenders are told only that an attack is expected: no time to count to.
     expect(operationView(sim, Side.German, TICK_RATE)).toMatchObject({
-      label: "Their attack in",
+      label: "French attack expected",
+      seconds: null,
+      progress: null,
       note: "Their guns are firing"
     })
 
@@ -29,12 +32,15 @@ describe("the operation's countdown", () => {
     expect(hold).toMatchObject({ phase: "attack", label: "Hold", seconds: 1000 })
     expect(hold?.progress).toBeCloseTo(200 / 1200, 5)
 
+    expect(operationView(sim, Side.German, TICK_RATE)).toMatchObject({ label: "Hold the line", seconds: null })
+
     operation.result = "footing"
     expect(operationView(sim, Side.French, TICK_RATE)).toMatchObject({
       phase: "over",
       seconds: null,
       note: "A footing gained"
     })
+    expect(operationView(sim, Side.German, TICK_RATE)?.note).toBe("A footing lost")
     expect(planFires(sim)).toBe(false)
   })
 })

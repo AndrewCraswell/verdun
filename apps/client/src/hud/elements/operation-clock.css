@@ -40,6 +40,10 @@
   display: none;
 }
 
+.oc-bar[hidden] {
+  display: none;
+}
+
 .oc-bar {
   width: 100%;
   height: 2px;

@@ -2,6 +2,7 @@ import { h, setData, setText, setVar, show } from "../dom.ts"
 import type { HudElementFactory } from "../element.ts"
 import { clockSeconds } from "../format.ts"
 import type { HudState } from "../hud-state.ts"
+import type { OperationView } from "../operation-state.ts"
 import "./operation-clock.css"
 
 /**
@@ -9,6 +10,14 @@ import "./operation-clock.css"
  * it went once it's over. Counted from now, never by the clock, with a thin bar for how far through the wait or the hold
  * it is, and a few words when the guns are firing. The last minute before the attack draws the eye.
  */
+
+/** What a screen reader says of it. */
+function ariaOf(operation: OperationView): string {
+  if (operation.phase === "over") {
+    return `Over: ${operation.note ?? ""}`
+  }
+  return operation.seconds === null ? operation.label : `${operation.label} ${clockSeconds(operation.seconds)}`
+}
 
 /** In the last this many seconds before the attack, the countdown is urgent. */
 const URGENT = 60
@@ -18,13 +27,8 @@ export const operationClock: HudElementFactory = () => {
   const time = h("strong", "oc-time")
   const note = h("span", "oc-note")
   const fill = h("div", "oc-bar__fill")
-  const root = h(
-    "section",
-    "operation-clock hud-plate",
-    h("div", "oc-line", label, time),
-    note,
-    h("div", "oc-bar", fill)
-  )
+  const bar = h("div", "oc-bar", fill)
+  const root = h("section", "operation-clock hud-plate", h("div", "oc-line", label, time), note, bar)
   root.setAttribute("role", "timer")
 
   return {
@@ -43,13 +47,9 @@ export const operationClock: HudElementFactory = () => {
       setText(time, operation.seconds === null ? "" : clockSeconds(operation.seconds))
       setText(note, operation.note ?? "")
       show(note, operation.note !== null)
-      setVar(fill, "--done", operation.progress)
-      root.setAttribute(
-        "aria-label",
-        operation.seconds === null
-          ? `Operation over: ${operation.note ?? ""}`
-          : `${operation.label} ${clockSeconds(operation.seconds)}`
-      )
+      show(bar, operation.progress !== null)
+      setVar(fill, "--done", operation.progress ?? 0)
+      root.setAttribute("aria-label", ariaOf(operation))
     }
   }
 }

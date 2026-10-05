@@ -22,7 +22,7 @@ describe("banners", () => {
     })
     const defending = createBannerQueue(sim, { ...squad, side: Side.German })
     defending.record([{ type: "zero-hour", side: Side.French, squads: [] }])
-    expect(defending.current(1)?.banner).toMatchObject({ title: "They're coming over", tone: "alarm" })
+    expect(defending.current(1)?.banner).toMatchObject({ title: "They're coming!", tone: "alarm" })
   })
 
   it("says which squad the player now commands after taking one over", () => {
