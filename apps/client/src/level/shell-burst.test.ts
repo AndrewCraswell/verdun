@@ -99,6 +99,31 @@ describe("createShellBursts", () => {
     expect(scene?.particleSystems).toHaveLength(0)
   })
 
+  it("ends the most faded particles to make room when a system is full, rather than drop the newest burst", () => {
+    const { bursts, queued } = setup()
+    const smoke = bursts.systems.find((system) => system.name === "burst-smoke-field")
+    if (!smoke) {
+      throw new Error("no field smoke")
+    }
+    // A barrage: bursts until the smoke has filled the system, a step apart. The stand-in sprite never loads, so the
+    // system is stepped directly rather than drawn.
+    for (let frame = 0; frame < 120 && smoke.particles.length < smoke.getCapacity(); frame++) {
+      bursts.burst(burst(Shell.FieldHighExplosive))
+      smoke.animate(true)
+    }
+    expect(smoke.particles.length).toBe(smoke.getCapacity())
+    const oldest = smoke.particles.reduce((most, particle) =>
+      particle.age / particle.lifeTime > most.age / most.lifeTime ? particle : most
+    )
+
+    bursts.burst(burst(Shell.FieldHighExplosive))
+
+    expect(queued("burst-smoke-field")).toBeGreaterThan(0)
+    expect(oldest.age).toBe(oldest.lifeTime)
+    const ending = smoke.particles.filter((particle) => particle.age >= particle.lifeTime).length
+    expect(ending).toBe(queued("burst-smoke-field"))
+  })
+
   it("throws fewer particles for a burst far from the camera, the flash still whole", () => {
     const near = setup()
     new FreeCamera("eye", new Vector3(50, 60, 0), near.scene).computeWorldMatrix()

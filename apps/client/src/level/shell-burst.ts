@@ -51,6 +51,22 @@ interface Channel {
 }
 
 /**
+ * Frees room for `count` new particles by ending the most faded: in a barrage a full system would otherwise drop the
+ * newest burst whole, its smoke or its column missing, while the last of the old ones lingers.
+ */
+function makeRoom(system: ParticleSystem, count: number): void {
+  const alive = system.particles.filter((particle) => particle.age < particle.lifeTime)
+  const needed = count - (system.getCapacity() - alive.length - Math.max(0, system.manualEmitCount))
+  if (needed <= 0) {
+    return
+  }
+  alive.sort((a, b) => b.age / b.lifeTime - a.age / a.lifeTime)
+  for (const particle of alive.slice(0, needed)) {
+    particle.age = particle.lifeTime
+  }
+}
+
+/**
  * `range` is the spread of speeds, as fractions of each emission's speed: a column of earth runs from the ground up
  * because its particles leave at every speed from a crawl to the full throw.
  */
@@ -110,6 +126,11 @@ function channel(
   return {
     system,
     emit(at, count) {
+      // Places queued for particles the system made no room for: dropped, or the next burst's would start at them.
+      if (system.manualEmitCount <= 0) {
+        pending.length = 0
+      }
+      makeRoom(system, count)
       for (let index = 0; index < count; index++) {
         pending.push(at)
       }
@@ -196,7 +217,7 @@ function weight(scene: Scene, sprites: BurstSprites, heavy: boolean): Weight {
   const column = channel(
     scene,
     `burst-column-${name}`,
-    600 * (heavy ? 2 : 1),
+    heavy ? 1200 : 800,
     "up",
     (system) => {
       system.particleTexture = sprites.puff
@@ -251,7 +272,7 @@ function weight(scene: Scene, sprites: BurstSprites, heavy: boolean): Weight {
     },
     [0.4, 1.3]
   )
-  const dust = channel(scene, `burst-dust-${name}`, 400 * (heavy ? 2 : 1), "out", (system) => {
+  const dust = channel(scene, `burst-dust-${name}`, heavy ? 800 : 700, "out", (system) => {
     system.particleTexture = sprites.puff
     system.blendMode = ParticleSystem.BLENDMODE_STANDARD
     grow(system, [
@@ -271,7 +292,7 @@ function weight(scene: Scene, sprites: BurstSprites, heavy: boolean): Weight {
       [1, 0.42, 0.39, 0.34, 0]
     ])
   })
-  const smoke = channel(scene, `burst-smoke-${name}`, 500 * (heavy ? 2 : 1), "up", (system) => {
+  const smoke = channel(scene, `burst-smoke-${name}`, 1000, "up", (system) => {
     system.particleTexture = sprites.puff
     system.blendMode = ParticleSystem.BLENDMODE_STANDARD
     grow(system, [
