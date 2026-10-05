@@ -66,6 +66,10 @@ Several agents work in this checkout at once, all on `main`.
 ## Assets
 
 - **Never commit vendor source files.** Raw purchases live in `vendor/` (git-ignored).
+- **The level kit and the soundtrack the game ships are committed**, through Git LFS: `.asset-cache/level` (what the
+  asset pack is built from) and `.asset-cache/music`. Commit their files with the change that rebuilds them. The rest of
+  `.asset-cache/` and all of `vendor/` stay out of git, backed up to E: ([backup](docs/assets/backup.md)). The
+  repository must stay private.
 - **Never ship raw glTF/textures from paid stores.** Paid assets go through the [pipeline](docs/assets/pipeline.md) into
   the encrypted runtime pack. Only CC0 may ship raw; CC-BY ships raw with credit.
 - **Never use TurboSquid or Reallusion assets.** See [licensing](docs/assets/licensing.md).

@@ -15,6 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # The level kit and the soundtrack are in Git LFS (.gitattributes). The cache keeps their objects, so they're
+      # downloaded only when they change.
+      - name: List the LFS objects
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-objects
+      - uses: actions/cache@v6
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-objects') }}
+          restore-keys: ${{ runner.os }}-lfs-
+      - name: Fetch the level kit and the soundtrack
+        run: git lfs pull
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -29,4 +40,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
       - run: pnpm install --frozen-lockfile
+      # Builds with the real level, not the greybox: an encrypted pack under a fresh key, as a deploy would.
+      - name: Pack the level kit
+        run: pnpm assets:pack
       - run: pnpm verify

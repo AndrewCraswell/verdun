@@ -12,8 +12,13 @@ coverage/
 # Raw vendor assets (FBX, .blend, .uasset, source textures). Never commit: license and size.
 vendor/
 
-# Intermediate asset pipeline output
-.asset-cache/
+# Asset pipeline output. The level kit and the soundtrack the game ships are committed, through Git LFS
+# (.gitattributes); the rest is rebuilt from vendor/ and backed up with it (docs/assets/backup.md).
+.asset-cache/*
+!.asset-cache/level/
+!.asset-cache/music/
+# A sound build's work in progress, renamed into place when it's done.
+.asset-cache/level/*.building/
 
 # Unreal export project
 unreal/

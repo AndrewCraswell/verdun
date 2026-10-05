@@ -510,9 +510,9 @@ In dev, `?pack` reads the pack through the worker instead of the raw `/level-kit
 `/level-pack/`. To try a production build, run `pnpm assets:pack`, then `pnpm -F @verdun/client build` and
 `pnpm -F @verdun/client preview` (the `client-preview` launch configuration).
 
-**Open problem:** CI builds from git, which has no vendor assets, so its builds are greybox. A deployed build needs the
-pack delivered to the build somehow, such as a private artifact store the deploy job downloads from, or building and
-deploying from a machine that holds the vendor files. Not decided yet.
+The level kit is committed, through Git LFS (`.gitattributes`), so CI builds the real game: it fetches the kit, runs
+`pnpm assets:pack` and builds with the pack under a fresh key, as a deploy would. Commit the kit's files with the change
+that rebuilds them.
 
 ## Editing in Tiled
 

@@ -1,0 +1,419 @@
+{
+  "rifle-fr-near": {
+    "variations": 6,
+    "loop": false
+  },
+  "rifle-fr-far": {
+    "variations": 6,
+    "loop": false
+  },
+  "rifle-de-near": {
+    "variations": 6,
+    "loop": false
+  },
+  "rifle-de-far": {
+    "variations": 6,
+    "loop": false
+  },
+  "bolt-fr": {
+    "variations": 6,
+    "loop": false
+  },
+  "bolt-de": {
+    "variations": 6,
+    "loop": false
+  },
+  "mg-near": {
+    "variations": 8,
+    "loop": false
+  },
+  "mg-far": {
+    "variations": 6,
+    "loop": false
+  },
+  "crack": {
+    "variations": 6,
+    "loop": false
+  },
+  "bullet-impact": {
+    "variations": 7,
+    "loop": false
+  },
+  "bullet-mud": {
+    "variations": 8,
+    "loop": false
+  },
+  "bullet-ricochet": {
+    "variations": 12,
+    "loop": false
+  },
+  "bullet-whizz": {
+    "variations": 12,
+    "loop": false
+  },
+  "bullet-stone": {
+    "variations": 12,
+    "loop": false
+  },
+  "bullet-wire": {
+    "variations": 5,
+    "loop": false
+  },
+  "bullet-parapet": {
+    "variations": 12,
+    "loop": false
+  },
+  "bullet-snow": {
+    "variations": 12,
+    "loop": false
+  },
+  "bullet-water": {
+    "variations": 6,
+    "loop": false
+  },
+  "field-near": {
+    "variations": 10,
+    "loop": false
+  },
+  "field-far": {
+    "variations": 4,
+    "loop": false
+  },
+  "heavy-near": {
+    "variations": 8,
+    "loop": false
+  },
+  "heavy-far": {
+    "variations": 8,
+    "loop": false
+  },
+  "debris": {
+    "variations": 3,
+    "loop": false
+  },
+  "shrapnel-near": {
+    "variations": 4,
+    "loop": false
+  },
+  "shrapnel-far": {
+    "variations": 2,
+    "loop": false
+  },
+  "grenade-near": {
+    "variations": 2,
+    "loop": false
+  },
+  "grenade-far": {
+    "variations": 2,
+    "loop": false
+  },
+  "throw": {
+    "variations": 3,
+    "loop": false
+  },
+  "gas-shell": {
+    "variations": 2,
+    "loop": false
+  },
+  "battery-field": {
+    "variations": 5,
+    "loop": false
+  },
+  "battery-heavy": {
+    "variations": 6,
+    "loop": false
+  },
+  "death": {
+    "variations": 5,
+    "loop": false
+  },
+  "step-earth": {
+    "variations": 10,
+    "loop": false
+  },
+  "step-snow": {
+    "variations": 8,
+    "loop": false
+  },
+  "step-stone": {
+    "variations": 8,
+    "loop": false
+  },
+  "gear": {
+    "variations": 8,
+    "loop": false
+  },
+  "fire": {
+    "variations": 1,
+    "loop": true
+  },
+  "crow": {
+    "variations": 4,
+    "loop": false
+  },
+  "charge": {
+    "variations": 18,
+    "loop": false
+  },
+  "cheer": {
+    "variations": 9,
+    "loop": false
+  },
+  "pain": {
+    "variations": 20,
+    "loop": false
+  },
+  "gas-gong": {
+    "variations": 4,
+    "loop": false
+  },
+  "rain": {
+    "variations": 1,
+    "loop": true
+  },
+  "wind": {
+    "variations": 1,
+    "loop": true
+  },
+  "night-warm": {
+    "variations": 1,
+    "loop": true
+  },
+  "night-cold": {
+    "variations": 1,
+    "loop": true
+  },
+  "rain-trench": {
+    "variations": 1,
+    "loop": true
+  },
+  "wire-wind": {
+    "variations": 1,
+    "loop": true
+  },
+  "pinned-breath": {
+    "variations": 1,
+    "loop": true
+  },
+  "front-roar": {
+    "variations": 1,
+    "loop": true
+  },
+  "thunder": {
+    "variations": 4,
+    "loop": false
+  },
+  "mask-breath": {
+    "variations": 1,
+    "loop": true
+  },
+  "voice-broken-fr": {
+    "variations": 3,
+    "loop": false,
+    "lines": [
+      "fr-broken-1",
+      "fr-broken-2",
+      "fr-broken-2"
+    ]
+  },
+  "voice-charge-fr": {
+    "variations": 8,
+    "loop": false,
+    "lines": [
+      "fr-charge-1",
+      "fr-charge-2",
+      "fr-charge-2",
+      "fr-charge-3",
+      "fr-charge-3",
+      "fr-charge-4",
+      "fr-charge-4",
+      "fr-charge-4"
+    ]
+  },
+  "voice-cover-fr": {
+    "variations": 3,
+    "loop": false,
+    "lines": [
+      "fr-cover-4",
+      "fr-cover-4",
+      "fr-cover-5"
+    ]
+  },
+  "voice-follow-fr": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "fr-follow-1",
+      "fr-follow-2"
+    ]
+  },
+  "voice-gas-fr": {
+    "variations": 6,
+    "loop": false,
+    "lines": [
+      "fr-gas-1",
+      "fr-gas-1",
+      "fr-gas-2",
+      "fr-gas-2",
+      "fr-gas-2",
+      "fr-gas-2"
+    ]
+  },
+  "voice-grenade-fr": {
+    "variations": 3,
+    "loop": false,
+    "lines": [
+      "fr-grenade-1",
+      "fr-grenade-1",
+      "fr-grenade-2"
+    ]
+  },
+  "voice-hit-fr": {
+    "variations": 4,
+    "loop": false,
+    "lines": [
+      "fr-hit-1",
+      "fr-hit-1",
+      "fr-hit-3",
+      "fr-hit-3"
+    ]
+  },
+  "voice-hold-fr": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "fr-hold-1",
+      "fr-hold-2"
+    ]
+  },
+  "voice-pinned-fr": {
+    "variations": 4,
+    "loop": false,
+    "lines": [
+      "fr-mg-1",
+      "fr-mg-1",
+      "fr-mg-3",
+      "fr-mg-3"
+    ]
+  },
+  "voice-surrender-fr": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "fr-surrender-1",
+      "fr-surrender-2"
+    ]
+  },
+  "voice-taken-fr": {
+    "variations": 1,
+    "loop": false,
+    "lines": [
+      "fr-taken-2"
+    ]
+  },
+  "voice-broken-de": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "de-broken-1",
+      "de-broken-2"
+    ]
+  },
+  "voice-charge-de": {
+    "variations": 5,
+    "loop": false,
+    "lines": [
+      "de-charge-1",
+      "de-charge-1",
+      "de-charge-3",
+      "de-charge-4",
+      "de-charge-4"
+    ]
+  },
+  "voice-cover-de": {
+    "variations": 3,
+    "loop": false,
+    "lines": [
+      "de-cover-4",
+      "de-cover-4",
+      "de-cover-4"
+    ]
+  },
+  "voice-follow-de": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "de-follow-1",
+      "de-follow-2"
+    ]
+  },
+  "voice-gas-de": {
+    "variations": 4,
+    "loop": false,
+    "lines": [
+      "de-gas-1",
+      "de-gas-3",
+      "de-gas-3",
+      "de-gas-3"
+    ]
+  },
+  "voice-grenade-de": {
+    "variations": 4,
+    "loop": false,
+    "lines": [
+      "de-grenade-1",
+      "de-grenade-1",
+      "de-grenade-2",
+      "de-grenade-2"
+    ]
+  },
+  "voice-hit-de": {
+    "variations": 4,
+    "loop": false,
+    "lines": [
+      "de-hit-1",
+      "de-hit-1",
+      "de-hit-1",
+      "de-hit-3"
+    ]
+  },
+  "voice-hold-de": {
+    "variations": 3,
+    "loop": false,
+    "lines": [
+      "de-hold-1",
+      "de-hold-2",
+      "de-hold-2"
+    ]
+  },
+  "voice-pinned-de": {
+    "variations": 5,
+    "loop": false,
+    "lines": [
+      "de-mg-1",
+      "de-mg-1",
+      "de-mg-1",
+      "de-mg-3",
+      "de-mg-3"
+    ]
+  },
+  "voice-surrender-de": {
+    "variations": 2,
+    "loop": false,
+    "lines": [
+      "de-surrender-1",
+      "de-surrender-2"
+    ]
+  },
+  "voice-taken-de": {
+    "variations": 1,
+    "loop": false,
+    "lines": [
+      "de-taken-1"
+    ]
+  },
+  "ear-ring": {
+    "variations": 1,
+    "loop": false
+  }
+}
