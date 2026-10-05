@@ -1,4 +1,12 @@
-import { type BattlefieldMap, beltLayout, heightAt, mapDepth, mapWidth, type WireTangle } from "@verdun/map"
+import {
+  type BattlefieldMap,
+  beltLayout,
+  type FenceLength,
+  heightAt,
+  mapDepth,
+  mapWidth,
+  type WireTangle
+} from "@verdun/map"
 import { addComponent, type EntityId, hasComponent } from "bitecs"
 import { Stance } from "./components.ts"
 import type { Simulation } from "./simulation.ts"
@@ -23,12 +31,52 @@ const WALL_REACH = 1.5
 const WALL_SPAN = 3.5
 /** The top must be at least this much higher than where he stands, in metres: below that it's a step, walked up. */
 const WALL_RISE = 0.8
-/** Metres a second he makes over a fence: a hand on a stake, a leg over, the wire plucking at his coat. */
-export const VAULT_PACE = 1.2
+/** Metres a second he makes on his way over: through the loose wire either side of a fence, or up a trench wall. */
+const VAULT_PACE = 1.2
+/**
+ * The fence itself takes this long to get over, in seconds: a hand on a stake, a leg over, the barbs catching at his
+ * coat and puttees, the other leg after. It's a barrier, and a man astride it is a mark for every rifle in reach.
+ */
+export const FENCE_CLIMB_SECONDS = 3
+/** He's climbing the fence while within this far of its line either side, in metres: a stride before, a stride after. */
+export const FENCE_REACH = 0.6
 /** The breath a climb costs him at once, of 100. */
 const VAULT_BREATH = 12
 
 const tanglesByMap = new WeakMap<BattlefieldMap, readonly WireTangle[]>()
+const fencesByMap = new WeakMap<BattlefieldMap, readonly FenceLength[]>()
+
+/** Every length of staked fence on the map's belts, as the art draws them. */
+function fencesOf(map: BattlefieldMap): readonly FenceLength[] {
+  let fences = fencesByMap.get(map)
+  if (!fences) {
+    fences = map.wire.flatMap((belt) => beltLayout(belt).fences)
+    fencesByMap.set(map, fences)
+  }
+  return fences
+}
+
+/**
+ * Whether a point lies astride a staked fence: within `FENCE_REACH` of a length's line, along its length, where the
+ * wire still stands (cut or trampled, there's no fence left to climb).
+ */
+export function astrideFence(sim: Simulation, x: number, z: number): boolean {
+  if (wireAt(sim.wire, x, z) <= CLEAR) {
+    return false
+  }
+  return fencesOf(sim.map).some((fence) => {
+    const ox = x - fence.x
+    const oz = z - fence.z
+    const along = ox * fence.dx + oz * fence.dz
+    const across = ox * fence.dz - oz * fence.dx
+    return Math.abs(along) <= fence.length / 2 && Math.abs(across) <= FENCE_REACH
+  })
+}
+
+/** How fast a man climbing makes his way from (x, z), in metres a second: slowly over the fence itself. */
+export function vaultPace(sim: Simulation, x: number, z: number): number {
+  return astrideFence(sim, x, z) ? (FENCE_REACH * 2) / FENCE_CLIMB_SECONDS : VAULT_PACE
+}
 
 /** Every tangle of loose coils on the map's belts, as the art draws them. */
 function tanglesOf(map: BattlefieldMap): readonly WireTangle[] {
@@ -104,10 +152,15 @@ function wallLanding(
 /**
  * Where a soldier would come down vaulting what's ahead of him, the way he's going: a belt of wire, over its staked
  * fence, where the fence stands within reach, the belt is shallow enough to climb in one go and no tangle of loose
- * coils lies in his way; or else a trench wall, onto its top. Null where there's nothing he can vault.
+ * coils lies in his way; or else a trench wall, onto its top. Null where there's nothing he can vault. A man on an
+ * order goes the way his route takes him, given as `toward` (a unit vector), rather than the way he faces.
  */
-export function vaultLanding(sim: Simulation, soldier: EntityId): { x: number; z: number } | null {
-  const heading = headingOf(sim, soldier)
+export function vaultLanding(
+  sim: Simulation,
+  soldier: EntityId,
+  toward?: { readonly x: number; readonly z: number }
+): { x: number; z: number } | null {
+  const heading = toward ?? headingOf(sim, soldier)
   if (!heading) {
     return null
   }
@@ -145,13 +198,20 @@ export function vaultLanding(sim: Simulation, soldier: EntityId): { x: number; z
   return snared || !onMap(sim, landing) ? null : landing
 }
 
-/** Sets a soldier climbing the fence ahead of him, if there's one he can climb. Whether he does. */
-export function startVault(sim: Simulation, soldier: EntityId): boolean {
+/**
+ * Sets a soldier climbing the fence or wall ahead of him, if there's one he can climb, the way he's going (`toward`, as
+ * for `vaultLanding`). Whether he does.
+ */
+export function startVault(
+  sim: Simulation,
+  soldier: EntityId,
+  toward?: { readonly x: number; readonly z: number }
+): boolean {
   const { vault, stamina, stance } = sim.soldiers
   if (hasComponent(sim.world, soldier, vault) || stamina.spent[soldier] === 1) {
     return false
   }
-  const landing = vaultLanding(sim, soldier)
+  const landing = vaultLanding(sim, soldier, toward)
   if (!landing) {
     return false
   }

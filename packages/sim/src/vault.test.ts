@@ -11,7 +11,7 @@ import {
   TICK_RATE
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { startVault, vaultLanding } from "./vault.ts"
+import { astrideFence, FENCE_CLIMB_SECONDS, startVault, vaultLanding } from "./vault.ts"
 
 /** A belt of wire running east-west across a flat field at z = 50, 100 m long: ten lengths of fence. */
 const BELT: WireBelt = {
@@ -47,7 +47,7 @@ describe("vaulting a wire fence", () => {
     expect(bare).toBeDefined()
   })
 
-  it("climbs the staked fence where no tangle lies in his way, and is over in seconds", () => {
+  it("climbs the staked fence where no tangle lies in his way, taking a few seconds over the fence itself", () => {
     const sim = field()
     const soldier = facingTheWire(sim, bare?.x ?? 0)
     const landing = vaultLanding(sim, soldier)
@@ -56,11 +56,20 @@ describe("vaulting a wire fence", () => {
     enqueueCommand(sim, { type: "vault", soldier })
     // Steering mid-climb doesn't pull him off the fence.
     enqueueCommand(sim, { type: "steer", soldier, x: 1, z: 0 })
-    for (let step = 0; step < 6 * TICK_RATE; step++) {
+    let astride = 0
+    let seconds = 0
+    while (hasComponent(sim.world, soldier, sim.soldiers.vault) || seconds === 0) {
       stepSimulation(sim)
+      seconds += 1 / TICK_RATE
+      if (astrideFence(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])) {
+        astride += 1 / TICK_RATE
+      }
+      expect(seconds).toBeLessThan(8)
     }
+    // A barrier: astride it for the length of a climb, not stepped over at a walk.
+    expect(astride).toBeGreaterThan(FENCE_CLIMB_SECONDS * 0.85)
+    expect(astride).toBeLessThan(FENCE_CLIMB_SECONDS * 1.15)
     expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(51.7)
-    expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(false)
   })
 
   it("won't climb where a tangle of coils lies across his way, nor with no wire ahead", () => {

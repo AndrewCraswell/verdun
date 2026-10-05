@@ -1,5 +1,6 @@
 import { type EntityId, hasComponent } from "bitecs"
 import { barrageLine } from "./artillery.ts"
+import { clearOfScenery, Climbing, Obstacle, wayAhead } from "./body.ts"
 import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import { Side } from "./components.ts"
@@ -7,6 +8,19 @@ import { coverNear } from "./cover.ts"
 import { inCover } from "./hollows.ts"
 import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
+import { isInTrench } from "./stance.ts"
+import { FIRE_STEP_MIDDLE, nearestTrench, onFireStep, placeOn, pointAlong } from "./trench-lines.ts"
+import { startVault, vaultLanding } from "./vault.ts"
+import { wirePace } from "./wire.ts"
+
+/** A point on the ground. */
+interface Place {
+  readonly x: number
+  readonly z: number
+}
+
+/** A walking stride in a step, in metres: 1.4 m/s at twenty steps a second, how far ahead a man looks for a wall. */
+const WALKING_STRIDE = 1.4 / 20
 
 /** What a squad's soldiers do when the player isn't steering them. */
 export type SquadOrder =
@@ -143,21 +157,81 @@ export function nextLivingMember(sim: Simulation, squad: Squad, from: EntityId):
   return -1
 }
 
-/** Where a member should stand: slots fan out in ranks behind the leader, relative to the way the leader faces. */
-function followSlot(sim: Simulation, leader: EntityId, slot: number): { x: number; z: number } {
-  const { position, facing } = sim.soldiers
-  const forwardX = facing.x[leader]
-  const forwardZ = facing.z[leader]
-  const rightX = forwardZ
-  const rightZ = -forwardX
-  const lateral = ((slot % FORMATION_WIDTH) - (FORMATION_WIDTH - 1) / 2) * FORMATION_SPACING
-  const back = FORMATION_SPACING * (1 + Math.floor(slot / FORMATION_WIDTH))
-  return clampToMap(
-    sim,
-    position.x[leader] + rightX * lateral - forwardX * back,
-    position.z[leader] + rightZ * lateral - forwardZ * back
-  )
+/** Men file along a trench this far apart, in metres: the way trench traffic went, one behind another. */
+const FILE_SPACING = 2
+
+/**
+ * Where each follower should stand. In a trench they file along it from the leader, a man every `FILE_SPACING`, on
+ * whichever side of him they are now, and up on the fire step if he is: a 2.2 m trench has no room for ranks, and places
+ * laid out across it put every man on the parapet or the parados. In the open they fan out in ranks behind him: behind
+ * the way he's walking or, standing, the way they've come up on him; never the way he aims, or turning to look about
+ * would swing the squad round behind him. In a trench places are taken nearest first, so nobody pushes past anyone.
+ */
+function followSlots(sim: Simulation, leader: EntityId, followers: readonly EntityId[]): Map<EntityId, Place> {
+  const { position, steer, facing } = sim.soldiers
+  const lx = position.x[leader]
+  const lz = position.z[leader]
+  const places = new Map<EntityId, Place>()
+  let centreX = 0
+  let centreZ = 0
+  for (const member of followers) {
+    centreX += position.x[member] / followers.length
+    centreZ += position.z[member] / followers.length
+  }
+  const trench = isInTrench(sim.map, lx, lz) ? nearestTrench(sim.map, lx, lz) : null
+  if (trench) {
+    const back = (placeOn(trench.trench, centreX, centreZ)?.along ?? trench.along) <= trench.along ? -1 : 1
+    const step = onFireStep(trench) ? FIRE_STEP_MIDDLE : 0
+    const along = (member: EntityId) =>
+      Math.abs((placeOn(trench.trench, position.x[member], position.z[member])?.along ?? trench.along) - trench.along)
+    const inFile = [...followers].sort((a, b) => along(a) - along(b) || a - b)
+    inFile.forEach((member, index) => {
+      const point = pointAlong(trench.trench, trench.along + back * (index + 1) * FILE_SPACING)
+      places.set(member, { x: point.x + point.frontX * step, z: point.z + point.frontZ * step })
+    })
+    return places
+  }
+  // Behind the way he walks; standing, behind him from where the squad is; or, all on top of him, behind his facing.
+  let backX = -facing.x[leader]
+  let backZ = -facing.z[leader]
+  const steering = hasComponent(sim.world, leader, steer) ? Math.sqrt(steer.x[leader] ** 2 + steer.z[leader] ** 2) : 0
+  const fromSquad = Math.sqrt((centreX - lx) ** 2 + (centreZ - lz) ** 2)
+  if (steering > 0) {
+    backX = -steer.x[leader] / steering
+    backZ = -steer.z[leader] / steering
+  } else if (fromSquad > FORMATION_SPACING) {
+    backX = (centreX - lx) / fromSquad
+    backZ = (centreZ - lz) / fromSquad
+  }
+  // The right hand of a man walking away from the squad.
+  const rightX = -backZ
+  const rightZ = backX
+  followers.forEach((member, slot) => {
+    const x = position.x[member]
+    const z = position.z[member]
+    if (steering === 0 && (x - lx) ** 2 + (z - lz) ** 2 <= HALT_NEAR * HALT_NEAR) {
+      // He's stopped, and this man is close by: he halts where he is rather than shuffle into a rank.
+      places.set(member, { x, z })
+      return
+    }
+    // Each rank centred on the leader's track, the last one too, so the squad's middle stays behind him.
+    const rank = Math.floor(slot / FORMATION_WIDTH)
+    const inRank = Math.min(FORMATION_WIDTH, followers.length - rank * FORMATION_WIDTH)
+    const lateral = ((slot % FORMATION_WIDTH) - (inRank - 1) / 2) * FORMATION_SPACING
+    const behind = FORMATION_SPACING * (1 + rank)
+    const place = clampToMap(sim, lx + rightX * lateral + backX * behind, lz + rightZ * lateral + backZ * behind)
+    places.set(member, clearOfScenery(sim.map, place.x, place.z))
+  })
+  return places
 }
+
+/**
+ * Followers closer than this to their place, in metres, stay put: closer than other orders keep, since a place on the
+ * fire step lies only 0.7 m from the floor below it.
+ */
+const FOLLOW_TOLERANCE = 0.4
+/** When the leader stops, followers this close to him, in metres, halt where they are. */
+const HALT_NEAR = 10
 
 /**
  * Where a member should be after an advance: his place in a line running east-west across the target, parallel to the
@@ -242,18 +316,90 @@ function orderMoveTo(
   soldier: EntityId,
   target: { x: number; z: number },
   goal: NavGoal,
-  run = false
+  run = false,
+  tolerance = SLOT_TOLERANCE
 ): void {
   const { position } = sim.soldiers
   const dx = target.x - position.x[soldier]
   const dz = target.z - position.z[soldier]
-  if (dx * dx + dz * dz > SLOT_TOLERANCE * SLOT_TOLERANCE) {
+  if (dx * dx + dz * dz > tolerance * tolerance) {
     // Round ruins and pools and through gaps in the wire, rather than straight through them.
     const via = nextWaypoint(sim, soldier, target, goal)
-    if (via) {
+    if (via && !overOrAround(sim, soldier, via, target)) {
       applyCommand(sim, { type: "move-to", soldier, x: via.x, z: via.z, run })
     }
   }
+}
+
+/** Wire this intact or worse, as a fraction of walking pace, is waded rather than walked: worth climbing its fence. */
+const WIRE_WADE = 0.5
+/** A man looks this far ahead for wire across his way, in metres. */
+const WIRE_LOOK = [0.5, 1, 1.5] as const
+/** A vault must bring him at least this much nearer where he's going, in metres. */
+const VAULT_GAIN = 1
+/** A man boxed in sidesteps this far, in metres... */
+const SIDESTEP = 2
+/** ...trying this many ways round. */
+const SIDESTEP_WAYS = 16
+/** His way counts as blocked when walls leave him less than this share of his stride toward it. */
+const BLOCKED = 0.25
+
+/**
+ * When a man's way to `via` runs into a wire fence he'd otherwise wade, or a wall he'd otherwise scramble up, he climbs
+ * it as a player does with Space, if that gets him nearer `target`. Boxed into a corner, he sidesteps the free way that
+ * heads most nearly where he's going. Whether he did either, which takes the place of his move order this time.
+ */
+function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Place): boolean {
+  const { position, vault } = sim.soldiers
+  if (hasComponent(sim.world, soldier, vault)) {
+    return true
+  }
+  const x = position.x[soldier]
+  const z = position.z[soldier]
+  const dx = via.x - x
+  const dz = via.z - z
+  const distance = Math.sqrt(dx * dx + dz * dz)
+  if (distance < 0.3) {
+    return false
+  }
+  const toward = { x: dx / distance, z: dz / distance }
+  const way = wayAhead(sim.map, x, z, toward.x, toward.z, WALKING_STRIDE, Climbing.Ordered)
+  const kept = Math.sqrt(way.x * way.x + way.z * way.z)
+  const wired = WIRE_LOOK.some((ahead) => wirePace(sim.wire, x + toward.x * ahead, z + toward.z * ahead) < WIRE_WADE)
+  if (wired || (way.met === Obstacle.Wall && way.climbing) || kept < BLOCKED) {
+    const landing = vaultLanding(sim, soldier, toward)
+    const from = Math.sqrt((target.x - x) ** 2 + (target.z - z) ** 2)
+    if (
+      landing &&
+      Math.sqrt((target.x - landing.x) ** 2 + (target.z - landing.z) ** 2) < from - VAULT_GAIN &&
+      startVault(sim, soldier, toward)
+    ) {
+      return true
+    }
+  }
+  if (kept >= BLOCKED) {
+    return false
+  }
+  let best: Place | null = null
+  let bestScore = 0
+  for (let index = 0; index < SIDESTEP_WAYS; index++) {
+    const angle = (index * 2 * Math.PI) / SIDESTEP_WAYS
+    const ax = Math.cos(angle)
+    const az = Math.sin(angle)
+    const free = wayAhead(sim.map, x, z, ax, az, WALKING_STRIDE, Climbing.Ordered)
+    const freeShare = Math.sqrt(free.x * free.x + free.z * free.z)
+    // Heading on counts most, but backing off a little beats standing boxed in.
+    const score = freeShare * (1.5 + ax * toward.x + az * toward.z)
+    if (freeShare > 0.5 && score > bestScore) {
+      bestScore = score
+      best = clearOfScenery(sim.map, x + ax * SIDESTEP, z + az * SIDESTEP)
+    }
+  }
+  if (!best) {
+    return false
+  }
+  applyCommand(sim, { type: "move-to", soldier, x: best.x, z: best.z })
+  return true
 }
 
 /**
@@ -298,11 +444,17 @@ export function squadSystem(sim: Simulation): void {
       followers.some((member) => sim.soldiers.suppression.value[member] >= UNDER_FIRE)
     // Which half is on the move: they change about every bound, by the clock, so every squad keeps the same rhythm.
     const movingHalf = Math.floor(sim.tick / BOUND.steps) % 2
+    const following =
+      order.kind === "follow" || order.kind === "rally" ? followSlots(sim, squad.leader, followers) : null
     followers.forEach((member, slot) => {
+      const followPlace = following?.get(member) ?? {
+        x: sim.soldiers.position.x[member],
+        z: sim.soldiers.position.z[member]
+      }
       if (order.kind === "rally") {
         // Broken men too: at his voice they get up and come in to him.
         const { x, z } = sim.soldiers.position
-        orderMoveTo(sim, member, followSlot(sim, squad.leader, slot), {
+        orderMoveTo(sim, member, followPlace, {
           kind: "point",
           x: x[squad.leader],
           z: z[squad.leader],
@@ -346,12 +498,19 @@ export function squadSystem(sim: Simulation): void {
       if (order.kind === "follow") {
         const { x, z } = sim.soldiers.position
         // Snapped to a coarse grid, so a moving leader doesn't call for a new route every few steps.
-        orderMoveTo(sim, member, followSlot(sim, squad.leader, slot), {
-          kind: "point",
-          x: Math.round(x[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
-          z: Math.round(z[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
-          radius: FOLLOW_GOAL_RADIUS
-        })
+        orderMoveTo(
+          sim,
+          member,
+          followPlace,
+          {
+            kind: "point",
+            x: Math.round(x[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
+            z: Math.round(z[squad.leader] / FOLLOW_GOAL_SNAP) * FOLLOW_GOAL_SNAP,
+            radius: FOLLOW_GOAL_RADIUS
+          },
+          false,
+          FOLLOW_TOLERANCE
+        )
         return
       }
       const goal = order.kind === "raid" ? raidGoal(order) : order

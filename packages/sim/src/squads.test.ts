@@ -1,4 +1,4 @@
-import { createFlatMap, Surface } from "@verdun/map"
+import { beltLayout, carveTrenches, createFlatMap, heightAt, type Scenery, Surface, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -263,5 +263,102 @@ describe("advancing under fire", () => {
     stepFor(sim, 1)
 
     expect(members.filter((member) => hasComponent(sim.world, member, sim.soldiers.moveOrder)).length).toBe(8)
+  })
+})
+
+describe("moving like men in a trench", () => {
+  it("files along a trench behind the leader, on its floor, and lines the fire step when he stands on it", () => {
+    const ground = createFlatMap({ name: "field", cellSize: 0.5, columns: 300, rows: 200 }, 5, Surface.Grass)
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [10, 50],
+        [140, 50]
+      ],
+      facing: "north"
+    }
+    carveTrenches(ground, [trench])
+    const sim = createSimulation({ map: { ...ground, trenches: [trench] }, seed: 1 })
+    const members = Array.from({ length: 8 }, (_, index) =>
+      spawnSoldier(sim, { side: Side.French, x: 60 - index * 1.5, z: 49.6 })
+    )
+    const squad = createSquad(sim, Side.French, members, "player")
+    const [leader] = members
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "follow" } })
+    enqueueCommand(sim, { type: "steer", soldier: leader!, x: 1, z: 0 })
+    // Turning to look out over the parapet as he goes doesn't send anyone up it.
+    enqueueCommand(sim, { type: "face", soldier: leader!, x: 0, z: 1 })
+    const floor = (member: number) =>
+      heightAt(sim.map, sim.soldiers.position.x[member], sim.soldiers.position.z[member]) - 5
+    for (let second = 0; second < 20; second++) {
+      stepFor(sim, 1)
+      for (const member of members.slice(1)) {
+        expect(floor(member)).toBeLessThan(-0.8)
+      }
+    }
+    enqueueCommand(sim, { type: "steer", soldier: leader!, x: 0, z: 0 })
+    stepFor(sim, 10)
+    for (const member of members.slice(1)) {
+      expect(floor(member)).toBeCloseTo(-1.9, 1)
+      // Behind him, a man every couple of metres.
+      expect(sim.soldiers.position.x[member]).toBeLessThan(sim.soldiers.position.x[leader!])
+      expect(distance(sim, member, leader!)).toBeLessThan(16)
+    }
+
+    // Up onto the fire step: the file follows him up.
+    enqueueCommand(sim, { type: "steer", soldier: leader!, x: 0, z: 1 })
+    for (let step = 0; step < 6 * TICK_RATE && floor(leader!) < -0.86; step++) {
+      stepSimulation(sim)
+    }
+    enqueueCommand(sim, { type: "steer", soldier: leader!, x: 0, z: 0 })
+    stepSimulation(sim)
+    expect(floor(leader!)).toBeCloseTo(-0.85, 1)
+    stepFor(sim, 15)
+    expect(members.slice(1).filter((member) => Math.abs(floor(member) + 0.85) < 0.1).length).toBeGreaterThanOrEqual(5)
+  })
+
+  it("climbs a bare stretch of a wire fence his route would have him wade, as a player does", () => {
+    const belt = {
+      points: [
+        [0, 100],
+        [200, 100]
+      ] as [number, number][]
+    }
+    const { fences, tangles } = beltLayout(belt)
+    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 4))
+    const sim = createSimulation({ map: { ...map, wire: [belt] }, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: bare?.x ?? 0, z: 95 })
+    const squad = createSquad(sim, Side.French, [soldier], "ai")
+    // No gap anywhere: the route goes through the belt.
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: bare?.x ?? 0, z: 110 } })
+    let climbed = false
+    for (let step = 0; step < 15 * TICK_RATE; step++) {
+      stepSimulation(sim)
+      climbed ||= hasComponent(sim.world, soldier, sim.soldiers.vault)
+    }
+    expect(climbed).toBe(true)
+    // Wading a belt goes at a twentieth of walking pace: this is over it and nearly there in 15 s.
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(106)
+  })
+
+  it("keeps a squad sent past a ruin out of it, and gets them there", () => {
+    const ruin: Scenery = { kind: "ruin", x: 100, z: 80, heading: 0, variant: 0, scale: 1 }
+    const sim = createSimulation({ map: { ...map, scenery: [ruin] }, seed: 1 })
+    const members = Array.from({ length: 8 }, (_, index) =>
+      spawnSoldier(sim, { side: Side.French, x: 92 + index * 2, z: 60 })
+    )
+    const squad = createSquad(sim, Side.French, members)
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: 100, z: 100 } })
+    for (let step = 0; step < 40 * TICK_RATE; step++) {
+      stepSimulation(sim)
+      for (const member of members) {
+        const dx = sim.soldiers.position.x[member] - 100
+        const dz = sim.soldiers.position.z[member] - 80
+        expect(dx * dx + dz * dz).toBeGreaterThan(4 * 4)
+      }
+    }
+    for (const member of members) {
+      expect(sim.soldiers.position.z[member]).toBeGreaterThan(97)
+    }
   })
 })

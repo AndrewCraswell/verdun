@@ -1,12 +1,14 @@
 import { type EntityId, hasComponent, query, removeComponent } from "bitecs"
+import { canBeShoved, clearOfScenery, Climbing, wayAhead } from "../body.ts"
 import { recoveryFactor } from "../climate.ts"
 import { BROKEN_MORALE, PINNED } from "../combat.ts"
 import { MaskState, Stance } from "../components.ts"
 import { weatherPace } from "../ground.ts"
 import { clampToMap, FULL_STAMINA, type Simulation, soldierIds } from "../simulation.ts"
+import { soldiersNear } from "../spatial.ts"
 import { CRAWL_FACTOR, CROUCH_FACTOR, isInTrench } from "../stance.ts"
 import { climbLimit, groundPace } from "../terrain.ts"
-import { VAULT_PACE } from "../vault.ts"
+import { vaultPace } from "../vault.ts"
 import { wirePace } from "../wire.ts"
 
 /** Walking pace in a gas mask, as a fraction of normal: every breath is drawn through the filter. */
@@ -109,8 +111,63 @@ export function steeredPosition(
   const sx = Math.fround(steering.x * scale)
   const sz = Math.fround(steering.z * scale)
   const length = Math.sqrt(sx * sx + sz * sz)
-  const { stride } = paceOf(sim, soldier, sx / length, sz / length, steering.run, stepSeconds)
-  return clampToMap(sim, x[soldier] + sx * stride, z[soldier] + sz * stride)
+  const { x: toX, z: toZ } = stepAlong(
+    sim,
+    soldier,
+    sx / length,
+    sz / length,
+    length,
+    steering.run,
+    stepSeconds,
+    Climbing.Steered
+  )
+  return { x: toX, z: toZ }
+}
+
+/** A step a soldier takes: where it gets him, how it went, and the way he went (a unit vector). */
+interface Step {
+  readonly x: number
+  readonly z: number
+  /** His pace along the way he went, or null where a wall or a corner stopped him. */
+  readonly pace: Pace | null
+  readonly stride: number
+  readonly wayX: number
+  readonly wayZ: number
+  /** Whether he went the way he meant to, with nothing turning him along a wall. */
+  readonly straight: boolean
+}
+
+/**
+ * Where a soldier gets to in a step heading along (dx, dz), a unit vector, at `share` of his pace (a player's steering
+ * can ask for less than all of it): along any wall or ledge in his way he won't climb (body.ts), and round any scenery
+ * he can't walk through. Takes nothing; the movement system and a client's prediction share it, so they agree.
+ */
+function stepAlong(
+  sim: Simulation,
+  soldier: EntityId,
+  dx: number,
+  dz: number,
+  share: number,
+  run: boolean,
+  stepSeconds: number,
+  climbing: Climbing
+): Step {
+  const x = sim.soldiers.position.x[soldier]
+  const z = sim.soldiers.position.z[soldier]
+  const meant = paceOf(sim, soldier, dx, dz, run, stepSeconds)
+  const way = wayAhead(sim.map, x, z, dx, dz, meant.stride * share, climbing)
+  const kept = Math.sqrt(way.x * way.x + way.z * way.z)
+  if (!(kept > 1e-6)) {
+    return { x, z, pace: null, stride: 0, wayX: dx, wayZ: dz, straight: false }
+  }
+  const straight = way.x === dx && way.z === dz
+  const wayX = straight ? dx : way.x / kept
+  const wayZ = straight ? dz : way.z / kept
+  const pace = straight ? meant : paceOf(sim, soldier, wayX, wayZ, run, stepSeconds)
+  const stride = pace.stride * kept * share
+  const clear = clearOfScenery(sim.map, x + wayX * stride, z + wayZ * stride)
+  const next = clampToMap(sim, clear.x, clear.z)
+  return { x: next.x, z: next.z, pace, stride, wayX, wayZ, straight }
 }
 
 /**
@@ -124,16 +181,18 @@ export function steeredPosition(
 export function movementSystem(sim: Simulation, stepSeconds: number): void {
   const { position, moveOrder, facing, steer, stance, suppression, mask, morale, stamina, vault } = sim.soldiers
   const activity = new Map<EntityId, Activity>()
-  const strideFor = (soldier: EntityId, dx: number, dz: number, run: boolean): number => {
-    const { stride, running, ground } = paceOf(sim, soldier, dx, dz, run, stepSeconds)
-    if (running) {
+  /** Notes what a man did this step, for his breath: walked, ran, crawled, or nothing, stopped by a wall. */
+  const went = (soldier: EntityId, pace: Pace | null): void => {
+    if (!pace) {
+      return
+    }
+    if (pace.running) {
       activity.set(soldier, Activity.Running)
       // Hard going costs breath as well as pace.
-      stamina.value[soldier] += STAMINA.run * stepSeconds * (Math.min(HARD_GOING, 1 / ground) - 1)
+      stamina.value[soldier] += STAMINA.run * stepSeconds * (Math.min(HARD_GOING, 1 / pace.ground) - 1)
     } else {
       activity.set(soldier, stance.value[soldier] === Stance.Prone ? Activity.Crawling : Activity.Walking)
     }
-    return stride
   }
   const leftTrench = (soldier: EntityId, wasInTrench: boolean) => {
     if (wasInTrench && !isInTrench(sim.map, position.x[soldier], position.z[soldier])) {
@@ -148,7 +207,7 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     const dx = vault.x[soldier] - position.x[soldier]
     const dz = vault.z[soldier] - position.z[soldier]
     const distance = Math.sqrt(dx * dx + dz * dz)
-    const stride = VAULT_PACE * stepSeconds
+    const stride = vaultPace(sim, position.x[soldier], position.z[soldier]) * stepSeconds
     activity.set(soldier, Activity.Walking)
     if (distance <= stride) {
       position.x[soldier] = vault.x[soldier]
@@ -171,14 +230,19 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
       continue
     }
     const wasInTrench = isInTrench(sim.map, position.x[soldier], position.z[soldier])
-    const stride = strideFor(soldier, steer.x[soldier] / length, steer.z[soldier] / length, steer.run[soldier] === 1)
-    const next = clampToMap(
+    const step = stepAlong(
       sim,
-      position.x[soldier] + steer.x[soldier] * stride,
-      position.z[soldier] + steer.z[soldier] * stride
+      soldier,
+      steer.x[soldier] / length,
+      steer.z[soldier] / length,
+      length,
+      steer.run[soldier] === 1,
+      stepSeconds,
+      Climbing.Steered
     )
-    position.x[soldier] = next.x
-    position.z[soldier] = next.z
+    went(soldier, step.pace)
+    position.x[soldier] = step.x
+    position.z[soldier] = step.z
     leftTrench(soldier, wasInTrench)
   }
 
@@ -195,19 +259,33 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     // Math.sqrt is correctly rounded on every engine; Math.hypot is not, which would break determinism.
     const distance = Math.sqrt(dx * dx + dz * dz)
     const wasInTrench = isInTrench(sim.map, position.x[soldier], position.z[soldier])
-    const stride = distance > 0 ? strideFor(soldier, dx / distance, dz / distance, moveOrder.run[soldier] === 1) : 0
+    const step =
+      distance > 0
+        ? stepAlong(
+            sim,
+            soldier,
+            dx / distance,
+            dz / distance,
+            1,
+            moveOrder.run[soldier] === 1,
+            stepSeconds,
+            Climbing.Ordered
+          )
+        : null
+    went(soldier, step?.pace ?? null)
 
-    if (distance <= stride) {
+    if (!step || (step.straight && distance <= step.stride)) {
       position.x[soldier] = moveOrder.x[soldier]
       position.z[soldier] = moveOrder.z[soldier]
       arrived.push(soldier)
     } else {
-      position.x[soldier] += (dx / distance) * stride
-      position.z[soldier] += (dz / distance) * stride
+      position.x[soldier] = step.x
+      position.z[soldier] = step.z
     }
-    if (distance > 0) {
-      facing.x[soldier] = dx / distance
-      facing.z[soldier] = dz / distance
+    if (step) {
+      // The way he walks: along a wall that turns him, not into it.
+      facing.x[soldier] = step.wayX
+      facing.z[soldier] = step.wayZ
     }
     leftTrench(soldier, wasInTrench)
   }
@@ -219,6 +297,7 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
   for (const soldier of landed) {
     removeComponent(sim.world, soldier, vault)
   }
+  makeRoom(sim)
 
   const recovery = recoveryFactor(sim)
   for (const soldier of soldierIds(sim)) {
@@ -241,6 +320,84 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     } else if (value >= WINDED) {
       stamina.spent[soldier] = 0
     }
+  }
+}
+
+/** Men keep at least this far apart, in metres: shoulder to shoulder, not one inside another. */
+const ROOM = 0.6
+/** The share of the overlap made up each step: men ease apart over a few steps rather than jump. */
+const EASE_APART = 0.3
+
+/**
+ * Men standing closer than `ROOM` ease apart, so a squad sent into one shell hole spreads round it and a file in a
+ * trench doesn't walk through itself. A player's man is never shoved: the bot steps aside. Nobody is shoved up a wall or
+ * into a ruin, and men down a dugout or climbing a fence are left alone. Pairs are taken in id order, so it's the same
+ * every time.
+ */
+function makeRoom(sim: Simulation): void {
+  const { position, stance, vault } = sim.soldiers
+  const steered = new Set<EntityId>()
+  for (const squad of sim.squads) {
+    if (squad.controller === "player" && squad.leader >= 0) {
+      steered.add(squad.leader)
+    }
+  }
+  const settled = (soldier: EntityId) =>
+    stance.value[soldier] === Stance.Sheltering || hasComponent(sim.world, soldier, vault)
+  for (const soldier of soldierIds(sim)) {
+    if (settled(soldier)) {
+      continue
+    }
+    for (const other of soldiersNear(sim, position.x[soldier], position.z[soldier], ROOM)) {
+      if (other <= soldier || settled(other) || !isFighting(sim, other)) {
+        continue
+      }
+      let dx = position.x[other] - position.x[soldier]
+      let dz = position.z[other] - position.z[soldier]
+      let distance = Math.sqrt(dx * dx + dz * dz)
+      if (distance >= ROOM) {
+        continue
+      }
+      if (distance < 1e-6) {
+        // On the very spot: apart east and west, the same way every time.
+        dx = 1
+        dz = 0
+        distance = 1
+        position.x[other] += 1e-3
+      }
+      const push = (ROOM - Math.min(distance, ROOM)) * EASE_APART
+      // The share of the shove the first man takes: none if a player steers him, all of it if the other is steered.
+      let share = 0.5
+      if (steered.has(soldier)) {
+        share = 0
+      } else if (steered.has(other)) {
+        share = 1
+      }
+      shove(sim, soldier, (-dx / distance) * push * share, (-dz / distance) * push * share)
+      shove(sim, other, (dx / distance) * push * (1 - share), (dz / distance) * push * (1 - share))
+    }
+  }
+}
+
+/** Whether a soldier is still in the fight: neither fallen nor taken. */
+function isFighting(sim: Simulation, soldier: EntityId): boolean {
+  return (
+    !hasComponent(sim.world, soldier, sim.soldiers.dead) && !hasComponent(sim.world, soldier, sim.soldiers.captured)
+  )
+}
+
+/** Moves a man by a little, unless that would put him up a wall or in a ruin. */
+function shove(sim: Simulation, soldier: EntityId, dx: number, dz: number): void {
+  if (dx === 0 && dz === 0) {
+    return
+  }
+  const { position } = sim.soldiers
+  const x = position.x[soldier]
+  const z = position.z[soldier]
+  const to = clampToMap(sim, x + dx, z + dz)
+  if (canBeShoved(sim.map, x, z, to.x, to.z)) {
+    position.x[soldier] = to.x
+    position.z[soldier] = to.z
   }
 }
 
