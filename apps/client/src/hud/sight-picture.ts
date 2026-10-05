@@ -73,6 +73,23 @@ export function aimedAt(sim: Simulation, shooter: EntityId, seen: (soldier: Enti
   return best
 }
 
+/** A standing man's front, in square metres: what a shot's spread is measured against. */
+const FRONT = 0.75
+/** The spread's ring is never drawn tighter than this, nor wider, in metres across its radius. */
+const SPREAD = { min: 0.9, max: 6 } as const
+
+/**
+ * How wide a shot's spread is at the man aimed at, as the radius of a ring round him, in metres, for its chance of
+ * hitting: a man's front fills that share of the ring. A man in the open close by sits in a tight ring; a head over a
+ * parapet, or a man far off, in a wide one; and the ring tightens as the aim steadies.
+ */
+export function spreadRadius(chance: number): number {
+  if (!(chance > 0)) {
+    return SPREAD.max
+  }
+  return Math.min(SPREAD.max, Math.max(SPREAD.min, Math.sqrt(FRONT / (Math.PI * chance))))
+}
+
 /** How steady a shot's aim is, from 0 to 1, from its share of the chance (half for a snap shot, all of it steadied). */
 function steadinessOf(share: number): number {
   return Math.min(1, Math.max(0, (share - 0.5) / 0.5))

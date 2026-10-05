@@ -7,8 +7,17 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { aimedTarget, type EntityId, isAlive, type Simulation, type Squad } from "@verdun/sim"
+import {
+  aimedTarget,
+  type EntityId,
+  hitChance,
+  isAlive,
+  shotSteadiness,
+  type Simulation,
+  type Squad
+} from "@verdun/sim"
 import { type InstanceBuffer, instanceBuffer } from "../effects/instance-buffer.ts"
+import { spreadRadius } from "../hud/sight-picture.ts"
 import { keepsOffSoldiers } from "../render/marker-stencil.ts"
 import { aimedTargetNow } from "./aimed-target.ts"
 
@@ -73,6 +82,7 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad, 
   const dim = markerMaterial(scene, "squad-member-marker", new Color3(0.62, 0.58, 0.4))
 
   let aimingAt = -1
+  let spread = { tick: -1, shooter: -1, target: -1, radius: 0 }
 
   /**
    * Whom his aimed shot would strike once the simulation has the page's aim: worked out against it, put in the mirror
@@ -160,7 +170,14 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad, 
         target.position.set(x, heightAt(sim.map, x, z) + 0.08, z)
         const eye = scene.activeCamera?.globalPosition
         const away = eye ? Vector3.Distance(eye, target.position) : 0
-        target.scaling.setAll(Math.max(1, (away * TARGET_RING_ANGLE) / TARGET_RING_DIAMETER))
+        // As wide as the shot's spread at him, worked out once a step; and never too small to see.
+        if (spread.tick !== sim.tick || spread.shooter !== soldier || spread.target !== aimed) {
+          const chance = hitChance(sim, soldier, aimed) * shotSteadiness(sim, soldier)
+          spread = { tick: sim.tick, shooter: soldier, target: aimed, radius: spreadRadius(chance) }
+        }
+        target.scaling.setAll(
+          Math.max((spread.radius * 2) / TARGET_RING_DIAMETER, (away * TARGET_RING_ANGLE) / TARGET_RING_DIAMETER)
+        )
         const dx = x - sim.soldiers.position.x[soldier]
         const dz = z - sim.soldiers.position.z[soldier]
         reach = Math.max(AIM_LENGTH, Math.sqrt(dx * dx + dz * dz) - AIM_START - 0.9)

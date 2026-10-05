@@ -10,7 +10,7 @@ import {
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
-import { aimedAt, sightPicture } from "./sight-picture.ts"
+import { aimedAt, sightPicture, spreadRadius } from "./sight-picture.ts"
 
 /**
  * A field 5 m up with a north-facing fire trench along z = 50, and a wall of earth 4 m high across x 140-160 at z = 120:
@@ -114,5 +114,16 @@ describe("the sight picture", () => {
     expect(aimedAt(sim, shooter, everyone)).toBe(hidden)
     expect(aimedAt(sim, shooter, () => false)).toBe(-1)
     expect(sightPicture(sim, shooter, () => false)).toBeNull()
+  })
+})
+
+describe("the spread", () => {
+  it("rings a likely shot tightly and an unlikely one widely, within bounds", () => {
+    expect(spreadRadius(0.15)).toBeLessThan(spreadRadius(0.05))
+    expect(spreadRadius(1)).toBe(0.9)
+    expect(spreadRadius(0.001)).toBe(6)
+    expect(spreadRadius(0)).toBe(6)
+    // Doubling the chance, as steadying does, narrows the ring by the square root of two.
+    expect(spreadRadius(0.05) / spreadRadius(0.1)).toBeCloseTo(Math.SQRT2, 5)
   })
 })
