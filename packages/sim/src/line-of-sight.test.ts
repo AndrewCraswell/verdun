@@ -1,6 +1,7 @@
 import { carveTrenches, createFlatMap, sampleIndex, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { createLineOfSight, EYE_HEIGHT, eyeAt, type LineOfSight } from "./line-of-sight.ts"
+import { EYE_HEIGHT, eyeAt, type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 
 const opened: LineOfSight[] = []
 async function open(map: Parameters<typeof createLineOfSight>[0]) {

@@ -4,7 +4,6 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, Surface } from "@verdun/map"
 import {
-  createLineOfSight,
   createSimulation,
   createSquad,
   CRAWL_FACTOR,
@@ -15,6 +14,7 @@ import {
   Stance,
   stepSimulation
 } from "@verdun/sim"
+import { createLineOfSight } from "@verdun/sim/physics"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   aimToward,

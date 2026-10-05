@@ -7,7 +7,6 @@ import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
 import surroundingsUrl from "@verdun/map/data/fleury-surroundings.bin?url"
 import {
   createFixedStepper,
-  createLineOfSight,
   shotEvents,
   loadWeatherRegion,
   WEATHER_REGIONS,
@@ -258,6 +257,8 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
   // In a worker the host answers the page's questions of sight from the ground, without physics; inline, the
   // simulation's own sight lines serve both.
   if (!host.inWorker) {
+    // Only the simulation inline needs the physics: in a worker the page never loads it.
+    const { createLineOfSight } = await import("@verdun/sim/physics")
     host.attachLineOfSight(await createLineOfSight(map))
   }
   const tracers = createTracers(view.scene, {

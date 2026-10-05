@@ -6,7 +6,8 @@
   "type": "module",
   "description": "Pure, deterministic game simulation: ECS world, fixed-timestep stepping, commands and snapshots.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./physics": "./src/physics-sight.ts"
   },
   "scripts": {
     "check:types": "tsc --noEmit",

@@ -2,7 +2,8 @@ import { carveTrenches, createFlatMap, type Trench, Surface } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { Side, Stance } from "./components.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import {
   createSimulation,
   enqueueCommand,

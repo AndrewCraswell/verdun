@@ -12,7 +12,8 @@ import {
 } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import {
   createSimulation,
   enqueueCommand,

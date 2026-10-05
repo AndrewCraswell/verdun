@@ -14,7 +14,6 @@ import { attackBehindBarrage, bombardEnemyLine, setupSkirmish } from "../apps/cl
 import { decodeElevation, generateFleurySector, generatePrototypeSector } from "../packages/map/src/index.ts"
 import {
   capturedIds,
-  createLineOfSight,
   createSimulation,
   evacuatedIds,
   fallenIds,
@@ -26,6 +25,7 @@ import {
   TICK_RATE,
   Weapon
 } from "../packages/sim/src/index.ts"
+import { createLineOfSight } from "../packages/sim/src/physics-sight.ts"
 
 /** Writes a line of the report. */
 const print = (line) => process.stdout.write(`${line}\n`)

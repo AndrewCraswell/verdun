@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { decodeElevation, generateFleurySector, heightAt } from "@verdun/map"
-import { createLineOfSight, type WorldPoint } from "@verdun/sim"
+import { type WorldPoint } from "@verdun/sim"
+import { createLineOfSight } from "@verdun/sim/physics"
 import { describe, expect, it } from "vitest"
 import { createTerrainSight } from "./terrain-sight.ts"
 

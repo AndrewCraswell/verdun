@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from "vitest"
 import { gasWeather } from "./commander.ts"
 import { Side, Stance } from "./components.ts"
 import { clockAt } from "./environment.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import { isNight, isStandTo, restsTonight } from "./routine.ts"
 import {
   createSimulation,

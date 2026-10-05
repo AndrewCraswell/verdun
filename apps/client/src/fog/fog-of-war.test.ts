@@ -6,7 +6,6 @@ import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer"
 import { Scene } from "@babylonjs/core/scene"
 import { carveTrenches, createFlatMap, sampleIndex, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import {
-  createLineOfSight,
   createSimulation,
   createSquad,
   enqueueCommand,
@@ -17,6 +16,7 @@ import {
   Stance,
   stepSimulation
 } from "@verdun/sim"
+import { createLineOfSight } from "@verdun/sim/physics"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { FogOfWarPlugin } from "./fog-of-war-plugin.ts"
 import { createFogOfWar } from "./fog-of-war.ts"

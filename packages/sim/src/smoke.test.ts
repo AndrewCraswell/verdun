@@ -4,7 +4,7 @@ import { Shell } from "./artillery.ts"
 import { hitChance } from "./combat.ts"
 import { Side } from "./components.ts"
 import { releaseGas } from "./gas.ts"
-import { createLineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import { createSimulation, spawnSoldier, stepSimulation, TICK_RATE } from "./simulation.ts"
 import { seesThroughSmoke, smokeBetween } from "./smoke.ts"
 

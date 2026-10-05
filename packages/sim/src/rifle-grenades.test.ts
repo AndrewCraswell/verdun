@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { shotEvents, toWeapon, Weapon } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import { RIFLE_GRENADES_CARRIED } from "./rifle-grenades.ts"
 import {
   createSimulation,

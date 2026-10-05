@@ -182,7 +182,13 @@ async function launchChrome() {
     stop() {
       stopTree(child)
       // Chrome may hold the profile a moment longer; a profile left in the temp folder does no harm.
-      setTimeout(() => rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }), 1500)
+      setTimeout(() => {
+        try {
+          rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+        } catch {
+          // Still locked: the temp folder's own clean-up takes it later.
+        }
+      }, 1500)
     }
   }
 }

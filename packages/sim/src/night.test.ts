@@ -4,7 +4,8 @@ import { hitChance, shotEvents } from "./combat.ts"
 import { Side } from "./components.ts"
 import { clockAt } from "./environment.ts"
 import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, isDark } from "./flares.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import { aimInLight, canMakeOut, sightReach } from "./sight.ts"
 import {
   createSimulation,

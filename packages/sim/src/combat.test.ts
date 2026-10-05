@@ -3,7 +3,8 @@ import { hasComponent } from "bitecs"
 import { afterEach, describe, expect, it } from "vitest"
 import { BROKEN_MORALE, fireAt, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
-import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
+import { type LineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import {
   createSimulation,
   enqueueCommand,

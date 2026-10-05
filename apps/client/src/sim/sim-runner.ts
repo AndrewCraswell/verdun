@@ -1,6 +1,5 @@
 import { decodeElevation, generateFleurySector } from "@verdun/map"
 import {
-  createLineOfSight,
   createSimulation,
   createSyncSource,
   enqueueCommand,
@@ -9,6 +8,7 @@ import {
   stepSimulation,
   type SyncSource
 } from "@verdun/sim"
+import { createLineOfSight } from "@verdun/sim/physics"
 import { createSightModel, type SightModel } from "../fog/sight-model.ts"
 import { setupSkirmish } from "../skirmish.ts"
 import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"

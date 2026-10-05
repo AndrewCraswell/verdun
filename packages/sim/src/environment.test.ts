@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { shotEvents } from "./combat.ts"
 import { Side } from "./components.ts"
 import { clockAt, clockMoment, DAY, DEFAULT_ELAPSED, DEFAULT_WEEK, timeScale, WEEK } from "./environment.ts"
-import { createLineOfSight } from "./line-of-sight.ts"
+import { createLineOfSight } from "./physics-sight.ts"
 import {
   createSimulation,
   enqueueCommand,
