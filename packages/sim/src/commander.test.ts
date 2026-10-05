@@ -117,6 +117,49 @@ describe("counter-attacks", () => {
     expect(sim.artillery.missions).toHaveLength(0)
   })
 
+  it("go in on the stretch that was lost, with the reserves near it", () => {
+    const map = createFlatMap({ name: "wide", cellSize: 0.5, columns: 800, rows: 440 }, 5, Surface.Grass)
+    const line = (z: number): Trench => ({
+      kind: "fire",
+      points: [
+        [20, z],
+        [380, z]
+      ],
+      facing: "south"
+    })
+    const trenches = [line(150), line(190)]
+    carveTrenches(map, trenches)
+    const sim = createSimulation({ map: { ...map, trenches }, seed: 1 })
+    for (let index = 0; index < 10; index++) {
+      spawnSoldier(sim, { side: Side.French, x: 30 + index * 4, z: 149 })
+    }
+    spawnSoldier(sim, { side: Side.German, x: 300, z: 150 })
+    const reserve = (x: number) => {
+      const squad = createSquad(
+        sim,
+        Side.German,
+        [0, 4, 8, 12].map((offset) => spawnSoldier(sim, { side: Side.German, x: x + offset, z: 189.2 }))
+      )
+      squad.order = { kind: "reserve" }
+      return squad
+    }
+    const near = reserve(60)
+    const far = reserve(330)
+    stepFor(sim, COUNTER_ATTACK_DELAY + 6)
+    const state = sim.commanders[Side.German]
+
+    // Every 100 m window holding eight or more of them, joined: 0 to 125 m.
+    expect([state.lostFromX, state.lostToX]).toEqual([0, 125])
+    const [field, heavy] = sim.artillery.missions
+    expect([field?.fromX, field?.toX]).toEqual([0, 145])
+    // The same weight of fire per metre as on the whole front.
+    expect(field?.roundsPerMinute).toBeCloseTo((120 * 145) / 400)
+    expect(heavy?.roundsPerMinute).toBeCloseTo((24 * 145) / 400)
+    stepFor(sim, 125)
+    expect(near.order.kind).toBe("creep")
+    expect(far.order.kind).toBe("reserve")
+  })
+
   it("are saved and restored mid-way", () => {
     const { sim } = frontTaken()
     stepFor(sim, COUNTER_ATTACK_DELAY + 6)

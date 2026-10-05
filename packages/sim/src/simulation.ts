@@ -26,7 +26,13 @@ import { createGunCrews, type GunCrewState, type GunMannedEvent, gunCrewSystem }
 import type { LineOfSight } from "./line-of-sight.ts"
 import { navigationSystem } from "./navigation.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
-import { type OperationOverEvent, type OperationState, operationSystem, type ZeroHourEvent } from "./operation.ts"
+import {
+  type OperationOverEvent,
+  type OperationState,
+  operationSystem,
+  type SecondWaveEvent,
+  type ZeroHourEvent
+} from "./operation.ts"
 import {
   createReinforcements,
   type ReinforcementEvent,
@@ -130,6 +136,7 @@ export type SimEvent =
   | FallenEvent
   | CasualtyEvent
   | ZeroHourEvent
+  | SecondWaveEvent
   | OperationOverEvent
 
 export interface SimulationOptions {

@@ -598,6 +598,39 @@ export function frontLineSpan(trenches: readonly Trench[], side: Side): LineSpan
 }
 
 /**
+ * The span of a side's front line along a stretch of it, from `fromX` to `toX`: its bays and traverses there, and where
+ * it crosses the stretch's ends. Null if the line doesn't reach the stretch.
+ */
+export function lineSpanBetween(trenches: readonly Trench[], side: Side, fromX: number, toX: number): LineSpan | null {
+  const line = frontLine(trenches, side)
+  if (!line) {
+    return null
+  }
+  const zs: number[] = []
+  for (let index = 0; index < line.points.length; index++) {
+    const [ax, az] = line.points[index]!
+    if (ax >= fromX && ax <= toX) {
+      zs.push(az)
+    }
+    const next = line.points[index + 1]
+    if (next) {
+      const [bx, bz] = next
+      for (const edge of [fromX, toX]) {
+        if ((ax - edge) * (bx - edge) < 0) {
+          zs.push(az + ((edge - ax) / (bx - ax)) * (bz - az))
+        }
+      }
+    }
+  }
+  if (zs.length === 0) {
+    return null
+  }
+  return side === Side.French
+    ? { forward: Math.max(...zs), rear: Math.min(...zs) }
+    : { forward: Math.min(...zs), rear: Math.max(...zs) }
+}
+
+/**
  * The defenders' answer to an attack: as soon as one of a side's soldiers sees an enemy out in no man's land, they call
  * for a barrage ahead of their own wire. It lands after the historical delay and fires field HE and shrapnel.
  */

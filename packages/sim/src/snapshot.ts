@@ -24,7 +24,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 22
+export const SIM_STATE_VERSION = 23
 
 export interface SoldierState {
   readonly id: number

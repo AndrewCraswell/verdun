@@ -121,6 +121,27 @@ export function wireAt(field: WireField, x: number, z: number): number {
   return field.density[row * field.columns + column] ?? 0
 }
 
+/**
+ * How much of the wire staked in a rectangle of ground still stands, from 0 (all cut) to 1 (untouched, or none staked
+ * there to cut).
+ */
+export function wireStanding(field: WireField, fromX: number, toX: number, fromZ: number, toZ: number): number {
+  const minColumn = Math.max(0, Math.floor(Math.min(fromX, toX) / WIRE_CELL))
+  const maxColumn = Math.min(field.columns - 1, Math.floor(Math.max(fromX, toX) / WIRE_CELL))
+  const minRow = Math.max(0, Math.floor(Math.min(fromZ, toZ) / WIRE_CELL))
+  const maxRow = Math.min(field.rows - 1, Math.floor(Math.max(fromZ, toZ) / WIRE_CELL))
+  let staked = 0
+  let standing = 0
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let column = minColumn; column <= maxColumn; column++) {
+      const cell = row * field.columns + column
+      staked += field.staked[cell] ?? 0
+      standing += field.density[cell] ?? 0
+    }
+  }
+  return staked > 0 ? Math.min(1, standing / staked) : 1
+}
+
 /** Walking pace through the wire at a point, as a fraction of normal: 1 where there's none or it's been cut away. */
 export function wirePace(field: WireField, x: number, z: number): number {
   const density = wireAt(field, x, z)

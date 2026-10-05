@@ -77,6 +77,55 @@ The commander sets, on a planning map:
 
 Built today as fixed recipes (B, G); the planning screen comes with operations proper.
 
+## The frontage and who goes
+
+An attack goes in on a **stretch** of the enemy line, not the whole sector. Local attacks at Verdun went in on a few
+hundred metres; the guns of a whole division were laid on that stretch while the rest of the line held and fired in
+support. The game does the same: the frontage defaults to 200 m of the sector's 600.
+
+### Choosing the stretch
+
+The commander slides a window of the frontage's width along the enemy's front line, 20 m at a time, and scores each
+place by four things it can know:
+
+| Factor        | Weight | What it measures                                                                     |
+| ------------- | ------ | ------------------------------------------------------------------------------------ |
+| Value         | 2      | An objective the enemy holds on or close behind the stretch                          |
+| Odds          | 2      | Our men opposite against his garrison there, his machine guns counting four men each |
+| Wire          | 1      | How much of his wire in front of the stretch the guns have cut                       |
+| No man's land | 1      | How narrow it is: 50 m scores best, 200 m and more scores nothing                    |
+
+The highest score wins, with a small random nudge so a defender can't always tell where the blow will fall. Until
+[raids and intelligence](sector-battle.md#raids-and-intelligence) exist, the AI knows the enemy garrison's true
+strength; later it will know only what patrols and prisoners have told it. A human commander picks the stretch on the
+planning map, with the AI's scores shown as advice.
+
+### Who goes
+
+- **The first wave** is every squad of the attacking side in its front line opposite the stretch, with 10 m to spare
+  each side, that still has four men fit to go. It is worked out at zero hour, so squads that were wiped out, taken over
+  or joined since the plan are counted as they stand then.
+- **The player's squad** is put in the first wave: if it isn't opposite the stretch, it swaps men with the nearest squad
+  that is, the same swap as [joining the battle](soldier-and-squad.md#joining-the-battle). The briefing says where.
+- **The second wave** is the two reserve squads nearest the stretch. Three minutes after zero hour they leave the
+  support line and make for the enemy's front line on the stretch, to help hold what the first wave took.
+- **Everyone else holds** and fires on what they can see. The rest of the reserves stay back for the enemy's
+  counter-attack.
+
+### The fire plan on the stretch
+
+The bombardments, the standing barrage and the creeping barrage cover the stretch and 20 m beyond each flank. They keep
+the same weight of fire per metre of front as the [balance](balance.md#battle-matrix-built) runs set for the whole
+sector, so a narrower attack uses fewer shells, not denser ones. The enemy's line either side of the stretch is not
+shelled, so his men there can fire into the attack's flanks: smoke on the flanks is the answer once it's built.
+
+### The defender's answer
+
+The defender's counter-attack goes in where its line was lost: the commander finds the stretch held by the enemy (at
+least eight of them, outnumbering what's left of the garrison three to one, over any 100 m), joins it to any lost line
+next to it, shells it and sends the reserves nearest it in behind a barrage on that stretch alone. A whole-front attack
+loses the whole line, and the whole line is counter-attacked, as before.
+
 ## Where the men assemble
 
 Before zero hour the attacking squads gather in **jump-off positions**. Where and how is the operation's biggest risk.
@@ -159,27 +208,26 @@ hour that a player can win or lose. It reuses what's built (the bombardment, the
 counter-attack, objectives, takeover) and adds a start, a clock and an end. The simulation runs it, so the balance
 harness plays the same operation the player does.
 
-**The plan**: the French attack the German front line across the sector's whole frontage, behind three bombardments and
-a creeping barrage. The player leads a squad in the first wave; the French support line stays back as reserves. Three
-bombardments is the [balance](balance.md#battle-matrix-built) scenario where a prepared attack takes the line on most
-seeds; whether it then holds against the counter-attack is up to the fight. Built (`planOperation`), and in the balance
-harness as "playtest operation": on ten seeds, with the player's squad standing idle, it was taken on six, a footing on
-two and repulsed on two, the attackers losing about three quarters of their men, replacements included.
+**The plan**: the French attack a 200 m stretch of the German front line the commander chooses (see
+[the frontage and who goes](#the-frontage-and-who-goes)), behind three bombardments and a creeping barrage on that
+stretch. The player's squad goes in the first wave with the squads opposite it; two reserve squads follow as the second
+wave; the rest of the line holds and fires in support.
 
 | Clock | What happens                                                                                              |
 | ----- | --------------------------------------------------------------------------------------------------------- |
 | 0:00  | The battle runs. The briefing is done; the HUD counts down to zero hour.                                  |
 | 1:30  | The bombardment opens: three two-minute bombardments of the German front line and its wire, back to back. |
-| 8:00  | **Zero hour.** Whistles; the whole French front line goes over behind the creeping barrage.               |
+| 8:00  | **Zero hour.** Whistles; the first wave goes over behind the creeping barrage.                            |
 | 8–18  | The assault: into the German line and onto the objectives.                                                |
 | 18–28 | The hold: the German counter-thrusts and counter-attack, about five minutes after the line falls.         |
 | 28:00 | **The end.** The result is judged and the report shown.                                                   |
 
 **The result**, judged at the end:
 
-- **Taken**: the French hold the German front line, by the commander's own test of a lost line (at least eight men in
-  it, outnumbering what's left of the garrison three to one).
-- **A footing**: the line isn't held, but the French hold at least one objective the Germans held at the start.
+- **Taken**: the French hold the stretch of German front line they attacked, by the commander's own test of a lost line
+  (at least eight men in it, outnumbering what's left of the garrison there three to one).
+- **A footing**: the stretch isn't held, but the French are in it with at least four men, or hold an objective on it the
+  Germans held at the start.
 - **Repulsed**: neither. The operation ends early as repulsed once, from four minutes after zero hour, no French soldier
   has been beyond his own front line for a minute.
 
@@ -189,8 +237,9 @@ gunners put down; the player's squad's losses and the enemy it shot or bombed do
 
 **For the player** (built by the HUD and menus):
 
-- **Briefing**, before the battle runs: the date and hour, the plan in three lines, the player's squad and its place in
-  the line, zero hour eight minutes after going in, and what counts as taken.
+- **Briefing**, before the battle runs: the date and hour, the plan in three lines, the stretch on the sector map and
+  the objectives on it, the player's squad in the first wave, zero hour eight minutes after going in, and what counts as
+  taken.
 - **In battle**: the countdown to zero hour, then to the end; a banner and whistles at zero hour; the objectives as they
   change hands.
 - **The end**: the report with the result, and _Fight again_ or _Front door_.

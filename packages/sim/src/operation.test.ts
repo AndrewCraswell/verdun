@@ -8,8 +8,10 @@ import {
   attackBehindBarrage,
   bombardEnemyLine,
   bombardmentAt,
+  chooseStretch,
   copyOperation,
   CREEPING_BARRAGE,
+  firstWave,
   judgeOperation,
   operationSystem,
   type OperationPlan,
@@ -40,9 +42,9 @@ function stepFor(sim: Simulation, seconds: number): SimEvent[] {
   return events
 }
 
-/** A squad of four at x on the given line. */
+/** A squad of six at x on the given line, 3 m apart. */
 function squadAt(sim: Simulation, side: Side, x: number, z: number, controller: "player" | "ai" = "ai") {
-  const members = [0, 1, 2, 3].map((slot) => spawnSoldier(sim, { side, x: x + slot * 3, z }))
+  const members = [0, 1, 2, 3, 4, 5].map((slot) => spawnSoldier(sim, { side, x: x + slot * 3, z }))
   return createSquad(sim, side, members, controller)
 }
 
@@ -51,6 +53,8 @@ const plan = (changes: Partial<OperationPlan> = {}): OperationPlan => ({
   zeroHourIn: 140,
   bombardments: 1,
   holdSeconds: 600,
+  frontage: 300,
+  secondWave: 0,
   ...changes
 })
 
@@ -115,7 +119,7 @@ describe("operations", () => {
     const events = stepFor(sim, 130)
 
     expect(operation.wentOver).toBe(true)
-    expect(events).toContainEqual({ type: "zero-hour", side: Side.French })
+    expect(events).toContainEqual({ type: "zero-hour", side: Side.French, squads: [attackers.id] })
     expect(attackers.order.kind).toBe("creep")
   })
 
@@ -174,7 +178,7 @@ describe("operations", () => {
     const prisoner = spawnSoldier(sim, { side: Side.German, x: 120, z: depth * 0.75 })
     const operation = planOperation(sim, plan())
     const [shooter = -1, hit = -1, shelled = -1] = player.members
-    expect(operation.tally.sides[Side.French].engaged).toBe(4)
+    expect(operation.tally.sides[Side.French].engaged).toBe(6)
     expect(operation.tally.sides[Side.German].engaged).toBe(3)
 
     sim.events.length = 0
@@ -192,11 +196,94 @@ describe("operations", () => {
     const { tally } = operation
 
     expect(tally.sides[Side.German]).toEqual({ engaged: 3, killed: 2, wounded: 0, returned: 0, captured: 1 })
-    expect(tally.sides[Side.French]).toEqual({ engaged: 4, killed: 1, wounded: 1, returned: 1, captured: 0 })
+    expect(tally.sides[Side.French]).toEqual({ engaged: 6, killed: 1, wounded: 1, returned: 1, captured: 0 })
     expect(tally.causes).toMatchObject({ rifle: 1, own: 1, shell: 0 })
     expect(tally.gunnersDown).toBe(1)
     expect(tally.squad).toEqual({ lost: 2, downed: 2 })
     expect(tally.objectives).toEqual([{ name: "Farm", side: Side.French, at: sim.tick }])
+  })
+
+  it("choose the stretch where the odds are best, and attack the whole front when it's that wide", () => {
+    const sim = createSimulation({ map: { ...map, objectives: [] }, seed: 1 })
+    for (let x = 30; x <= 270; x += 6) {
+      spawnSoldier(sim, { side: Side.French, x, z: depth * 0.25 })
+    }
+    // The Germans are thick on the ground in the west and thin in the east.
+    for (let x = 30; x <= 150; x += 4) {
+      spawnSoldier(sim, { side: Side.German, x, z: depth * 0.75 })
+    }
+    for (let x = 160; x <= 270; x += 30) {
+      spawnSoldier(sim, { side: Side.German, x, z: depth * 0.75 })
+    }
+
+    expect(chooseStretch(sim, Side.French, 100).fromX).toBeGreaterThanOrEqual(140)
+    expect(chooseStretch(sim, Side.French, 400)).toEqual({ fromX: 0, toX: 300 })
+  })
+
+  it("choose a stretch with an objective on it over one without", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const { fromX, toX } = chooseStretch(sim, Side.French, 100)
+
+    expect(fromX <= 160 && toX >= 140).toBe(true)
+  })
+
+  it("send only the squads opposite the stretch, with the player's among them, behind a barrage on it", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const player = squadAt(sim, Side.French, 30, depth * 0.25, "player")
+    const opposite = squadAt(sim, Side.French, 140, depth * 0.25)
+    const beside = squadAt(sim, Side.French, 220, depth * 0.25)
+    const reserveNear = squadAt(sim, Side.French, 150, depth * 0.12)
+    const reserveFar = squadAt(sim, Side.French, 30, depth * 0.12)
+    reserveNear.order = { kind: "reserve" }
+    reserveFar.order = { kind: "reserve" }
+    const playerMen = [...opposite.members]
+    const operation = planOperation(sim, plan({ zeroHourIn: 1, bombardments: 0, frontage: 100, secondWave: 1 }))
+
+    // The farm at x = 150 draws the attack; the player's squad takes over the men opposite it.
+    const { fromX, toX } = operation
+    expect(fromX <= 140 && toX >= 160 && fromX > 40 && toX < 220).toBe(true)
+    expect(player.members).toEqual(playerMen)
+    expect(firstWave(sim, operation).map((squad) => squad.id)).toEqual([player.id])
+    const events = stepFor(sim, 1.2)
+    const [barrage] = sim.artillery.missions
+
+    expect(events).toContainEqual({ type: "zero-hour", side: Side.French, squads: [player.id] })
+    expect([barrage?.fromX, barrage?.toX]).toEqual([fromX - 20, toX + 20])
+    expect(barrage?.roundsPerMinute).toBeCloseTo((CREEPING_BARRAGE.roundsPerMinute * 140) / 300)
+    expect(player.order.kind).toBe("creep")
+    expect([opposite.order.kind, beside.order.kind]).toEqual(["hold", "hold"])
+
+    const later = stepFor(sim, 180)
+    expect(later).toContainEqual({ type: "second-wave", side: Side.French, squads: [reserveNear.id] })
+    stepFor(sim, 0.1)
+    expect(reserveNear.order).toMatchObject({ kind: "advance" })
+    expect(reserveFar.order.kind).toBe("reserve")
+  })
+
+  it("bombard only the stretch, at the whole front's weight of fire per metre", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    bombardEnemyLine(sim, Side.French, { fromX: 100, toX: 200 })
+    stepSimulation(sim)
+    const [heavy, field, wire] = sim.artillery.missions
+
+    expect([heavy?.fromX, heavy?.toX]).toEqual([80, 220])
+    expect(heavy?.roundsPerMinute).toBeCloseTo((30 * 140) / 300)
+    expect(field?.roundsPerMinute).toBeCloseTo((120 * 140) / 300)
+    expect(wire?.roundsPerMinute).toBeCloseTo((600 * 140) / 300)
+  })
+
+  it("count a footing where enough attackers are in the stretch of the enemy's line", () => {
+    const sim = createSimulation({ map: { ...map, objectives: [] }, seed: 1 })
+    const operation = planOperation(sim, plan({ frontage: 100 }))
+    const middle = (operation.fromX + operation.toX) / 2
+    for (let index = 0; index < 4; index++) {
+      spawnSoldier(sim, { side: Side.French, x: middle + index * 5, z: depth * 0.75 })
+    }
+    for (let index = 0; index < 3; index++) {
+      spawnSoldier(sim, { side: Side.German, x: middle - 10 - index * 5, z: depth * 0.75 })
+    }
+
+    expect(judgeOperation(sim, operation)).toBe("footing")
   })
 
   it("copy deeply for snapshots", () => {

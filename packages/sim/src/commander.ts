@@ -1,5 +1,5 @@
 import { mapWidth, type Trench } from "@verdun/map"
-import { frontLineSpan, type LineSpan, Shell } from "./artillery.ts"
+import { frontLineSpan, lineSpanBetween, type LineSpan, Shell } from "./artillery.ts"
 import { applyCommand } from "./commands.ts"
 import { NEVER, Side } from "./components.ts"
 import { dawnWithin, isNight } from "./routine.ts"
@@ -19,6 +19,14 @@ const LOST_ENEMIES = 8
 const LOST_RATIO = 3
 /** Soldiers within this distance of the front line's span hold it, in metres: its bays, traverses and the ground around. */
 const FRONT_BAND = 15
+/** The front line is looked at in windows this wide for a stretch of it lost, in metres... */
+const LOST_WINDOW = 100
+/** ...moved along it this far at a time. */
+const LOST_STEP = 25
+/** Reserves within this distance of a lost stretch's ends go in to retake it, in metres; with none so near, all go. */
+const RESERVE_REACH = 100
+/** The counter-attack's shells fall this far beyond each end of the lost stretch, in metres. */
+const FLANK = 20
 /**
  * Seconds from losing the front line to counter-attacking it. German doctrine at Verdun was the immediate counter-attack
  * (Gegenstoß) by the reserves close behind, before the attackers could dig in: runners back, the reserves formed up,
@@ -65,6 +73,9 @@ const NIGHT_GAS = {
 export interface CommanderState {
   /** The step the front line was found lost, or -1. */
   lostAt: number
+  /** Where it was lost: the stretch the enemy holds, from west to east, in metres. */
+  lostFromX: number
+  lostToX: number
   /** The step the counter-attack began, with the guns shelling the lost trench, or -1. */
   counterAttackedAt: number
   /** The step the reserves leave their dugouts and go in, or -1 once they have (or before it's planned). */
@@ -89,6 +100,8 @@ export interface CounterAttackEvent {
 function freshCommander(): CommanderState {
   return {
     lostAt: -1,
+    lostFromX: 0,
+    lostToX: 0,
     counterAttackedAt: -1,
     assaultAt: -1,
     raidSquad: -1,
@@ -106,15 +119,31 @@ export function createCommanders(): Record<Side, CommanderState> {
   }
 }
 
-/** Whether the enemy holds a side's front line: enough of them in it, and few of its own men left. */
-export function frontLost(sim: Simulation, side: Side, front: LineSpan): boolean {
-  const near = Math.min(front.forward, front.rear) - FRONT_BAND
-  const far = Math.max(front.forward, front.rear) + FRONT_BAND
+/** A stretch of the front, from west to east, in metres. */
+export interface Stretch {
+  readonly fromX: number
+  readonly toX: number
+}
+
+/** A side's men and the enemy's in its front line along a stretch of it, from those in the fight. */
+function menInStretch(
+  sim: Simulation,
+  side: Side,
+  stretch: Stretch,
+  living: readonly number[] = soldierIds(sim)
+): { own: number; enemies: number } {
+  const span = lineSpanBetween(sim.map.trenches, side, stretch.fromX, stretch.toX)
   let own = 0
   let enemies = 0
-  for (const soldier of soldierIds(sim)) {
+  if (span === null) {
+    return { own, enemies }
+  }
+  const near = Math.min(span.forward, span.rear) - FRONT_BAND
+  const far = Math.max(span.forward, span.rear) + FRONT_BAND
+  for (const soldier of living) {
+    const x = sim.soldiers.position.x[soldier]
     const z = sim.soldiers.position.z[soldier]
-    if (z < near || z > far) {
+    if (x < stretch.fromX || x > stretch.toX || z < near || z > far) {
       continue
     }
     if (sim.soldiers.side.value[soldier] === side) {
@@ -123,21 +152,83 @@ export function frontLost(sim: Simulation, side: Side, front: LineSpan): boolean
       enemies++
     }
   }
+  return { own, enemies }
+}
+
+/** Whether the enemy holds a stretch of a side's front line: enough of them in it, and few of its own men left. */
+export function stretchLost(sim: Simulation, side: Side, stretch: Stretch, living?: readonly number[]): boolean {
+  const { own, enemies } = menInStretch(sim, side, stretch, living)
   return enemies >= LOST_ENEMIES && enemies >= own * LOST_RATIO
+}
+
+/** How many of a side's men are in the enemy's front line along a stretch of it. */
+export function menInEnemyLine(sim: Simulation, side: Side, stretch: Stretch): number {
+  return menInStretch(sim, side === Side.French ? Side.German : Side.French, stretch).enemies
+}
+
+/**
+ * Where the enemy holds a side's front line: every window of it he holds, joined where they touch or overlap, and the
+ * longest such stretch returned; null where he holds none.
+ */
+function lostStretch(sim: Simulation, side: Side): Stretch | null {
+  const width = mapWidth(sim.map)
+  const living = soldierIds(sim)
+  let longest: Stretch | null = null
+  let current: { fromX: number; toX: number } | null = null
+  const close = () => {
+    if (current && (longest === null || current.toX - current.fromX > longest.toX - longest.fromX)) {
+      longest = current
+    }
+    current = null
+  }
+  for (let fromX = 0; ; fromX += LOST_STEP) {
+    const toX = Math.min(width, fromX + LOST_WINDOW)
+    if (stretchLost(sim, side, { fromX, toX }, living)) {
+      if (current && fromX <= current.toX) {
+        current.toX = toX
+      } else {
+        close()
+        current = { fromX, toX }
+      }
+    }
+    if (toX >= width) {
+      break
+    }
+  }
+  close()
+  return longest
+}
+
+/** The ground the counter-attack shells: the lost stretch and a little beyond each end, and its share of the front. */
+function counterAttackFront(sim: Simulation, state: CommanderState): { fromX: number; toX: number; share: number } {
+  const width = mapWidth(sim.map)
+  const fromX = Math.max(0, state.lostFromX - FLANK)
+  const toX = Math.min(width, state.lostToX + FLANK)
+  return { fromX, toX, share: (toX - fromX) / width }
 }
 
 function reservesOf(sim: Simulation, side: Side) {
   return sim.squads.filter((squad) => squad.side === side && squad.order.kind === "reserve" && squad.leader >= 0)
 }
 
-/** Opens the counter-attack: the guns pound the lost trench while the reserves wait below. */
-function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan): void {
+/** The lost stretch's own span of trench: its bays there, or the whole line's where it has none. */
+function lostSpan(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): LineSpan {
+  return lineSpanBetween(sim.map.trenches, side, state.lostFromX, state.lostToX) ?? front
+}
+
+/**
+ * Opens the counter-attack: the guns pound the lost stretch while the reserves wait below, at the same weight of fire
+ * per metre whatever its length.
+ */
+function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): void {
+  const span = lostSpan(sim, side, front, state)
+  const { fromX, toX, share } = counterAttackFront(sim, state)
   const lostTrench = {
     side,
-    fromX: 0,
-    toX: mapWidth(sim.map),
-    z: (front.forward + front.rear) / 2,
-    band: Math.abs(front.forward - front.rear) + 20,
+    fromX,
+    toX,
+    z: (span.forward + span.rear) / 2,
+    band: Math.abs(span.forward - span.rear) + 20,
     delay: 0,
     duration: PREPARATION.seconds,
     // A hasty shoot on ground just lost, corrected by observers who can see it, or not.
@@ -145,39 +236,49 @@ function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan): voi
   }
   applyCommand(sim, {
     type: "fire-mission",
-    plan: { ...lostTrench, shell: Shell.FieldHighExplosive, roundsPerMinute: PREPARATION.fieldRoundsPerMinute }
+    plan: { ...lostTrench, shell: Shell.FieldHighExplosive, roundsPerMinute: PREPARATION.fieldRoundsPerMinute * share }
   })
   applyCommand(sim, {
     type: "fire-mission",
-    plan: { ...lostTrench, shell: Shell.HeavyHighExplosive, roundsPerMinute: PREPARATION.heavyRoundsPerMinute }
+    plan: { ...lostTrench, shell: Shell.HeavyHighExplosive, roundsPerMinute: PREPARATION.heavyRoundsPerMinute * share }
   })
   sim.events.push({ type: "counter-attack", side })
 }
 
-/** Sends a side's reserves out of their dugouts to retake its lost front line behind a creeping barrage. */
-function assault(sim: Simulation, side: Side, front: LineSpan): void {
-  const reserves = reservesOf(sim, side)
+/**
+ * Sends a side's reserves out of their dugouts to retake its lost stretch of front line behind a creeping barrage: those
+ * near it, or all of them if none are.
+ */
+function assault(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): void {
+  const all = reservesOf(sim, side)
+  const near = all.filter((squad) => {
+    const x = sim.soldiers.position.x[squad.leader]
+    return x >= state.lostFromX - RESERVE_REACH && x <= state.lostToX + RESERVE_REACH
+  })
+  const reserves = near.length > 0 ? near : all
   if (reserves.length === 0) {
     return
   }
+  const span = lostSpan(sim, side, front, state)
+  const { fromX, toX, share } = counterAttackFront(sim, state)
   const towardEnemy = side === Side.French ? 1 : -1
   const reserveZ = reserves.reduce((sum, squad) => sum + sim.soldiers.position.z[squad.leader], 0) / reserves.length
   // Coming from behind, the reserves meet the line's rear first and retake it through to its forward bays.
-  const toFront = Math.abs(front.rear - reserveZ)
+  const toFront = Math.abs(span.rear - reserveZ)
   applyCommand(sim, {
     type: "barrage-attack",
     side,
-    fromX: 0,
-    toX: mapWidth(sim.map),
+    fromX,
+    toX,
     startZ: reserveZ + towardEnemy * Math.min(COUNTER_BARRAGE.openAhead, toFront),
-    objectiveZ: front.forward,
-    objectiveDepth: Math.abs(front.forward - front.rear),
-    roundsPerMinute: COUNTER_BARRAGE.roundsPerMinute,
+    objectiveZ: span.forward,
+    objectiveDepth: Math.abs(span.forward - span.rear),
+    roundsPerMinute: COUNTER_BARRAGE.roundsPerMinute * share,
     lift: COUNTER_BARRAGE.lift,
     interval: COUNTER_BARRAGE.interval,
     standoff: COUNTER_BARRAGE.standoff,
     delay: 0,
-    standingRoundsPerMinute: COUNTER_BARRAGE.standing,
+    standingRoundsPerMinute: COUNTER_BARRAGE.standing * share,
     squads: reserves.map((squad) => squad.id)
   })
 }
@@ -348,10 +449,10 @@ function nightWork(sim: Simulation, side: Side, front: LineSpan, state: Commande
 }
 
 /**
- * The commanders on both sides, every few seconds: a side that finds its front line lost sends its reserves to retake
- * it once they've had time to organise, after two minutes of shelling it, or, in the last hours of the night, at the
- * dawn stand-to. One counter-attack per side. By night they
- * send out wiring parties, a raid, and gas when the wind serves; a raid still out at dawn keeps coming home.
+ * The commanders on both sides, every few seconds: a side that finds a stretch of its front line lost sends the reserves
+ * near it to retake that stretch once they've had time to organise, after two minutes of shelling it, or, in the last
+ * hours of the night, at the dawn stand-to. One counter-attack per side. By night they send out wiring parties, a raid,
+ * and gas when the wind serves; a raid still out at dawn keeps coming home.
  */
 export function commanderSystem(sim: Simulation): void {
   if (sim.tick % (CHECK_SECONDS * TICK_RATE) !== 0) {
@@ -370,17 +471,25 @@ export function commanderSystem(sim: Simulation): void {
     }
     if (state.assaultAt >= 0 && sim.tick >= state.assaultAt) {
       state.assaultAt = -1
-      assault(sim, side, front)
+      assault(sim, side, front, state)
       continue
     }
     if (state.counterAttackedAt >= 0) {
       continue
     }
+    // The lost stretch, as it stands: it grows while the enemy widens his break-in and the reserves form up.
+    const lost = lostStretch(sim, side)
     if (state.lostAt < 0) {
-      if (frontLost(sim, side, front)) {
+      if (lost) {
         state.lostAt = sim.tick
+        state.lostFromX = lost.fromX
+        state.lostToX = lost.toX
       }
       continue
+    }
+    if (lost) {
+      state.lostFromX = Math.min(state.lostFromX, lost.fromX)
+      state.lostToX = Math.max(state.lostToX, lost.toX)
     }
     if (
       sim.tick - state.lostAt >= COUNTER_ATTACK_DELAY * TICK_RATE &&
@@ -389,7 +498,7 @@ export function commanderSystem(sim: Simulation): void {
     ) {
       state.counterAttackedAt = sim.tick
       state.assaultAt = sim.tick + PREPARATION.seconds * TICK_RATE
-      prepareCounterAttack(sim, side, front)
+      prepareCounterAttack(sim, side, front, state)
     }
   }
 }

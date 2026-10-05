@@ -53,11 +53,13 @@ export type {
 } from "./commands.ts"
 export { MaskState, Side, Stance } from "./components.ts"
 export { type CaptureEvent, surrender } from "./capture.ts"
-export { COUNTER_ATTACK_DELAY, type CommanderState, type CounterAttackEvent } from "./commander.ts"
+export { COUNTER_ATTACK_DELAY, type CommanderState, type CounterAttackEvent, type Stretch } from "./commander.ts"
 export {
   attackBehindBarrage,
   bombardEnemyLine,
   bombardmentAt,
+  chooseStretch,
+  firstWave,
   type OperationOverEvent,
   type OperationPlan,
   type OperationResult,
@@ -65,6 +67,7 @@ export {
   type OperationTally,
   PLAYTEST_OPERATION,
   planOperation,
+  type SecondWaveEvent,
   type SideTally,
   type ZeroHourEvent
 } from "./operation.ts"
