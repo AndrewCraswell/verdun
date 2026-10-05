@@ -100,4 +100,5 @@ In order, each verified in the browser and committed on its own:
   switching each part off: the ground about 8 ms, shadow receiving about 4 ms (not its filtering: low or no PCF saves
   nothing), the depth of field 3 ms, bloom 2 ms, grain 1 ms, the soldiers 1.5 ms; the far woods, the trench kit and
   particles are lost in the noise. A 0.75 render scale saves about 5.5 ms. The ground's textures are still uncompressed
-  PNG; KTX2 would cut what they cost in bandwidth. The page's CPU (about 27 ms a frame) is now close behind the GPU.
+  PNG; KTX2 would cut what they cost in bandwidth. Babylon's own work on the page (drawing, render targets, choosing
+  meshes: about 16 ms) is next once the GPU drops much further.
