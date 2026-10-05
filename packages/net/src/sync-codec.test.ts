@@ -19,7 +19,7 @@ import { deflateSync, inflateSync } from "fflate"
 import { Packr } from "msgpackr"
 import { describe, expect, it } from "vitest"
 import { groundMovement } from "./ground-movement.ts"
-import { createSyncEncoder, decodeJoined } from "./sync-codec.ts"
+import { createSyncEncoder, decodeJoined, FAR_EVERY } from "./sync-codec.ts"
 
 function battlefield() {
   const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 300, rows: 300 }, 5, Surface.Grass)
@@ -113,12 +113,16 @@ function closeCloud(mirrored: readonly number[], real: readonly number[]) {
 
 const NOW = Date.UTC(2027, 5, 10, 18)
 const schedule = scheduleForWeek(Date.UTC(1916, 5, 20), NOW)
+/** The battlefield is 150 m square: four cells, the French in the south-west one (0), the Germans north of it (2). */
+const EVERY_CELL = new Set([0, 1, 2, 3])
+
+const encoderFor = (sim: Simulation) => createSyncEncoder(soldierArrayLayout(sim), 150, 150)
 
 describe("the battle's messages", () => {
   it("keep a player's mirror in step with what changed, craters, cut wire, gas and smoke and all", () => {
     const sim = fight()
     const source = createSyncSource(sim)
-    const encoder = createSyncEncoder(soldierArrayLayout(sim))
+    const encoder = encoderFor(sim)
     encoder.encode(source.take())
     const joined = decodeJoined(encoder.welcome(0, schedule, null), battlefield())
     const mirror = createSimulation({ map: battlefield(), seed: 7 })
@@ -130,7 +134,7 @@ describe("the battle's messages", () => {
     let smoke = 0
     for (let message = 0; message < 150; message++) {
       steps(sim, source, 2)
-      applySync(mirror, joined.decoder.decode(encoder.encode(source.take())))
+      applySync(mirror, joined.decoder.decode(encoder.encode(source.take()).for("player", EVERY_CELL)))
       gas = Math.max(gas, ...mirror.gas.concentration)
       smoke = Math.max(smoke, ...mirror.smoke.concentration)
     }
@@ -146,23 +150,106 @@ describe("the battle's messages", () => {
     closeCloud(mirroredSmoke, realSmoke)
   })
 
+  it("send the cells near a player's men every message, and the rest every few, each building on what they have", () => {
+    const sim = fight()
+    const source = createSyncSource(sim)
+    const encoder = encoderFor(sim)
+    encoder.encode(source.take())
+    const joined = decodeJoined(encoder.welcome(0, schedule, null), battlefield())
+    const mirror = createSimulation({ map: battlefield(), seed: 7 })
+    applySync(mirror, joined.sync)
+    const french = sim.squads[0]?.members ?? []
+    const german = sim.squads[1]?.members ?? []
+    const at = (world: Simulation, soldier: number) => [
+      world.soldiers.position.x[soldier],
+      world.soldiers.position.z[soldier]
+    ]
+    // The German squad advances too, so their men change every step.
+    enqueueCommand(sim, { type: "squad-order", squad: 1, order: { kind: "advance", x: 60, z: 60 } })
+
+    let bytesNear = 0
+    let bytesFar = 0
+    const farTurns: boolean[] = []
+    const between: boolean[] = []
+    for (let message = 1; message <= 60; message++) {
+      steps(sim, source, 2)
+      const encoded = encoder.encode(source.take())
+      const mine = encoded.for("player", new Set([0]))
+      bytesNear += encoded.for("watcher", EVERY_CELL).byteLength
+      bytesFar += mine.byteLength
+      const germansBefore = german.map((soldier) => at(mirror, soldier))
+      applySync(mirror, joined.decoder.decode(mine))
+      // Their own men, in the near cell, come every message.
+      for (const soldier of french) {
+        expect(mirror.soldiers.position.x[soldier]).toBeCloseTo(sim.soldiers.position.x[soldier] ?? 0, 1)
+      }
+      const germansNow = german.map((soldier) => at(mirror, soldier))
+      if (message % FAR_EVERY === 0) {
+        // The far men come every few messages, as they then are.
+        farTurns.push(
+          german.every(
+            (soldier) =>
+              Math.abs((mirror.soldiers.position.z[soldier] ?? 0) - (sim.soldiers.position.z[soldier] ?? 0)) < 0.01
+          )
+        )
+      } else if (message > FAR_EVERY) {
+        between.push(JSON.stringify(germansNow) === JSON.stringify(germansBefore))
+      }
+    }
+    expect(farTurns).toEqual(Array.from({ length: 60 / FAR_EVERY }, () => true))
+    expect(between.length).toBeGreaterThan(40)
+    expect(between.every(Boolean)).toBe(true)
+    expect(bytesFar).toBeLessThan(bytesNear)
+  })
+
+  it("send a man whole when he crosses into a player's near cell, and forget a player who's left", () => {
+    const sim = fight()
+    const source = createSyncSource(sim)
+    const encoder = encoderFor(sim)
+    encoder.encode(source.take())
+    const joined = decodeJoined(encoder.welcome(0, schedule, null), battlefield())
+    const mirror = createSimulation({ map: battlefield(), seed: 7 })
+    applySync(mirror, joined.sync)
+    const runner = sim.squads[1]?.members[0] ?? -1
+    // Settle the player into following only their own cell.
+    for (let message = 1; message <= FAR_EVERY; message++) {
+      steps(sim, source, 2)
+      applySync(mirror, joined.decoder.decode(encoder.encode(source.take()).for("player", new Set([0]))))
+    }
+    // A German far away is wounded, which the player isn't sent, then walks into their cell.
+    sim.soldiers.health.value[runner] = 0.42
+    steps(sim, source, 2)
+    applySync(mirror, joined.decoder.decode(encoder.encode(source.take()).for("player", new Set([0]))))
+    expect(mirror.soldiers.health.value[runner]).not.toBeCloseTo(0.42)
+    sim.soldiers.position.z[runner] = 20
+    steps(sim, source, 2)
+    applySync(mirror, joined.decoder.decode(encoder.encode(source.take()).for("player", new Set([0]))))
+
+    expect(mirror.soldiers.health.value[runner]).toBeCloseTo(sim.soldiers.health.value[runner] ?? 0)
+    encoder.forget("player")
+    // Forgotten, the player would be sent everything again, as one just joined.
+    steps(sim, source, 2)
+    const fresh = encoder.encode(source.take())
+    expect(fresh.for("player", new Set()).byteLength).toBe(fresh.for("newcomer", new Set()).byteLength)
+  })
+
   it("send a quiet battle in a few bytes", () => {
     const sim = createSimulation({ map: battlefield(), seed: 7 })
     createSquad(sim, Side.French, [spawnSoldier(sim, { side: Side.French, x: 50, z: 40 })])
     const source = createSyncSource(sim)
-    const encoder = createSyncEncoder(soldierArrayLayout(sim))
+    const encoder = encoderFor(sim)
     encoder.encode(source.take())
     steps(sim, source, 2)
 
-    expect(encoder.encode(source.take()).byteLength).toBeLessThan(400)
+    expect(encoder.encode(source.take()).for("player", EVERY_CELL).byteLength).toBeLessThan(400)
   })
 
   it("welcome a late player to the battle as of the last message, craters and all, and build on it after", () => {
     const sim = fight()
     const source = createSyncSource(sim)
-    const encoder = createSyncEncoder(soldierArrayLayout(sim))
+    const encoder = encoderFor(sim)
     const generated = { heights: sim.map.heights.slice(), surfaces: sim.map.surfaces.slice() }
-    for (let message = 0; message < 60; message++) {
+    for (let message = 0; message < 62; message++) {
       steps(sim, source, 2)
       encoder.encode(source.take())
     }
@@ -174,7 +261,7 @@ describe("the battle's messages", () => {
     const mirror = createSimulation({ map: battlefield(), seed: 7 })
     applySync(mirror, joined.sync)
     steps(sim, source, 1)
-    applySync(mirror, joined.decoder.decode(encoder.encode(source.take())))
+    applySync(mirror, joined.decoder.decode(encoder.encode(source.take()).for("late", new Set())))
 
     const { gas, smoke, ...real } = comparable(sim)
     const { gas: mirroredGas, smoke: mirroredSmoke, ...mirrored } = comparable(mirror)
@@ -185,25 +272,30 @@ describe("the battle's messages", () => {
   })
 
   it("can't welcome a player before the battle's first message", () => {
-    expect(() => createSyncEncoder([]).welcome(0, schedule, null)).toThrow(
+    expect(() => createSyncEncoder([], 100, 100).welcome(0, schedule, null)).toThrow(
       "A player can't be welcomed before the battle's first sync"
     )
   })
 
   it("refuse what isn't a welcome or a sync, or a sync that doesn't fit the battle", () => {
-    const packr = new Packr({ moreTypes: true })
-    const sent = (value: unknown) => deflateSync(packr.pack(value))
+    const packr = new Packr({ moreTypes: true, useRecords: false })
+    const deflated = (value: unknown) => deflateSync(packr.pack(value))
+    const sent = (global: unknown, cells: unknown[] = []) => packr.pack({ g: deflated(global), c: cells })
     const sim = fight()
-    const encoder = createSyncEncoder(soldierArrayLayout(sim))
+    const encoder = encoderFor(sim)
     encoder.encode(createSyncSource(sim).take())
     const { decoder } = decodeJoined(encoder.welcome(0, schedule, null), battlefield())
 
-    expect(() => decodeJoined(sent({ tick: 1 }), battlefield())).toThrow(
+    expect(() => decodeJoined(deflated({ tick: 1 }), battlefield())).toThrow(
       "The server sent a welcome this client can't read"
     )
+    expect(() => decoder.decode(packr.pack({ tick: 1 }))).toThrow("The server sent a sync this client can't read")
     expect(() => decoder.decode(sent({ tick: 1 }))).toThrow("The server sent a sync this client can't read")
     expect(() => decoder.decode(sent({ v: { f: { tick: "soon" } }, s: [], g: [] }))).toThrow(
       "The server's sync doesn't fit the battle this client has"
+    )
+    expect(() => decoder.decode(sent({ v: null, s: [], g: [] }, [[0, 3]]))).toThrow(
+      "The server sent a cell this client can't read"
     )
     expect(decoder.decode(sent({ v: null, s: [], g: [] })).wire).toBeNull()
   })
@@ -211,18 +303,15 @@ describe("the battle's messages", () => {
   it("refuse soldiers' arrays they can't carry, and a welcome short of an array its layout names", () => {
     const sim = fight()
     const sync = createSyncSource(sim).take()
-    expect(() => createSyncEncoder([{ name: "position.x", type: "BigInt64Array" }]).encode(sync)).toThrow(
+    expect(() => createSyncEncoder([{ name: "position.x", type: "BigInt64Array" }], 150, 150).encode(sync)).toThrow(
       "The soldiers' arrays hold a BigInt64Array, which can't be sent"
     )
 
-    const encoder = createSyncEncoder(soldierArrayLayout(sim))
+    const encoder = encoderFor(sim)
     encoder.encode(sync)
-    const welcome = new Packr({ moreTypes: true, useRecords: false }).unpack(
-      inflateSync(encoder.welcome(0, schedule, null))
-    )
-    const short = deflateSync(
-      new Packr({ moreTypes: true, useRecords: false }).pack({ ...welcome, view: { ...welcome.view, arrays: {} } })
-    )
+    const packr = new Packr({ moreTypes: true, useRecords: false })
+    const welcome = packr.unpack(inflateSync(encoder.welcome(0, schedule, null)))
+    const short = deflateSync(packr.pack({ ...welcome, arrays: {} }))
     expect(() => decodeJoined(short, battlefield())).toThrow("The battle as sent has no ")
   })
 })

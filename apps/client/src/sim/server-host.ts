@@ -22,6 +22,7 @@ import { createTerrainSight } from "../fog/terrain-sight.ts"
 import { createPrediction } from "./prediction.ts"
 import type { SimHost, StepTaken } from "./sim-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
+import { createSmoothing } from "./smoothing.ts"
 
 /** The little of a Colyseus room the host uses, so a test can stand in for the server. */
 export interface SectorConnection {
@@ -99,6 +100,7 @@ export async function serverHost(
   // passed over, as they build on a battle this page never had.
   let decoder: SyncDecoder | null = null
   const prediction = createPrediction(mirror)
+  const smoothing = createSmoothing(mirror)
   // The page's own steps, at the simulation's rate: what its commands are given at, and its prediction runs to.
   const clock = createFixedStepper(STEP_SECONDS, Number.MAX_SAFE_INTEGER)
   let step = 0
@@ -111,6 +113,7 @@ export async function serverHost(
       const welcome = decodeJoined(bytesOf(payload), map)
       decoder = welcome.decoder
       applySync(mirror, welcome.sync)
+      smoothing.synced(now(), -1)
       resolve(welcome)
     })
     connection.onLeave((code) => {
@@ -124,6 +127,7 @@ export async function serverHost(
     }
     const sync = decoder.decode(bytesOf(payload))
     applySync(mirror, sync)
+    smoothing.synced(now(), controlled())
     prediction.synced(sync.tick)
     prediction.predict(step, controlled())
     arrived.push(...sync.steps)
@@ -166,6 +170,7 @@ export async function serverHost(
         prediction.sent(step, commands)
       }
       prediction.predict(step, playerSquad.leader)
+      smoothing.advance(at, playerSquad.leader)
       const taken = arrived
       arrived = []
       return taken

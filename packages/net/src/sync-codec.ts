@@ -4,6 +4,17 @@ import { deflateSync, inflateSync } from "fflate"
 import { Packr } from "msgpackr"
 import { apply, diff, isPatch, type Patch } from "./delta.ts"
 import { type GroundMovement, groundFromMovement } from "./ground-movement.ts"
+import {
+  applyCellPatch,
+  type CellGrid,
+  cellGrid,
+  cellOf,
+  type CellPatch,
+  cellPatches,
+  type SoldierArray,
+  soldierArray,
+  type SoldierArrays
+} from "./soldier-cells.ts"
 
 /** A gas or smoke cloud as players are sent it: its concentration quantized (see `quantize`). */
 interface CloudView {
@@ -12,21 +23,17 @@ interface CloudView {
   readonly ground: SimSync["gas"]["ground"]
 }
 
-/** The kinds of typed array the soldiers' arrays are (see `soldierArrayLayout`). */
-type SoldierArray = Float32Array | Int8Array | Int16Array | Int32Array | Uint8Array | Uint16Array | Uint32Array
-
 /** What the sync's packed soldier arrays hold, in order: see `soldierArrayLayout`. */
 export type ArrayLayout = readonly { readonly name: string; readonly type: string }[]
 
 /**
- * The battle as players have last been sent it: the sync's lasting parts, with the soldiers' arrays apart, by name, and
- * the wire and the clouds as last sent rather than null when they haven't changed. Each message sends what changed in
- * it (see delta.ts), never all of it.
+ * The battle as players have last been sent it, but for the soldiers' arrays: the sync's lasting parts, with the wire
+ * and the clouds as last sent rather than null when they haven't changed. Each message sends what changed in it (see
+ * delta.ts), never all of it.
  */
-interface SyncView {
+interface GlobalView {
   readonly tick: number
   readonly soldiers: number
-  readonly arrays: Readonly<Record<string, SoldierArray>>
   readonly members: SimSync["members"]
   readonly state: SimSync["state"]
   readonly wire: SimSync["wire"]
@@ -34,8 +41,8 @@ interface SyncView {
   readonly smoke: CloudView
 }
 
-/** A sync message: what changed in the view, then each step's events and the craters since the last. */
-interface SyncMessage {
+/** The global part of a message: what changed in the global view, then each step's events and the craters since. */
+interface GlobalMessage {
   readonly v: Patch | null
   readonly s: SimSync["steps"]
   readonly g: SimSync["ground"]
@@ -51,18 +58,32 @@ export interface Joined {
   readonly decoder: SyncDecoder
 }
 
-/** The server's side: one for every player at once, as every player is sent the same. */
-export interface SyncEncoder {
+/** One sync of the battle, encoded once, from which each player's message is made. */
+export interface EncodedSync {
   /**
-   * The message for every player: what changed since the last. Every sync the battle makes must go through here, sent
-   * or not, as joining players are welcomed to the last one.
+   * The message for `player`, whose men are in or near `near`, the cells they're to be sent every message: the rest
+   * are sent `FAR_EVERY` messages apart. A player's cells change only at those messages, so every message builds on
+   * exactly what the player has.
    */
-  encode(sync: SimSync): Uint8Array
+  for(player: string, near: ReadonlySet<number>): Uint8Array
+}
+
+/** The server's side: one for every player at once. */
+export interface SyncEncoder {
+  /** The map's cells, as players' near cells are counted in. */
+  readonly grid: CellGrid
+  /**
+   * Takes the battle's next sync. Every sync the battle makes must go through here, sent or not, as joining players are
+   * welcomed to the last one.
+   */
+  encode(sync: SimSync): EncodedSync
   /**
    * What a player joining is sent: the battle as of the last message, so the next builds on it, and `ground`, how
    * shells have moved the ground in all (see `groundMovement`). Only once a sync has been encoded.
    */
   welcome(playerSquad: number, schedule: WarSchedule, ground: GroundMovement | null): Uint8Array
+  /** A player has left: their cells are forgotten. */
+  forget(player: string): void
 }
 
 /** The player's side: follows the messages after the welcome, one by one, in order. */
@@ -70,12 +91,21 @@ export interface SyncDecoder {
   decode(bytes: Uint8Array): SimSync
 }
 
+/** Cells are this many metres a side: Fleury's 600 by 400 m is 24 of them. */
+export const CELL_SIZE = 100
+/**
+ * The cells farther from all of a player's men than this go to them every `FAR_EVERY` messages: twice a second, as the
+ * server sends ten. The page eases every man between his updates (server-host.ts), so the far ones walk, not hop.
+ */
+export const NEAR_RADIUS = 120
+export const FAR_EVERY = 5
+
 /** MessagePack that keeps typed arrays and array buffers as they are, which the battle is made of. */
 const packr = new Packr({ moreTypes: true, useRecords: false })
 
 /**
- * Messages go deflated, once on the server for every player rather than by each connection: about a third smaller,
- * for a tenth of a millisecond a message. The fastest level packs these as small as the default does.
+ * Each part of a message goes deflated, once on the server for every player who's sent it, rather than by each
+ * connection. The fastest level packs these as small as the default does.
  */
 const pack = (value: unknown): Uint8Array => deflateSync(packr.pack(value), { level: 1 })
 const unpack = (bytes: Uint8Array): unknown => packr.unpack(inflateSync(bytes))
@@ -87,7 +117,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * Gas and smoke go to players as a byte a cell, on a logarithmic scale: 0 is clear air (below `CLOUD_FLOOR`, which the
  * simulation counts as negligible), and each step above is about 7% more, up past anything a barrage makes. What a
  * player does with a cloud (draw it, warn of gas, judge what the smoke hides) needs no finer, and a cloud drifting
- * changes far fewer of these steps than of its exact values: smoke was most of what the battle sent before.
+ * changes far fewer of these steps than of its exact values.
  */
 const CLOUD_FLOOR = 0.05
 const CLOUD_STEP = Math.log(2e7) / 254
@@ -130,66 +160,60 @@ function cloud(sent: SimSync["gas"], known: CloudView | undefined): CloudView {
 
 /**
  * Soldiers' values players are sent to no finer than this, as a player could see or the client use: a man's morale,
- * suppression and breath as a hundredth, where he faces to about half a degree, where he is to the centimetre. Morale
- * and suppression ebb a little every step; rounded, they're sent when they've changed enough to tell.
+ * suppression and breath as a hundredth, where he faces to about half a degree. Morale and suppression ebb a little
+ * every step; rounded, they're sent when they've changed enough to tell.
  */
 const PRECISION: Readonly<Record<string, number>> = {
   "morale.value": 0.01,
   "suppression.value": 0.01,
   "stamina.value": 0.01,
   "facing.x": 0.01,
-  "facing.z": 0.01,
-  "position.x": 0.01,
-  "position.z": 0.01
+  "facing.z": 0.01
 }
 
-/** The kinds of typed array soldiers' arrays come in, by name. */
-const KINDS: Readonly<Record<string, new (buffer: ArrayBuffer) => SoldierArray>> = {
-  Float32Array,
-  Int8Array,
-  Int16Array,
-  Int32Array,
-  Uint8Array,
-  Uint16Array,
-  Uint32Array
+/**
+ * Where soldiers are goes as 16 bits a coordinate, in steps of `unit` metres: a centimetre on any map up to 655 m, as
+ * fine as needed on bigger ones. Half what 32-bit floats take, and positions are the most of what changes.
+ */
+const POSITIONS = new Set(["position.x", "position.z"])
+
+/** The position's unit for a map `extent` metres across at its widest. */
+function positionUnit(extent: number): number {
+  return Math.max(0.01, extent / 65_535)
 }
 
-/** A soldier array of the kind named, over `buffer`. */
-function soldierArray(type: string, buffer: ArrayBuffer): SoldierArray {
-  const Kind = KINDS[type]
-  if (!Kind) {
-    throw new TypeError(`The soldiers' arrays hold a ${type}, which can't be sent`)
-  }
-  return new Kind(buffer)
-}
-
-/** The packed soldier arrays apart, by name, each rounded as `PRECISION` has it. */
-function unpacked(sync: SimSync, layout: ArrayLayout): Record<string, SoldierArray> {
+/** The packed soldier arrays apart, by name: rounded as `PRECISION` has it, positions in `unit` steps. */
+function unpacked(sync: SimSync, layout: ArrayLayout, unit: number): Record<string, SoldierArray> {
   const arrays: Record<string, SoldierArray> = {}
   let offset = 0
   for (const { name, type } of layout) {
-    const bytes = soldierArray(type, new ArrayBuffer(0)).BYTES_PER_ELEMENT * sync.soldiers
-    const array = soldierArray(type, new Uint8Array(sync.arrays, offset, bytes).slice().buffer)
-    const precision = PRECISION[name]
-    if (precision && array instanceof Float32Array) {
-      array.forEach((value, soldier) => {
-        array[soldier] = Math.round(value / precision) * precision
-      })
-    }
-    arrays[name] = array
+    const bytes = soldierArray(type, 0).BYTES_PER_ELEMENT * sync.soldiers
+    const raw = soldierArray(type, sync.soldiers)
+    new Uint8Array(raw.buffer).set(new Uint8Array(sync.arrays, offset, bytes))
     offset += bytes
+    const precision = PRECISION[name]
+    if (POSITIONS.has(name)) {
+      arrays[name] = Uint16Array.from(raw, (metres) => Math.min(65_535, Math.max(0, Math.round(metres / unit))))
+    } else if (precision && raw instanceof Float32Array) {
+      arrays[name] = raw.map((value) => Math.round(value / precision) * precision)
+    } else {
+      arrays[name] = raw
+    }
   }
   return arrays
 }
 
-/** The soldier arrays packed again, in the layout's order, as the mirror takes them in. */
-function packed(arrays: SyncView["arrays"], layout: ArrayLayout): ArrayBuffer {
-  const parts = layout.map(({ name }) => {
+/** The soldier arrays packed again, in the layout's order, as the mirror takes them in: positions back in metres. */
+function packed(arrays: SoldierArrays, layout: ArrayLayout, unit: number, soldiers: number): ArrayBuffer {
+  const parts = layout.map(({ name, type }) => {
     const array = arrays[name]
     if (!array) {
       throw new TypeError(`The battle as sent has no ${name}`)
     }
-    return new Uint8Array(array.buffer, array.byteOffset, array.byteLength)
+    const values = POSITIONS.has(name) ? Float32Array.from(array, (steps) => steps * unit) : array
+    const sized = soldierArray(type, soldiers)
+    sized.set(values.subarray(0, soldiers))
+    return new Uint8Array(sized.buffer)
   })
   const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0))
   let offset = 0
@@ -200,11 +224,10 @@ function packed(arrays: SyncView["arrays"], layout: ArrayLayout): ArrayBuffer {
   return bytes.buffer
 }
 
-function viewOf(sync: SimSync, known: SyncView | null, layout: ArrayLayout): SyncView {
+function globalOf(sync: SimSync, known: GlobalView | null): GlobalView {
   return {
     tick: sync.tick,
     soldiers: sync.soldiers,
-    arrays: unpacked(sync, layout),
     members: sync.members,
     state: sync.state,
     wire: sync.wire ?? known?.wire ?? null,
@@ -224,12 +247,19 @@ function field(patch: Patch | null | undefined, key: string): Patch | null {
   return "o" in patch ? (patch.o[key] ?? null) : null
 }
 
-/** The sync for the mirror, from the view as it now stands: the wire and the clouds only where they changed. */
+/** How a battle is sent, which a player is told on joining. */
+interface Format {
+  readonly layout: ArrayLayout
+  readonly unit: number
+}
+
+/** The sync for the mirror, from the views as they now stand: the wire and the clouds only where they changed. */
 function syncOf(
-  view: SyncView,
-  layout: ArrayLayout,
+  view: GlobalView,
+  arrays: SoldierArrays,
+  format: Format,
   patch: Patch | null,
-  message: Pick<SyncMessage, "s" | "g">
+  message: Pick<GlobalMessage, "s" | "g">
 ): SimSync {
   const clouds = (name: "gas" | "smoke") => {
     const changed = field(patch, name)
@@ -243,7 +273,7 @@ function syncOf(
   return {
     tick: view.tick,
     soldiers: view.soldiers,
-    arrays: packed(view.arrays, layout),
+    arrays: packed(arrays, format.layout, format.unit, view.soldiers),
     members: view.members,
     state: view.state,
     wire: field(patch, "wire") ? view.wire : null,
@@ -254,12 +284,11 @@ function syncOf(
   }
 }
 
-function isView(value: unknown): value is SyncView {
+function isGlobalView(value: unknown): value is GlobalView {
   return (
     isRecord(value) &&
     typeof value["tick"] === "number" &&
     typeof value["soldiers"] === "number" &&
-    isRecord(value["arrays"]) &&
     isRecord(value["members"]) &&
     isRecord(value["state"]) &&
     isRecord(value["gas"]) &&
@@ -267,7 +296,7 @@ function isView(value: unknown): value is SyncView {
   )
 }
 
-function isSyncMessage(value: unknown): value is SyncMessage {
+function isGlobalMessage(value: unknown): value is GlobalMessage {
   return (
     isRecord(value) &&
     (value["v"] === null || isPatch(value["v"])) &&
@@ -292,39 +321,129 @@ function isLayout(value: unknown): value is ArrayLayout {
   )
 }
 
-/** `layout` is what the battle's syncs pack into `SimSync.arrays`: its `soldierArrayLayout`. */
-export function createSyncEncoder(layout: ArrayLayout): SyncEncoder {
-  let view: SyncView | null = null
+function isArrays(value: unknown): value is Record<string, SoldierArray> {
+  return (
+    isRecord(value) && Object.values(value).every((array) => ArrayBuffer.isView(array) && !(array instanceof DataView))
+  )
+}
+
+/** Each soldier's cell, from his position in `unit` steps. */
+function cellsOf(arrays: SoldierArrays, grid: CellGrid, unit: number, soldiers: number): Int32Array {
+  const xs = arrays["position.x"]
+  const zs = arrays["position.z"]
+  return Int32Array.from({ length: soldiers }, (_, soldier) =>
+    cellOf(grid, (xs?.[soldier] ?? 0) * unit, (zs?.[soldier] ?? 0) * unit)
+  )
+}
+
+/**
+ * `layout` is what the battle's syncs pack into `SimSync.arrays` (its `soldierArrayLayout`); `width` and `depth` are
+ * the map's, in metres.
+ */
+export function createSyncEncoder(layout: ArrayLayout, width: number, depth: number): SyncEncoder {
+  const grid = cellGrid(width, depth, CELL_SIZE)
+  const unit = positionUnit(Math.max(width, depth))
+  let global: GlobalView | null = null
+  let arrays: SoldierArrays | null = null
+  let cells: Int32Array = new Int32Array(0)
+  // The soldiers as of the last message far cells were sent at, which the next builds on.
+  let farBase: SoldierArrays | null = null
+  let messages = 0
+  // Each player's near cells, set at the last message far cells were sent at; absent for a player who joined since,
+  // who is sent every cell every message until the next.
+  const nearFor = new Map<string, ReadonlySet<number>>()
+
   return {
+    grid,
     encode(sync) {
-      const next = viewOf(sync, view, layout)
-      const message: SyncMessage = { v: diff(view, next), s: sync.steps, g: sync.ground }
-      view = next
-      return pack(message)
+      const nextGlobal = globalOf(sync, global)
+      const globalPart = pack({ v: diff(global, nextGlobal), s: sync.steps, g: sync.ground })
+      global = nextGlobal
+      const next = unpacked(sync, layout, unit)
+      const nextCells = cellsOf(next, grid, unit, sync.soldiers)
+      // A man who's crossed into another cell goes whole, for the players who follow it and didn't follow him before.
+      const crossed = new Set<number>()
+      nextCells.forEach((cell, soldier) => {
+        if (soldier < cells.length && cells[soldier] !== cell) {
+          crossed.add(soldier)
+        }
+      })
+      const near = cellPatches(arrays, next, nextCells, crossed)
+      const farTurn = messages % FAR_EVERY === 0
+      const far = farTurn ? cellPatches(farBase, next, nextCells) : new Map<number, CellPatch>()
+      arrays = next
+      cells = nextCells
+      if (farTurn) {
+        farBase = next
+      }
+      messages++
+      const nearParts = new Map<number, Uint8Array>()
+      const farParts = new Map<number, Uint8Array>()
+      const partOf = (store: Map<number, Uint8Array>, patches: Map<number, CellPatch>, cell: number) => {
+        let part = store.get(cell)
+        const patch = patches.get(cell)
+        if (!part && patch) {
+          part = pack(patch)
+          store.set(cell, part)
+        }
+        return part
+      }
+      const changedCells = new Set([...near.keys(), ...far.keys()])
+      return {
+        for(player, wanted) {
+          const followed = nearFor.get(player)
+          const parts: [number, Uint8Array][] = []
+          for (const cell of changedCells) {
+            const part =
+              !followed || followed.has(cell) ? partOf(nearParts, near, cell) : farTurn && partOf(farParts, far, cell)
+            if (part) {
+              parts.push([cell, part])
+            }
+          }
+          if (farTurn) {
+            nearFor.set(player, wanted)
+          }
+          return packr.pack({ g: globalPart, c: parts })
+        }
+      }
     },
     welcome(playerSquad, schedule, ground) {
-      if (!view) {
+      if (!global || !arrays) {
         throw new Error("A player can't be welcomed before the battle's first sync")
       }
-      return pack({ playerSquad, schedule, layout, view, ground })
+      return pack({ playerSquad, schedule, layout, unit, view: global, arrays, ground })
+    },
+    forget(player) {
+      nearFor.delete(player)
     }
   }
 }
 
-function decoderFrom(start: SyncView, layout: ArrayLayout): SyncDecoder {
+function decoderFrom(start: GlobalView, startArrays: Record<string, SoldierArray>, format: Format): SyncDecoder {
   let view = start
+  const arrays = startArrays
   return {
     decode(bytes) {
-      const message: unknown = unpack(bytes)
-      if (!isSyncMessage(message)) {
+      const message: unknown = packr.unpack(bytes)
+      if (!isRecord(message) || !(message["g"] instanceof Uint8Array) || !Array.isArray(message["c"])) {
         throw new TypeError("The server sent a sync this client can't read")
       }
-      const next: unknown = message.v ? apply(view, message.v) : view
-      if (!isView(next)) {
+      const globalPart = unpack(message["g"])
+      if (!isGlobalMessage(globalPart)) {
+        throw new TypeError("The server sent a sync this client can't read")
+      }
+      const next: unknown = globalPart.v ? apply(view, globalPart.v) : view
+      if (!isGlobalView(next)) {
         throw new TypeError("The server's sync doesn't fit the battle this client has")
       }
       view = next
-      return syncOf(view, layout, message.v, message)
+      for (const part of message["c"]) {
+        if (!Array.isArray(part) || !(part[1] instanceof Uint8Array)) {
+          throw new TypeError("The server sent a cell this client can't read")
+        }
+        applyCellPatch(arrays, unpack(part[1]), view.soldiers)
+      }
+      return syncOf(view, arrays, format, globalPart.v, globalPart)
     }
   }
 }
@@ -349,16 +468,19 @@ export function decodeJoined(bytes: Uint8Array, map: BattlefieldMap): Joined {
     typeof welcome["playerSquad"] !== "number" ||
     !isSchedule(welcome["schedule"]) ||
     !isLayout(welcome["layout"]) ||
-    !isView(welcome["view"]) ||
+    typeof welcome["unit"] !== "number" ||
+    !isGlobalView(welcome["view"]) ||
+    !isArrays(welcome["arrays"]) ||
     !(welcome["ground"] === null || isMovement(welcome["ground"]))
   ) {
     throw new TypeError("The server sent a welcome this client can't read")
   }
-  const { layout, view, ground } = welcome
+  const { layout, unit, view, arrays, ground } = welcome
+  const format = { layout, unit }
   return {
     playerSquad: welcome["playerSquad"],
     schedule: welcome["schedule"],
-    sync: syncOf(view, layout, { f: view }, { s: [], g: ground ? [groundFromMovement(map, ground)] : [] }),
-    decoder: decoderFrom(view, layout)
+    sync: syncOf(view, arrays, format, { f: view }, { s: [], g: ground ? [groundFromMovement(map, ground)] : [] }),
+    decoder: decoderFrom(view, arrays, format)
   }
 }

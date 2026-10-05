@@ -93,10 +93,17 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
         const started = performance.now()
         const steps = sector.advance(Date.now())
         const stepped = performance.now()
-        const sync = relay.due(this.clients.length > 0)
+        const sync = relay.due()
         if (sync) {
-          stats.sent(performance.now() - stepped, sync.byteLength)
-          this.broadcastBytes(MESSAGE.sync, sync, {})
+          // One encoding for everyone; each player's message is its parts for the cells near their men.
+          let bytes = 0
+          for (const client of this.clients) {
+            const squad = players.squadOf(client.sessionId)
+            const message = sync.for(client.sessionId, squad ? relay.nearCells(squad) : new Set())
+            client.sendBytes(MESSAGE.sync, message)
+            bytes += message.byteLength
+          }
+          stats.sent(performance.now() - stepped, this.clients.length > 0 ? bytes / this.clients.length : 0)
         }
         stats.stepped(stepped - started, steps)
         if (statsEvery !== undefined && performance.now() - reported >= statsEvery) {
@@ -121,6 +128,7 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
 
     override onLeave(client: Client): void {
       players.leave(client.sessionId)
+      relay.forget(client.sessionId)
       log(`${client.sessionId} left; the bots took over`)
     }
   }

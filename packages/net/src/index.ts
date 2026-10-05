@@ -9,11 +9,15 @@ export {
   MESSAGE,
   SECTOR_ROOM
 } from "./protocol.ts"
+export { cellsNear } from "./soldier-cells.ts"
 export {
   type ArrayLayout,
   createSyncEncoder,
   decodeJoined,
+  type EncodedSync,
+  FAR_EVERY,
   type Joined,
+  NEAR_RADIUS,
   type SyncDecoder,
   type SyncEncoder
 } from "./sync-codec.ts"

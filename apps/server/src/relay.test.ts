@@ -5,6 +5,7 @@ import {
   createSimulation,
   createSquad,
   createWarClock,
+  enqueueCommand,
   scheduleForWeek,
   Side,
   spawnSoldier,
@@ -67,10 +68,11 @@ describe("the relay", () => {
     expect(mirror.squads.length).toBe(1)
 
     // Every message after the welcome builds on the one before.
+    const squad = sector.sim.squads[0]
     const take = () => {
-      const sync = relay.due(true)
-      if (sync) {
-        applySync(mirror, joined.decoder.decode(sync))
+      const sync = relay.due()
+      if (sync && squad) {
+        applySync(mirror, joined.decoder.decode(sync.for("player", relay.nearCells(squad))))
       }
       return sync
     }
@@ -80,24 +82,39 @@ describe("the relay", () => {
     expect(take()).toBeNull()
     sector.advance(1)
     expect(take()).not.toBeNull()
-    expect(Array.from(mirror.soldiers.position.x.slice(0, 4))).toEqual(
-      Array.from(sector.sim.soldiers.position.x.slice(0, 4))
+    Array.from(mirror.soldiers.position.x.slice(0, 4)).forEach((x, soldier) =>
+      expect(x).toBeCloseTo(sector.sim.soldiers.position.x[soldier] ?? 0, 1)
     )
   })
 
-  it("sends nothing to no one, but keeps a player joining after in step, with no steps kept back", () => {
+  it("keeps a player joining after a sync no one was sent in step, with no steps kept back", () => {
     const sector = smallSector()
     const relay = createRelay(sector)
     sector.advance(4)
-    expect(relay.due(false)).toBeNull()
+    expect(relay.due()).not.toBeNull()
 
     const { decoder } = decodeJoined(relay.welcome(0), field())
     sector.advance(2)
-    const sync = relay.due(true)
-    if (!sync) {
-      throw new Error("No sync when one was due")
+    const sync = relay.due()
+    expect(decoder.decode(sync?.for("player", new Set()) ?? new Uint8Array()).steps.map((step) => step.tick)).toEqual([
+      5, 6
+    ])
+    relay.forget("player")
+  })
+
+  it("follows the cells near a squad's men in the fight, and none once they've all fallen", () => {
+    const sector = smallSector()
+    const relay = createRelay(sector)
+    const squad = sector.sim.squads[0]
+    if (!squad) {
+      throw new Error("No squad")
     }
-    expect(decoder.decode(sync).steps.map((step) => step.tick)).toEqual([5, 6])
+    expect(relay.nearCells(squad)).toEqual(new Set([0]))
+    for (const member of squad.members) {
+      enqueueCommand(sector.sim, { type: "kill", soldier: member })
+    }
+    sector.advance(1)
+    expect(relay.nearCells(squad)).toEqual(new Set())
   })
 
   it("welcomes a player to unshelled ground with no patch", () => {

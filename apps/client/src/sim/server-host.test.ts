@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { decodeElevation, generateFleurySector } from "@verdun/map"
+import { decodeElevation, generateFleurySector, mapDepth, mapWidth } from "@verdun/map"
 import { createSyncEncoder, MESSAGE } from "@verdun/net"
 import {
   createSimulation,
@@ -25,6 +25,8 @@ const setup: BattleSetup = {
   weatherSeed: 1916
 }
 const map = () => generateFleurySector({ seed: 1916, elevation: decodeElevation(setup.elevation) })
+/** Every one of Fleury's cells, so the page is sent every man every message. */
+const EVERY_CELL = new Set(Array.from({ length: 24 }, (_, cell) => cell))
 const schedule = scheduleForWeek(Date.UTC(1916, 5, 20), Date.UTC(2027, 5, 10, 18))
 
 /** A sector server in this thread: the battle stepped by hand, sent to the page as the real one sends it. */
@@ -33,7 +35,11 @@ class FakeServer implements SectorConnection {
   readonly squad = setupSkirmish(this.sim).playerSquad
   readonly received: unknown[] = []
   private readonly source: SyncSource = createSyncSource(this.sim)
-  private readonly encoder = createSyncEncoder(soldierArrayLayout(this.sim))
+  private readonly encoder = createSyncEncoder(
+    soldierArrayLayout(this.sim),
+    mapWidth(this.sim.map),
+    mapDepth(this.sim.map)
+  )
   private readonly handlers = new Map<string, (payload: unknown) => void>()
   private readonly leaving: ((code: number) => void)[] = []
   left = false
@@ -86,7 +92,7 @@ class FakeServer implements SectorConnection {
   }
 
   sync(): void {
-    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()))
+    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()).for("page", EVERY_CELL))
   }
 
   sendJunk(): void {
@@ -104,8 +110,9 @@ describe("the battle on a server, as the page sees it", () => {
     expect(host.sight).toBeNull()
     expect(host.schedule).toEqual(schedule)
     expect(host.playerSquad.id).toBe(server.squad.id)
-    expect(host.sim.soldiers.position.x[host.playerSquad.leader]).toBe(
-      server.sim.soldiers.position.x[server.squad.leader]
+    expect(host.sim.soldiers.position.x[host.playerSquad.leader]).toBeCloseTo(
+      server.sim.soldiers.position.x[server.squad.leader] ?? 0,
+      1
     )
     expect(host.update(5)).toEqual([])
 
