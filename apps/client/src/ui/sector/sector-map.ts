@@ -472,6 +472,12 @@ export function createSectorMapPage({
     root,
     opened() {
       readout.hidden = true
+      // Drawn at once, at the size it opens at; the observer redraws it when that changes.
+      const parts = battle()
+      if (parts) {
+        drawBase(parts)
+        redraw()
+      }
       resize.observe(canvasBox)
       clearInterval(timer)
       timer = window.setInterval(redraw, REDRAW)
