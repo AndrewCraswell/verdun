@@ -181,12 +181,15 @@ function heard(sim: Simulation, sentry: number): number {
   return best
 }
 
-function fire(sim: Simulation, sentry: number, x: number, z: number): void {
-  const side = sim.soldiers.side.value[sentry] === Side.German ? Side.German : Side.French
+/**
+ * Sends a flare up now from one ground point to hang over another: a sentry's, or a dev tool's by the `flare` command,
+ * which pnpm perf uses to light the same ground on every run.
+ */
+export function sendUpFlare(sim: Simulation, side: Side, fromX: number, fromZ: number, x: number, z: number): void {
   sim.flares.push({
     side,
-    fromX: sim.soldiers.position.x[sentry],
-    fromZ: sim.soldiers.position.z[sentry],
+    fromX,
+    fromZ,
     x,
     z,
     vx: sim.wind.x * FLARE.drift,
@@ -196,6 +199,11 @@ function fire(sim: Simulation, sentry: number, x: number, z: number): void {
   })
   const event: SimEvent = { type: "flare", side, x, z }
   sim.events.push(event)
+}
+
+function fire(sim: Simulation, sentry: number, x: number, z: number): void {
+  const side = sim.soldiers.side.value[sentry] === Side.German ? Side.German : Side.French
+  sendUpFlare(sim, side, sim.soldiers.position.x[sentry], sim.soldiers.position.z[sentry], x, z)
 }
 
 /** Whether a side's line is nervous: men heard out in front, or shots fired from it lately. */

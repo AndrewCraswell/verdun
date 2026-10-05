@@ -3,6 +3,7 @@ import { type FireMissionPlan, lineSpanBetween, orderFireMission, Shell } from "
 import { fireAimed, shakeSquad, startReload, throwGrenade } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
+import { sendUpFlare } from "./flares.ts"
 import { manGun } from "./man-gun.ts"
 import { joinSquad, takeOverSquad } from "./reinforcements.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
@@ -199,6 +200,19 @@ export interface ClockCommand {
   readonly minutesPerDay?: number
 }
 
+/**
+ * Sends a flare up from one ground point to hang over another, as a sentry of the side would, dark or not: for tests
+ * and dev tools, pnpm perf's night under a flare among them. Players' commands never include it (net's playerCommand).
+ */
+export interface FlareCommand {
+  readonly type: "flare"
+  readonly side: Side
+  readonly fromX: number
+  readonly fromZ: number
+  readonly x: number
+  readonly z: number
+}
+
 /** Changes where the weather comes from: a seeded cycle of patterns, one weather held steady, and later the records. */
 export interface ForecastCommand {
   readonly type: "forecast"
@@ -264,6 +278,7 @@ export type Command =
   | AmmunitionCommand
   | WindCommand
   | ClockCommand
+  | FlareCommand
   | ForecastCommand
   | FireMissionCommand
   | BarrageAttackCommand
@@ -467,6 +482,15 @@ export function applyCommand(sim: Simulation, command: Command): void {
         clock.minutesPerDay = command.minutesPerDay
       }
       updateEnvironment(sim)
+      return
+    }
+    case "flare": {
+      const { side, fromX, fromZ, x, z } = command
+      if ((side === Side.French || side === Side.German) && [fromX, fromZ, x, z].every(Number.isFinite)) {
+        const from = clampToMap(sim, fromX, fromZ)
+        const over = clampToMap(sim, x, z)
+        sendUpFlare(sim, side, from.x, from.z, over.x, over.z)
+      }
       return
     }
     case "forecast": {

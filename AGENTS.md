@@ -44,7 +44,12 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 - `pnpm perf`: build HEAD, play it in an off-screen Chrome at 1920×1080 and report fps, the tracer's CPU hot spots and
   each GPU pass's milliseconds, per scenario (`--only "day;night"`, `--shots dir`, `--eval expr`). The app's own pane
   and background windows run at 30 fps, so measure here. One run at a time on the machine; check `--shots`, since a
-  setting changed at runtime can leave a blank frame that measures fast.
+  setting changed at runtime can leave a blank frame that measures fast. `pnpm perf --budget` holds what a commit draws
+  (draw calls, render passes, triangles, GPU memory, pipelines, shaders), counts that other sessions' load barely moves,
+  unlike timings, to `scripts/perf-budget.json` on High and Low, in about eight minutes (`--only day` for a quick look):
+  run it after committing a change to what's drawn. Over budget, it names the counts and the commits since the budget
+  was recorded; fix it in a new commit, or if the cost is meant, run `pnpm perf --write-budget` (three rounds, some
+  twenty minutes) and commit the file on its own.
 - `pnpm lockfile:normalize`: this machine's VPN forces npm through a Microsoft package feed, which writes feed tarball
   URLs and SHA-1 hashes into `pnpm-lock.yaml`. CI installs from public npm and rejects them. The pre-commit hook runs
   this automatically whenever the lockfile is staged; never commit a lockfile containing `tarball:` feed URLs.

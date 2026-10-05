@@ -144,6 +144,24 @@ describe("flares", () => {
     expect(sim.flares.every((each) => each.firedAt > flare.firedAt)).toBe(true)
   })
 
+  it("go up by command, by day too, from and over the ground asked for, kept on the map", async () => {
+    const sim = await field(NOON)
+    enqueueCommand(sim, { type: "flare", side: Side.German, fromX: 100, fromZ: 250, x: 90, z: 120 })
+    enqueueCommand(sim, { type: "flare", side: Side.German, fromX: 100, fromZ: 250, x: 500, z: -20 })
+    enqueueCommand(sim, { type: "flare", side: Side.German, fromX: Number.NaN, fromZ: 250, x: 90, z: 120 })
+    let fired = 0
+    run(sim, 1 / TICK_RATE, () => (fired += sim.events.filter((event) => event.type === "flare").length))
+    expect(fired).toBe(2)
+    const [asked, edge] = sim.flares
+    expect(asked).toMatchObject({ side: Side.German, fromX: 100, fromZ: 250, x: 90, z: 120 })
+    expect(edge).toMatchObject({ x: 200, z: 0 })
+    expect(flarePosition(asked!, asked!.firedAt + FLARE.riseSeconds * TICK_RATE)).toEqual({
+      x: 90,
+      y: FLARE.height,
+      z: 120
+    })
+  })
+
   it("go up at intervals through the night, more often when the line is nervous, and never by day", async () => {
     const night = async (utc: number, nervous: boolean) => {
       const sim = await field(utc)
