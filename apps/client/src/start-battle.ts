@@ -133,7 +133,8 @@ export async function startBattle(
   // as each batch of steps comes back. ?inline steps it on the page instead, as before.
   const host = await createSimHost(
     map,
-    { elevation: elevationData, mapSeed: 1916, simSeed: 1916, region, weatherSeed },
+    // ?free plays the battle as it stands, without the playtest's operation: free play, for development.
+    { elevation: elevationData, mapSeed: 1916, simSeed: 1916, region, weatherSeed, free: address.has("free") },
     address.has("inline")
   )
   const { sim, playerSquad } = host

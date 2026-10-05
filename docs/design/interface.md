@@ -978,6 +978,13 @@ When a squad deploys or refills at the reserve line ([squad types](roles-and-loa
 
 **Stage** 2. **Kind** Screen.
 
+**Built** for the [playtest operation](operations.md#the-playtest-operation) (`ui/operation-pages.ts`,
+`ui/operation-report.ts`): after the join screen, a briefing with the date and hour, the plan in three lines, the squad
+and its place, and what counts as taken, a footing and repulsed, then up the line; and at the end, the report comes up
+by itself over the battle: the result, both sides' losses, ours by cause, the objectives as they changed hands, German
+machine gunners put down and the squad's own tally, with _Fight again_ and _Front door_. `?free` plays without the
+operation. Below: the spec as first written, for stage 2's board.
+
 Planned [operations](operations.md) for the side in this sector: objective, zero hour, waves and their jump-off
 trenches, places left, the fire plan in outline (bombardments, the creeping barrage), and what the side knows of the
 enemy there. **Sign up** for a wave. The briefing is a period order: a map extract, the objective, the timings and the

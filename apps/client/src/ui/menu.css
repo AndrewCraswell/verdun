@@ -90,7 +90,7 @@
 }
 
 .ui[data-page]:not([data-page=""]) .ui-veil {
-  background: rgb(10 9 7 / 82%);
+  background: rgb(10 9 7 / 94%);
 }
 
 /* At the front door and while the battle loads, the HUD stays away. */

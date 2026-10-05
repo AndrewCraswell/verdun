@@ -1,0 +1,174 @@
+/* The operation's briefing and report: written orders and a report of the day, in the menus' ink. */
+.op-page {
+  max-width: 50em;
+}
+
+.op-dateline {
+  margin: 0 0 1.2em;
+  font: italic 400 1.25em/1.3 var(--ui-display);
+}
+
+.op-plan {
+  margin: 0.3em 0 1.4em;
+  padding-left: 1.4em;
+}
+
+.op-plan-line {
+  margin-bottom: 0.35em;
+  color: var(--ui-ink);
+}
+
+.op-plan-line::marker {
+  font-weight: 600;
+  color: var(--ui-brass);
+}
+
+.op-squad,
+.op-note {
+  margin: 0.3em 0 1.4em;
+  color: var(--ui-ink-2);
+}
+
+.op-note {
+  font-size: 0.88em;
+  color: var(--ui-ink-3);
+}
+
+.op-outcomes {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35em 1.2em;
+  margin: 0.3em 0 1.6em;
+}
+
+.op-outcome {
+  font-weight: 600;
+}
+
+.op-outcome--taken {
+  color: var(--ui-ours);
+}
+
+.op-outcome--repulsed {
+  color: var(--ui-theirs);
+}
+
+.op-outcome-means {
+  margin: 0;
+  color: var(--ui-ink-2);
+}
+
+.op-actions {
+  display: flex;
+  gap: 0.8em;
+  margin-top: 1.4em;
+}
+
+.op-go {
+  padding: 0.6em 1.4em;
+  font-size: 1em;
+}
+
+.op-result {
+  margin-bottom: 1.4em;
+  padding-left: 1em;
+  border-left: 3px solid var(--ui-ink-3);
+}
+
+.op-result--taken {
+  border-left-color: var(--ui-ours);
+}
+
+.op-result--footing {
+  border-left-color: var(--ui-brass);
+}
+
+.op-result--repulsed {
+  border-left-color: var(--ui-theirs);
+}
+
+.op-result-title {
+  font: 400 2.6em/1.05 var(--ui-display);
+}
+
+.op-result-line {
+  margin: 0.2em 0 0;
+  font-size: 1.05em;
+}
+
+.op-result .op-note {
+  margin: 0.3em 0 0;
+}
+
+.op-losses {
+  width: 100%;
+  margin: 0.3em 0 1.6em;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.op-losses th,
+.op-losses td {
+  padding: 0.35em 1em 0.35em 0;
+  text-align: left;
+  border-bottom: 1px solid rgb(239 231 211 / 7%);
+}
+
+.op-losses thead th {
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-ink-3);
+}
+
+.op-side--ours th {
+  color: var(--ui-ours);
+}
+
+.op-side--theirs th {
+  color: var(--ui-theirs);
+}
+
+.op-causes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin: 0.4em 0 1.6em;
+}
+
+.op-cause {
+  display: grid;
+  grid-template-columns: 14em minmax(0, 1fr) 3em;
+  align-items: center;
+  gap: 0.8em;
+  font-size: 0.92em;
+}
+
+.op-cause-label {
+  color: var(--ui-ink-2);
+}
+
+.op-cause-bar {
+  height: 6px;
+  background: linear-gradient(90deg, var(--ui-ink-3) calc(var(--share) * 100%), transparent 0);
+  border-radius: 1px;
+}
+
+.op-cause-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.op-objective {
+  margin: 0.25em 0;
+  color: var(--ui-ink-2);
+}
+
+.op-objectives {
+  margin: 0.3em 0 1.6em;
+}
+
+.op-objective--ours {
+  color: var(--ui-ink);
+}

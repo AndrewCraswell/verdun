@@ -159,7 +159,16 @@ export function createMenu(
   let made: BattlePages | null = null
   function observe(): void {
     const day = war?.day
-    made?.observe(day?.phase === "turn" ? day.week : null)
+    // The operation's report comes up by itself the moment it ends, over the battle.
+    if (made?.observe(day?.phase === "turn" ? day.week : null) && screen === "battle") {
+      if (alone) {
+        closeAlone()
+      }
+      if (!open) {
+        show(true)
+      }
+      openPage(made.report)
+    }
   }
 
   // The pages, made once and kept.
@@ -173,7 +182,11 @@ export function createMenu(
         : { label: "Back to the battle", enabled: true },
     enter: () => (screen === "front-door" ? openPage(joinPage) : show(false))
   })
-  const joinPage = createJoinPage({ choices: () => made?.choices() ?? null, join: (squad) => enter(squad) })
+  // Choosing a squad goes to the operation's briefing, then up the line; in free play, straight up the line.
+  const joinPage = createJoinPage({
+    choices: () => made?.choices() ?? null,
+    join: (squad) => (made?.brief(squad) ? openPage(made.briefing) : enter(squad))
+  })
   const pages: MenuPage[] = [
     joinPage,
     front,
@@ -498,7 +511,12 @@ export function createMenu(
         const up = parts.battle
         battle = up
         void import("./battle-pages.ts").then(({ createBattlePages }) => {
-          made = createBattlePages(up, putAway)
+          made = createBattlePages(up, putAway, {
+            go: (squad) => enter(squad),
+            back: () => openPage(joinPage),
+            again: () => reload(true),
+            frontDoor: () => reload(false)
+          })
           if (open && screen !== "front-door") {
             layout()
           }
@@ -510,7 +528,9 @@ export function createMenu(
     },
     entered,
     showPage(id) {
-      const wanted = [...pages, ...(made ? [made.sector, made.squad, made.log] : [])].find((each) => each.id === id)
+      const wanted = [...pages, ...(made ? [made.sector, made.squad, made.log, made.report] : [])].find(
+        (each) => each.id === id
+      )
       if (!wanted) {
         return
       }

@@ -79,9 +79,10 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | \`                              | Dev builds only: open Babylon's Inspector                                      |
 
 The game opens on its front door, with the battle loading behind it; `?play` goes straight into the line behind the
-loading screen, and `?debug` past both, for measuring. Dev builds also read the address: `?webgl` draws with WebGL
-instead of WebGPU, `?war=1916-02-21` puts today's turn in the war's week of that date (`?war=reset` forgets it), and
-`?standto=0` plays straight through the stand-to after each daily cutoff. See
+loading screen, and `?debug` past both, for measuring. Every battle is the playtest operation, a scripted French attack
+with a briefing before and a report after; `?free` plays without it. Dev builds also read the address: `?webgl` draws
+with WebGL instead of WebGPU, `?war=1916-02-21` puts today's turn in the war's week of that date (`?war=reset` forgets
+it), and `?standto=0` plays straight through the stand-to after each daily cutoff. See
 [time and weather](docs/time-and-weather.md#the-wars-calendar).
 
 ## Credits
