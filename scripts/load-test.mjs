@@ -50,18 +50,27 @@ const count = (part, value) => {
   parts.set(part, (parts.get(part) ?? 0) + deflateSync(packr.pack(value), { level: 1 }).byteLength)
 }
 
-/** Sorts a message's parts into the soldiers' arrays, the clouds, the rest of the state, events and craters. */
+/**
+ * Sorts a message's parts: the soldiers' arrays from its cells, by array, and from its global part the clouds, the rest
+ * of the state, events and craters.
+ */
 function breakDown(bytes) {
-  const message = packr.unpack(inflateSync(bytes))
-  count("events (each step's shots, bursts, voices)", message.s)
-  count("craters", message.g)
-  for (const [key, value] of Object.entries(message.v?.o ?? {})) {
-    if (key === "arrays" || key === "state") {
+  const message = packr.unpack(bytes)
+  const global = packr.unpack(inflateSync(message.g))
+  count("events (each step's shots, bursts, voices)", global.s)
+  count("craters", global.g)
+  for (const [key, value] of Object.entries(global.v?.o ?? {})) {
+    if (key === "state") {
       for (const [inner, patch] of Object.entries(value.o ?? { all: value })) {
-        count(`${key === "arrays" ? "soldiers" : "state"}: ${inner}`, patch)
+        count(`state: ${inner}`, patch)
       }
     } else {
       count(key, value)
+    }
+  }
+  for (const [, part] of message.c) {
+    for (const [name, change] of Object.entries(packr.unpack(inflateSync(part)))) {
+      count(`soldiers: ${name}`, change)
     }
   }
 }
