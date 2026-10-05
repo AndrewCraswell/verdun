@@ -712,6 +712,10 @@ describe("createSoldierCrowd", () => {
     }
     const field = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 160 }, 5, Surface.Grass)
     const sim = createSimulation({ map: { ...field, wire: [belt] }, seed: 1 })
+    // Half torn down by shellfire: a belt the guns haven't broken can't be climbed.
+    sim.wire.density.forEach((density, cell) => {
+      sim.wire.density[cell] = density / 2
+    })
     const { fences, tangles } = beltLayout(belt)
     const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 4)) ?? fences[0]
     // One heads for the wire slantwise, 30 degrees east of north; the other stands in it by the fence, going nowhere.

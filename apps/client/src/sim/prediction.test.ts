@@ -129,14 +129,21 @@ describe("predicting the player's soldier", () => {
     const { fences, tangles } = beltLayout(belt)
     const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 3))
     const fenced = () => ({ ...field(), wire: [belt] })
-    const server = createSimulation({ map: fenced(), seed: 3 })
+    // Half torn down by shellfire on both sides of the link: a belt the guns haven't broken can't be climbed.
+    const brokenUp = (sim: ReturnType<typeof createSimulation>) => {
+      sim.wire.density.forEach((density, cell) => {
+        sim.wire.density[cell] = density / 2
+      })
+      return sim
+    }
+    const server = brokenUp(createSimulation({ map: fenced(), seed: 3 }))
     // Facing the fence from 3 m short of it.
     const leader = spawnSoldier(server, { side: Side.French, x: bare?.x ?? 0, z: 47 })
     server.soldiers.facing.x[leader] = 0
     server.soldiers.facing.z[leader] = 1
     createSquad(server, Side.French, [leader], "player")
     const source = createSyncSource(server)
-    const mirror = createSimulation({ map: fenced(), seed: 3 })
+    const mirror = brokenUp(createSimulation({ map: fenced(), seed: 3 }))
     applySync(mirror, source.take())
     const prediction = createPrediction(mirror)
 
