@@ -17,6 +17,7 @@ export type KeyAction =
   | "crouch"
   | "prone"
   | "act"
+  | "reload"
   | "next-soldier"
   | "follow"
   | "hold"
@@ -68,7 +69,8 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
         action: "act",
         label: "Vault the trench wall or wire fence ahead, or man the machine gun beside you; again to leave the gun",
         keys: ["Space"]
-      }
+      },
+      { action: "reload", label: "Reload before the magazine is empty", keys: ["KeyR"] }
     ]
   },
   {
@@ -78,7 +80,7 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "follow", label: "Squad order: follow me", keys: ["KeyF"] },
       { action: "hold", label: "Squad order: hold", keys: ["KeyH"] },
       { action: "advance", label: "Squad order: advance to the point under the pointer", keys: ["KeyE"] },
-      { action: "orders", label: "Hold for the orders wheel: point at an order and let go", keys: ["KeyR"] },
+      { action: "orders", label: "Hold for the orders wheel: point at an order and let go", keys: ["KeyY"] },
       { action: "take-over", label: "Take over the nearest squad, when yours is lost", keys: ["KeyT"] }
     ]
   },
@@ -245,7 +247,10 @@ export interface Keymap {
  * every action's keys, so a player who'd changed any key had an old default stored as if he'd chosen it: Space stayed
  * on recentring the camera after it became the action key, and the action never got it.
  */
-const PAST_DEFAULTS: Partial<Record<KeyAction, readonly (readonly string[])[]>> = { recentre: [["Space"]] }
+const PAST_DEFAULTS: Partial<Record<KeyAction, readonly (readonly string[])[]>> = {
+  recentre: [["Space"]],
+  orders: [["KeyR"]]
+}
 
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((code, index) => code === b[index])

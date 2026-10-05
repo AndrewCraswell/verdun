@@ -1,7 +1,7 @@
 import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
 import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
-import { toWeapon, Weapon } from "./combat.ts"
+import { magazineOf, toWeapon, Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import type { DefenceState } from "./defence.ts"
@@ -49,6 +49,9 @@ export interface SoldierState {
   readonly treatment: number
   readonly weapon: Weapon
   readonly cooldown: number
+  /** Rounds left in his weapon, and whether he's reloading it; absent in snapshots from before magazines. */
+  readonly rounds?: number
+  readonly reloading?: boolean
   readonly target: number
   /** The step a player's man settled on his aim (`aim.since`); absent in snapshots from before steadying. */
   readonly aimSince?: number
@@ -162,6 +165,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       treatment: sim.soldiers.casualty.treatment[id],
       weapon: toWeapon(weapon.kind[id]),
       cooldown: weapon.cooldown[id],
+      rounds: weapon.rounds[id],
+      reloading: weapon.reloading[id] === 1,
       target: target.id[id],
       aimSince: sim.soldiers.aim.since[id],
       suppression: suppression.value[id],
@@ -265,6 +270,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     }
     sim.soldiers.health.value[id] = soldier.health
     sim.soldiers.weapon.cooldown[id] = soldier.cooldown
+    sim.soldiers.weapon.rounds[id] = soldier.rounds ?? magazineOf(sim, id).rounds
+    sim.soldiers.weapon.reloading[id] = soldier.reloading === true ? 1 : 0
     sim.soldiers.target.id[id] = soldier.target
     sim.soldiers.aim.since[id] = soldier.aimSince ?? 0
     sim.soldiers.suppression.value[id] = soldier.suppression

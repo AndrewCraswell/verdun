@@ -41,6 +41,8 @@ export type PlayerAction =
   | { readonly kind: "fire" }
   /** Climb the wire fence ahead, or man (or leave) the machine gun beside the controlled soldier. */
   | { readonly kind: "act" }
+  /** Reload the controlled soldier's weapon before it's empty. It reloads by itself when it is. */
+  | { readonly kind: "reload" }
   /** Blow the whistle: the whole side goes over the top. */
   | { readonly kind: "whistle" }
   /** Order a preparatory bombardment of the enemy line. */
@@ -281,6 +283,11 @@ export function createPlayerControl(
       case "fire":
         if (squad.leader >= 0) {
           enqueueCommand(sim, { type: "fire", soldier: squad.leader })
+        }
+        return
+      case "reload":
+        if (squad.leader >= 0) {
+          enqueueCommand(sim, { type: "reload", soldier: squad.leader })
         }
         return
       case "act":

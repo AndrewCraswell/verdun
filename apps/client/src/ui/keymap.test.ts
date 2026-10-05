@@ -37,11 +37,11 @@ describe("the keymap", () => {
   it("moves an action to a free key, so its old key does nothing", () => {
     const store = memoryStore()
     const keys = createKeymap(store)
-    expect(keys.rebind("crouch", "KeyY")).toEqual({ swapped: null })
-    expect(keys.canonical("KeyY")).toBe("KeyC")
+    expect(keys.rebind("crouch", "KeyN")).toEqual({ swapped: null })
+    expect(keys.canonical("KeyN")).toBe("KeyC")
     expect(keys.canonical("KeyC")).toBeNull()
-    expect(keys.label("crouch")).toBe("Y")
-    expect(store.saved).toMatchObject({ crouch: ["KeyY"] })
+    expect(keys.label("crouch")).toBe("N")
+    expect(store.saved).toMatchObject({ crouch: ["KeyN"] })
   })
 
   it("swaps keys when the new key is taken, and says which action gave it up", () => {
@@ -103,6 +103,11 @@ describe("the keymap", () => {
     expect(keymap.codesFor("recentre")).toEqual(["Home", "KeyL"])
     expect(keymap.actionOf("Space")).toBe("act")
     expect(keymap.codesFor("whistle")).toEqual(["KeyJ"])
+  })
+
+  it("frees R for reloading from an orders wheel stored on it", () => {
+    const keymap = createKeymap(memoryStore({ orders: ["KeyR"] }))
+    expect(keymap.actionOf("KeyR")).toBe("reload")
   })
 
   it("resets one action or all of them, and tells its listeners each time", () => {

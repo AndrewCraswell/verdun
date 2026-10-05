@@ -1,5 +1,5 @@
 import type { EntityId } from "bitecs"
-import { Weapon } from "./combat.ts"
+import { loadWeapon, Weapon } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Simulation } from "./simulation.ts"
 import { TICK_RATE } from "./simulation.ts"
@@ -103,7 +103,7 @@ export function gunCrewSystem(sim: Simulation): void {
       // The gun changes hands: the man lying beside it no longer has it.
       weapon.kind[pickup.gunner] = Weapon.Rifle
       weapon.kind[pickup.by] = Weapon.MachineGun
-      weapon.cooldown[pickup.by] = 0
+      loadWeapon(sim, pickup.by)
       pickups.splice(index, 1)
       sim.events.push({ type: "gun-manned", squad: sim.soldiers.squad.id[pickup.by], soldier: pickup.by })
     }

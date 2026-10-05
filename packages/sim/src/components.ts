@@ -61,7 +61,15 @@ export interface SoldierComponents {
    * The soldier's weapon (a `Weapon`), seconds until it can fire again, and the step it last fired: at night the muzzle
    * flash gives the shooter away for a moment.
    */
-  readonly weapon: { readonly kind: Uint8Array; readonly cooldown: Float32Array; readonly firedAt: Int32Array }
+  readonly weapon: {
+    readonly kind: Uint8Array
+    readonly cooldown: Float32Array
+    readonly firedAt: Int32Array
+    /** Rounds left in the magazine, clip, strip or belt; refilled when a reload finishes (combat.ts, `MAGAZINES`). */
+    readonly rounds: Uint16Array
+    /** 1 while reloading: the cooldown is then the time left to finish. */
+    readonly reloading: Uint8Array
+  }
   /** The enemy the soldier is shooting at, or -1. For a player's man, the one the player aims at. */
   readonly target: { readonly id: Int32Array }
   /**
@@ -117,6 +125,8 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     weapon: {
       kind: new Uint8Array(capacity),
       cooldown: new Float32Array(capacity),
+      rounds: new Uint16Array(capacity),
+      reloading: new Uint8Array(capacity),
       firedAt: new Int32Array(capacity).fill(NEVER)
     },
     target: { id: new Int32Array(capacity).fill(-1) },

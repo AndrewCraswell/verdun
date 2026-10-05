@@ -20,7 +20,7 @@ import {
   type OutOfShellsEvent
 } from "./artillery.ts"
 import { captureSystem, type CaptureEvent } from "./capture.ts"
-import { combatSystem, type ShotEvent, type ThrowEvent, Weapon } from "./combat.ts"
+import { combatSystem, magazineOf, type ReloadEvent, type ShotEvent, type ThrowEvent, Weapon } from "./combat.ts"
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
@@ -129,6 +129,7 @@ export interface Simulation {
 /** Something that happened during a step that a renderer may want to show. */
 export type SimEvent =
   | ShotEvent
+  | ReloadEvent
   | ThrowEvent
   | BurstEvent
   | CaptureEvent
@@ -244,6 +245,7 @@ export function spawnSoldier(
   addComponent(sim.world, soldier, sim.soldiers.weapon)
   sim.soldiers.weapon.kind[soldier] = weapon
   sim.soldiers.weapon.cooldown[soldier] = 0
+  sim.soldiers.weapon.rounds[soldier] = magazineOf(sim, soldier).rounds
   sim.soldiers.target.id[soldier] = -1
   sim.soldiers.suppression.value[soldier] = 0
   sim.soldiers.morale.value[soldier] = 1

@@ -49,6 +49,80 @@ export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
   [Weapon.RifleGrenadier]: { interval: 3, accuracy: 0.2, falloff: 100, range: 400, suppression: 0.25 }
 }
 
+/** What a weapon holds before it must be reloaded, and how long reloading takes, in seconds. */
+export interface Magazine {
+  readonly rounds: number
+  readonly reload: number
+}
+
+/**
+ * Each side's weapons as they were loaded. The Lebel's tube magazine took eight rounds pushed in one at a time, which a
+ * man kept topped up between shots; the Gewehr 98 took a five-round stripper clip in one push. The Hotchkiss fed from
+ * 24-round metal strips, the next handed in by the loader at once; the MG 08 from a 250-round fabric belt, its change
+ * a slower business. Each side's rifles and guns so fire about the same share of the time (three quarters or so of
+ * their unbroken rate), as the battle's balance wants. Snipers and rifle grenadiers carry their side's rifle.
+ * Ammunition itself is unlimited for now: only the reload costs time.
+ */
+const MAGAZINES: Readonly<Record<Side, Readonly<Record<Weapon, Magazine>>>> = {
+  [Side.French]: {
+    [Weapon.Rifle]: { rounds: 8, reload: 6 },
+    [Weapon.MachineGun]: { rounds: 24, reload: 1 },
+    [Weapon.Sniper]: { rounds: 8, reload: 6 },
+    [Weapon.RifleGrenadier]: { rounds: 8, reload: 6 }
+  },
+  [Side.German]: {
+    [Weapon.Rifle]: { rounds: 5, reload: 4 },
+    [Weapon.MachineGun]: { rounds: 250, reload: 8 },
+    [Weapon.Sniper]: { rounds: 5, reload: 4 },
+    [Weapon.RifleGrenadier]: { rounds: 5, reload: 4 }
+  }
+}
+
+/** The magazine of the weapon a soldier carries. */
+export function magazineOf(sim: Simulation, soldier: EntityId): Magazine {
+  const side = sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French
+  return MAGAZINES[side][weaponKind(sim, soldier)]
+}
+
+/** A soldier starting to reload, and finishing: for the HUD, the sound and his animation. */
+export interface ReloadEvent {
+  readonly type: "reloading" | "reloaded"
+  readonly soldier: EntityId
+}
+
+/**
+ * Starts a soldier reloading, unless he's already at it or his weapon is full: his weapon is out of action for its
+ * reload time, longer in mud and rain as firing is (climate.ts). Whether he started.
+ */
+export function startReload(sim: Simulation, soldier: EntityId): boolean {
+  const { weapon } = sim.soldiers
+  const magazine = magazineOf(sim, soldier)
+  if (weapon.reloading[soldier] === 1 || weapon.rounds[soldier] >= magazine.rounds) {
+    return false
+  }
+  weapon.reloading[soldier] = 1
+  weapon.cooldown[soldier] = magazine.reload * reloadFactor(sim, weapon.kind[soldier] === Weapon.MachineGun)
+  sim.events.push({ type: "reloading", soldier })
+  return true
+}
+
+/** Fills a soldier's weapon at once, as with a weapon just taken up: its magazine full, ready to fire. */
+export function loadWeapon(sim: Simulation, soldier: EntityId): void {
+  const { weapon } = sim.soldiers
+  weapon.rounds[soldier] = magazineOf(sim, soldier).rounds
+  weapon.reloading[soldier] = 0
+  weapon.cooldown[soldier] = 0
+}
+
+/** A round fired: one fewer left, and a reload when there are none. */
+function spendRound(sim: Simulation, shooter: EntityId): void {
+  const { weapon } = sim.soldiers
+  weapon.rounds[shooter] = Math.max(0, weapon.rounds[shooter] - 1)
+  if (weapon.rounds[shooter] === 0) {
+    startReload(sim, shooter)
+  }
+}
+
 const WEAPON_KINDS: readonly Weapon[] = [Weapon.Rifle, Weapon.MachineGun, Weapon.Sniper, Weapon.RifleGrenadier]
 
 /** A stored weapon kind as a `Weapon`; anything unknown is a rifle. */
@@ -421,6 +495,7 @@ export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId, ste
   const fouled = reloadFactor(sim, sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun)
   sim.soldiers.weapon.cooldown[shooter] = stats.interval * fouled * (0.85 + sim.rng.next() * 0.3)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
+  spendRound(sim, shooter)
   sim.events.push({
     type: "shot",
     shooter,
@@ -451,6 +526,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   const kind = weaponKind(sim, shooter)
   sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval * reloadFactor(sim, kind === Weapon.MachineGun)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
+  spendRound(sim, shooter)
   const from = soldierEye(sim, shooter)
   sim.events.push({
     type: "shot",
@@ -694,6 +770,7 @@ function fireOnArea(sim: Simulation, shooter: EntityId, x: number, z: number): v
   const fouled = reloadFactor(sim, kind === Weapon.MachineGun)
   sim.soldiers.weapon.cooldown[shooter] = stats.interval * AREA_FIRE.pace * fouled * (0.85 + sim.rng.next() * 0.3)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
+  spendRound(sim, shooter)
   sim.events.push({ type: "shot", shooter, target: -1, hit: false, from, to })
 }
 
@@ -713,6 +790,11 @@ export function combatSystem(sim: Simulation): void {
     const recovery = MORALE_RECOVERY + (rallied(sim, squad, soldier) ? RALLY_RECOVERY : 0)
     morale.value[soldier] = Math.min(1, morale.value[soldier] + recovery * STEP_SECONDS)
     weapon.cooldown[soldier] = Math.max(0, weapon.cooldown[soldier] - STEP_SECONDS)
+    if (weapon.reloading[soldier] === 1 && weapon.cooldown[soldier] <= 0) {
+      weapon.reloading[soldier] = 0
+      weapon.rounds[soldier] = magazineOf(sim, soldier).rounds
+      sim.events.push({ type: "reloaded", soldier })
+    }
     if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED || isSheltering(sim, soldier)) {
       continue
     }
@@ -734,6 +816,14 @@ export function combatSystem(sim: Simulation): void {
     }
     if (target.id[soldier] < 0 && weapon.cooldown[soldier] <= 0 && squad?.order.kind === "suppress") {
       fireOnArea(sim, soldier, squad.order.x, squad.order.z)
+    }
+    // Nothing to shoot at: a man with a part-used magazine fills it while he can.
+    if (
+      target.id[soldier] < 0 &&
+      weapon.cooldown[soldier] <= 0 &&
+      weapon.rounds[soldier] < magazineOf(sim, soldier).rounds
+    ) {
+      startReload(sim, soldier)
     }
   }
 }

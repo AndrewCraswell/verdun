@@ -1,5 +1,5 @@
 import type { EntityId } from "bitecs"
-import { Weapon } from "./combat.ts"
+import { loadWeapon, Weapon } from "./combat.ts"
 import { type Simulation, soldierIds } from "./simulation.ts"
 import { isAlive } from "./squads.ts"
 
@@ -47,7 +47,9 @@ export function manGun(sim: Simulation, soldier: EntityId): boolean {
   const from = gunner === soldier ? partner : soldier
   weapon.kind[from] = Weapon.Rifle
   weapon.kind[gunner] = Weapon.MachineGun
-  weapon.cooldown[gunner] = 0
+  // Each takes up his weapon loaded: the gun with a fresh strip or belt, the rifle charged.
+  loadWeapon(sim, gunner)
+  loadWeapon(sim, from)
   sim.events.push({ type: "gun-manned", squad: sim.soldiers.squad.id[gunner], soldier: gunner })
   return true
 }

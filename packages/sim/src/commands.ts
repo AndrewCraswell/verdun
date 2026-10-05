@@ -1,6 +1,6 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
 import { type FireMissionPlan, lineSpanBetween, orderFireMission, Shell } from "./artillery.ts"
-import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
+import { fireAimed, shakeSquad, startReload, throwGrenade } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
 import { manGun } from "./man-gun.ts"
@@ -143,6 +143,12 @@ export interface VaultCommand {
   readonly soldier: EntityId
 }
 
+/** Reloads the soldier's weapon now, before it's empty: a full magazine before going over, say. */
+export interface ReloadCommand {
+  readonly type: "reload"
+  readonly soldier: EntityId
+}
+
 /** Takes over the machine gun of the comrade beside the soldier, or hands the soldier's own gun to the nearest rifleman. */
 export interface ManGunCommand {
   readonly type: "man-gun"
@@ -254,6 +260,7 @@ export type Command =
   | ThrowGrenadeCommand
   | VaultCommand
   | ManGunCommand
+  | ReloadCommand
   | AmmunitionCommand
   | WindCommand
   | ClockCommand
@@ -403,6 +410,12 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "vault": {
       if (isSoldier(sim, command.soldier)) {
         startVault(sim, command.soldier)
+      }
+      return
+    }
+    case "reload": {
+      if (isSoldier(sim, command.soldier)) {
+        startReload(sim, command.soldier)
       }
       return
     }
