@@ -8,12 +8,21 @@ The moment-to-moment game: fighting as one soldier while commanding the rest of 
 Built in M2–M3.
 
 - The player controls **one soldier**: WASD relative to the camera, mouse to aim, left-click to fire, Z to go prone, Q
-  to throw a grenade. The camera is the angled top-down view from the [vision](../vision.md#presentation).
+  to throw a grenade. The camera is the angled top-down view from the [vision](../vision.md#presentation), about 55°
+  down, leaning toward the pointer; holding the right button swings it behind his shoulder to aim (the aim view).
+- **Walls are walls.** A man slides along a trench wall he walks into rather than creeping up it (`body.ts`). A player's
+  man climbs a ledge up to 1.3 m (the fire step, the parapet from the step, a crater lip) only by heading straight at
+  it; a higher wall, or a wire fence, takes Space. Bots on an order climb what their route takes them over, and vault a
+  fence or wall their way would otherwise have them wade or scramble. Getting over a fence takes 3 s. Ruins, walls and
+  trees are solid, and men ease apart rather than stand inside each other.
+- **Follow files through trenches.** In a trench the squad follows its leader in single file, 2 m apart, up onto the
+  fire step when he is; in the open it forms behind the way he walks and halts where it is when he stops.
 - **Switching is instant** (Tab, or 1–8 for a squad slot). The soldier you leave returns to the AI under the squad's
   current order.
 - **Death moves you to the next living squadmate.** The fallen stay on the field.
-- Fog of war shows what any squadmate can see. Inside a trench you see the trench; the fire step lets you see out and
-  exposes you.
+- Fog of war, on by default (O), shows what any squadmate can see. Inside a trench you see the trench; the fire step
+  lets you see out and exposes you. The cursor says which of the men shown your man can shoot
+  ([H8](interface.md#h8-cursor-and-aim)).
 
 Why it is fun: switching turns the squad into a set of lives you spend deliberately. Take the man with the best angle,
 the one still holding grenades, the machine gunner when the charge comes. The decision of who to be is the game's

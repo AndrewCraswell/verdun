@@ -402,20 +402,30 @@ one-key shortcuts (F, H, E).
 
 **Stage** P. **Kind** Overlay + World. **Zone** the pointer.
 
-Today the pointer is the plain system arrow, and aim shows only in the world: a gold facing line, and a red ring under
-the enemy a shot would hit (`soldier-marker.ts`). Specify a custom cursor with states:
+Built (`aim-cursor.ts`, `sight-picture.ts`, `soldier-marker.ts`): the pointer picks out the enemy drawn nearest it on
+the screen (`target-pick.ts`), the soldier faces him exactly, and the cursor says whether a shot can go and, if not,
+why. In the aim view (right button) the pointer is locked and the same marks sit at the screen's centre. In the world,
+the man in the sights is ringed as wide as the shot's spread at him (`spreadRadius`): tight on a man in the open close
+by, wide on a head over a parapet, narrowing as the aim steadies.
 
-| State        | When                                                                               | Data                |
-| ------------ | ---------------------------------------------------------------------------------- | ------------------- |
-| Aiming       | Default                                                                            | —                   |
-| On target    | An enemy is under the aim (the red ring today)                                     | `aimedTarget`       |
-| Chance       | Optional: a coarse hit chance on the target (good, fair, poor; never a percentage) | `hitChance`         |
-| Reloading    | Weapon not ready: a ring fills                                                     | `weapon.cooldown`   |
-| Pinned       | Aim spoiled: the cursor spreads or sways                                           | `suppression.value` |
-| Out of range | Pointer beyond grenade or call range, in those modes                               | `GRENADE_RANGE`     |
-| Off the map  | Pointer over sky or HUD: nothing will happen                                       | Ground pick         |
-| Order mode   | Holding the radial, or a call preview (H9, H10)                                    | —                   |
-| Menu pointer | Over HUD or a menu: the normal pointer                                             | —                   |
+| State        | When                                                                                     | Data                          |
+| ------------ | ---------------------------------------------------------------------------------------- | ----------------------------- |
+| Aiming       | Nobody picked out                                                                        | —                             |
+| On target    | A shot would strike the man picked out: a red ring that fills as the aim steadies        | `aimedTarget`, `aim.since`    |
+| Chance       | Optional: pips for a coarse hit chance, steadiness counted (good, fair, poor; never a %) | `hitChance`, `shotSteadiness` |
+| Own cover    | His own parapet or crater lip blocks the first 3 m: a bar under the mark (step up)       | `sightPicture`                |
+| Unseen       | Something further off hides the man; a squadmate sees him: a grey dashed ring            | `sightPicture`                |
+| Too dark     | In his line of sight but too far for the light, or behind smoke: a dotted ring           | `sightReach`, smoke           |
+| Reloading    | Weapon not ready: a ring fills                                                           | `weapon.cooldown`             |
+| Pinned       | Aim spoiled: the cursor spreads or sways                                                 | `suppression.value`           |
+| Out of range | Beyond the weapon's reach, or a grenade's or a call's in those modes                     | `WEAPONS`, `GRENADE_RANGE`    |
+| Off the map  | Pointer over sky or HUD: nothing will happen                                             | Ground pick                   |
+| Order mode   | Holding the radial, or a call preview (H9, H10)                                          | —                             |
+| Menu pointer | Over HUD or a menu: the normal pointer                                                   | —                             |
+
+Steadying: a snap shot at a man just swung onto gets half of `hitChance`, rising to all of it over 1.5 s still on him,
+twice as fast lying, faster kneeling or resting on a parapet; moving, switching target or changing stance unsettles it.
+Bots keep `hitChance` as it is. See the [direct control proposal](direct-control-proposal.md).
 
 The cursor must stay readable on snow, at night and inside a gas cloud: an outline or dual-tone mark, at a size the
 player can set.
