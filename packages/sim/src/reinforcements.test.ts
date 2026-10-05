@@ -6,6 +6,8 @@ import {
   allotReinforcements,
   arrivalOf,
   FULL_SQUAD,
+  joinRefusal,
+  joinSquad,
   redeploySeconds,
   REDEPLOY_SECONDS,
   returnToPool,
@@ -287,5 +289,58 @@ describe("taking over a squad", () => {
     const alive = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
     const standing = frontSquad(alive, "player")
     expect(takeOverCandidates(alive, standing)).toEqual([])
+  })
+})
+
+describe("joining the battle with a squad of your choosing", () => {
+  /** The player's squad on the front line, and a bot squad holding further along it. */
+  function line(sim: Simulation) {
+    const player = frontSquad(sim, "player")
+    player.order = { kind: "follow" }
+    const members = Array.from({ length: 8 }, (_, slot) =>
+      spawnSoldier(sim, { side: Side.French, x: 140 + slot * 3, z: 100 })
+    )
+    const bots = createSquad(sim, Side.French, members, "ai")
+    bots.order = { kind: "hold" }
+    return { player, bots, members }
+  }
+
+  it("swaps the two squads' men and orders, so the player leads the chosen men where they stand", () => {
+    const sim = createSimulation({ map: sector(), seed: 1 })
+    const { player, bots, members } = line(sim)
+    const held = [...player.members]
+    enqueueCommand(sim, { type: "join-squad", squad: player.id, from: bots.id })
+    stepFor(sim, 0.05)
+
+    expect(player.members).toEqual(members)
+    expect(player.leader).toBe(members[0])
+    expect(player.order).toEqual({ kind: "hold" })
+    expect(bots.members).toEqual(held)
+    expect(bots.leader).toBe(held[0])
+    expect(bots.order).toEqual({ kind: "follow" })
+    expect(members.every((member) => sim.soldiers.squad.id[member] === player.id)).toBe(true)
+    expect(held.every((member) => sim.soldiers.squad.id[member] === bots.id)).toBe(true)
+  })
+
+  it("refuses a squad in contact, an understrength one, the enemy's, or the player's own", () => {
+    const sim = createSimulation({ map: sector(), seed: 1 })
+    const { player, bots, members } = line(sim)
+    const enemies = createSquad(sim, Side.German, [spawnSoldier(sim, { side: Side.German, x: 100, z: 300 })], "ai")
+    expect(joinRefusal(sim, player, bots)).toBeNull()
+    expect(joinRefusal(sim, player, enemies)).toBe("not-ours")
+    expect(joinRefusal(sim, player, player)).toBe("not-ours")
+
+    const german = spawnSoldier(sim, { side: Side.German, x: 150, z: 120 })
+    // The squads' neighbours are counted as the battle steps.
+    stepFor(sim, 0.05)
+    expect(joinRefusal(sim, player, bots)).toBe("in-contact")
+    expect(joinSquad(sim, player, bots)).toBe(false)
+
+    enqueueCommand(sim, { type: "kill", soldier: german })
+    for (const soldier of members.slice(0, 5)) {
+      enqueueCommand(sim, { type: "kill", soldier })
+    }
+    stepFor(sim, 0.1)
+    expect(joinRefusal(sim, player, bots)).toBe("too-few")
   })
 })

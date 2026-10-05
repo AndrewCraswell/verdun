@@ -3,7 +3,7 @@ import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
-import { takeOverSquad } from "./reinforcements.ts"
+import { joinSquad, takeOverSquad } from "./reinforcements.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
@@ -66,6 +66,16 @@ export interface TakeCommandCommand {
  */
 export interface TakeOverSquadCommand {
   readonly type: "take-over-squad"
+  readonly squad: number
+  readonly from: number
+}
+
+/**
+ * A player joining the battle chooses which squad of their side to lead: the player's squad and `from` swap their men
+ * and orders. See `joinRefusal` for which squads can be chosen; ignored for any other.
+ */
+export interface JoinSquadCommand {
+  readonly type: "join-squad"
   readonly squad: number
   readonly from: number
 }
@@ -194,6 +204,7 @@ export type Command =
   | SquadOrderCommand
   | TakeCommandCommand
   | TakeOverSquadCommand
+  | JoinSquadCommand
   | KillCommand
   | FireCommand
   | StanceCommand
@@ -281,6 +292,14 @@ export function applyCommand(sim: Simulation, command: Command): void {
       const from = sim.squads[command.from]
       if (squad && from) {
         takeOverSquad(sim, squad, from)
+      }
+      return
+    }
+    case "join-squad": {
+      const squad = sim.squads[command.squad]
+      const from = sim.squads[command.from]
+      if (squad && from) {
+        joinSquad(sim, squad, from)
       }
       return
     }

@@ -48,7 +48,8 @@ export type {
   ClockCommand,
   ForecastCommand,
   TakeCommandCommand,
-  TakeOverSquadCommand
+  TakeOverSquadCommand,
+  JoinSquadCommand
 } from "./commands.ts"
 export { MaskState, Side, Stance } from "./components.ts"
 export { type CaptureEvent, surrender } from "./capture.ts"
@@ -93,6 +94,8 @@ export {
   type ReinforcementState,
   type SquadTakenOverEvent,
   TAKE_OVER_MIN_MEN,
+  joinRefusal,
+  joinSquad,
   takeOverCandidates,
   takeOverSquad
 } from "./reinforcements.ts"

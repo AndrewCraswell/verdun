@@ -316,3 +316,45 @@ export function takeOverSquad(sim: Simulation, squad: Squad, from: Squad): boole
   sim.events.push({ type: "squad-taken-over", side: squad.side, squad: squad.id, from: from.id, men: living.length })
   return true
 }
+
+/**
+ * Whether a player joining the battle may lead a bot squad, and why not: it must be their side's, with at least four men
+ * standing and none of them in contact (docs/design/soldier-and-squad.md#joining-the-battle).
+ */
+export function joinRefusal(sim: Simulation, squad: Squad, from: Squad): "not-ours" | "too-few" | "in-contact" | null {
+  if (from === squad || from.side !== squad.side || from.controller !== "ai" || squad.controller !== "player") {
+    return "not-ours"
+  }
+  const living = from.members.filter((member) => isAlive(sim, member))
+  if (living.length < TAKE_OVER_MIN_MEN) {
+    return "too-few"
+  }
+  return inContact(sim, from, living) ? "in-contact" : null
+}
+
+/**
+ * A player joining the battle takes a bot squad in the line in place of the one held for them: the two squads swap their
+ * men and their orders, so the player leads the chosen men where they stand, and bots carry on with the stretch the
+ * player's squad held. Returns whether it happened; see `joinRefusal` for when it doesn't.
+ */
+export function joinSquad(sim: Simulation, squad: Squad, from: Squad): boolean {
+  if (joinRefusal(sim, squad, from) !== null) {
+    return false
+  }
+  const mine = [...squad.members]
+  const theirs = [...from.members]
+  for (const member of theirs) {
+    sim.soldiers.squad.id[member] = squad.id
+  }
+  for (const member of mine) {
+    sim.soldiers.squad.id[member] = from.id
+  }
+  squad.members.splice(0, squad.members.length, ...theirs)
+  from.members.splice(0, from.members.length, ...mine)
+  squad.leader = theirs.find((member) => isAlive(sim, member)) ?? -1
+  from.leader = mine.find((member) => isAlive(sim, member)) ?? -1
+  const order = squad.order
+  squad.order = from.order
+  from.order = order
+  return true
+}
