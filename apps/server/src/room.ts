@@ -1,8 +1,9 @@
 import { type Client, Room } from "@colyseus/core"
-import { joinSide, MESSAGE } from "@verdun/net"
+import { joinSide, MESSAGE, type Recipient } from "@verdun/net"
 import { STEP_SECONDS } from "@verdun/sim"
+import { createEncodingThread } from "./encoding-thread.ts"
 import { createPlayers } from "./players.ts"
-import { createRelay, SYNC_EVERY } from "./relay.ts"
+import { createRelay, encodingShape, SYNC_EVERY } from "./relay.ts"
 import type { Sector } from "./sector.ts"
 import { createSightThread } from "./sight-thread.ts"
 import { SIGHT_SHARES } from "./sight.ts"
@@ -24,6 +25,9 @@ function createStats() {
   let steps = 0
   let stepMs: number[] = []
   let encodeMs = 0
+  // The room thread's own share of each sync: taking it, sight's frame, recipients, posting.
+  let relayMs = 0
+  let relays = 0
   let messages = 0
   let bytes = 0
   let since = performance.now()
@@ -42,6 +46,10 @@ function createStats() {
         stepMs.push(ms / count)
       }
     },
+    relayed(ms: number) {
+      relayMs += ms
+      relays++
+    },
     sent(ms: number, size: number) {
       encodeMs += ms
       messages++
@@ -57,7 +65,8 @@ function createStats() {
       const line =
         `stats: ${players} players, ${(steps / seconds).toFixed(1)} steps/s, step ${mean.toFixed(1)} ms mean, ` +
         `${at(0.95)} p95, ${at(1)} max; ${messages} messages, ${(bytes / Math.max(1, messages) / 1024).toFixed(1)} KB each, ` +
-        `${(bytes / seconds / 1024).toFixed(1)} KB/s a player, encode ${(encodeMs / Math.max(1, messages)).toFixed(1)} ms; ` +
+        `${(bytes / seconds / 1024).toFixed(1)} KB/s a player, encode ${(encodeMs / Math.max(1, messages)).toFixed(1)} ms, ` +
+        `room thread ${(relayMs / Math.max(1, relays)).toFixed(1)} ms; ` +
         `heap ${memory.toFixed(0)} MB; per step, ` +
         [...systems]
           .sort((a, b) => b[1] - a[1])
@@ -68,6 +77,8 @@ function createStats() {
       steps = 0
       stepMs = []
       encodeMs = 0
+      relayMs = 0
+      relays = 0
       messages = 0
       bytes = 0
       since = performance.now()
@@ -83,8 +94,14 @@ function createStats() {
  */
 export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) {
   const players = createPlayers(sector.sim, dev)
-  // Each side's sight of the enemy is worked out in a worker, off the thread the battle steps on.
-  const relay = createRelay(sector, SYNC_EVERY, createSightThread(sector.sim, SIGHT_SHARES, log))
+  // Each side's sight of the enemy and each player's message are worked out in workers, off the thread the battle
+  // steps on. Every player's battle builds on the messages before: without the encoding there's no going on, so the
+  // server stops as it would on a deploy, keeping the battle, to start again.
+  const encoding = createEncodingThread(encodingShape(sector), (error) => {
+    log(`The encoding's worker failed, so the server is stopping: ${error.message}`)
+    process.kill(process.pid, "SIGTERM")
+  })
+  const relay = createRelay(sector, SYNC_EVERY, createSightThread(sector.sim, SIGHT_SHARES, log), encoding)
   sector.onStep(() => players.stepped())
   const stats = createStats()
   let reported = performance.now()
@@ -100,7 +117,7 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
       this.onMessage(MESSAGE.ready, (client: Client) => {
         const squad = players.squadOf(client.sessionId)
         if (squad) {
-          client.sendBytes(MESSAGE.joined, relay.welcome(squad.id))
+          relay.welcome(squad.id, (welcome) => client.sendBytes(MESSAGE.joined, welcome))
         }
       })
       this.onMessage(MESSAGE.commands, (client: Client, commands: unknown) => {
@@ -113,30 +130,44 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
         const started = performance.now()
         const steps = sector.advance(Date.now())
         const stepped = performance.now()
-        const sync = relay.due()
-        if (sync) {
-          // One encoding for everyone; each player's message is its parts for the cells near their men, as their side sees
-          // them, with what only their own squad is sent.
-          let bytes = 0
+        // Acknowledged after the sync with the commands' steps in it, so a player's prediction starts again from the
+        // battle that has their commands in it.
+        const acknowledgements = players.acknowledgements()
+        const acknowledge = () => {
+          for (const [player, acknowledgement] of acknowledgements) {
+            this.clients.getById(player)?.send(MESSAGE.ack, acknowledgement)
+          }
+        }
+        const recipients = () => {
+          const each = new Map<string, Recipient>()
           for (const client of this.clients) {
             const squad = players.squadOf(client.sessionId)
-            if (!squad) {
-              continue
+            if (squad) {
+              each.set(client.sessionId, relay.recipient(squad))
             }
-            const message = sync.for(client.sessionId, relay.recipient(squad))
-            client.sendBytes(MESSAGE.sync, message)
+          }
+          return each
+        }
+        // One encoding for everyone; each player's message is its parts for the cells near their men, as their side
+        // sees them, with what only their own squad is sent.
+        const due = relay.sync(recipients, (messages, encodeMs) => {
+          let bytes = 0
+          for (const [player, message] of messages) {
+            this.clients.getById(player)?.sendBytes(MESSAGE.sync, message)
             bytes += message.byteLength
           }
-          stats.sent(performance.now() - stepped, this.clients.length > 0 ? bytes / this.clients.length : 0)
+          stats.sent(encodeMs, messages.size > 0 ? bytes / messages.size : 0)
+          acknowledge()
+        })
+        if (due) {
+          stats.relayed(performance.now() - stepped)
+        } else {
+          acknowledge()
         }
         stats.stepped(stepped - started, steps)
         if (statsEvery !== undefined && performance.now() - reported >= statsEvery) {
           reported = performance.now()
           log(stats.report(this.clients.length))
-        }
-        // After the sync, so a player's prediction starts again from the battle that has their commands in it.
-        for (const [player, acknowledgement] of players.acknowledgements()) {
-          this.clients.getById(player)?.send(MESSAGE.ack, acknowledgement)
         }
       }, LOOP_MS)
     }

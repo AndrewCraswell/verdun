@@ -88,8 +88,10 @@ before, for development and `pnpm perf`.
 - **Encoding** (`packages/net`): each message is only what changed since the last (`delta.ts`): the fields of state,
   runs of each soldier array (apart, by `soldierArrayLayout`), the wire and the clouds, and lists that only lose
   elements and gain new ones at the end (the shells in flight) as just that. It goes as MessagePack that keeps typed
-  arrays (msgpackr's `moreTypes`), deflated once for every player (fflate). A joining player is welcomed to the battle
-  as of the last message, and every message after builds on it. Players get their own squad's men's positions to the
+  arrays (msgpackr's `moreTypes`), deflated once for every player (fflate). It's encoded in a worker thread
+  (`encoding-thread.ts`): the room posts each sync with who's to be sent it, and sends each player's message, then the
+  acknowledgements of the commands in it, as the worker answers, in order. A joining player is welcomed to the battle as
+  of the last message, and every message after builds on it. Players get their own squad's men's positions to the
   centimetre and their facing, morale, suppression and breath to the hundredth, so a value that ebbs a little every step
   is sent only when it has changed enough to tell; other men's morale and suppression go in twentieths, which is all
   their poses and sounds use, and where they are by dead reckoning (below). Gas and smoke go as a byte a cell on a log
@@ -157,8 +159,7 @@ before, for development and `pnpm perf`.
 
 In order, what comes next:
 
-1. The navigation's route searches under many players' goals (see [the load test](#the-load-test)), and encoding off the
-   room's thread if the step needs the time.
+1. The navigation's route searches under many players' goals (see [the load test](#the-load-test)).
 2. Hosting on Railway, with the database on a volume.
 
 ### The load test
@@ -204,7 +205,7 @@ What it said, and what was done about it:
   everyone fights over one objective: the men moving are near everyone's squads, and the far cells hold men standing in
   their trenches, who change little anyway. Finer cells (50 m within 75 m) sent no less and took twice as long to
   encode. With 100 players encoding takes 6 to 10 ms a message and making each player's message from it 4 to 6 ms more,
-  on the room's thread: moving it to a worker thread is the next step if the step needs the time.
+  on the room's thread, which has since moved to a worker (below).
 - **Sending each side only the enemy it can see, and other squads' men without what only their own squad uses**, took
   each player's share from about 75 to 58 KB/s, and sending which soldiers have which components as flags to 44 KB/s (50
   at most). In this test each side sees about 40% of the enemy at any time: everyone fights over one objective in the
@@ -214,6 +215,9 @@ What it said, and what was done about it:
   suppression in twentieths, to 37 KB/s (39 at most).
 - **Smoke twice a second, from 0.5 in coarser steps**, took it to 29 KB/s (31 at most): smoke from 6 to 8 KB/s to 1.4.
   Measured on a bombardment alone, sending it every fifth message halved it, and the coarser scale halved it again.
+- **Encoding in a worker thread** took the room thread's share of a message from 17 to 27 ms to 1.7 ms (taking the sync,
+  sight's frame, working out who's near what, posting); the worker takes about 11 ms a message for 100 players. The
+  step's worst p95 fell from 45 to 76 ms to 39.
 - **What players are sent now**, per message: soldiers' arrays about 55% (their anchors, paces and facing 40%), events
   17%, smoke 5%.
 - **Hosting**: at 100 players a sector sends about 2.8 MB/s (23 Mbit/s), which matters for Railway's egress pricing.
@@ -431,7 +435,9 @@ first candidate for Rust/WebAssembly if profiling demands it.
   stages on existing trenches are cheap; new trenches need a spike on local rebuild cost.
 - **One room is one thread.** A sector's whole simulation shares one Node event loop. The first load test (see
   [above](#the-load-test)) puts 100 players and 1,100 men at the edge of it: the step needs profiling before the sector
-  grows, and whatever relevance filtering costs must stay off that thread, as the sight lines already are.
+  grows, and whatever relevance filtering costs must stay off that thread, as the sight lines and the encoding are. If
+  the encoding's worker fails the server stops as on a deploy, keeping the battle: every player's messages build on the
+  ones before, so there's no going on without it.
 
 ## Considered and not chosen
 

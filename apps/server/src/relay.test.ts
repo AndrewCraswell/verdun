@@ -1,5 +1,5 @@
 import { createFlatMap, stampCrater } from "@verdun/map"
-import { decodeJoined, groundMovement } from "@verdun/net"
+import { decodeJoined, groundMovement, type Recipient } from "@verdun/net"
 import {
   applySync,
   createSimulation,
@@ -11,9 +11,10 @@ import {
   spawnSoldier,
   stepSimulation
 } from "@verdun/sim"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import type { Messages } from "./encoding.ts"
 import { groundOf } from "./ground.ts"
-import { createRelay } from "./relay.ts"
+import { createRelay, type Relay } from "./relay.ts"
 import type { Sector } from "./sector.ts"
 
 const NOW = Date.UTC(2027, 5, 10, 18)
@@ -52,6 +53,30 @@ function smallSector(): Sector {
   }
 }
 
+/** The welcome for the player leading `squad`, which the relay's inline encoding gives at once. */
+function welcomeOf(relay: Relay, squad = 0): Uint8Array {
+  let given: Uint8Array | null = null
+  relay.welcome(squad, (welcome) => {
+    given = welcome
+  })
+  if (!given) {
+    throw new Error("No welcome")
+  }
+  return given
+}
+
+/** The sync's message for "player", leading as `recipient`, or null when no sync was due. */
+function messageFor(relay: Relay, recipient: Recipient): Uint8Array | null {
+  let message: Uint8Array | null = null
+  const due = relay.sync(
+    () => new Map([["player", recipient]]),
+    (messages) => {
+      message = messages.get("player") ?? null
+    }
+  )
+  return due ? message : null
+}
+
 describe("the relay", () => {
   it("welcomes a late player with the whole battle, craters and all, and keeps them in step after", () => {
     const sector = smallSector()
@@ -60,7 +85,7 @@ describe("the relay", () => {
     sector.advance(5)
 
     const mirror = createSimulation({ map: field(), seed: 3 })
-    const joined = decodeJoined(relay.welcome(0), field())
+    const joined = decodeJoined(welcomeOf(relay), field())
     applySync(mirror, joined.sync)
     expect(joined.playerSquad).toBe(0)
     expect(joined.schedule).toEqual(sector.war.schedule)
@@ -70,11 +95,11 @@ describe("the relay", () => {
     // Every message after the welcome builds on the one before.
     const squad = sector.sim.squads[0]
     const take = () => {
-      const sync = relay.due()
-      if (sync && squad) {
-        applySync(mirror, joined.decoder.decode(sync.for("player", relay.recipient(squad))))
+      const message = squad ? messageFor(relay, relay.recipient(squad)) : null
+      if (message) {
+        applySync(mirror, joined.decoder.decode(message))
       }
-      return sync
+      return message
     }
     sector.advance(1)
     expect(take()).not.toBeNull()
@@ -91,16 +116,14 @@ describe("the relay", () => {
     const sector = smallSector()
     const relay = createRelay(sector)
     sector.advance(4)
-    expect(relay.due()).not.toBeNull()
+    const noOne = vi.fn<(messages: Messages, encodeMs: number) => void>()
+    expect(relay.sync(() => new Map(), noOne)).toBe(true)
+    expect(noOne).toHaveBeenCalledWith(new Map(), expect.any(Number))
 
-    const { decoder } = decodeJoined(relay.welcome(0), field())
+    const { decoder } = decodeJoined(welcomeOf(relay), field())
     sector.advance(2)
-    const sync = relay.due()
-    expect(
-      decoder
-        .decode(sync?.for("player", { near: new Set(), side: Side.French, own: [] }) ?? new Uint8Array())
-        .steps.map((step) => step.tick)
-    ).toEqual([5, 6])
+    const message = messageFor(relay, { near: new Set(), side: Side.French, own: [] })
+    expect(decoder.decode(message ?? new Uint8Array()).steps.map((step) => step.tick)).toEqual([5, 6])
     relay.forget("player")
   })
 
@@ -122,8 +145,8 @@ describe("the relay", () => {
   it("welcomes a player to unshelled ground with no patch", () => {
     const relay = createRelay(smallSector())
 
-    expect(decodeJoined(relay.welcome(0), field()).sync.ground).toEqual([])
+    expect(decodeJoined(welcomeOf(relay), field()).sync.ground).toEqual([])
     // A squad the battle doesn't have is welcomed as French.
-    expect(decodeJoined(relay.welcome(9), field()).playerSquad).toBe(9)
+    expect(decodeJoined(welcomeOf(relay, 9), field()).playerSquad).toBe(9)
   })
 })

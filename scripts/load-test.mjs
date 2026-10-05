@@ -253,11 +253,15 @@ try {
   print(
     `  step: ${mean(numbers(/step ([\d.]+) ms mean/)).toFixed(1)} ms mean, ${Math.max(...numbers(/([\d.]+) p95/)).toFixed(1)} ms worst p95, ${Math.max(...numbers(/([\d.]+) max/)).toFixed(0)} ms longest (budget 50)`
   )
-  print(`  encoding a message: ${mean(numbers(/encode ([\d.]+) ms/)).toFixed(1)} ms mean, once for every player`)
+  print(
+    `  encoding a message: ${mean(numbers(/encode ([\d.]+) ms/)).toFixed(1)} ms mean, once for every player, in its ` +
+      `worker; ${mean(numbers(/room thread ([\d.]+) ms/)).toFixed(1)} ms of the room's thread`
+  )
   // The step's systems, by their milliseconds a step, over the steady stretch.
   const systems = new Map()
   for (const line of steady) {
-    for (const [, name, ms] of line.matchAll(/(?:per step, |, )([a-z ]+?) ([\d.]+) ms(?=,|$)/g)) {
+    const perStep = line.slice(line.indexOf("per step, "))
+    for (const [, name, ms] of perStep.matchAll(/(?:per step, |, )([a-z ]+?) ([\d.]+) ms(?=,|$)/g)) {
       systems.set(name, [...(systems.get(name) ?? []), Number(ms)])
     }
   }

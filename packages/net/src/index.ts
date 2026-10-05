@@ -9,9 +9,10 @@ export {
   MESSAGE,
   SECTOR_ROOM
 } from "./protocol.ts"
-export { cellsNear } from "./soldier-cells.ts"
+export { type CellGrid, cellGrid, cellsNear } from "./soldier-cells.ts"
 export {
   type ArrayLayout,
+  CELL_SIZE,
   createSyncEncoder,
   decodeJoined,
   type EncodedSync,
