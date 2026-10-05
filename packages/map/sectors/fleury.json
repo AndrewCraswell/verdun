@@ -4,6 +4,19 @@
  "infinite": false,
  "layers": [
   {
+   "id": 6,
+   "image": "fleury-ground.png",
+   "locked": true,
+   "name": "survey",
+   "opacity": 0.85,
+   "repeatx": false,
+   "repeaty": false,
+   "type": "imagelayer",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
    "draworder": "index",
    "id": 1,
    "name": "ground",
@@ -589,7 +602,7 @@
    "y": 0
   }
  ],
- "nextlayerid": 6,
+ "nextlayerid": 7,
  "nextobjectid": 21,
  "orientation": "orthogonal",
  "properties": [

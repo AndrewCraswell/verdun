@@ -93,6 +93,21 @@ export interface TiledObjectLayer {
   readonly y: number
 }
 
+/** A picture under a map's objects, such as a sector's surveyed ground. */
+export interface TiledImageLayer {
+  readonly id: number
+  readonly image: string
+  readonly locked: boolean
+  readonly name: string
+  readonly opacity: number
+  readonly repeatx: boolean
+  readonly repeaty: boolean
+  readonly type: "imagelayer"
+  readonly visible: boolean
+  readonly x: number
+  readonly y: number
+}
+
 /** A Tiled JSON map (.tmj). Keys are in the alphabetical order Tiled writes them in, so re-saving in Tiled diffs small. */
 export interface TiledMap {
   readonly compressionlevel: number

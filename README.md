@@ -138,6 +138,7 @@ Type: [Archivo](https://github.com/Omnibus-Type/Archivo), © 2020 The Archivo Pr
 | [Shopping list](docs/assets/shopping-list.md) | What to buy, with links and prices                           |
 | [Licensing](docs/assets/licensing.md)         | Which stores are usable for a web game and how we comply     |
 | [Asset library](docs/assets/backup.md)        | What lives outside git, on E:, and how to fetch and store it |
+| [Historical maps](docs/historical-maps.md)    | The trench maps of 1916 sectors are traced from, and how     |
 | [Pipeline](docs/assets/pipeline.md)           | Export, optimization, compression, crowd rendering, budgets  |
 | [Register](docs/assets/register.md)           | Every shipped third-party asset and its license              |
 

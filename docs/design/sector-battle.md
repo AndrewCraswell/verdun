@@ -243,7 +243,8 @@ Each side in each sector has one commander.
 
 A front line that moves over a season eventually walks off a 400 m map. Each sector is a fixed-width strip of the front
 covering the whole depth the season can reach (several kilometres of real IGN ground), but only a **battle window**
-around the current line, about 600–800 m deep, is loaded and simulated. At the daily cutoff the window re-centres on the
-new line if it has moved far enough. Ground outside the window keeps its craters and ownership in the sector's ledger.
+around the current line, 1 km wide and 800 m deep for the sectors made from now on, is loaded and simulated. At the
+daily cutoff the window re-centres on the new line if it has moved far enough. Ground outside the window keeps its
+craters and ownership in the sector's ledger.
 
 This is an engineering question as much as a design one; see [open questions](../open-questions.md#product).

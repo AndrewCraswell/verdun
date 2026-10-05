@@ -538,11 +538,16 @@ is:
 
 | Layer       | Objects                                                                                                                                                                             |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `survey`    | an image layer, locked: the surveyed ground as shaded relief to lay out on, drawn by `pnpm map:backdrop`                                                                            |
 | `ground`    | `ravine` and `sunken-road` polylines (`halfWidth`, `depth`), `village` circles (`height`), `crater` circles (`depth`)                                                               |
 | `woods`     | `wood` ellipses, named, with a `density` from 0 to 1                                                                                                                                |
 | `roads`     | `road` and `street` polylines (the street named `main street` first), a `crossroads` point; the layer's `frenchRear` and `germanRear` properties are where roads keep their surface |
 | `railways`  | `railway` polylines along the track, `dump` points                                                                                                                                  |
 | `landmarks` | `church` points (`heading` in degrees, `variant`), `orchard` points at the south-west tree (`rows`, `trees`, `spacing`, `jitter`)                                                   |
+
+New sectors are 1 km wide along the front and 800 m deep; Fleury, the first, stays 600 m by 400 m until it's remade.
+Their trench lines are traced from the trench maps of 1916: the sources and how to trace from them are in
+[historical maps](historical-maps.md).
 
 Fleury's file holds what fleury.ts used to: the map it generates is the same to the byte. Its trench lines, batteries
 and objectives are still worked out in code; drawing the trench lines in the file comes next, and with it sectors traced

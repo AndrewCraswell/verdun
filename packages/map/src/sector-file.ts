@@ -13,6 +13,7 @@ import {
   readLayer,
   round,
   TILED_PIXELS_PER_METRE,
+  type TiledImageLayer,
   type TiledMap,
   type TiledObject,
   type TiledObjectLayer,
@@ -57,6 +58,8 @@ export interface SectorFeatures {
   readonly woods: readonly Wood[]
   /** Craters older than the battle, such as mines blown under the lines. */
   readonly craters: readonly Crater[]
+  /** The surveyed ground drawn as shaded relief (scripts/sector-backdrop.mjs), shown under the features in Tiled. */
+  readonly backdrop?: string
 }
 
 export interface Village {
@@ -107,6 +110,7 @@ export interface Wood {
 
 /** Layer names, as Tiled shows them. */
 const LAYERS = {
+  survey: "survey",
   ground: "ground",
   roads: "roads",
   railways: "railways",
@@ -115,7 +119,10 @@ const LAYERS = {
 } as const
 
 /** Writes a sector's features as a Tiled map, one object layer for each kind. */
-export function toTiledSector(features: SectorFeatures): TiledMap {
+/** A sector's Tiled map: its object layers, and the survey drawn under them. */
+type TiledSectorMap = Omit<TiledMap, "layers"> & { readonly layers: readonly (TiledObjectLayer | TiledImageLayer)[] }
+
+export function toTiledSector(features: SectorFeatures): TiledSectorMap {
   const ppm = TILED_PIXELS_PER_METRE
   const bottom = features.depth * ppm
   const pixelX = (x: number) => round(x * ppm, PIXEL_DECIMALS)
@@ -249,11 +256,30 @@ export function toTiledSector(features: SectorFeatures): TiledMap {
     y: 0
   })
 
+  const survey: TiledImageLayer[] = features.backdrop
+    ? [
+        {
+          id: 6,
+          image: features.backdrop,
+          locked: true,
+          name: LAYERS.survey,
+          opacity: 0.85,
+          repeatx: false,
+          repeaty: false,
+          type: "imagelayer",
+          visible: true,
+          x: 0,
+          y: 0
+        }
+      ]
+    : []
   return {
     compressionlevel: -1,
     height: features.depth,
     infinite: false,
+    // Tiled draws the first layer lowest: the survey under everything.
     layers: [
+      ...survey,
       layer(1, LAYERS.ground, ground),
       layer(2, LAYERS.woods, woods),
       layer(3, LAYERS.roads, roads, [
@@ -263,7 +289,7 @@ export function toTiledSector(features: SectorFeatures): TiledMap {
       layer(4, LAYERS.railways, railways),
       layer(5, LAYERS.landmarks, landmarks)
     ],
-    nextlayerid: 6,
+    nextlayerid: 7,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -470,6 +496,8 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     }
   })
 
+  const survey = layers.find((layer) => isRecord(layer) && layer.name === LAYERS.survey)
+  const backdrop = isRecord(survey) && typeof survey.image === "string" ? survey.image : undefined
   const [cross] = crossroads
   if (!cross) {
     throw new TypeError('Tiled layer "roads" needs a crossroads point')
@@ -501,6 +529,7 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     churches,
     orchards,
     woods,
-    craters
+    craters,
+    ...(backdrop ? { backdrop } : {})
   }
 }
