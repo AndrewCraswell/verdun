@@ -21,6 +21,7 @@ or hit a man, men get stuck, and the rain looks cheap. The developer took the pr
 | The ring on the man in the sights as wide as the shot's spread                                            | `de853ca` |
 | Climbing a wire fence, keyed on the Synty rig; the Mixamo bone map                                        | `2d641bb` |
 | Rain as a camera sees it: GPU streaks round the camera, sheets beyond, ripples, no puffs                  | `eefebe5` |
+| The player's soldier moved and turned on the page ahead of the worker                                     | `4e928be` |
 
 Measured after: the sim's step for 520 soldiers took 3.76 ms against 3.70 ms before (four alternating rounds, within
 noise). Balance, three bombardments over 15 seeds: the French attack held 47% before and after; the German attack fell
