@@ -8,6 +8,8 @@ export interface BattleSetup {
   readonly simSeed: number
   readonly region: WeatherRegion
   readonly weatherSeed: number
+  /** Free play: the battle as it stands, with no operation planned. Otherwise the playtest's operation runs. */
+  readonly free?: boolean
 }
 
 /** From the page to the worker. */

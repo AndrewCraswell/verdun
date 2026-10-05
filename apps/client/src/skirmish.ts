@@ -1,12 +1,9 @@
-import { mapWidth, pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
+import { pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
 import {
   allotReinforcements,
   createSquad,
   enqueueCommand,
   type EntityId,
-  frontLineSpan,
-  frontLineZ,
-  type LineSpan,
   Shell,
   Side,
   type Simulation,
@@ -14,6 +11,9 @@ import {
   spawnSoldier,
   Weapon
 } from "@verdun/sim"
+
+// The whistle and the bombardment are the simulation's now, so an operation can fire them on time.
+export { attackBehindBarrage, bombardEnemyLine } from "@verdun/sim"
 
 /** Soldiers per squad: the player commands one squad. */
 export const SQUAD_SIZE = 8
@@ -168,105 +168,6 @@ export function setupSkirmish(
     playerSquad,
     reserves
   }
-}
-
-/**
- * Creeping barrage timing, after French practice at Verdun in late 1916: the barrage opens 70 m out as the infantry go
- * over, then lifts 50 m every 90 s; the infantry keep about 70 m behind it, close enough to be on the enemy's parapet
- * before the garrison is up, far enough that few of their own shells fall among them.
- */
-export const CREEPING_BARRAGE = {
-  openAhead: 70,
-  lift: 50,
-  interval: 90,
-  standoff: 70,
-  // About one field gun per 15-20 m of front, firing 3-4 rounds a minute.
-  roundsPerMinute: 150,
-  // A standing barrage keeps the enemy trench's garrison down their dugouts until the creeping barrage arrives.
-  standingRoundsPerMinute: 60
-} as const
-
-/** Both front lines as seen from one side: how deep each runs, and the enemy's middle. */
-function lines(sim: Simulation, side: Side): { own: LineSpan; enemy: LineSpan; enemyMiddle: number } | null {
-  const enemySide = side === Side.French ? Side.German : Side.French
-  const own = frontLineSpan(sim.map.trenches, side)
-  const enemy = frontLineSpan(sim.map.trenches, enemySide)
-  const enemyMiddle = frontLineZ(sim.map.trenches, enemySide)
-  return own === null || enemy === null || enemyMiddle === null ? null : { own, enemy, enemyMiddle }
-}
-
-/** The whistle: the whole side goes over the top behind a creeping barrage, which opens at once. */
-export function attackBehindBarrage(sim: Simulation, side: Side): void {
-  const front = lines(sim, side)
-  if (!front) {
-    return
-  }
-  const direction = Math.sign(front.enemy.forward - front.own.forward)
-  enqueueCommand(sim, {
-    type: "barrage-attack",
-    side,
-    fromX: 0,
-    toX: mapWidth(sim.map),
-    // Opens ahead of our own most forward bays; the objective is the whole depth of the enemy's line.
-    startZ: front.own.forward + direction * CREEPING_BARRAGE.openAhead,
-    objectiveZ: front.enemy.rear,
-    objectiveDepth: Math.abs(front.enemy.rear - front.enemy.forward),
-    roundsPerMinute: CREEPING_BARRAGE.roundsPerMinute,
-    lift: CREEPING_BARRAGE.lift,
-    interval: CREEPING_BARRAGE.interval,
-    standoff: CREEPING_BARRAGE.standoff,
-    standingRoundsPerMinute: CREEPING_BARRAGE.standingRoundsPerMinute,
-    delay: 0
-  })
-}
-
-/**
- * Where the enemy's wire belts lie in front of its front line, in metres (their middle, and how deep they run), and
- * how hard the field guns work at cutting them. Cutting wire took days of fire and tens of thousands of shells; this
- * two-minute bombardment stands for the end of that, so it fires at the rate that does days' worth of cutting.
- */
-const WIRE_BELTS = { middle: 30, depth: 30, roundsPerMinute: 600 } as const
-
-/**
- * A preparatory bombardment of the enemy front line: heavy howitzers to smash the trench, field guns to keep the
- * defenders down and to cut lanes through the wire in front of it, for two minutes. Real bombardments lasted days; this
- * is the last, most intense stretch.
- */
-export function bombardEnemyLine(sim: Simulation, side: Side): void {
-  const front = lines(sim, side)
-  if (!front) {
-    return
-  }
-  const depth = Math.abs(front.enemy.rear - front.enemy.forward)
-  const target = {
-    side,
-    fromX: 0,
-    toX: mapWidth(sim.map),
-    z: front.enemyMiddle,
-    band: depth + 20,
-    delay: 5,
-    duration: 120
-  }
-  enqueueCommand(sim, {
-    type: "fire-mission",
-    plan: { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: 30 }
-  })
-  enqueueCommand(sim, {
-    type: "fire-mission",
-    plan: { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: 120 }
-  })
-  // Field guns sweep the wire belts in front of the trench to cut lanes for the infantry.
-  const towardUs = Math.sign(front.own.forward - front.enemy.forward)
-  enqueueCommand(sim, {
-    type: "fire-mission",
-    plan: {
-      ...target,
-      z: front.enemy.forward + towardUs * WIRE_BELTS.middle,
-      band: WIRE_BELTS.depth,
-      shell: Shell.FieldHighExplosive,
-      roundsPerMinute: WIRE_BELTS.roundsPerMinute
-    }
-  })
 }
 
 /**

@@ -107,7 +107,7 @@ export function createCommanders(): Record<Side, CommanderState> {
 }
 
 /** Whether the enemy holds a side's front line: enough of them in it, and few of its own men left. */
-function frontLost(sim: Simulation, side: Side, front: LineSpan): boolean {
+export function frontLost(sim: Simulation, side: Side, front: LineSpan): boolean {
   const near = Math.min(front.forward, front.rear) - FRONT_BAND
   const far = Math.max(front.forward, front.rear) + FRONT_BAND
   let own = 0

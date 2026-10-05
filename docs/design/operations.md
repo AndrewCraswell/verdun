@@ -152,6 +152,56 @@ The operation ends when the objective is taken or the attackers are back in thei
   reserves in about five minutes later), or prepared within the half hour with fresh shells.
 - The communiqué reports it at the next daily turn, with citations for the squads that did best.
 
+## The playtest operation
+
+The prototype's first goal, for the [playtest build](../roadmap.md#milestones): one scripted operation of under half an
+hour that a player can win or lose. It reuses what's built (the bombardment, the barrage attack, the commander's
+counter-attack, objectives, takeover) and adds a start, a clock and an end. The simulation runs it, so the balance
+harness plays the same operation the player does.
+
+**The plan**: the French attack the German front line across the sector's whole frontage, behind three bombardments and
+a creeping barrage. The player leads a squad in the first wave; the French support line stays back as reserves. Three
+bombardments is the [balance](balance.md#battle-matrix-built) scenario where a prepared attack takes the line on most
+seeds; whether it then holds against the counter-attack is up to the fight. Built (`planOperation`), and in the balance
+harness as "playtest operation": on ten seeds, with the player's squad standing idle, it was taken on six, a footing on
+two and repulsed on two, the attackers losing about three quarters of their men, replacements included.
+
+| Clock | What happens                                                                                              |
+| ----- | --------------------------------------------------------------------------------------------------------- |
+| 0:00  | The battle runs. The briefing is done; the HUD counts down to zero hour.                                  |
+| 1:30  | The bombardment opens: three two-minute bombardments of the German front line and its wire, back to back. |
+| 8:00  | **Zero hour.** Whistles; the whole French front line goes over behind the creeping barrage.               |
+| 8–18  | The assault: into the German line and onto the objectives.                                                |
+| 18–28 | The hold: the German counter-thrusts and counter-attack, about five minutes after the line falls.         |
+| 28:00 | **The end.** The result is judged and the report shown.                                                   |
+
+**The result**, judged at the end:
+
+- **Taken**: the French hold the German front line, by the commander's own test of a lost line (at least eight men in
+  it, outnumbering what's left of the garrison three to one).
+- **A footing**: the line isn't held, but the French hold at least one objective the Germans held at the start.
+- **Repulsed**: neither. The operation ends early as repulsed once, from four minutes after zero hour, no French soldier
+  has been beyond his own front line for a minute.
+
+**The report** tallies, from the plan to the end: each side's killed, wounded and captured; the French losses by cause
+(as the balance harness counts them, own shells apart); prisoners taken; objectives taken and when; German machine
+gunners put down; the player's squad's losses and the enemy it shot or bombed down, whichever squads the player led.
+
+**For the player** (built by the HUD and menus):
+
+- **Briefing**, before the battle runs: the date and hour, the plan in three lines, the player's squad and its place in
+  the line, zero hour eight minutes after going in, and what counts as taken.
+- **In battle**: the countdown to zero hour, then to the end; a banner and whistles at zero hour; the objectives as they
+  change hands.
+- **The end**: the report with the result, and _Fight again_ or _Front door_.
+
+The whistle (G) and bombardment (B) keys are for free play: during an operation the plan fires them. Free play stays for
+development (`?free`, through `BattleSetup.free`).
+
+The screens read `sim.operation`, mirrored from the worker like the rest of the state: `zeroHourAt` and `endsAt`
+(steps), `bombardmentsFired`, `wentOver`, `result` and `endedAt` once it's over, and `tally`. The `zero-hour` and
+`operation-over` events mark the two moments.
+
 ## The 1918 infiltration attack
 
 German storm troop tactics are their own kind of operation and a real asymmetry for the 1918 season: a hurricane

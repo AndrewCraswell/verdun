@@ -343,7 +343,7 @@ function strike(sim: Simulation, soldier: EntityId, shooter: EntityId): void {
   sim.soldiers.health.value[soldier] -= 0.5 + sim.rng.next() * 0.6
   if (sim.soldiers.health.value[soldier] <= 0) {
     const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? "machine-gun" : "rifle"
-    casualty(sim, soldier, KILLED_OUTRIGHT.bullet, { kind, by: sideOf(sim, shooter) })
+    casualty(sim, soldier, KILLED_OUTRIGHT.bullet, { kind, by: sideOf(sim, shooter), soldier: shooter })
   }
 }
 
@@ -540,7 +540,8 @@ export function throwGrenade(sim: Simulation, thrower: EntityId, x: number, z: n
     side: sim.soldiers.side.value[thrower] === 1 ? 1 : 0,
     x: flight.rest.x,
     z: flight.rest.z,
-    landsAtTick: burstTick
+    landsAtTick: burstTick,
+    thrower
   })
   return true
 }

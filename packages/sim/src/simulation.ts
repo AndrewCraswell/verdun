@@ -26,6 +26,7 @@ import { createGunCrews, type GunCrewState, type GunMannedEvent, gunCrewSystem }
 import type { LineOfSight } from "./line-of-sight.ts"
 import { navigationSystem } from "./navigation.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
+import { type OperationOverEvent, type OperationState, operationSystem, type ZeroHourEvent } from "./operation.ts"
 import {
   createReinforcements,
   type ReinforcementEvent,
@@ -95,6 +96,8 @@ export interface Simulation {
   readonly defence: DefenceState
   /** Very lights in the air over no man's land at night, lighting the ground beneath them. */
   readonly flares: Flare[]
+  /** The scheduled attack under way, or over, if there is one: see `planOperation`. */
+  operation: OperationState | null
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
   readonly events: SimEvent[]
   tick: number
@@ -126,6 +129,8 @@ export type SimEvent =
   | WoundedEvent
   | FallenEvent
   | CasualtyEvent
+  | ZeroHourEvent
+  | OperationOverEvent
 
 export interface SimulationOptions {
   readonly map: BattlefieldMap
@@ -170,6 +175,7 @@ export function createSimulation({
     commanders: createCommanders(),
     objectives: createObjectives(map),
     flares: [],
+    operation: null,
     reinforcements: createReinforcements(reinforcements),
     spotting: createSpotting(),
     gunCrews: createGunCrews(),
@@ -323,5 +329,6 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: spotting", spottingSystem],
   ["sim: gun crews", gunCrewSystem],
   ["sim: movement", (sim) => movementSystem(sim, STEP_SECONDS)],
-  ["sim: objectives", objectiveSystem]
+  ["sim: objectives", objectiveSystem],
+  ["sim: operation", operationSystem]
 ]

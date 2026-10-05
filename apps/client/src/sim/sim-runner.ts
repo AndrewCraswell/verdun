@@ -4,6 +4,8 @@ import {
   createSyncSource,
   enqueueCommand,
   loadWeatherRegion,
+  PLAYTEST_OPERATION,
+  planOperation,
   type Simulation,
   stepSimulation,
   type SyncSource
@@ -62,6 +64,9 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
       environment: { forecast: { kind: "records", seed: setup.weatherSeed, region: setup.region } }
     })
     const { playerSquad } = setupSkirmish(battle)
+    if (!setup.free) {
+      planOperation(battle, PLAYTEST_OPERATION)
+    }
     const lineOfSight = await createLineOfSight(map)
     battle.lineOfSight = lineOfSight
     sight = createSightModel(battle, lineOfSight, playerSquad, SIGHT_RANGE)

@@ -8,6 +8,7 @@ import type { DefenceState } from "./defence.ts"
 import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
 import type { Flare } from "./flares.ts"
 import type { GunCrewState } from "./gun-crews.ts"
+import { copyOperation, type OperationState } from "./operation.ts"
 import type { ReinforcementState } from "./reinforcements.ts"
 import {
   capturedIds,
@@ -23,7 +24,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 21
+export const SIM_STATE_VERSION = 22
 
 export interface SoldierState {
   readonly id: number
@@ -104,6 +105,8 @@ export interface SimulationSnapshot {
   readonly defence: DefenceState
   /** Very lights in the air. */
   readonly flares: readonly Flare[]
+  /** The scheduled attack under way, or over, if there is one. */
+  readonly operation: OperationState | null
 }
 
 function toSide(value: number): Side {
@@ -202,7 +205,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
     },
     gunCrews: { pickups: sim.gunCrews.pickups.map((pickup) => ({ ...pickup })) },
     defence: { alarmedAt: { ...sim.defence.alarmedAt } },
-    flares: sim.flares.map((flare) => ({ ...flare }))
+    flares: sim.flares.map((flare) => ({ ...flare })),
+    operation: copyOperation(sim.operation)
   }
 }
 
@@ -316,6 +320,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   sim.gunCrews.pickups.push(...snapshot.gunCrews.pickups.map((pickup) => ({ ...pickup })))
   Object.assign(sim.defence.alarmedAt, snapshot.defence.alarmedAt)
   sim.flares.push(...snapshot.flares.map((flare) => ({ ...flare })))
+  sim.operation = copyOperation(snapshot.operation)
   snapshot.objectives.forEach((saved, index) => {
     const objective = sim.objectives[index]
     if (objective) {

@@ -48,6 +48,8 @@ export type CasualtyKind = "rifle" | "machine-gun" | "shell" | "grenade" | "gas"
 export interface CasualtyCause {
   readonly kind: CasualtyKind
   readonly by: Side | -1
+  /** The soldier who fired or threw it, where one did. */
+  readonly soldier?: EntityId
 }
 
 const UNKNOWN_CAUSE: CasualtyCause = { kind: "other", by: -1 }

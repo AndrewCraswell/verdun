@@ -10,14 +10,18 @@ import { readFileSync } from "node:fs"
 import { availableParallelism } from "node:os"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
-import { attackBehindBarrage, bombardEnemyLine, setupSkirmish } from "../apps/client/src/skirmish.ts"
+import { setupSkirmish } from "../apps/client/src/skirmish.ts"
 import { decodeElevation, generateFleurySector, generatePrototypeSector } from "../packages/map/src/index.ts"
 import {
+  attackBehindBarrage,
+  bombardEnemyLine,
   capturedIds,
   createSimulation,
   evacuatedIds,
   fallenIds,
   frontLineSpan,
+  PLAYTEST_OPERATION,
+  planOperation,
   Side,
   soldierIds,
   enqueueCommand,
@@ -57,7 +61,10 @@ const SCENARIOS = [
     success: [0.6, 0.9],
     losses: [0.35, 0.6],
     ownFire: [0.05, 0.15]
-  }
+  },
+  // The playtest's operation as the simulation runs it, to its end: "held" is the result "taken", judged after the
+  // counter-attack. Winnable, not certain.
+  { name: "playtest operation", operation: true, success: [0.4, 0.8] }
 ]
 /** What knocks men down, in the order the report lists them. "own" is the attackers' own shells and grenades. */
 const CAUSES = ["machine-gun", "rifle", "shell", "own", "grenade", "gas", "other"]
@@ -117,13 +124,26 @@ async function battle({ mapName, seed, scenario, attacker }) {
       }
     }
   }
-  const { bombardments, assaultSeconds, barrage = true } = SCENARIOS.find((candidate) => candidate.name === scenario)
+  const {
+    bombardments,
+    assaultSeconds,
+    barrage = true,
+    operation
+  } = SCENARIOS.find((candidate) => candidate.name === scenario)
+  if (operation) {
+    const planned = planOperation(sim, { ...PLAYTEST_OPERATION, side: attacker })
+    while (planned.result === null && sim.tick <= planned.endsAt) {
+      run(10)
+    }
+  }
   for (let round = 0; round < bombardments; round++) {
     bombardEnemyLine(sim, attacker)
     run(BOMBARDMENT_SECONDS)
   }
   const target = frontLineSpan(map.trenches, defender)
-  if (barrage) {
+  if (operation) {
+    // The operation sent them over itself.
+  } else if (barrage) {
     attackBehindBarrage(sim, attacker)
   } else {
     // Over the top with no guns behind them: each squad walks straight for the stretch of enemy trench ahead of it.
@@ -134,7 +154,9 @@ async function battle({ mapName, seed, scenario, attacker }) {
       }
     }
   }
-  run(assaultSeconds)
+  if (!operation) {
+    run(assaultSeconds)
+  }
 
   const span = frontLineSpan(map.trenches, defender)
   const near = Math.min(span.forward, span.rear) - FRONT_BAND
@@ -146,7 +168,9 @@ async function battle({ mapName, seed, scenario, attacker }) {
       inFront[sim.soldiers.side.value[soldier]]++
     }
   }
-  const held = inFront[attacker] >= HELD_BY && inFront[attacker] >= inFront[defender] * HELD_RATIO
+  const held = operation
+    ? sim.operation.result === "taken"
+    : inFront[attacker] >= HELD_BY && inFront[attacker] >= inFront[defender] * HELD_RATIO
   // Killed and wounded lying out, wounded carried off, and taken prisoner.
   const lost = [fallenIds(sim), evacuatedIds(sim), capturedIds(sim)].reduce(
     (sum, ids) => sum + countSide(ids, sim, attacker),
@@ -163,7 +187,13 @@ async function battle({ mapName, seed, scenario, attacker }) {
     inFront: [inFront[attacker], inFront[defender]],
     lostAt: sim.commanders[defender].lostAt,
     outOfShells: [...new Set(outOfShells)],
-    tick: sim.tick
+    tick: sim.tick,
+    ...(operation
+      ? {
+          result: sim.operation.result,
+          endedAfter: Math.round((sim.operation.endedAt - sim.operation.plannedAt) / TICK_RATE)
+        }
+      : {})
   }
 }
 
@@ -233,7 +263,11 @@ async function main() {
       const pass = checks.every(Boolean)
       failed ||= !pass
       const detail = runs
-        .map((result) => `${result.seed}:${result.held ? "held" : "failed"} ${percent(result.losses)} lost`)
+        .map(
+          (result) =>
+            `${result.seed}:${result.result ?? (result.held ? "held" : "failed")}` +
+            `${result.endedAfter === undefined ? "" : ` at ${Math.floor(result.endedAfter / 60)} min`} ${percent(result.losses)} lost`
+        )
         .join(", ")
       print(
         `${pass ? "PASS" : "FAIL"} ${scenario.name}, ${sideName(attacker)} attacking: ` +

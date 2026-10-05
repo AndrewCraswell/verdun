@@ -118,7 +118,8 @@ export function rifleGrenadeSystem(sim: Simulation): void {
       side: sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French,
       x,
       z,
-      landsAtTick: sim.tick + Math.max(1, Math.round((range / FLIGHT_SPEED) * TICK_RATE))
+      landsAtTick: sim.tick + Math.max(1, Math.round((range / FLIGHT_SPEED) * TICK_RATE)),
+      thrower: soldier
     })
     sim.events.push({ type: "rifle-grenade", soldier, x, z })
   }

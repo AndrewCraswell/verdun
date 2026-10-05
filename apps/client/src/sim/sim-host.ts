@@ -4,6 +4,8 @@ import {
   type Command,
   createSimulation,
   type LineOfSight,
+  PLAYTEST_OPERATION,
+  planOperation,
   type SimEvent,
   type Simulation,
   type Squad,
@@ -66,6 +68,9 @@ function simulationFor(map: BattlefieldMap, setup: BattleSetup): Simulation {
 function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
   const sim = simulationFor(map, setup)
   const { playerSquad } = setupSkirmish(sim)
+  if (!setup.free) {
+    planOperation(sim, PLAYTEST_OPERATION)
+  }
   let sightLines: LineOfSight = createTerrainSight(map)
   return {
     sim,

@@ -196,6 +196,8 @@ export interface ShellInFlight {
   readonly x: number
   readonly z: number
   readonly landsAtTick: number
+  /** The soldier who threw or fired it, for a grenade: whom its casualties are put down to. */
+  readonly thrower?: EntityId
 }
 
 /** A creeping barrage moves its line forward in lifts; infantry follow behind it. */
@@ -417,7 +419,8 @@ function casualtyChance(distance: number, halfLethal: number): number {
 
 /** Who fired a shell or threw a grenade, and which it was. */
 function causeOf(landed: ShellInFlight): CasualtyCause {
-  return { kind: landed.shell === Shell.Grenade ? "grenade" : "shell", by: landed.side }
+  const cause: CasualtyCause = { kind: landed.shell === Shell.Grenade ? "grenade" : "shell", by: landed.side }
+  return landed.thrower === undefined ? cause : { ...cause, soldier: landed.thrower }
 }
 
 function wound(sim: Simulation, soldier: EntityId, severity: number, landed: ShellInFlight): void {

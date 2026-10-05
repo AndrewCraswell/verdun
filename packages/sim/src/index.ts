@@ -55,6 +55,20 @@ export { MaskState, Side, Stance } from "./components.ts"
 export { type CaptureEvent, surrender } from "./capture.ts"
 export { COUNTER_ATTACK_DELAY, type CommanderState, type CounterAttackEvent } from "./commander.ts"
 export {
+  attackBehindBarrage,
+  bombardEnemyLine,
+  bombardmentAt,
+  type OperationOverEvent,
+  type OperationPlan,
+  type OperationResult,
+  type OperationState,
+  type OperationTally,
+  PLAYTEST_OPERATION,
+  planOperation,
+  type SideTally,
+  type ZeroHourEvent
+} from "./operation.ts"
+export {
   capturedIds,
   createSimulation,
   enqueueCommand,
