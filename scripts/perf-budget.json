@@ -6,7 +6,7 @@
   "profiles": {
     "high": {
       "day": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -15,9 +15,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 338,
-            "most": 349.4,
-            "limit": 379.4
+            "least": 263.6,
+            "most": 264.3,
+            "limit": 294.3
           },
           "passes": {
             "least": 16,
@@ -25,19 +25,19 @@
             "limit": 16.3
           },
           "meshes": {
-            "least": 168.3,
-            "most": 180.1,
-            "limit": 195.1
+            "least": 168.1,
+            "most": 168.3,
+            "limit": 183.3
           },
           "triangles": {
-            "least": 4473779.3,
-            "most": 4473875.4,
-            "limit": 4921263
+            "least": 4108219.2,
+            "most": 4108430.4,
+            "limit": 4519273.5
           },
           "particles": {
-            "least": 521,
-            "most": 527.7,
-            "limit": 1527.7
+            "least": 525.8,
+            "most": 534.3,
+            "limit": 1534.3
           },
           "bindGroups": {
             "least": 0,
@@ -56,18 +56,18 @@
           },
           "bufferMB": {
             "least": 54.9,
-            "most": 56.8,
-            "limit": 64.8
+            "most": 56.9,
+            "limit": 64.9
           },
           "pipelines": {
-            "least": 89,
-            "most": 95,
-            "limit": 105
+            "least": 85,
+            "most": 87,
+            "limit": 97
           },
           "effects": {
-            "least": 118,
-            "most": 118,
-            "limit": 128
+            "least": 117,
+            "most": 117,
+            "limit": 127
           },
           "materials": {
             "least": 87,
@@ -77,8 +77,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 148.9,
-          "PostProcessRTT-circleOfConfusion": 181.9,
+          "sun_CSMShadowMap": 72.3,
+          "PostProcessRTT-circleOfConfusion": 179.7,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -89,7 +89,7 @@
         }
       },
       "night, flare up": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -98,9 +98,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 539.2,
-            "most": 581.3,
-            "limit": 668.5
+            "least": 424.3,
+            "most": 426.9,
+            "limit": 491
           },
           "passes": {
             "least": 17,
@@ -108,19 +108,19 @@
             "limit": 17.3
           },
           "meshes": {
-            "least": 183.7,
-            "most": 188.4,
-            "limit": 203.5
+            "least": 184.7,
+            "most": 186,
+            "limit": 201
           },
           "triangles": {
-            "least": 5548653.7,
-            "most": 5734945.6,
-            "limit": 6881934.8
+            "least": 5230826.1,
+            "most": 5231454.8,
+            "limit": 6277745.8
           },
           "particles": {
-            "least": 1446.4,
-            "most": 1679.3,
-            "limit": 3358.6
+            "least": 1544,
+            "most": 1627.1,
+            "limit": 3254.2
           },
           "bindGroups": {
             "least": 0,
@@ -139,18 +139,18 @@
           },
           "bufferMB": {
             "least": 55.2,
-            "most": 55.2,
-            "limit": 63.2
+            "most": 55.3,
+            "limit": 63.3
           },
           "pipelines": {
-            "least": 119,
-            "most": 122,
-            "limit": 132
+            "least": 114,
+            "most": 121,
+            "limit": 131
           },
           "effects": {
-            "least": 140,
-            "most": 140,
-            "limit": 150
+            "least": 137,
+            "most": 138,
+            "limit": 148
           },
           "materials": {
             "least": 87,
@@ -160,8 +160,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 182.8,
-          "flare-light-0_shadowMap": 157.8,
+          "sun_CSMShadowMap": 162,
+          "flare-light-0_shadowMap": 42.8,
           "PostProcessRTT-circleOfConfusion": 209,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
@@ -173,7 +173,7 @@
         }
       },
       "overview": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -182,9 +182,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 347.5,
-            "most": 352.4,
-            "limit": 382.4
+            "least": 345.7,
+            "most": 353.6,
+            "limit": 383.6
           },
           "passes": {
             "least": 14,
@@ -192,19 +192,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 357.5,
-            "most": 372.5,
-            "limit": 402.3
+            "least": 352.3,
+            "most": 372.6,
+            "limit": 402.5
           },
           "triangles": {
-            "least": 3921773.7,
-            "most": 3921827.1,
-            "limit": 4314009.9
+            "least": 3921758.5,
+            "most": 3921860.6,
+            "limit": 4314046.7
           },
           "particles": {
-            "least": 441.5,
-            "most": 450.9,
-            "limit": 1450.9
+            "least": 446.5,
+            "most": 453.9,
+            "limit": 1453.9
           },
           "bindGroups": {
             "least": 0,
@@ -222,19 +222,19 @@
             "limit": 81
           },
           "bufferMB": {
-            "least": 55.4,
-            "most": 55.4,
-            "limit": 63.4
+            "least": 55.5,
+            "most": 55.5,
+            "limit": 63.5
           },
           "pipelines": {
-            "least": 102,
-            "most": 102,
-            "limit": 112
+            "least": 100,
+            "most": 100,
+            "limit": 110
           },
           "effects": {
-            "least": 120,
-            "most": 120,
-            "limit": 130
+            "least": 119,
+            "most": 119,
+            "limit": 129
           },
           "materials": {
             "least": 87,
@@ -244,7 +244,7 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "PostProcessRTT-circleOfConfusion": 337.3,
+          "PostProcessRTT-circleOfConfusion": 336.4,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -255,7 +255,7 @@
         }
       },
       "barrage, pulled back": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -264,9 +264,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 363.4,
-            "most": 398.7,
-            "limit": 446.6
+            "least": 338.4,
+            "most": 348.4,
+            "limit": 390.3
           },
           "passes": {
             "least": 16,
@@ -274,19 +274,19 @@
             "limit": 16.3
           },
           "meshes": {
-            "least": 228.6,
-            "most": 286,
-            "limit": 343.4
+            "least": 228.2,
+            "most": 251.7,
+            "limit": 275.2
           },
           "triangles": {
-            "least": 3805659.8,
-            "most": 3960359,
-            "limit": 4356394.9
+            "least": 3870808.3,
+            "most": 3891023.1,
+            "limit": 4280125.5
           },
           "particles": {
-            "least": 3034.5,
-            "most": 3135.7,
-            "limit": 6271.4
+            "least": 2994,
+            "most": 3143.9,
+            "limit": 6287.8
           },
           "bindGroups": {
             "least": 0,
@@ -305,18 +305,18 @@
           },
           "bufferMB": {
             "least": 55.2,
-            "most": 55.2,
-            "limit": 63.2
+            "most": 55.3,
+            "limit": 63.3
           },
           "pipelines": {
-            "least": 93,
-            "most": 95,
-            "limit": 105
+            "least": 91,
+            "most": 97,
+            "limit": 107
           },
           "effects": {
-            "least": 118,
-            "most": 118,
-            "limit": 128
+            "least": 117,
+            "most": 117,
+            "limit": 127
           },
           "materials": {
             "least": 87,
@@ -326,8 +326,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 104.7,
-          "PostProcessRTT-circleOfConfusion": 261.9,
+          "sun_CSMShadowMap": 73.4,
+          "PostProcessRTT-circleOfConfusion": 258.8,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -340,7 +340,7 @@
     },
     "low": {
       "day": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -349,9 +349,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 333.2,
-            "most": 351.1,
-            "limit": 381.1
+            "least": 261.2,
+            "most": 261.4,
+            "limit": 291.4
           },
           "passes": {
             "least": 14,
@@ -359,19 +359,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 168.1,
-            "most": 168.1,
-            "limit": 183.1
+            "least": 168.2,
+            "most": 168.2,
+            "limit": 183.2
           },
           "triangles": {
-            "least": 4473689.2,
-            "most": 4473849.2,
-            "limit": 4921234.2
+            "least": 4108295.5,
+            "most": 4108342.7,
+            "limit": 4519177
           },
           "particles": {
-            "least": 517.6,
-            "most": 524.9,
-            "limit": 1524.9
+            "least": 516.6,
+            "most": 530.1,
+            "limit": 1530.1
           },
           "bindGroups": {
             "least": 0,
@@ -389,19 +389,19 @@
             "limit": 75
           },
           "bufferMB": {
-            "least": 54.9,
+            "least": 55,
             "most": 55,
             "limit": 63
           },
           "pipelines": {
-            "least": 76,
-            "most": 76,
-            "limit": 86
+            "least": 74,
+            "most": 74,
+            "limit": 84
           },
           "effects": {
-            "least": 103,
-            "most": 103,
-            "limit": 113
+            "least": 102,
+            "most": 102,
+            "limit": 112
           },
           "materials": {
             "least": 87,
@@ -411,7 +411,7 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 150.7,
+          "sun_CSMShadowMap": 72.3,
           "PostProcessRTT-circleOfConfusion": 179.1,
           "PostProcessRTT-vertical blur": 2,
           "PostProcessRTT-horizontal blur": 2,
@@ -423,7 +423,7 @@
         }
       },
       "night, flare up": {
-        "commit": "dde2aa860d5c8caa6db8199aa8083132f807bf60",
+        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
         "pack": "e4a38908777c",
         "chrome": "Chrome/154.0.8037.95",
         "babylon": "9.28.0",
@@ -432,9 +432,9 @@
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 379.4,
-            "most": 397.3,
-            "limit": 456.9
+            "least": 366.7,
+            "most": 366.8,
+            "limit": 421.9
           },
           "passes": {
             "least": 14,
@@ -442,19 +442,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 177.6,
-            "most": 198.6,
-            "limit": 219.6
+            "least": 177.5,
+            "most": 177.5,
+            "limit": 192.5
           },
           "triangles": {
-            "least": 4612398.4,
-            "most": 4612579.3,
-            "limit": 5073837.3
+            "least": 4612315.8,
+            "most": 4612327.1,
+            "limit": 5073559.9
           },
           "particles": {
-            "least": 992.7,
-            "most": 1001.2,
-            "limit": 2002.4
+            "least": 992.1,
+            "most": 1018.7,
+            "limit": 2037.4
           },
           "bindGroups": {
             "least": 0,
@@ -477,14 +477,14 @@
             "limit": 63
           },
           "pipelines": {
-            "least": 95,
-            "most": 102,
-            "limit": 112
+            "least": 93,
+            "most": 93,
+            "limit": 103
           },
           "effects": {
-            "least": 116,
-            "most": 117,
-            "limit": 127
+            "least": 115,
+            "most": 115,
+            "limit": 125
           },
           "materials": {
             "least": 87,
@@ -494,8 +494,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 179.1,
-          "PostProcessRTT-circleOfConfusion": 196.8,
+          "sun_CSMShadowMap": 163.1,
+          "PostProcessRTT-circleOfConfusion": 193.7,
           "PostProcessRTT-vertical blur": 2,
           "PostProcessRTT-horizontal blur": 2,
           "PostProcessRTT-dofMerge": 1,
