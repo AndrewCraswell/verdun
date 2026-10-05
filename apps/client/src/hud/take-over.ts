@@ -57,7 +57,7 @@ const KITS: readonly (readonly [number, SquadKit])[] = [
 ]
 
 /** Where the lost squad was: the middle of its men, fallen where they fell. */
-function middleOf(sim: Simulation, squad: Squad): { x: number; z: number } {
+export function middleOf(sim: Simulation, squad: Squad): { x: number; z: number } {
   const count = Math.max(1, squad.members.length)
   const { x, z } = sim.soldiers.position
   return {

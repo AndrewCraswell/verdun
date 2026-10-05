@@ -42,7 +42,7 @@ import { type SpottedGun, spottedGunsView } from "./spotted-guns.ts"
 import { createSquadNames, type SoldierName, type SquadNames } from "./squad-names.ts"
 import { createOrderWatch, type OrderView } from "./squad-order.ts"
 import { createSuccessionWatch, type Succession } from "./succession.ts"
-import { type TakeOverChoice, takeOverChoices } from "./take-over.ts"
+import { middleOf, type TakeOverChoice, takeOverChoices } from "./take-over.ts"
 import { type WarStatus, warStatus } from "./war-status.ts"
 
 /**
@@ -101,6 +101,8 @@ export interface WipedView {
   readonly fallen: readonly { readonly name: SoldierName; readonly status: RosterSlot["status"] }[]
   /** Squads nearby the player can take over at once instead of waiting, nearest first. */
   readonly choices: readonly TakeOverChoice[]
+  /** Where the squad fell: the middle of its men. */
+  readonly fell: { readonly x: number; readonly z: number }
 }
 
 /** How strongly each screen effect shows, from 0 to 1 (E1-E8). */
@@ -250,7 +252,8 @@ export function createHudModel(
       men: coming?.men ?? 0,
       reserves,
       fallen: roster.map((slot) => ({ name: slot.name, status: slot.status })),
-      choices: inOfferedOrder(takeOverChoices(sim, squad, names))
+      choices: inOfferedOrder(takeOverChoices(sim, squad, names)),
+      fell: middleOf(sim, squad)
     }
   }
 

@@ -1,56 +1,155 @@
-/* H17's marks over the squads that can be taken over: a brass disc with the picker's number, the squad named above. */
+/*
+ * H17's markers on the map: each squad that can be taken over, a brass badge with its number, its men and its kit,
+ * which names the squad and what it's doing when pointed at. A cross where the player's squad fell.
+ */
 .take-over-marks {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
   font-size: calc(1em * var(--hud-marker, 1));
 }
 
-.tom-mark {
+.take-over-marks[hidden] {
+  display: none;
+}
+
+.tom-marker,
+.tom-fell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* The badge's middle sits on the squad: the button's corner is where it stands, pulled back by half the badge. */
+.tom-marker {
+  display: grid;
+  justify-items: center;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-shadow: inherit;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  translate: -50% -50%;
   animation: tom-in var(--hud-slow) var(--hud-ease) both;
 }
 
 @keyframes tom-in {
   from {
     opacity: 0;
+    scale: 0.8;
   }
 }
 
-.tom-stem {
-  stroke: var(--hud-brass);
-  stroke-width: 1.4;
-}
-
-.tom-disc {
-  fill: rgb(18 16 12 / 82%);
-  stroke: var(--hud-brass-bright);
-  stroke-width: 1.8;
-}
-
-.tom-number,
-.tom-name {
-  text-anchor: middle;
-  paint-order: stroke;
-  stroke: rgb(6 5 4 / 80%);
-  stroke-linejoin: round;
+.tom-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.22em 0.6em 0.22em 0.25em;
+  border: 1.5px solid var(--hud-brass);
+  border-radius: 1.2em;
+  background: var(--hud-plate-deep);
+  box-shadow: var(--hud-shadow);
+  transition:
+    border-color var(--hud-fast) var(--hud-ease),
+    background var(--hud-fast) var(--hud-ease);
 }
 
 .tom-number {
-  font-family: var(--hud-font-display);
+  display: grid;
+  place-items: center;
+  width: 1.55em;
+  height: 1.55em;
+  border-radius: 50%;
+  /* The plain face: the display face's hairlines vanish this small, and a 4 reads as a 1. */
+  font-family: var(--hud-font-ui);
   font-size: 0.95em;
-  font-weight: 700;
-  fill: var(--hud-brass-bright);
-  stroke-width: 0;
+  font-weight: 800;
+  color: var(--hud-plate-deep);
+  background: var(--hud-brass-bright);
 }
 
-.tom-name {
-  font-family: var(--hud-font-ui);
-  font-size: 0.68em;
+.tom-strength {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.tom-kit {
+  display: flex;
+  gap: 0.15em;
+  color: var(--hud-brass-bright);
+}
+
+.tom-kit:empty {
+  display: none;
+}
+
+.tom-icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* Who leads it and what it's doing, only when pointed at: the map stays quiet otherwise. */
+.tom-card {
+  display: grid;
+  justify-items: center;
+  margin-top: 0.35em;
+  padding: 0.3em 0.6em;
+  border-radius: var(--hud-radius);
+  background: var(--hud-plate-deep);
+  white-space: nowrap;
+  opacity: 0;
+  translate: 0 -0.3em;
+  transition:
+    opacity var(--hud-fast) var(--hud-ease),
+    translate var(--hud-fast) var(--hud-ease);
+}
+
+.tom-card__name {
+  font-family: var(--hud-font-display);
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.tom-card__about {
+  font-size: 0.74em;
+  color: var(--hud-ink-2);
+}
+
+.tom-marker:hover .tom-badge,
+.tom-marker:focus-visible .tom-badge {
+  border-color: var(--hud-brass-bright);
+  background: rgb(40 33 20 / 96%);
+}
+
+.tom-marker:hover .tom-card,
+.tom-marker:focus-visible .tom-card {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.tom-marker:focus-visible {
+  outline: none;
+}
+
+.tom-fell {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.78em;
   font-weight: 650;
-  letter-spacing: 0.04em;
-  fill: var(--hud-ink);
-  stroke-width: 3px;
+  color: var(--hud-ink-2);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.tom-fell__icon {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--hud-danger);
 }

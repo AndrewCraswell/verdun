@@ -1,18 +1,13 @@
 /*
- * H17: the squad lost. The squads that can be taken over, the replacements' countdown as the other way back, and a
- * quiet roll of the men, in the middle of the screen over the battle going on.
+ * H17: the squad lost. A strip at the bottom of the war map's view: what to do, the keys to do it, and the
+ * replacements' countdown as the other way back.
  */
 .wiped-panel {
-  /* The centre zone puts it in the middle of the screen. */
-  display: grid;
-  gap: 0.75em;
-  width: min(34em, 92vw);
-  max-height: calc(100vh - 2 * var(--hud-margin));
-  overflow: auto;
-  padding: 1.2em 1.4em 1.1em;
-  box-sizing: border-box;
-  text-align: center;
-  animation: wp-in 700ms var(--hud-ease) both;
+  display: flex;
+  align-items: center;
+  gap: 1.4em;
+  padding: 0.75em 1.1em 0.75em 1.3em;
+  animation: wp-in 600ms var(--hud-ease) both;
 }
 
 .wiped-panel[hidden] {
@@ -26,6 +21,11 @@
   }
 }
 
+.wp-text {
+  display: grid;
+  gap: 0.2em;
+}
+
 .wp-kicker {
   letter-spacing: 0.3em;
   color: var(--hud-danger);
@@ -34,28 +34,43 @@
 .wp-title {
   margin: 0;
   font-family: var(--hud-font-display);
-  font-size: 2em;
+  font-size: 1.45em;
   font-weight: 600;
   line-height: 1.1;
 }
 
+.wp-keys {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.74em;
+  color: var(--hud-ink-3);
+}
+
+.wp-keys[hidden] {
+  display: none;
+}
+
 .wp-replacements {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 0.9em;
-  padding: 0.6em 0;
-  border-top: var(--hud-rule);
-  border-bottom: var(--hud-rule);
-  text-align: left;
+  gap: 0.6em;
+  padding-left: 1.2em;
+  border-left: var(--hud-rule);
+}
+
+.wp-wait {
+  max-width: 13em;
+  font-size: 0.8em;
+  color: var(--hud-ink-2);
 }
 
 .wp-clock {
   position: relative;
   display: grid;
   place-items: center;
-  width: 3.6em;
-  height: 3.6em;
+  width: 3.2em;
+  height: 3.2em;
 }
 
 .wp-ring {
@@ -81,210 +96,7 @@
 
 .wp-time {
   font-family: var(--hud-font-display);
-  font-size: 1.05em;
+  font-size: 0.95em;
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
-}
-
-.wp-replacements__text {
-  display: grid;
-  gap: 0.15em;
-}
-
-.wp-coming {
-  font-size: 0.92em;
-  font-weight: 600;
-}
-
-.wp-reserves {
-  font-size: 0.78em;
-  color: var(--hud-ink-2);
-}
-
-.wp-roll {
-  display: grid;
-  gap: 0.45em;
-}
-
-.wp-fallen {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25em 1.2em;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: left;
-}
-
-.wp-man {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 0.45em;
-  align-items: center;
-}
-
-.wp-man__icon {
-  grid-row: span 2;
-  width: 1.1em;
-  height: 1.1em;
-  color: var(--hud-ink-3);
-}
-
-.wp-man__name {
-  overflow: hidden;
-  font-size: 0.82em;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.wp-man__fate {
-  font-size: 0.68em;
-  font-style: italic;
-  color: var(--hud-ink-3);
-}
-
-/* The squads on offer: a list to pick from, each a button. */
-.wp-take-over,
-.wp-wait {
-  display: grid;
-  gap: 0.5em;
-  text-align: left;
-}
-
-.wp-choices {
-  display: grid;
-  gap: 0.3em;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  pointer-events: auto;
-}
-
-.wp-choices[hidden],
-.wp-none[hidden],
-.wp-keys[hidden] {
-  display: none;
-}
-
-.wp-choice-row {
-  animation: wp-row-in var(--hud-med) var(--hud-ease) both;
-  transition:
-    opacity var(--hud-med) var(--hud-ease),
-    transform var(--hud-med) var(--hud-ease);
-}
-
-.wp-choice-row.is-leaving {
-  opacity: 0;
-  transform: translateX(0.6em);
-  pointer-events: none;
-}
-
-@keyframes wp-row-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.3em);
-  }
-}
-
-.wp-choice {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1.25fr) auto minmax(0, 1.4fr);
-  align-items: center;
-  gap: 0.75em;
-  width: 100%;
-  padding: 0.5em 0.7em;
-  border: 1px solid var(--hud-hairline);
-  border-radius: var(--hud-radius);
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  text-shadow: inherit;
-  background: rgb(255 246 222 / 3%);
-  cursor: pointer;
-  transition:
-    background var(--hud-fast) var(--hud-ease),
-    border-color var(--hud-fast) var(--hud-ease);
-}
-
-.wp-choice:hover,
-.wp-choice:focus-visible {
-  border-color: var(--hud-brass-dim);
-  background: var(--hud-brass-glow);
-  outline: none;
-}
-
-.wp-choice:hover .hud-key,
-.wp-choice:focus-visible .hud-key {
-  color: var(--hud-brass-bright);
-  border-color: var(--hud-brass);
-}
-
-.wp-choice__who,
-.wp-choice__where {
-  display: grid;
-  gap: 0.1em;
-  min-width: 0;
-}
-
-.wp-choice__name {
-  overflow: hidden;
-  font-family: var(--hud-font-display);
-  font-size: 1.08em;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.wp-choice__leader,
-.wp-choice__order {
-  font-size: 0.72em;
-  color: var(--hud-ink-3);
-}
-
-.wp-choice__strength {
-  display: flex;
-  align-items: center;
-  gap: 0.35em;
-  font-size: 0.86em;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.wp-choice__kit {
-  display: flex;
-  gap: 0.2em;
-  color: var(--hud-brass-bright);
-}
-
-.wp-choice__icon {
-  width: 1.15em;
-  height: 1.15em;
-}
-
-.wp-choice__place {
-  overflow: hidden;
-  font-size: 0.8em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.wp-none {
-  margin: 0;
-  font-size: 0.82em;
-  font-style: italic;
-  color: var(--hud-ink-2);
-}
-
-.wp-keys {
-  display: flex;
-  align-items: center;
-  gap: 0.25em;
-  font-size: 0.72em;
-  color: var(--hud-ink-3);
-}
-
-.wp-wait .wp-replacements {
-  justify-content: flex-start;
 }
