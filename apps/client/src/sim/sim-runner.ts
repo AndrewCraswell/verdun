@@ -63,7 +63,7 @@ export function createSimRunner(post: PostToPage): (message: ToWorker) => void {
       seed: setup.simSeed,
       environment: { forecast: { kind: "records", seed: setup.weatherSeed, region: setup.region } }
     })
-    const { playerSquad } = setupSkirmish(battle)
+    const { playerSquad } = setupSkirmish(battle, undefined, undefined, undefined, setup.side)
     if (!setup.free) {
       planOperation(battle, PLAYTEST_OPERATION)
     }

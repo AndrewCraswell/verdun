@@ -1,4 +1,4 @@
-import type { Command, SimSync, WeatherRegion } from "@verdun/sim"
+import type { Command, Side, SimSync, WeatherRegion } from "@verdun/sim"
 
 /** What the battle is: everything the worker needs to make the same simulation the page mirrors. */
 export interface BattleSetup {
@@ -10,6 +10,8 @@ export interface BattleSetup {
   readonly weatherSeed: number
   /** Free play: the battle as it stands, with no operation planned. Otherwise the playtest's operation runs. */
   readonly free?: boolean
+  /** The side the player fights for: French unless told. */
+  readonly side?: Side
 }
 
 /** From the page to the worker. */

@@ -60,7 +60,8 @@ export function placeName(sim: Simulation, x: number, z: number): string {
       nearest = { name: objective.name, distance }
     }
   }
-  return nearest ? `near ${nearest.name}` : `in square ${squareName(sim.map, x, z)}`
+  // "near the mine craters", not "near The mine craters".
+  return nearest ? `near ${nearest.name.replace(/^The /, "the ")}` : `in square ${squareName(sim.map, x, z)}`
 }
 
 function middleOf(sim: Simulation, members: readonly EntityId[]): { x: number; z: number } {

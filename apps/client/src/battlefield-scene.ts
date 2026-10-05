@@ -68,13 +68,17 @@ export interface BattlefieldViewOptions {
   readonly terrainStep?: number
   /** Let mouse and keyboard drive the camera. Off for headless tests. */
   readonly attachControl?: boolean
+  /** The player's side: the camera starts behind its line, looking at the enemy. French unless told. */
+  readonly side?: Side
 }
 
-function createCamera(scene: Scene, sim: Simulation): ArcRotateCamera {
+function createCamera(scene: Scene, sim: Simulation, side: Side): ArcRotateCamera {
   const centerX = mapWidth(sim.map) / 2
   const centerZ = mapDepth(sim.map) / 2
   const target = new Vector3(centerX, heightAt(sim.map, centerX, centerZ), centerZ)
-  const camera = new ArcRotateCamera("camera", -Math.PI / 2, CAMERA_BETA, 260, target, scene)
+  // South of the target looking north for the French, north looking south for the Germans: each toward the enemy.
+  const alpha = side === Side.German ? Math.PI / 2 : -Math.PI / 2
+  const camera = new ArcRotateCamera("camera", alpha, CAMERA_BETA, 260, target, scene)
   camera.lowerBetaLimit = CAMERA_BETA - 0.1
   camera.upperBetaLimit = CAMERA_BETA + 0.1
   camera.lowerRadiusLimit = 25
@@ -144,7 +148,7 @@ function createBatch(mesh: Mesh): SoldierBatch {
 export function createBattlefieldScene(
   engine: AbstractEngine,
   sim: Simulation,
-  { terrainStep = 2, attachControl = false }: BattlefieldViewOptions = {}
+  { terrainStep = 2, attachControl = false, side = Side.French }: BattlefieldViewOptions = {}
 ): BattlefieldView {
   const scene = new Scene(engine)
   scene.clearColor = palette.sky
@@ -152,7 +156,7 @@ export function createBattlefieldScene(
   scene.fogDensity = 0.0011
   scene.fogColor = palette.fog
 
-  const camera = createCamera(scene, sim)
+  const camera = createCamera(scene, sim, side)
 
   const sky = new HemisphericLight("sky", new Vector3(0, 1, 0), scene)
   sky.diffuse = palette.skyLight

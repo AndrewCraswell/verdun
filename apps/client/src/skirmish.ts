@@ -104,8 +104,8 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number, p
 /**
  * Both sides man their front-line fire trench on the fire step, facing each other, in squads of eight holding their
  * ground and firing at whatever they can see, with reserves in the support line behind where the map has one. The
- * player commands the squad in the middle of the French line. Each side holds `reinforcementsPerSide` men back behind
- * the sector to replace squads that are wiped out.
+ * player commands the squad in the middle of their side's line, French or German. Each side holds
+ * `reinforcementsPerSide` men back behind the sector to replace squads that are wiped out.
  */
 /**
  * Each side's shells for the day's battle: enough for one prepared attack, so every bombardment spent on the wire is a
@@ -131,17 +131,25 @@ export function setupSkirmish(
   sim: Simulation,
   soldiersPerSide = 200,
   reservesPerSide = 64,
-  reinforcementsPerSide = 160
+  reinforcementsPerSide = 160,
+  playerSide: Side = Side.French
 ): Skirmish {
   const squadsPerSide = Math.ceil(soldiersPerSide / SQUAD_SIZE)
+  const middle = Math.floor(squadsPerSide / 2)
   const frenchSquads = manTrench(
     sim,
     frontLine(sim.map.trenches, "north"),
     Side.French,
     soldiersPerSide,
-    Math.floor(squadsPerSide / 2)
+    playerSide === Side.French ? middle : -1
   )
-  const germanSquads = manTrench(sim, frontLine(sim.map.trenches, "south"), Side.German, soldiersPerSide)
+  const germanSquads = manTrench(
+    sim,
+    frontLine(sim.map.trenches, "south"),
+    Side.German,
+    soldiersPerSide,
+    playerSide === Side.German ? middle : -1
+  )
   const reserves = (["north", "south"] as const).flatMap((facing) => {
     const support = fireLines(sim.map.trenches, facing)[1]
     return support && reservesPerSide > 0
@@ -158,9 +166,9 @@ export function setupSkirmish(
       enqueueCommand(sim, { type: "ammunition", side, shell, rounds })
     }
   }
-  const playerSquad = frenchSquads.find((squad) => squad.controller === "player")
+  const playerSquad = [...frenchSquads, ...germanSquads].find((squad) => squad.controller === "player")
   if (!playerSquad) {
-    throw new Error("The French line has no squads to command")
+    throw new Error("The player's line has no squads to command")
   }
   return {
     french: frenchSquads.flatMap((squad) => squad.members),

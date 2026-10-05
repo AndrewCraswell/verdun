@@ -67,7 +67,7 @@ function simulationFor(map: BattlefieldMap, setup: BattleSetup): Simulation {
 /** Steps the simulation on the page, as the game always did: for debugging, and where workers can't run. */
 function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
   const sim = simulationFor(map, setup)
-  const { playerSquad } = setupSkirmish(sim)
+  const { playerSquad } = setupSkirmish(sim, undefined, undefined, undefined, setup.side)
   if (!setup.free) {
     planOperation(sim, PLAYTEST_OPERATION)
   }

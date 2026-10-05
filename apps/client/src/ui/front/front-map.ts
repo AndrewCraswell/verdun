@@ -1,5 +1,6 @@
 import type { Season, WarDay } from "@verdun/sim"
 import { h, setText } from "../../hud/dom.ts"
+import { sideSettings } from "../../settings/side.ts"
 import { button } from "../fields.ts"
 import type { MenuPage } from "../page.ts"
 import geography from "./front-geography.json"
@@ -172,8 +173,13 @@ export function createFrontMapPage(context: FrontMapContext): MenuPage {
     // The two sides' lines either side of the front, a few pixels apart at any zoom: ours on the west and south.
     const line = FRONT_LINES[season].points.map(project)
     const gap = LINE_GAP / 2 / scale
-    ourLine.setAttribute("d", pathOf(offsetLine(line, gap)))
-    theirLine.setAttribute("d", pathOf(offsetLine(line, -gap)))
+    // The French line on the west and south of the front, the German on the east and north: ours is whichever the player
+    // fights for.
+    const french = pathOf(offsetLine(line, gap))
+    const german = pathOf(offsetLine(line, -gap))
+    const weAreGerman = sideSettings().current.side === "german"
+    ourLine.setAttribute("d", weAreGerman ? german : french)
+    theirLine.setAttribute("d", weAreGerman ? french : german)
     const showBefore = season === 1916 && scale > 6
     lineBefore.setAttribute("d", showBefore ? pathOf(VERDUN_BEFORE_THE_BATTLE.map(project)) : "")
     legendBefore.hidden = !showBefore

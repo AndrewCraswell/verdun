@@ -1,7 +1,7 @@
 import { createFlatMap, Surface } from "@verdun/map"
 import { createSimulation, PLAYTEST_OPERATION, planOperation, Side, TICK_RATE } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { attackPlan, minutes, reportOf } from "./operation-report.ts"
+import { attackPlan, defencePlan, minutes, reportOf } from "./operation-report.ts"
 
 function operation() {
   const map = createFlatMap({ name: "sector", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
@@ -69,5 +69,26 @@ describe("the operation's report", () => {
     ])
     expect(report?.objectives).toEqual([{ name: "Fleury", by: "ours", after: "13 min" }])
     expect(report?.squad).toEqual({ lost: 2, downed: 0 })
+  })
+})
+
+describe("the operation from the defending side", () => {
+  it("gives orders to hold, with no hour: the defender wasn't told when", () => {
+    const plan = defencePlan({ ...operation(), defended: ["Ravine head"] })
+    expect(plan.lines.join(" ")).not.toMatch(/\d+ min/)
+    expect(plan.lines[0]).toMatch(/hour isn't known/)
+    expect(plan.outcomes.map((outcome) => outcome.label)).toEqual(["Held", "A footing lost", "Line lost"])
+    expect(plan.outcomes[1]?.means).toBe("they get into it, or take Ravine head")
+  })
+
+  it("tells the report from the German trench: our men first, the attack thrown back as held", () => {
+    const over = operation()
+    over.result = "repulsed"
+    over.endedAt = over.endsAt
+    over.tally.causes.shell = 9
+    const report = reportOf(over, TICK_RATE, Side.German)
+    expect(report).toMatchObject({ defending: true, title: "Held", line: "We threw them back." })
+    expect(report?.sides.map((side) => side.label)).toEqual(["German", "French"])
+    expect(report?.causes).toEqual([{ label: "Our shells", count: 9 }])
   })
 })

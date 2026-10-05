@@ -214,6 +214,38 @@ body:not([data-screen="battle"]) .menu-hint {
   display: none;
 }
 
+/* The side to fight for: a pair of choices over the way in, horizon blue and feldgrau. */
+.ui-side {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 0.9em;
+}
+
+.ui-side-label {
+  font-size: 0.72em;
+  font-weight: 600;
+  font-stretch: 112%;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-ink-3);
+}
+
+.ui-side-choice .ui-segmented-text {
+  padding: 0.35em 1em;
+  font-size: 0.95em;
+}
+
+.ui-side-choice .ui-segmented-option:first-child .ui-segmented-input:checked + .ui-segmented-text {
+  color: #f4f1ea;
+  background: #5f7a9c;
+}
+
+.ui-side-choice .ui-segmented-option:last-child .ui-segmented-input:checked + .ui-segmented-text {
+  color: #f4f1ea;
+  background: #5d6352;
+}
+
 .ui-nav-list {
   display: flex;
   flex-direction: column;

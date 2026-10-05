@@ -4,7 +4,7 @@ import { metres } from "../hud/format.ts"
 import type { BattleParts } from "./battle.ts"
 import { button } from "./fields.ts"
 import { type JoinChoice, joinArea, joinChoices } from "./join.ts"
-import { attackPlan, minutes } from "./operation-report.ts"
+import { attackPlan, defencePlan, minutes } from "./operation-report.ts"
 import type { MenuPage } from "./page.ts"
 import { drawPlan, planInks } from "./sector/plan-canvas.ts"
 import { createPlanZoom } from "./sector/plan-zoom.ts"
@@ -29,10 +29,11 @@ export function createJoinMap({
   const plan = h("canvas", "join-plan")
   const pins = h("div", "join-pins")
   const box = h("div", "join-map-box", plan, pins)
+  const waveKey = h("span", "join-key join-key--wave", "Goes over")
   const legend = h(
     "div",
     "join-legend",
-    h("span", "join-key join-key--wave", "Goes over"),
+    waveKey,
     h("span", "join-key join-key--held", "Held for you"),
     h("span", "join-key join-key--free", "Can be taken"),
     h("span", "join-key join-key--reserve", "In reserve"),
@@ -71,7 +72,7 @@ export function createJoinMap({
     const distance = choice.fromEnemy === null ? "" : `, ${metres(choice.fromEnemy)} from the enemy`
     const operation = sim.operation
     let part = ""
-    if (operation && operation.result === null) {
+    if (operation && operation.result === null && operation.plan.side === held.side) {
       const over = minutes((operation.zeroHourAt - sim.tick) / tickRate)
       if (wave.has(choice.squad)) {
         part = ` Goes over at ${over}.`
@@ -100,7 +101,8 @@ export function createJoinMap({
   function drawStretch(fit: PlanFit): void {
     const operation = sim.operation
     const drawing = plan.getContext("2d")
-    if (!operation || operation.result !== null || !drawing) {
+    // The defender isn't shown where the attack will fall: only the attacker knows.
+    if (!operation || operation.result !== null || !drawing || operation.plan.side !== held.side) {
       return
     }
     // Their line nearest our squads, along the stretch: the one the first wave goes for.
@@ -204,18 +206,21 @@ export function createJoinMap({
   function drawAttack(): void {
     const operation = sim.operation
     attack.hidden = !operation || operation.result !== null
+    // Only the attacker has a wave to mark.
+    waveKey.hidden = !operation || operation.result !== null || operation.plan.side !== held.side
     if (!operation || operation.result !== null) {
       return
     }
-    const ahead = attackPlan(operation, sim.tick, tickRate)
+    const defending = operation.plan.side !== held.side
+    const ahead = defending ? defencePlan(operation) : attackPlan(operation, sim.tick, tickRate)
     attack.replaceChildren(
-      h("h3", "ui-settings-heading", "The attack, from when you start"),
+      h("h3", "ui-settings-heading", defending ? "Your orders" : "The attack, from when you start"),
       h("ol", "join-attack-lines", ...ahead.lines.map((line) => h("li", "", line))),
       h(
         "p",
         "join-attack-win",
         ...ahead.outcomes.flatMap((outcome, index) => [
-          h("strong", `join-outcome join-outcome--${outcome.result}`, outcome.label),
+          h("strong", `join-outcome join-outcome--${outcome.tone}`, outcome.label),
           ` if ${outcome.means}${index < ahead.outcomes.length - 1 ? "; " : "."}`
         ])
       )

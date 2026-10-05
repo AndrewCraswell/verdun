@@ -4,6 +4,14 @@ import type { Report } from "./operation-report.ts"
 import type { MenuPage } from "./page.ts"
 import "./operation-pages.css"
 
+/** The defenders' machine gunners put down, as each side tells it. */
+function gunners({ gunnersDown, defending }: Report): string {
+  const count = gunnersDown === 1 ? "1" : String(gunnersDown)
+  return defending
+    ? `${count} of our machine gunners put out of the fight along the front.`
+    : `${count} German machine gunner${gunnersDown === 1 ? "" : "s"} put out of the fight along the front.`
+}
+
 /** The report at the end: the result, both sides' losses, ours by cause, the objectives, the squad. */
 export function createReportPage({
   report,
@@ -68,7 +76,11 @@ export function createReportPage({
         ),
         h("tbody", "", ...sideRows)
       ),
-      h("h3", "ui-settings-heading", "Our killed and wounded, by cause"),
+      h(
+        "h3",
+        "ui-settings-heading",
+        now.defending ? "Their killed and wounded, by cause" : "Our killed and wounded, by cause"
+      ),
       h(
         "div",
         "op-causes",
@@ -104,9 +116,7 @@ export function createReportPage({
       h(
         "p",
         "op-squad",
-        `${now.squad.lost === 1 ? "1 man" : `${now.squad.lost} men`} lost; ${now.squad.downed} of the enemy put down. ${
-          now.gunnersDown === 1 ? "1 German machine gunner" : `${now.gunnersDown} German machine gunners`
-        } put out of the fight along the front.`
+        `${now.squad.lost === 1 ? "1 man" : `${now.squad.lost} men`} lost; ${now.squad.downed} of the enemy put down. ${gunners(now)}`
       )
     )
   }

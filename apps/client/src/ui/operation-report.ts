@@ -32,7 +32,13 @@ function list(names: readonly string[]): string {
 /** The attack ahead, in three short lines and what counts as winning, from `now`, the step the player starts at. */
 export interface AttackPlan {
   readonly lines: readonly string[]
-  readonly outcomes: readonly { readonly result: OperationResult; readonly label: string; readonly means: string }[]
+  readonly outcomes: readonly {
+    readonly result: OperationResult
+    readonly label: string
+    readonly means: string
+    /** Whether it's good news for the player's side, bad, or between. */
+    readonly tone: "good" | "mixed" | "bad"
+  }[]
 }
 
 export function attackPlan(operation: OperationState, now: number, tickRate: number): AttackPlan {
@@ -46,15 +52,48 @@ export function attackPlan(operation: OperationState, now: number, tickRate: num
       `${end}: it's over. Hold that stretch until then.`
     ],
     outcomes: [
-      { result: "taken", label: "Taken", means: `we hold that stretch at ${end}` },
+      { result: "taken", label: "Taken", means: `we hold that stretch at ${end}`, tone: "good" },
       {
         result: "footing",
         label: "A footing",
-        means: operation.defended.length > 0 ? `we get into it, or hold ${list(operation.defended)}` : "we get into it"
+        means: operation.defended.length > 0 ? `we get into it, or hold ${list(operation.defended)}` : "we get into it",
+        tone: "mixed"
       },
-      { result: "repulsed", label: "Repulsed", means: "neither" }
+      { result: "repulsed", label: "Repulsed", means: "neither", tone: "bad" }
     ]
   }
+}
+
+/**
+ * The orders of a player defending against the attack: hold, with no hour given, since the defender wasn't told when
+ * the attack would come (docs/design/interface.md#principles, "show what a soldier of 1916 could know").
+ */
+export function defencePlan(operation: OperationState): AttackPlan {
+  return {
+    lines: [
+      "The French are expected to attack today. The hour isn't known.",
+      "Their guns will open first: keep your men down while the shells fall.",
+      "When they come over, stop them at the wire, and throw them out of any trench they take."
+    ],
+    outcomes: [
+      { result: "repulsed", label: "Held", means: "they hold none of our line when it's over", tone: "good" },
+      {
+        result: "footing",
+        label: "A footing lost",
+        means:
+          operation.defended.length > 0 ? `they get into it, or take ${list(operation.defended)}` : "they get into it",
+        tone: "mixed"
+      },
+      { result: "taken", label: "Line lost", means: "they hold the stretch they attack", tone: "bad" }
+    ]
+  }
+}
+
+/** The report's headline for the side that defended: the same result, told from the other trench. */
+const DEFENCE_HEADLINES: Readonly<Record<OperationResult, { readonly title: string; readonly line: string }>> = {
+  taken: { title: "Line lost", line: "They took our line, and held it." },
+  footing: { title: "A footing lost", line: "They gained ground, but couldn't take our line." },
+  repulsed: { title: "Held", line: "We threw them back." }
 }
 
 const HEADLINES: Readonly<Record<OperationResult, { readonly title: string; readonly line: string }>> = {
@@ -74,6 +113,12 @@ const CAUSES: readonly (readonly [keyof OperationState["tally"]["causes"], strin
   ["other", "Other"]
 ]
 
+/** The causes worded for the defender, who reads the attackers' losses as theirs. */
+const DEFENDING_CAUSES: Partial<Record<keyof OperationState["tally"]["causes"], string>> = {
+  shell: "Our shells",
+  own: "Their own shells and grenades"
+}
+
 /** One side's men in and out of the fight. */
 export interface SideReport {
   readonly side: "ours" | "theirs"
@@ -87,13 +132,15 @@ export interface SideReport {
 
 export interface Report {
   readonly result: OperationResult
+  /** Whether the player's side defended: the report tells it from their trench. */
+  readonly defending: boolean
   readonly title: string
   readonly line: string
   /** How long it lasted: "28 min". */
   readonly lasted: string
   /** Each side's men in and out of the fight: ours first. */
   readonly sides: readonly SideReport[]
-  /** The attackers' killed and wounded by cause, most first, leaving out none. */
+  /** The attackers' killed and wounded by cause, most first, leaving out none: ours attacking, theirs defending. */
   readonly causes: readonly { readonly label: string; readonly count: number }[]
   readonly gunnersDown: number
   /** Objectives as they changed hands, and how long after the start: "13 min". */
@@ -108,6 +155,7 @@ export function reportOf(operation: OperationState, tickRate: number, ours: Side
   }
   const { tally } = operation
   const theirs = ours === Side.French ? Side.German : Side.French
+  const defending = operation.plan.side !== ours
   const side = (which: Side, mine: boolean): SideReport => ({
     side: mine ? "ours" : "theirs",
     label: which === Side.French ? "French" : "German",
@@ -115,10 +163,14 @@ export function reportOf(operation: OperationState, tickRate: number, ours: Side
   })
   return {
     result: operation.result,
-    ...HEADLINES[operation.result],
+    defending,
+    ...(defending ? DEFENCE_HEADLINES : HEADLINES)[operation.result],
     lasted: between(operation.plannedAt, operation.endedAt, tickRate),
     sides: [side(ours, true), side(theirs, false)],
-    causes: CAUSES.map(([cause, label]) => ({ label, count: tally.causes[cause] }))
+    causes: CAUSES.map(([cause, label]) => ({
+      label: defending ? (DEFENDING_CAUSES[cause] ?? label) : label,
+      count: tally.causes[cause]
+    }))
       .filter((each) => each.count > 0)
       .sort((a, b) => b.count - a.count),
     gunnersDown: tally.gunnersDown,

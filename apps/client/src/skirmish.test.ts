@@ -52,6 +52,15 @@ describe("setupSkirmish", () => {
     expect(sim.squads.filter((squad) => squad.controller === "player")).toHaveLength(1)
   })
 
+  it("gives the player the middle German squad when they fight for Germany", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const { german, playerSquad } = setupSkirmish(sim, 48, 0, 160, Side.German)
+
+    expect(playerSquad.side).toBe(Side.German)
+    expect(playerSquad.members).toEqual(german.slice(24, 32))
+    expect(sim.squads.filter((squad) => squad.controller === "player")).toEqual([playerSquad])
+  })
+
   it("keeps reserves in each side's support line, behind its front line", () => {
     const sim = createSimulation({ map, seed: 1 })
     const { french, german, reserves } = setupSkirmish(sim, 48, 16)

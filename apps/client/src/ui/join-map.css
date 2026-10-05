@@ -192,11 +192,11 @@
   color: var(--ui-ink-2);
 }
 
-.join-outcome--taken {
+.join-outcome--good {
   color: var(--ui-ours);
 }
 
-.join-outcome--repulsed {
+.join-outcome--bad {
   color: var(--ui-theirs);
 }
 

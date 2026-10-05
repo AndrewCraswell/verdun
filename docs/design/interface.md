@@ -68,13 +68,16 @@ from the hand to where it bursts.
 
 The menus are built too, in `apps/client/src/ui/`. The game opens on a front door (a first cut of S13), from a small
 bundle of its own, with the battle downloading and coming up behind it: "Join the battle", "War map", "Options" and
-"Credits", nothing more. "Join the battle" opens the join screen (S8): the sector's plan with every squad pinned where
-it stands and the attack ahead beside it, and **Start**. Then the loading screen (S6) until the battle draws, and the
-battle. Esc opens the list over the battle (S1): "Resume", the sector map (S4), the squad book (S5), the battle log's
-history (H14), the war map (a first cut of S15: the Western Front in each season, the theatres each season opens,
-Verdun's sectors, Fleury playable), the options (S3, with the keys and their rebinding, S2, as a tab), "Restart" and
-"Leave the battle". M and U open the sector map and the squad book on their own over the running battle. `?play` goes
-straight into the line behind the loading screen; `?debug` past both.
+"Credits", nothing more, with "Fight for: French or German" over them (S14's first cut: kept between visits; a change
+reloads, since the battle comes up for the side chosen). A German player defends against the playtest's French attack
+and, as a defender of 1916 would, isn't told its hour or where it will fall: the join screen gives orders to hold, and
+the report reads Held, A footing lost or Line lost. "Join the battle" opens the join screen (S8): the sector's plan with
+every squad pinned where it stands and the attack ahead beside it, and **Start**. Then the loading screen (S6) until the
+battle draws, and the battle. Esc opens the list over the battle (S1): "Resume", the sector map (S4), the squad book
+(S5), the battle log's history (H14), the war map (a first cut of S15: the Western Front in each season, the theatres
+each season opens, Verdun's sectors, Fleury playable), the options (S3, with the keys and their rebinding, S2, as a
+tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on their own over the running
+battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
 
 Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), and the rest of
 stage 2-3's screens.

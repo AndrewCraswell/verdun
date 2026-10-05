@@ -3,9 +3,11 @@ import { getMixer } from "../audio/mixer.ts"
 import { turnLabel, weekLabel } from "../environment/war-labels.ts"
 import { h, setText } from "../hud/dom.ts"
 import { type InterfaceSettings, interfaceSettings } from "../hud/interface-settings.ts"
+import { type PlayerSide, sideSettings } from "../settings/side.ts"
 import type { BattlePages } from "./battle-pages.ts"
 import type { BattleParts } from "./battle.ts"
 import { createCreditsPage } from "./credits.ts"
+import { segmented } from "./fields.ts"
 import { createFrontMapPage } from "./front/front-map.ts"
 import { OPEN_SECTOR } from "./front/front.ts"
 import { weekAtVerdun } from "./front/verdun-1916.ts"
@@ -127,11 +129,26 @@ export function createMenu(
   const nav = h("nav", "ui-nav-list")
   nav.setAttribute("aria-label", "Menu")
   const footer = h("footer", "ui-footer", `Single-player prototype, build ${build}`)
+  // The side to fight for, at the front door: the battle comes up for the side chosen, so a change starts it again.
+  const sideChoice = segmented<PlayerSide>(
+    [
+      { value: "french", label: "French" },
+      { value: "german", label: "German" }
+    ],
+    sideSettings().current.side,
+    (side) => {
+      sideSettings().change({ side })
+      location.reload()
+    }
+  )
+  sideChoice.root.classList.add("ui-side-choice")
+  const sidePicker = h("div", "ui-side", h("span", "ui-side-label", "Fight for"), sideChoice.root)
   const column = h(
     "div",
     "ui-column",
     h("header", "ui-masthead", kicker, title),
     h("div", "ui-date", week, history),
+    sidePicker,
     nav,
     footer
   )
@@ -267,6 +284,7 @@ export function createMenu(
     setText(kicker, door ? "The Western Front, 1914–1918" : "The battle waits")
     setText(title, door ? "Verdun" : OPEN_SECTOR.name)
     setText(enterLabel, door ? "Join the battle" : "Resume")
+    sidePicker.hidden = !door
     // At the front door: join, the war map, the options, the credits. In battle: the battle's own pages first, then
     // the war map and the options; the credits stay at the front door.
     const shown = door
@@ -282,7 +300,8 @@ export function createMenu(
     if (screen !== "front-door") {
       setText(enterNote, "Esc")
     } else if (loaded) {
-      setText(enterNote, `${OPEN_SECTOR.name}, Verdun's right bank`)
+      const side = sideSettings().current.side === "german" ? "the German line" : "the French line"
+      setText(enterNote, `${OPEN_SECTOR.name}, ${side}`)
     }
   }
 
