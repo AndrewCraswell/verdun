@@ -433,7 +433,7 @@ describe("voices", () => {
     sim.objectives.push({ name: "the farm", x: 100, z: 35, radius: 20, holder: Side.French, contested: false })
     sim.tick += 2 * TICK_RATE
     happen(sim, { type: "objective-taken", name: "the farm", side: Side.French })
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["voice-taken-fr"])
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["voice-taken-fr", "cheer"])
   })
 
   it("hears a man break as his nerve goes", () => {

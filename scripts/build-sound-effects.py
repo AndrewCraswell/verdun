@@ -48,6 +48,17 @@ DETONATIONS = f"{WARFARE}/Detonations and Explosions"
 SUPERTHUMP = "superthump-weapons-of-wwii"
 GDC = "sonniss-gdc"
 RECORDIST = "recordist-bullets-3"
+CROWDS = "boom-crowds-war-battle"
+
+
+def crowd(kind, name, mic):
+    """A group of men from BOOM's Crowds, recorded outdoors: `kind` SHOUT or SEQUENCE, `mic` the setup (AB, MS, HH)."""
+    return (CROWDS, f"CRWDBatl_GROUP OUTDOOR MALE {kind}-{name}_B00M_CWB_{mic}.wav")
+
+
+def single_voice(name):
+    """One man from BOOM's Crowds, wordless."""
+    return (CROWDS, f"VOXMale_SINGLE VOICE-{name}_B00M_CWB.wav")
 
 
 def bullets3(name, takes, number):
@@ -333,25 +344,33 @@ CUES = {
     # German voices are recorded yet.
     "charge": dict(
         sources=[
-            (GDC, "Battle Cry, Charge, Screams, Army Attacking, Running 1.wav"),
-            (GDC, "Male 2 - Grunt - Battle Cry - Long - Ehrlund M1.wav"),
+            crowd("SHOUT", "Battle Approach 50m", "HH"),
+            crowd("SHOUT", "Battle Approach 10m", "AB"),
+            crowd("SHOUT", "Troop Pass By Left Right 20m", "MS"),
         ],
-        gap=2,
-        length=6,
-        take=2,
-        per_source=1,
+        gap=1.5,
+        length=7,
+        take=18,
+        floor=-20,
+    ),
+    # Men cheering a trench taken.
+    "cheer": dict(
+        sources=[
+            crowd("SEQUENCE", "Celebrate 01 20m", "MS"),
+            crowd("SEQUENCE", "Celebrate 02 20m", "MS"),
+            crowd("SEQUENCE", "Celebrate 01 50m", "HH"),
+        ],
+        # The celebrations run on without a pause: their loudest stretches are cut.
+        loudest=5,
+        take=9,
     ),
     # A man hit and still standing.
     "pain": dict(
-        sources=[
-            (GDC, "Grunts 16.wav"),
-            (GDC, "Male_Grunt-Shout_317.wav"),
-            (GDC, "Male 1 - Breathing - Gasping - Ehrlund M1.wav"),
-        ],
+        sources=[single_voice(f"{cry} Male {n:02d}") for cry in ("Pain", "Hit") for n in range(1, 6)],
         gap=0.6,
-        length=2,
-        take=6,
-        floor=-12,
+        length=2.5,
+        take=20,
+        floor=-20,
     ),
     # The gas alarm: an empty brass shell case struck like a gong.
     "gas-gong": dict(
@@ -435,9 +454,12 @@ def find(vendor, folder, name):
 
 
 def load(path):
-    """The recording as mono samples at RATE."""
-    sound = aud.Sound(str(path)).rechannel(aud.CHANNELS_MONO).resample(RATE, True)
-    return np.asarray(sound.data(), dtype=np.float32).reshape(-1)
+    """The recording as mono samples at RATE. Mid-side recordings give their mid channel: summing would fold the side in."""
+    sound = aud.Sound(str(path))
+    if "_MS." in path.name:
+        mid = np.asarray(sound.resample(RATE, True).data(), dtype=np.float32)
+        return np.ascontiguousarray(mid[:, 0] if mid.ndim == 2 else mid.reshape(-1))
+    return np.asarray(sound.rechannel(aud.CHANNELS_MONO).resample(RATE, True).data(), dtype=np.float32).reshape(-1)
 
 
 def envelope_db(samples):
@@ -565,8 +587,9 @@ def cue_clips(vendor, cue):
 
 def raw_cue_clips(vendor, cue):
     if "loudest" in cue:
-        samples = load(find(vendor, *cue["sources"][0]))
-        return match_loudness(loudest_clips(samples, cue["loudest"], cue["take"]))
+        each = -(-cue["take"] // len(cue["sources"]))
+        clips = [clip for source in cue["sources"] for clip in loudest_clips(load(find(vendor, *source)), cue["loudest"], each)]
+        return match_loudness(clips[: cue["take"]])
     if "bed" in cue:
         return match_loudness([bed_clip(load(find(vendor, folder, file)), *cue["bed"]) for folder, file in cue["sources"]])
     candidates = []

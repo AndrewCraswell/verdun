@@ -384,9 +384,10 @@ won't decode is left out with a warning rather than stopping the game.
     **The batteries** fire 4 km behind each line, heard about 12 s late.
   - **Shell shock**: a burst within 15 m of the controlled soldier sets his ears ringing and muffles the battle and the
     ambience by up to 80%, coming back over 3 s.
-  - **Men** cry out when hit and fall within reach. Squads cheer as they go over the top, and the enemy's counter-attack
-    is heard from its front line. The gas alarm (a struck shell case) sounds when men nearby start masking. The
-    controlled soldier breathes through his mask, and short and hard while pinned down.
+  - **Men** cry out when hit and fall within reach. Squads roar as they go over the top, and the enemy's counter-attack
+    is heard from its front line; men cheer a trench they've taken. These crowds and the cries of men hit are BOOM's
+    Crowds – War & Battle, men only and wordless. The gas alarm (a struck shell case) sounds when men nearby start
+    masking. The controlled soldier breathes through his mask, and short and hard while pinned down.
   - **Shouts**, in each man's own language, within 90 m: a squad's leader cries "En avant !" or "Sprung auf!" before the
     cheer, the nearest man masking cries the gas alarm, men near a shell landing shout to take cover (as a heavy shell
     is heard coming, just after a field shell), a thrower shouts his grenade, every second man hit calls out for a
@@ -415,11 +416,12 @@ won't decode is left out with a warning rather than stopping the game.
   attack tracks follow one another without a pause until the squad is back in a trench. Each mood plays all its tracks
   before repeating one. The tracks stream rather than decode up front.
 
-The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms, Super Thump's Weapons of World War II
-and the Sonniss GDC bundles, recorded by professionals: designed stand-ins and weak sampler sounds were taken out, and
-sounds with no good recording stay silent ([sound](sound.md) lists them). The ringing and the reverbs are generated. The
-shouts were generated with ElevenLabs (`scripts/generate-voices.mjs`, lines in `scripts/voice-lines.json`), and each
-take was chosen by ear: the build uses only those listed under `keep`. `scripts/build-sound-effects.py` cuts them:
+The sounds come from Pole Position's Warfare Library, BOOM's World War I Firearms and Crowds – War & Battle, The
+Recordist's Bullets 3, Super Thump's Weapons of World War II and the Sonniss GDC bundles, recorded by professionals:
+designed stand-ins and weak sampler sounds were taken out, and sounds with no good recording stay silent
+([sound](sound.md) lists them). The ringing and the reverbs are generated. The shouts were generated with ElevenLabs
+(`scripts/generate-voices.mjs`, lines in `scripts/voice-lines.json`), and each take was chosen by ear: the build uses
+only those listed under `keep`. `scripts/build-sound-effects.py` cuts them:
 
 - It finds each take in the long source recordings and cuts it until it dies away.
 - It loops beds with a crossfade, and cuts the loudest stretches of recordings that never fall quiet.

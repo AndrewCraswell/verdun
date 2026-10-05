@@ -56,6 +56,7 @@ export const SOUND_CUES = [
   "death",
   "pain",
   "charge",
+  "cheer",
   "gas-gong",
   "mask-breath",
   "ear-ring",
@@ -221,6 +222,7 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   death: { volume: 0.6, reference: 15 },
   pain: { volume: 0.45, reference: 12 },
   charge: { volume: 0.9, reference: 40 },
+  cheer: { volume: 0.8, reference: 40 },
   "gas-gong": { volume: 0.5, reference: 30 },
   "mask-breath": { volume: 0.3, reference: 1 },
   "ear-ring": { volume: 0.35, reference: 1 },
@@ -370,6 +372,8 @@ const ORDER_SHOUTS: Readonly<Partial<Record<string, Shout>>> = { follow: "follow
 const WHISTLES = 3
 const WHISTLE_SPACING = 0.35
 const WHISTLE_LEAD = 1.2
+/** The men taking an objective cheer it within CHARGE_RANGE, this many seconds after one of them shouts it. */
+const CHEER_DELAY = 1
 /** Batteries stand this far behind their end of the map (the simulation's BATTERY_DISTANCE). */
 const BATTERY_DISTANCE = 4000
 
@@ -476,7 +480,8 @@ export interface BattleSoundOptions {
  * coming in, the ringing of a near miss, and the shell-case gong when men nearby start pulling on gas masks. Men
  * nearby shout in their own language: the charge, the gas alarm, to take cover from shells, a grenade thrown, that
  * they're hit, as they're pinned down, and as they break; leaders shout their orders and blow their whistles at
- * zero hour; men give themselves up, and a side cheers as it takes ground.
+ * zero hour; men give themselves up, and a side cheers as it takes ground, one man shouting it and the rest roaring
+ * after him.
  */
 export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
@@ -829,11 +834,15 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
         shout(listener, calls, "surrender", event.soldier)
       } else if (event.type === "objective-taken") {
         const objective = sim.objectives.find(({ name }) => name === event.name)
-        if (objective && shoutable(listener, objective.x, objective.z, objective.radius)) {
-          const id = nearest(objective.x, objective.z, objective.radius, event.side)
-          if (id !== null) {
-            shout(listener, calls, "taken", id)
-          }
+        if (!objective) {
+          continue
+        }
+        const id = shoutable(listener, objective.x, objective.z, objective.radius)
+          ? nearest(objective.x, objective.z, objective.radius, event.side)
+          : null
+        const shouted = id !== null && shout(listener, calls, "taken", id)
+        if (Math.hypot(objective.x - listener.x, objective.z - listener.z) < CHARGE_RANGE) {
+          push(calls, place(listener, "cheer", objective.x, objective.z, shouted ? CHEER_DELAY : 0))
         }
       }
     }
