@@ -30,10 +30,16 @@ export interface LevelKit {
   readonly ground: GroundLayers
   /** Effect sprites. */
   readonly fx: KitEffects
-  /** Ambience, or null when this kit was built without it. */
-  readonly audio: AmbienceAudio | null
-  /** The battle's sound effects, or null when this kit was built without them (scripts/build-sound-effects.py). */
-  readonly sfx: BattleSoundFiles | null
+  /**
+   * Ambience, or null when this kit was built without it. The sounds come last in the asset pack, so they may still be
+   * on their way when the rest of the kit is in.
+   */
+  readonly audio: Promise<AmbienceAudio | null>
+  /**
+   * The battle's sound effects, or null when this kit was built without them (scripts/build-sound-effects.py). Settles
+   * once the ambience has been read too, so the kit's files can be closed after it.
+   */
+  readonly sfx: Promise<BattleSoundFiles | null>
 }
 
 /** Reads the kit's ambience, all of it or none. */
@@ -184,7 +190,10 @@ export async function loadLevelKit(scene: Scene, given?: KitFiles | null): Promi
       normal: await loadTexture(scene, files, `ground/${name}_normal.png`, true)
     })
     const sprite = (name: string) => loadTexture(scene, files, `fx/${name}.png`)
-    const [container, grass, mud, chalk, churned, fx, audio, sfx] = await Promise.all([
+    // Asked for at once, but not waited for: the level is built from the rest of the kit while the sounds arrive.
+    const audio = loadAudio(files)
+    const sfx = Promise.all([audio, loadBattleSoundFiles(files)]).then(([, effects]) => effects)
+    const [container, grass, mud, chalk, churned, fx] = await Promise.all([
       files
         .read("kit.glb")
         .then((glb) => LoadAssetContainerAsync(new Uint8Array(glb), scene, { pluginExtension: ".glb" })),
@@ -194,11 +203,9 @@ export async function loadLevelKit(scene: Scene, given?: KitFiles | null): Promi
       layer("churned"),
       Promise.all(["smoke", "mist", "fire", "ember", "scorch", "grunge", "puff"].map(sprite)).then(
         ([smoke, mist, fire, ember, scorch, grunge, puff]) => ({ smoke, mist, fire, ember, scorch, grunge, puff })
-      ),
-      loadAudio(files),
-      loadBattleSoundFiles(files)
+      )
     ])
-    done()
+    void sfx.finally(done)
     container.addAllToScene()
     return { ...prepareKitPieces(scene, container), ground: { grass, mud, chalk, churned }, fx, audio, sfx }
   } catch (error) {

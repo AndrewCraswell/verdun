@@ -1,12 +1,21 @@
-import { type AssetPack, openAssetPack } from "./asset-pack.ts"
+import { arrivingPack, type AssetPack, openAssetPack, type PackBytes } from "./asset-pack.ts"
 import { isPackRequest, type PackPort } from "./pack-protocol.ts"
 
-async function fetchPack(url: string): Promise<ArrayBuffer> {
+/**
+ * Starts fetching the pack: its bytes as they arrive, and how many there were once they all have. The pack script puts
+ * the sounds last, so the level can be built from the files ahead of them while they're still coming.
+ */
+async function fetchPack(url: string): Promise<{ bytes: ArrayBuffer | PackBytes; done: Promise<number> }> {
   const response = await fetch(url)
   if (!response.ok) {
     throw new Error(`asset pack: ${url}: ${response.status} ${response.statusText}`)
   }
-  return response.arrayBuffer()
+  if (!response.body) {
+    const whole = await response.arrayBuffer()
+    return { bytes: whole, done: Promise.resolve(whole.byteLength) }
+  }
+  const arriving = arrivingPack(response.body)
+  return { bytes: arriving, done: arriving.done }
 }
 
 function describe(error: unknown): string {
@@ -26,9 +35,13 @@ export function servePack(port: PackPort): void {
     }
     if (request.kind === "open") {
       const { url, key } = request
-      pack = fetchPack(url).then(async (bytes) => {
+      pack = fetchPack(url).then(async ({ bytes, done }) => {
         const opened = await openAssetPack(bytes, key)
-        port.postMessage({ kind: "opened", files: opened.paths.length, bytes: bytes.byteLength })
+        // Said once the whole pack is in; a pack that doesn't all arrive fails the reads it cut short instead.
+        done.then(
+          (length) => port.postMessage({ kind: "opened", files: opened.paths.length, bytes: length }),
+          () => undefined
+        )
         return opened
       })
       // Each read reports the failure; this only keeps it from being an unhandled rejection.

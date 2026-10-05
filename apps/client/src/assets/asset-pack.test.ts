@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest"
-import { fromBase64, openAssetPack } from "./asset-pack.ts"
+import { arrivingPack, fromBase64, openAssetPack } from "./asset-pack.ts"
 import { buildTestPack, TEST_KIT, type TestPack } from "./test-pack.ts"
 
 let built: TestPack
@@ -42,6 +42,38 @@ async function sealed(index: string, payloads = new Uint8Array(0)): Promise<Arra
 
 const SEALED_KEY = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)))
 
+/** The built pack as a download: all but its last `held` bytes at once, then the rest or a failure when asked. */
+function download(held: number) {
+  const cut = built.pack.byteLength - held
+  let source: ReadableStreamDefaultController<Uint8Array> | null = null
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      source = controller
+      controller.enqueue(new Uint8Array(built.pack.slice(0, cut)))
+    }
+  })
+  return {
+    body,
+    finish: () => {
+      source?.enqueue(new Uint8Array(built.pack.slice(cut)))
+      source?.close()
+    },
+    stop: () => source?.close(),
+    fail: (error: Error) => source?.error(error)
+  }
+}
+
+/** Whether a promise has settled after the reads ahead of it have had their turn. */
+async function settled(promise: Promise<unknown>): Promise<boolean> {
+  let done = false
+  void promise.then(
+    () => (done = true),
+    () => (done = true)
+  )
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  return done
+}
+
 describe("asset pack", () => {
   it("decrypts with WebCrypto every file the pack script encrypted in Node", async () => {
     const pack = await openAssetPack(built.pack, built.key)
@@ -68,6 +100,36 @@ describe("asset pack", () => {
       noiseBytes + noise.length * 16 + soldier / 10
     )
     expect(built.pack.byteLength - 32 - indexLength(built.pack)).toBeGreaterThanOrEqual(noiseBytes + noise.length * 16)
+  })
+
+  it("lays the sounds last, and reads each file as soon as its own bytes are in", async () => {
+    const { body, finish } = download(100)
+    const arriving = arrivingPack(body)
+    const pack = await openAssetPack(arriving, built.key)
+    for (const [path, bytes] of [...TEST_KIT].filter(([name]) => !name.startsWith("sfx/"))) {
+      expect(new Uint8Array(await pack.read(path))).toEqual(bytes)
+    }
+    const shot = pack.read("sfx/shot.ogg")
+    expect(await settled(shot)).toBe(false)
+    finish()
+    expect(new Uint8Array(await shot)).toEqual(TEST_KIT.get("sfx/shot.ogg"))
+    await expect(arriving.done).resolves.toBe(built.pack.byteLength)
+  })
+
+  it("fails the reads a download cuts short, and only those", async () => {
+    const broken = download(100)
+    const failing = await openAssetPack(arrivingPack(broken.body), built.key)
+    const shot = failing.read("sfx/shot.ogg")
+    broken.fail(new Error("connection reset"))
+    await expect(shot).rejects.toThrow("connection reset")
+    expect(new Uint8Array(await failing.read("kit.glb"))).toEqual(TEST_KIT.get("kit.glb"))
+
+    const short = download(100)
+    const arriving = arrivingPack(short.body)
+    const ended = await openAssetPack(arriving, built.key)
+    short.stop()
+    await expect(ended.read("sfx/shot.ogg")).rejects.toThrow("truncated")
+    await expect(arriving.done).resolves.toBe(built.pack.byteLength - 100)
   })
 
   it("uses a fresh key each build", () => {

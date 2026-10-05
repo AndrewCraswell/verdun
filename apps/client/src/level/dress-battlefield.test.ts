@@ -52,8 +52,8 @@ function kitOf(pieces: readonly string[]): { kit: LevelKit; scene: Scene } {
         churned: { albedo: ground, normal: ground }
       },
       fx: { smoke: ground, mist: ground, fire: ground, ember: ground, scorch: ground, grunge: ground, puff: ground },
-      audio: null,
-      sfx: null
+      audio: Promise.resolve(null),
+      sfx: Promise.resolve(null)
     }
   }
 }

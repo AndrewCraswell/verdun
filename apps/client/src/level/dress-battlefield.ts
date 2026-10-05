@@ -318,10 +318,13 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly materials: readonly Material[]
   /** The wire belts' art, following the simulation's wire as it's cut and mended; null when the level wasn't given it. */
   readonly wire: WireArt | null
-  /** The sector's ambient sound, following the camera, or null when the kit has none. */
+  /** The sector's ambient sound, following the camera: null until the kit's ambience has come, or when it has none. */
   readonly ambience: Ambience | null
-  /** The battle's sound effects, for apps/client/src/audio/battle-sounds.ts, or null when the kit has none. */
-  readonly sfx: BattleSoundFiles | null
+  /**
+   * The battle's sound effects, for apps/client/src/audio/battle-sounds.ts, or null when the kit has none. The sounds
+   * are last in the asset pack, so the level is up before they've all arrived.
+   */
+  readonly sfx: Promise<BattleSoundFiles | null>
 }
 
 /** What the level reads from the running battle. */
@@ -417,6 +420,11 @@ export async function dressLevel(
     kit.fx
   )
   const bursts = createShellBursts(view.scene, map, kit.fx, wind)
+  // The ambience starts when its sounds have come, behind the rest of the kit.
+  let ambience: Ambience | null = null
+  void kit.audio.then(async (audio) => {
+    ambience = audio ? await createAmbience(map, audio) : null
+  })
   const dressing = {
     ...dressed,
     ground,
@@ -442,14 +450,15 @@ export async function dressLevel(
         (material) => material !== null
       )
     ],
-    ambience: kit.audio ? await createAmbience(map, kit.audio) : null,
+    get ambience() {
+      return ambience
+    },
     sfx: kit.sfx,
     fx: kit.fx,
     scorch,
     backdrop,
     woods
   }
-  const ambience = dressing.ambience
   let wireCuts = -1
   let washing = 0
   // Smoke, dust and mist are drawn unlit: they darken with the light, so they don't glow at night. They and the flames

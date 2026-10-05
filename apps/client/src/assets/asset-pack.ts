@@ -80,22 +80,126 @@ async function gunzip(data: ArrayBuffer): Promise<ArrayBuffer> {
 }
 
 /**
- * Opens a pack from its bytes and its base64 raw key. Rejects when the bytes aren't a pack of this version, or when the
- * key doesn't match or the header or index was altered.
+ * A pack's bytes, whole or still downloading. `slice` resolves with bytes `start` to `end` once they're in, and rejects
+ * if the pack ends first. `length` is the whole pack's, when it's known before it has all arrived.
  */
-export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promise<AssetPack> {
+export interface PackBytes {
+  readonly length?: number
+  slice(start: number, end: number): Promise<Uint8Array<ArrayBuffer>>
+}
+
+/** A pack already whole in memory. */
+function wholePack(pack: ArrayBuffer): PackBytes {
   const bytes = new Uint8Array(pack)
-  const view = new DataView(pack)
-  if (bytes.length < HEADER_BYTES || MAGIC.some((byte, i) => bytes[i] !== byte)) {
+  return {
+    length: bytes.length,
+    async slice(start, end) {
+      if (end > bytes.length) {
+        throw new Error("asset pack: truncated")
+      }
+      return bytes.subarray(start, end)
+    }
+  }
+}
+
+/**
+ * A pack as it downloads from `body`: each chunk is kept as it comes, and a slice is answered as soon as its last byte
+ * is in, so the files near the start of the pack can be read while the rest is still on its way. `done` resolves with
+ * the pack's length once it has all arrived, or rejects with why it didn't.
+ */
+export function arrivingPack(body: ReadableStream<Uint8Array>): PackBytes & { readonly done: Promise<number> } {
+  const chunks: Uint8Array[] = []
+  let received = 0
+  let ended = false
+  let failure: Error | null = null
+  const waiting: (() => boolean)[] = []
+  const wake = () => {
+    for (let index = waiting.length - 1; index >= 0; index--) {
+      if (waiting[index]?.()) {
+        waiting.splice(index, 1)
+      }
+    }
+  }
+  const copy = (start: number, end: number) => {
+    const out = new Uint8Array(end - start)
+    let at = 0
+    for (const chunk of chunks) {
+      const from = Math.max(start, at)
+      const to = Math.min(end, at + chunk.length)
+      if (from < to) {
+        out.set(chunk.subarray(from - at, to - at), from - start)
+      }
+      at += chunk.length
+      if (at >= end) {
+        break
+      }
+    }
+    return out
+  }
+  const done = (async () => {
+    const reader = body.getReader()
+    try {
+      for (let read = await reader.read(); !read.done; read = await reader.read()) {
+        chunks.push(read.value)
+        received += read.value.length
+        wake()
+      }
+      return received
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error))
+      throw failure
+    } finally {
+      ended = true
+      wake()
+    }
+  })()
+  // Each slice reports the failure; this only keeps it from being an unhandled rejection.
+  done.catch(() => undefined)
+  return {
+    done,
+    slice(start, end) {
+      return new Promise((resolve, reject) => {
+        const settle = () => {
+          if (received >= end) {
+            resolve(copy(start, end))
+          } else if (ended) {
+            reject(failure ?? new Error("asset pack: truncated"))
+          } else {
+            return false
+          }
+          return true
+        }
+        if (!settle()) {
+          waiting.push(settle)
+        }
+      })
+    }
+  }
+}
+
+/**
+ * Opens a pack from its bytes, whole or still arriving, and its base64 raw key. Rejects when the bytes aren't a pack of
+ * this version, or when the key doesn't match or the header or index was altered. A file is read once its own bytes
+ * are in.
+ */
+export async function openAssetPack(pack: ArrayBuffer | PackBytes, base64Key: string): Promise<AssetPack> {
+  const bytes = pack instanceof ArrayBuffer ? wholePack(pack) : pack
+  const known = bytes.length ?? Infinity
+  if (known < HEADER_BYTES) {
     throw new Error("asset pack: not an asset pack")
   }
+  const header = await bytes.slice(0, HEADER_BYTES)
+  if (MAGIC.some((byte, i) => header[i] !== byte)) {
+    throw new Error("asset pack: not an asset pack")
+  }
+  const view = new DataView(header.buffer, header.byteOffset, header.byteLength)
   const version = view.getUint16(8, true)
   if (!VERSIONS.includes(version)) {
     throw new Error(`asset pack: version ${version} is not supported`)
   }
   const indexLength = view.getUint32(12, true)
   const payloadStart = HEADER_BYTES + indexLength
-  if (payloadStart > bytes.length) {
+  if (payloadStart > known) {
     throw new Error("asset pack: truncated")
   }
 
@@ -106,9 +210,9 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
   const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"])
   const index = await decrypt(
     key,
-    bytes.slice(16, 16 + IV_BYTES),
-    bytes.slice(HEADER_BYTES, payloadStart),
-    bytes.slice(0, HEADER_BYTES),
+    header.slice(16, 16 + IV_BYTES),
+    await bytes.slice(HEADER_BYTES, payloadStart),
+    header,
     "the index"
   )
 
@@ -118,7 +222,7 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
   }
   const entries = new Map<string, PackEntry>()
   for (const { path, offset, length, iv, encoding } of parsed) {
-    if (payloadStart + offset + length > bytes.length) {
+    if (payloadStart + offset + length > known) {
       throw new Error(`asset pack: ${path} lies past the end of the pack`)
     }
     entries.set(path, { offset: payloadStart + offset, length, iv: fromBase64(iv), gzipped: encoding === "gzip" })
@@ -132,7 +236,7 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
       if (!entry) {
         throw new Error(`asset pack: no file ${path}`)
       }
-      const data = bytes.subarray(entry.offset, entry.offset + entry.length)
+      const data = await bytes.slice(entry.offset, entry.offset + entry.length)
       const plain = await decrypt(key, entry.iv, data, encoder.encode(path), path)
       return entry.gzipped ? gunzip(plain) : plain
     }

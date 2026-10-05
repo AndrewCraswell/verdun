@@ -8,6 +8,9 @@
 // before it's encrypted instead, when that saves a tenth or more. The meshes shrink to about a third; the sounds and
 // images are compressed already and go in as they are.
 //
+// The client reads files as soon as their bytes arrive, so the order matters: the sounds go last, and the level is
+// built from the meshes and images ahead of them while they're still downloading.
+//
 // Container layout, little-endian:
 //   0   8  magic: 0x8E "VDNPK" 0x0D 0x0A
 //   8   2  format version (2; version 1 had no encoding)
@@ -57,6 +60,9 @@ function compressed(data) {
   return gzipped.length <= data.length * 0.9 ? { data: gzipped, encoding: "gzip" } : { data }
 }
 
+/** The kit's sounds: last in the pack, since the battle can start before they've arrived. */
+const SOUNDS = ["audio/", "sfx/"]
+
 /** Every file under `dir`, as forward-slash paths relative to it, sorted so packs are laid out the same each run. */
 async function listFiles(dir) {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true })
@@ -66,7 +72,9 @@ async function listFiles(dir) {
     .sort()
 }
 
-const paths = await listFiles(kitDir)
+const listed = await listFiles(kitDir)
+const isSound = (path) => SOUNDS.some((prefix) => path.startsWith(prefix))
+const paths = [...listed.filter((path) => !isSound(path)), ...listed.filter(isSound)]
 if (paths.length === 0) {
   throw new Error(`${kitDir} has no files: build the level kit first (docs/level-design.md)`)
 }

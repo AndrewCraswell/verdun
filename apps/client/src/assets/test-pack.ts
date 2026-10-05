@@ -27,6 +27,7 @@ function pattern(length: number, seed: number): Uint8Array<ArrayBuffer> {
 export const TEST_KIT: ReadonlyMap<string, Uint8Array<ArrayBuffer>> = new Map([
   ["kit.glb", noise(5000, 1)],
   ["soldier.glb", pattern(20_000, 4)],
+  ["sfx/shot.ogg", noise(900, 5)],
   ["ground/mud.png", noise(700, 2)],
   ["fx/smoke.png", noise(300, 3)],
   ["fx/deep/empty.bin", new Uint8Array(0)]

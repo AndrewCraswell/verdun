@@ -208,7 +208,8 @@ export async function startBattle(
   // Animated Synty soldiers in place of the capsules, when the kit has them.
   menu.progress("Bringing up the battalion", 0.6)
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
-  kitFiles?.close?.()
+  // The kit's files close once the last of them, the sounds, have been read.
+  void Promise.resolve(level?.sfx).finally(() => kitFiles?.close?.())
   const soldiers = soldierKit ? createSoldierCrowd(view.scene, sim, soldierKit) : null
   // After dark: braziers, fires and rifle flashes light the ground around them; flares come when the sim fires them.
   const night = level
@@ -268,7 +269,7 @@ export async function startBattle(
     playerSquad.side === Side.German ? "de" : "fr",
     (soldier) => {
       const man = hud.state?.roster.find((slot) => slot.id === soldier)
-      return man ? `${man.name.rank} ${man.name.surname}` : null
+      return man ? man.name.surname : null
     }
   )
   const notes = createBattleNotes(document.body, { captions, confirm })
@@ -286,10 +287,10 @@ export async function startBattle(
     } catch {
       // As above.
     }
-    const lower = quality === "high" ? "The low graphics setting" : "A lower render scale"
-    notes.notice(`The battle is running at ${fps} frames a second. ${lower} may help.`, [
-      { label: "Open the options", act: () => menu.showPage("options") },
-      { label: "Not now", act: () => undefined }
+    const lower = quality === "high" ? "try Low graphics" : "try a lower render scale"
+    notes.notice(`Running slowly (${fps} fps): ${lower}.`, [
+      { label: "Options", act: () => menu.showPage("options") },
+      { label: "Dismiss", act: () => undefined }
     ])
   }
 
@@ -308,10 +309,12 @@ export async function startBattle(
     }
   })
   const markers = createSquadMarkers(view.scene, sim, playerSquad)
-  // The battle's sound effects, heard from the camera, when the kit has them.
+  // The battle's sound effects, heard from the camera, when the kit has them: last in the asset pack, so they may only
+  // now be arriving.
   menu.progress("Listening for the guns", 0.8)
-  const sounds = level?.sfx
-    ? await createBattleSounds(level.sfx, sim, view.camera, {
+  const sfx = level ? await level.sfx : null
+  const sounds = sfx
+    ? await createBattleSounds(sfx, sim, view.camera, {
         soldier: () => (control.soldier >= 0 ? control.soldier : null),
         level,
         lightning: environment?.onLightning,

@@ -495,10 +495,13 @@ the reader still opens version 1 packs.
 URL and the base64 key into the bundle as `import.meta.env.VERDUN_LEVEL_PACK_URL` and `_KEY` (the `assetPack` plugin in
 `apps/client/vite.config.ts`). In the browser, `src/level/kit-files.ts` starts a module worker
 (`src/assets/pack-worker.ts`) that fetches the pack once, decrypts the index with WebCrypto, and decrypts (and inflates)
-each file on request, handing it to the page without a copy. The menus open the kit's files as the page loads
-(`src/main.ts`), so the pack, most of what the battle downloads, comes down beside the battle's own code rather than
-after the renderer, the ground and the simulation have started. The console logs `Level kit: opened the asset pack` when
-it opens. With no pack the build still succeeds, as in CI, and the game stays greybox.
+each file on request, handing it to the page without a copy. It reads the pack as it downloads, answering each request
+as soon as that file's bytes are in. The pack script puts the sounds last, so the level is built from the meshes and
+images while the sounds are still coming, and the battle waits for them only at its last loading step. The menus open
+the kit's files as the page loads (`src/main.ts`), so the pack, most of what the battle downloads, comes down beside the
+battle's own code rather than after the renderer, the ground and the simulation have started. The console logs
+`Level kit: opened the asset pack` when it opens. With no pack the build still succeeds, as in CI, and the game stays
+greybox.
 
 The key ships in the bundle, so the pack stops casual extraction, not a determined one. Whether that counts as
 "reasonable measures" is on the licensing doc's legal-review list; signed, short-lived pack URLs come with a server.
