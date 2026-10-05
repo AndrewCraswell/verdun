@@ -5,10 +5,13 @@
 //
 // Usage: node scripts/perf.mjs [--headed] [--ref HEAD] [--url http://localhost:5173] [--no-build] [--width 1920]
 //                              [--height 1080] [--seconds 6] [--only "day;night"] [--out perf.json] [--shots dir]
-//                              [--eval "page-side expression"] [--query "inline"] [--chrome path/to/chrome.exe]
+//                              [--eval "page-side expression"] [--query "inline"] [--operation]
+//                              [--chrome path/to/chrome.exe]
 // --headed runs a real Chrome window off-screen: headless Chrome here aborts some module fetches. --shots saves what
 // each scenario looked like, to check a faster setting still draws the picture. --eval prints a page-side expression
-// once the game is up, such as counts of what's drawn.
+// once the game is up, such as counts of what's drawn. The battle is played free (?free), in the close view the
+// scenarios were written for, so runs compare across builds; --operation plays the playtest's operation instead, which
+// opens on its briefing in the overview.
 // Without --url it builds the client as committed at --ref (HEAD by default, in a worktree of its own, so others'
 // half-made changes stay out) and serves the build itself. Close other copies of the game first.
 
@@ -418,7 +421,7 @@ async function main() {
       sessionId
     )
     // --query: more of the game's own options for the address, such as inline or snapshot.
-    const query = option("--query", "")
+    const query = [flag("--operation") ? "" : "free", option("--query", "")].filter(Boolean).join("&")
     await cdp.send(
       "Page.navigate",
       { url: `${url}${url.includes("?") ? "&" : "?"}debug&gputime${query ? `&${query}` : ""}` },
