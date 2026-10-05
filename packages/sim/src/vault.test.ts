@@ -116,6 +116,27 @@ describe("climbing a wooden fence or a low wall", () => {
     expect(vaultLanding(sim, still)).toBeNull()
   })
 
+  it("comes down a little further on where the end of the next fence along leaves no room", () => {
+    // The next fence's end stands just past where he'd come down.
+    const sim = field([fenceAt(50), { kind: "knife-rest", x: 48, z: 50.7, heading: 0, variant: 0, scale: 1 }])
+    const landing = vaultLanding(sim, facingNorth(sim, 50.1, 49.5))
+    expect(landing?.z).toBeGreaterThan(50.5)
+    expect(landing?.z).toBeLessThan(51.1)
+  })
+
+  it("won't come down onto ground far above or below him", () => {
+    const sim = field([fenceAt(50)])
+    // A ditch 2 m deep just past the fence.
+    for (let row = 0; row <= sim.map.rows; row++) {
+      if (row * sim.map.cellSize >= 50.3) {
+        for (let column = 0; column <= sim.map.columns; column++) {
+          sim.map.heights[sampleIndex(sim.map, column, row)] = 3
+        }
+      }
+    }
+    expect(vaultLanding(sim, facingNorth(sim, 50, 49.5))).toBeNull()
+  })
+
   it("won't come down where there's no room past it", () => {
     // A tree just behind the fence.
     const sim = field([fenceAt(50), { kind: "tree", x: 50, z: 51, heading: 0, variant: 0, scale: 1 }])

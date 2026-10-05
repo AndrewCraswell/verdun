@@ -13,7 +13,7 @@ import {
   TICK_RATE
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { createSquad, isAlive, nextLivingMember, wayOut } from "./squads.ts"
+import { createSquad, isAlive, nextLivingMember, overOrAround, wayOut } from "./squads.ts"
 import { isVaulting } from "./vault.ts"
 
 // Firm ground, so soldiers walk at their full pace.
@@ -376,6 +376,31 @@ describe("moving like men in a trench", () => {
     }
     expect(climbed).toBe(true)
     expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(106)
+  })
+
+  it("climbs straight over a fence he's pressed against when where he's going lies past it at a slant", () => {
+    // A long row of fences: going round is a long way.
+    const fences = [88, 91, 94, 97, 100, 103, 106, 109, 112].map((x): Scenery => ({
+      kind: "knife-rest",
+      x,
+      z: 100,
+      heading: 0,
+      variant: 0,
+      scale: 1
+    }))
+    const sim = createSimulation({ map: { ...map, scenery: fences }, seed: 1 })
+    // Against the rails, his place just over them and well along: too slantwise to climb heading straight for it.
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 98, z: 99.6 })
+    const place = { x: 102, z: 101.2 }
+    expect(overOrAround(sim, soldier, place, place)).toBe(true)
+    expect(isVaulting(sim, soldier)).toBe(true)
+    // Square across the rails, not along his slanting way.
+    expect(sim.soldiers.vault.x[soldier]).toBeCloseTo(98, 5)
+
+    // With his place along the fence on his own side, he doesn't climb it.
+    const along = spawnSoldier(sim, { side: Side.French, x: 92, z: 99.6 })
+    expect(overOrAround(sim, along, { x: 96, z: 99.4 }, { x: 96, z: 99.4 })).toBe(false)
+    expect(isVaulting(sim, along)).toBe(false)
   })
 
   it("keeps a squad sent past a ruin out of it, and gets them there", () => {

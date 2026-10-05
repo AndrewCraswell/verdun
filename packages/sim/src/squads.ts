@@ -11,7 +11,7 @@ import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import { isInTrench } from "./stance.ts"
 import { FIRE_STEP_MIDDLE, nearestTrench, onFireStep, placeOn, pointAlong } from "./trench-lines.ts"
-import { fenceAhead, startVault, vaultLanding } from "./vault.ts"
+import { acrossFence, fenceAhead, startVault, vaultLanding } from "./vault.ts"
 
 /** A point on the ground. */
 interface Place {
@@ -380,8 +380,10 @@ function orderMoveTo(
   }
 }
 
-/** A vault must bring him at least this much nearer where he's going, in metres. */
-const VAULT_GAIN = 1
+/** A climb must bring him at least this much nearer where he's going, in metres: a fence is barely a metre deep. */
+const VAULT_GAIN = 0.5
+/** His way must lead across a fence he's up against at least this squarely (a cosine) for him to climb it head-on. */
+const SQUARE_ENOUGH = 0.2
 /** A man boxed in sidesteps this far, in metres... */
 const SIDESTEP = 2
 /** ...trying this many ways round. */
@@ -395,7 +397,7 @@ const BLOCKED = 0.25
  * through a gap, or he wades it. Boxed into a corner, he sidesteps the free way that
  * heads most nearly where he's going. Whether he did either, which takes the place of his move order this time.
  */
-function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Place): boolean {
+export function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Place): boolean {
   const { position, vault } = sim.soldiers
   if (hasComponent(sim.world, soldier, vault)) {
     return true
@@ -411,14 +413,29 @@ function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Pl
   const toward = { x: dx / distance, z: dz / distance }
   const way = wayAhead(sim.map, x, z, toward.x, toward.z, WALKING_STRIDE, Climbing.Ordered)
   const kept = Math.sqrt(way.x * way.x + way.z * way.z)
+  const from = Math.sqrt((target.x - x) ** 2 + (target.z - z) ** 2)
+  /** Climbs the way `heading` goes if that brings him at least `gain` nearer where he's going. */
+  const climbs = (heading: Place, gain: number) => {
+    const landing = vaultLanding(sim, soldier, heading)
+    return (
+      landing !== null &&
+      Math.sqrt((target.x - landing.x) ** 2 + (target.z - landing.z) ** 2) < from - gain &&
+      startVault(sim, soldier, heading)
+    )
+  }
   if (fenceAhead(sim, soldier, toward) || (way.met === Obstacle.Wall && way.climbing) || kept < BLOCKED) {
-    const landing = vaultLanding(sim, soldier, toward)
-    const from = Math.sqrt((target.x - x) ** 2 + (target.z - z) ** 2)
-    if (
-      landing &&
-      Math.sqrt((target.x - landing.x) ** 2 + (target.z - landing.z) ** 2) < from - VAULT_GAIN &&
-      startVault(sim, soldier, toward)
-    ) {
+    if (climbs(toward, VAULT_GAIN)) {
+      return true
+    }
+  }
+  // Up against a fence or low wall with his way on the far side of it, too slantwise to climb as he heads: straight
+  // over it instead, as a man pressed along one into the angle where two fences meet would.
+  const across = acrossFence(sim, x, z)
+  const over = across ? across.x * toward.x + across.z * toward.z : 0
+  if (across && Math.abs(over) >= SQUARE_ENOUGH) {
+    const side = Math.sign(over)
+    // Any nearer will do: straight across, he gains little on a place well along the far side.
+    if (climbs({ x: across.x * side, z: across.z * side }, 0)) {
       return true
     }
   }

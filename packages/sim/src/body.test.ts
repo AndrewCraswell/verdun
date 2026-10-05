@@ -261,4 +261,15 @@ describe("fences and low walls", () => {
     expect(climbedAhead(map, 52.5, 49.5, 0, 1, 1)).toBeNull()
     expect(climbedAhead(map, 50, 52, 0, 1, 1)).toBeNull()
   })
+
+  it("take a man over two that overlap in one climb, but not two a stride apart", () => {
+    const overlapping = {
+      ...map,
+      scenery: [fence, { ...fence, x: 51.5, z: 50.45 }]
+    }
+    // He'd come down on the second: over both, out past its far face.
+    expect(climbedAhead(overlapping, 51, 49, 0, 1, 1)?.exit).toBeCloseTo(1.85, 5)
+    const apart = { ...map, scenery: [fence, { ...fence, z: 52 }] }
+    expect(climbedAhead(apart, 50, 49, 0, 1, 1)?.exit).toBeCloseTo(1.4, 5)
+  })
 })

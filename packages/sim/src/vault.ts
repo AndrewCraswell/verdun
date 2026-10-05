@@ -24,7 +24,7 @@ const WALL_SPAN = 3.5
 /** The top must be at least this much higher than where he stands, in metres: below that it's a step, walked up. */
 const WALL_RISE = 0.8
 /** The far side of a fence or low wall may stand this much higher than his side, or this much lower, in metres. */
-const OVER_RISE = 0.5
+const OVER_RISE = 1
 const OVER_DROP = 1.5
 /** Metres a second he makes on his way over a trench wall, and on to a fence. */
 const VAULT_PACE = 1.2
@@ -39,8 +39,10 @@ export const FENCE_CLIMB_SECONDS = 1.25
  * half-width off it) to as far past it.
  */
 export const FENCE_REACH = 0.35
-/** He comes down this much further from its far face, in metres, so he's off it as he lands. */
+/** He comes down this much further from its far face, in metres, so he's off it as he lands... */
 const CLEAR_OF_FENCE = 0.05
+/** ...or up to this much further still, in metres, to find room. */
+const LANDING_LEEWAY = 0.5
 /** The breath a climb costs him at once, of 100. */
 const VAULT_BREATH = 12
 
@@ -98,11 +100,18 @@ function fenceLanding(
   const { climbed } = ahead
   const square = Math.abs(heading.x * climbed.lineZ - heading.z * climbed.lineX)
   const past = ahead.exit + (FENCE_REACH + CLEAR_OF_FENCE - BODY_RADIUS) / square
-  const landing = { x: x + heading.x * past, z: z + heading.z * past }
-  const rise = heightAt(sim.map, landing.x, landing.z) - heightAt(sim.map, x, z)
-  return onMap(sim, landing) && rise <= OVER_RISE && rise >= -OVER_DROP && !insideScenery(sim.map, landing.x, landing.z)
-    ? landing
-    : null
+  // Or a little further on, where the end of the next fence along leaves him no room.
+  for (let further = 0; further <= LANDING_LEEWAY; further += STEP) {
+    const landing = { x: x + heading.x * (past + further), z: z + heading.z * (past + further) }
+    const rise = heightAt(sim.map, landing.x, landing.z) - heightAt(sim.map, x, z)
+    if (rise > OVER_RISE || rise < -OVER_DROP || !onMap(sim, landing)) {
+      return null
+    }
+    if (!insideScenery(sim.map, landing.x, landing.z)) {
+      return landing
+    }
+  }
+  return null
 }
 
 /**

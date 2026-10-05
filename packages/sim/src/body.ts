@@ -414,11 +414,15 @@ export function climbedUnder(map: BattlefieldMap, x: number, z: number, reach: n
   return null
 }
 
+/** Fences and walls a climb takes in one go reach at most this far along his way, in metres: two overlapping, not three. */
+const CLIMB_SPAN = 2
+
 /**
  * The fence or low wall that a man at (x, z) heading along (dx, dz), a unit vector, runs into within `reach` of his
  * edge, or null: how far on his middle comes within his half-width of its near face (`entry`) and gets as far past its
  * far face (`exit`), and the box. Only one he crosses squarely enough to climb, within 60 degrees of straight across,
- * and within its length, or he'd go round its end.
+ * and within its length, or he'd go round its end. Where another stands so close beyond it that he'd come down on it,
+ * as where two fences overlap, he goes over both: `exit` and the box are the last one's.
  */
 export function climbedAhead(
   map: BattlefieldMap,
@@ -428,9 +432,14 @@ export function climbedAhead(
   dz: number,
   reach: number
 ): { readonly entry: number; readonly exit: number; readonly climbed: Climbed } | null {
-  let best: { entry: number; exit: number; climbed: Climbed } | null = null
   const probe = reach + BODY_RADIUS
-  const near = new Set([...footingsNear(map, x, z), ...footingsNear(map, x + dx * probe, z + dz * probe)])
+  const far = probe + CLIMB_SPAN
+  const near = new Set([
+    ...footingsNear(map, x, z),
+    ...footingsNear(map, x + dx * probe, z + dz * probe),
+    ...footingsNear(map, x + dx * far, z + dz * far)
+  ])
+  const crossed: { entry: number; exit: number; climbed: Climbed }[] = []
   for (const footing of near) {
     if (footing.kind !== "box") {
       continue
@@ -445,19 +454,35 @@ export function climbedAhead(
     const toward = wayAcross < 0 ? -1 : 1
     const entry = (-toward * depth - across) / wayAcross
     const exit = (toward * depth - across) / wayAcross
-    if (exit <= 0 || entry > probe) {
+    if (exit <= 0 || entry > far) {
       continue
     }
     const crossing = along + wayAlong * ((Math.max(0, entry) + exit) / 2)
     if (Math.abs(crossing) > footing.halfLength) {
       continue
     }
-    if (!best || entry < best.entry) {
-      best = { entry: Math.max(0, entry), exit, climbed: footing }
+    crossed.push({ entry: Math.max(0, entry), exit, climbed: footing })
+  }
+  crossed.sort((a, b) => a.entry - b.entry)
+  const first = crossed[0]
+  if (!first || first.entry > probe) {
+    return null
+  }
+  let over = first
+  for (const next of crossed.slice(1)) {
+    // Its near side starts before he'd be clear of the last: he'd come down on it.
+    if (next.entry > over.exit + LANDING_ROOM || next.exit - first.entry > CLIMB_SPAN + 2 * BODY_RADIUS) {
+      break
+    }
+    if (next.exit > over.exit) {
+      over = next
     }
   }
-  return best
+  return { entry: first.entry, exit: over.exit, climbed: over.climbed }
 }
+
+/** He needs this much clear ground past a fence to come down on, in metres, beyond his half-width. */
+const LANDING_ROOM = 0.15
 
 /** Whether a man can be shoved from (x, z) to (toX, toZ): no wall to go up, and no scenery to stand in. */
 export function canBeShoved(map: BattlefieldMap, x: number, z: number, toX: number, toZ: number): boolean {
