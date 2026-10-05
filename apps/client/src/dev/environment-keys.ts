@@ -82,7 +82,7 @@ export function installEnvironmentKeys(sim: Simulation, weatherSeed: number, war
     const { clock, weather, sky, sightRange } = sim.environment
     const skyDate = new Date(clockMoment(clock)).toISOString().slice(0, 10)
     const source = sim.environment.forecast.spec.kind === "steady" ? "held" : sim.environment.forecast.spec.kind
-    const turn = war ? `${turnLabel(war.day)}  ·  ${countdownLabel(war.day, Date.now())}\n` : ""
+    const turn = war ? `${turnLabel(war.day)}, ${countdownLabel(war.day, Date.now())}\n` : ""
     // The staff's forecast, issued today: exact for today, a forecaster's call for the two days after.
     const today = Math.floor(clockMoment(clock) / 86_400_000) * 86_400_000
     if (today !== forecastDayShown) {
