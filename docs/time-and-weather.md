@@ -402,10 +402,24 @@ In `apps/client/src/environment/`:
 - **Fog density** comes from the visibility (Koschmieder: exp2 fog reaches 5% contrast at 1.73 / density), thinned for
   the camera's distance so at least 35% of the ground where it looks still shows. Babylon's fog is by distance from the
   camera, but real fog lies near the ground, and the camera looks down through it from 50–260 m.
-- **Rain and snow** (`precipitation.ts`): particles falling around the camera's target, blown by the wind, as dense as
-  the rate, drawn wider than real drops so they show from above. Where the rain lands within 22 m of the camera's
-  target, about seven drops in ten splash: a crown of droplets that jumps a hand's height off the ground under it and
-  falls back in a quarter of a second.
+- **Rain** (`rain.ts`) is drawn as a camera sees it (Garg and Nayar, "Vision and Rain"): a drop crosses a pixel in a
+  fraction of a frame, so it shows as a faint, thin streak, brighter than what's behind it and plain only against the
+  dark or lit from behind. Each drop is a streak as long as it falls in a fortieth of a second (about 16 cm for a 2 mm
+  drop at 6.5 m/s; drops fall at three quarters to one and a quarter of that) and as wide as the drop, 1.5 mm, drawn at
+  least a pixel and a half wide with its opacity cut by how little of that it covers, so a far drop is as faint as it
+  would be. The drops fall in a 20 m box round the camera itself, not its target: 8,000 in rain of 1 mm an hour, more in
+  heavier rain though not in proportion, at most 32,768. Each drop's place is its seed moved on by the fall and the wind
+  and wrapped into the box in the vertex shader ("GPU Rainfall"), so none are born or die and the CPU does nothing per
+  drop. Beyond them, two sheets of fine streaks, 14 m and 30 m round the camera, scroll down at a drop's speed and lean
+  with the wind (as in Crysis 3 and Remember Me): from the field view, 40 m and more over the ground, the streaks round
+  the camera are a few metres of air and the sheets are what reads as rain. Both sheets are drawn in one pass from the
+  near one's cylinder (a ray from the camera reaches the far one at 30/14 of the distance), each fading out where it
+  meets the ground, read from the depth of field's depth map, and the empty air between streaks is discarded rather than
+  blended. Both are lit by the haze's colour, so they follow the sun, the moon and the cloud, flash with lightning, and
+  glow lit from behind by the sun or the nearest flare; against a bright sky they all but vanish, as real rain does.
+  Where the camera is within 15 m of the ground, drops striking it throw tiny crowns, 2 to 4 cm, faint and still, seen
+  for a frame or two (`precipitation.ts`): a real crown lasts 10 to 20 ms.
+- **Snow** (`precipitation.ts`): particles falling around the camera's target, blown by the wind, as dense as the rate.
 - **Wet ground and props** darken and catch the light; **thunderstorms** flash, and `onLightning` reports each strike's
   distance (1.5–8 km) so thunder can follow at 3 s a kilometre; the level's **smoke and mist** drift on the weather's
   wind, and mist thickens as visibility falls (`environment-view.ts`).
@@ -420,9 +434,13 @@ In `apps/client/src/environment/`:
   the ground there, so shell craters, trench floors and ruts hold water and level ground and slopes don't. None shows
   until the ground is 20% wet; then the water rises from 50 cm below the brims to 5 cm below as the ground soaks. Any
   level surface under the water line goes under, so a plank lying in a flooded crater is drowned and a crate standing in
-  it isn't. The water darkens the ground and mirrors the haze, more at a glancing angle (Fresnel), and rain ripples it;
-  frozen, it lies still. Craters re-shape the hollows, at most every 2 s. The level's permanent crater ponds are their
-  own meshes and stay whatever the weather.
+  it isn't. The water darkens the ground and mirrors the haze, more at a glancing angle (Fresnel), and rain rings it
+  (`ripples.ts`, after Lagarde's rain in Remember Me): each drop's ring spreads from where it struck as a damped wave,
+  out to 17 cm, in cells half a metre across with a drop at a random spot and moment in each, four layers of them
+  switching on with each quarter of the rain's intensity (all four from 4 mm an hour). The rings tilt the water's
+  surface, which shows as light and dark arcs; where a ring would span too few pixels to draw it fades out rather than
+  sparkle. Frozen, the water lies still. Craters re-shape the hollows, at most every 2 s. The level's permanent crater
+  ponds are their own meshes and stay whatever the weather.
 - **Fog in the low ground** (the same plugin): a second channel of the hollows texture holds the ground's mean height
   over about 25 m (two box blurs at 1 m). Anything drawn 1 m or more below it starts to fade into the haze's colour,
   fully by 6 m: ravines, valleys and the big craters fill while the ground round them stays clear, and tree tops stand
@@ -494,7 +512,8 @@ post-process, the sun's shadows) can read the same setting.
 | `DRYING_DAYS`                          | `sim/src/weather.ts`                      | 3 winter, 1 summer      | How fast wet ground dries                            |
 | `lightLevel`, night colours            | `client/src/environment/daylight.ts`      | Log of lux              | How bright night and twilight are drawn              |
 | `GROUND_SHOWING`                       | `client/src/environment/daylight.ts`      | 35%                     | How much ground the thickest fog leaves showing      |
-| `RAIN`, `SNOW`                         | `client/src/environment/precipitation.ts` | See file                | Drop counts, sizes and speeds                        |
+| `STREAKS`, `SHEETS`                    | `client/src/environment/rain.ts`          | See file                | Drop counts, sizes, speeds and opacity               |
+| `SNOW`, `SPLASH`                       | `client/src/environment/precipitation.ts` | See file                | Snowflakes, and splashes near the camera             |
 
 ## Historical weather
 

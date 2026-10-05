@@ -19,7 +19,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest"
 import { fogDensityFor, lightDirection, lightingFor, lightLevel, sunColorAt, twilight } from "./daylight.ts"
 import { createEnvironmentView, groundFogFor } from "./environment-view.ts"
-import { dropsPerSecond } from "./precipitation.ts"
+import { createPrecipitation, dropsPerSecond, splashesPerSecond } from "./precipitation.ts"
 
 const engines: NullEngine[] = []
 afterEach(() => {
@@ -128,11 +128,34 @@ describe("daylight", () => {
 })
 
 describe("precipitation", () => {
-  it("falls harder in heavier rain, though not in proportion", () => {
+  it("falls harder in heavier snow, though not in proportion", () => {
     expect(dropsPerSecond(0, 900)).toBe(0)
     expect(dropsPerSecond(1, 900)).toBe(900)
     expect(dropsPerSecond(10, 900)).toBeLessThan(9000)
     expect(dropsPerSecond(10, 900)).toBeGreaterThan(3000)
+  })
+
+  it("splashes only on ground within 15 m of the camera, more the closer it is, up to a limit", () => {
+    expect(splashesPerSecond(4, 15)).toBe(0)
+    expect(splashesPerSecond(4, 40)).toBe(0)
+    expect(splashesPerSecond(0, 2)).toBe(0)
+    expect(splashesPerSecond(0.5, 12)).toBeGreaterThan(0)
+    expect(splashesPerSecond(0.5, 2)).toBeGreaterThan(splashesPerSecond(0.5, 12))
+    expect(splashesPerSecond(50, 2)).toBe(3000)
+  })
+
+  it("rains without a camera to splash round, and snows round the point it's given", () => {
+    const engine = new NullEngine()
+    engines.push(engine)
+    const world = new Scene(engine)
+    const precipitation = createPrecipitation(world)
+    const weather = { ...typicalWeather(WeatherPattern.Rain, { x: 2, z: 0 }), precipitation: 3, snowFraction: 0.5 }
+    precipitation.update(weather, new Vector3(5, 0, 5), 1)
+    expect(precipitation.rain.drops).toBeGreaterThan(0)
+    expect(precipitation.splashes.emitRate).toBe(0)
+    expect(precipitation.snow.emitRate).toBeGreaterThan(0)
+    expect(precipitation.snow.emitter).toEqual(new Vector3(5, 30, 5))
+    precipitation.dispose()
   })
 })
 
@@ -160,7 +183,8 @@ describe("the environment view", () => {
 
     view?.update(0.016)
     expect(sun.intensity).toBeGreaterThan(0.5)
-    expect(view?.precipitation.rain.emitRate).toBe(0)
+    expect(view?.precipitation.rain.drops).toBe(0)
+    expect(view?.precipitation.rain.streaks.isEnabled()).toBe(false)
     const dryGround = ground.diffuseColor.r
 
     const strikes: number[] = []
@@ -171,16 +195,23 @@ describe("the environment view", () => {
     for (let frame = 0; frame < 2000; frame++) {
       view?.update(0.016)
     }
-    expect(view?.precipitation.rain.emitRate).toBeGreaterThan(1000)
-    expect(view?.precipitation.rain.direction1.x).toBeGreaterThan(0)
-    // Drops splash on the ground round the camera, puddles stand and ripple, and the grass bends to the wind.
+    expect(view?.precipitation.rain.drops).toBeGreaterThan(1000)
+    expect(view?.precipitation.rain.streaks.isEnabled()).toBe(true)
+    expect(view?.precipitation.rain.wind.x).toBeGreaterThan(0)
+    // From over 30 m up no splash is seen; close to the ground, drops splash round the camera.
+    expect(view?.precipitation.splashes.emitRate).toBe(0)
+    camera.radius = 10
+    camera.getViewMatrix(true)
+    view?.update(0.016)
     expect(view?.precipitation.splashes.emitRate).toBeGreaterThan(50)
     const splash = Vector3.Zero()
     const splashes = view?.precipitation.splashes
     if (splashes) {
       splashes.startPositionFunction?.(Matrix.Identity(), splash, new Particle(splashes), false)
     }
-    expect(splash.y).toBeCloseTo(heightAt(map, splash.x, splash.z) + 0.03, 5)
+    expect(splash.y).toBeCloseTo(heightAt(map, splash.x, splash.z) + 0.01, 5)
+    expect(Math.hypot(splash.x - camera.globalPosition.x, splash.z - camera.globalPosition.z)).toBeLessThan(15)
+    // Puddles stand and ripple, and the grass bends to the wind.
     expect(view?.surface.waterShown).toBe(1)
     expect(view?.surface.rain).toBeGreaterThan(0.5)
     expect(view?.wind.strength).toBeGreaterThan(0.5)
@@ -235,7 +266,7 @@ describe("the environment view", () => {
     enqueueCommand(sim, { type: "forecast", forecast: { kind: "steady", weather: storm } })
     stepSimulation(sim)
     low?.update(0.016)
-    expect(low?.precipitation.rain.emitRate).toBeGreaterThan(0)
+    expect(low?.precipitation.rain.drops).toBeGreaterThan(0)
     expect(low?.precipitation.splashes.emitRate).toBe(0)
     low?.dispose()
   })
@@ -250,7 +281,7 @@ describe("the environment view", () => {
     view?.update(0.016)
     expect(view?.precipitation.snow.emitRate).toBeGreaterThan(0)
     expect(view?.surface.snow).toBe(0)
-    expect(view?.precipitation.rain.emitRate).toBe(0)
+    expect(view?.precipitation.rain.drops).toBe(0)
     expect(view?.precipitation.splashes.emitRate).toBe(0)
     view?.dispose()
   })

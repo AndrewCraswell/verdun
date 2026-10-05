@@ -10,6 +10,7 @@ import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene } from "@babylonjs/core/scene"
 import { HEIGHT_FOG_GLSL, HEIGHT_FOG_WGSL, type HeightFog } from "./height-fog.ts"
+import { RIPPLE_PERIOD, RIPPLES_GLSL, RIPPLES_WGSL } from "./ripples.ts"
 
 /** How the weather marks the ground this frame. Every value is a uniform, so changing them never recompiles a shader. */
 export interface WeatherSurface {
@@ -30,9 +31,9 @@ export interface WeatherSurface {
   waterMargin: number
   /** How much standing water shows, from 0 (none: dry weather) to 1. */
   waterShown: number
-  /** How hard rain ripples the water, from 0 to 1. */
+  /** How hard rain rings the water, from 0 to 1: the ripple layers switch on with each quarter (see ripples.ts). */
   rain: number
-  /** Seconds, for the ripples' drift. */
+  /** Seconds, for the rings spreading. */
   time: number
   /** What the water reflects: the sky's haze, as bright as the light. */
   reflectR: number
@@ -212,7 +213,7 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
     )
     uniformBuffer.updateFloat4("weatherSnow", snow, snowBrightness, 1 / CLOUD_SCALE, groundFog)
     const { waterMargin, waterShown, rain, time, reflectR, reflectG, reflectB } = this.surface
-    uniformBuffer.updateFloat4("weatherWater", waterMargin, waterShown, rain, time)
+    uniformBuffer.updateFloat4("weatherWater", waterMargin, waterShown, rain, time % RIPPLE_PERIOD)
     uniformBuffer.updateFloat4("weatherReflect", reflectR, reflectG, reflectB, this.marks.base)
     const { scale, offset } = this.marks
     uniformBuffer.updateFloat4("weatherMarks", scale.x, scale.y, offset.x, offset.y)
@@ -236,7 +237,8 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
           "var weatherCloudMap: texture_2d<f32>;\nvar weatherCloudMapSampler: sampler;\n" +
           "var weatherBasinMap: texture_2d<f32>;\nvar weatherBasinMapSampler: sampler;\n" +
           "var weatherTrackMap: texture_2d<f32>;\nvar weatherTrackMapSampler: sampler;\n" +
-          HEIGHT_FOG_WGSL,
+          HEIGHT_FOG_WGSL +
+          RIPPLES_WGSL,
         CUSTOM_FRAGMENT_BEFORE_FOG: `
           #ifndef WEATHER_LOW
           let weatherMarksAt: vec2f = fragmentInputs.vPositionW.xz * uniforms.weatherMarks.xy + uniforms.weatherMarks.zw;
@@ -257,11 +259,17 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
           #ifndef WEATHER_LOW
           weatherTrodden = textureSample(weatherTrackMap, weatherTrackMapSampler, weatherMarksAt).r;
           let weatherWet: f32 = clamp((weatherBasins.x - uniforms.weatherWater.x - fragmentInputs.vPositionW.y) * 25.0, 0.0, 1.0) * weatherLevel * uniforms.weatherWater.y;
-          let weatherRipplesAt: vec2f = fragmentInputs.vPositionW.xz * 0.35;
-          let weatherRipple: f32 = abs(textureSample(weatherCloudMap, weatherCloudMapSampler, weatherRipplesAt + vec2f(0.11, 0.07) * uniforms.weatherWater.w).r - textureSample(weatherCloudMap, weatherCloudMapSampler, weatherRipplesAt * 1.3 - vec2f(0.09, 0.13) * uniforms.weatherWater.w).r);
-          let weatherFresnel: f32 = 0.1 + 0.6 * pow(1.0 - clamp(viewDirectionW.y, 0.0, 1.0), 5.0);
+          let weatherFootprint: f32 = length(fwidth(fragmentInputs.vPositionW.xz));
+          var weatherRipple: vec2f = vec2f(0.0);
+          if (weatherWet * uniforms.weatherWater.z > 0.0) {
+            weatherRipple = weatherRipples(fragmentInputs.vPositionW.xz, uniforms.weatherWater.w, uniforms.weatherWater.z);
+          }
+          weatherRipple = weatherRipple * (1.0 - smoothstep(0.012, 0.045, weatherFootprint));
+          let weatherFacing: f32 = clamp(dot(normalize(vec3f(weatherRipple.x, 1.0, weatherRipple.y)), viewDirectionW), 0.0, 1.0);
+          let weatherFresnel: f32 = 0.1 + 0.6 * pow(1.0 - weatherFacing, 5.0);
+          let weatherGlint: f32 = dot(weatherRipple, normalize(viewDirectionW.xz + vec2f(1e-4)));
           weatherDrift = textureSample(weatherCloudMap, weatherCloudMapSampler, weatherGround * 6.7).r;
-          let weatherPuddle: vec3f = mix(weatherColor * 0.35, uniforms.weatherReflect.rgb, weatherFresnel) * (1.0 + uniforms.weatherWater.z * (weatherRipple * 1.6 - 0.3));
+          let weatherPuddle: vec3f = mix(weatherColor * 0.35, uniforms.weatherReflect.rgb, weatherFresnel) * (1.0 + 2.0 * weatherGlint);
           weatherColor = mix(weatherColor, weatherPuddle, weatherWet);
           weatherColor = weatherColor * (1.0 - 0.3 * uniforms.weatherSnow.x * weatherTrodden * weatherLevel);
           #endif
@@ -282,7 +290,8 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
     return {
       CUSTOM_FRAGMENT_DEFINITIONS:
         "uniform sampler2D weatherCloudMap;\nuniform sampler2D weatherBasinMap;\nuniform sampler2D weatherTrackMap;\n" +
-        HEIGHT_FOG_GLSL,
+        HEIGHT_FOG_GLSL +
+        RIPPLES_GLSL,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
         #ifndef WEATHER_LOW
         vec2 weatherMarksAt = vPositionW.xz * weatherMarks.xy + weatherMarks.zw;
@@ -302,11 +311,17 @@ export class WeatherSurfacePlugin extends MaterialPluginBase {
         #ifndef WEATHER_LOW
         weatherTrodden = texture2D(weatherTrackMap, weatherMarksAt).r;
         float weatherWet = clamp((weatherBasins.x - weatherWater.x - vPositionW.y) * 25.0, 0.0, 1.0) * weatherLevel * weatherWater.y;
-        vec2 weatherRipplesAt = vPositionW.xz * 0.35;
-        float weatherRipple = abs(texture2D(weatherCloudMap, weatherRipplesAt + vec2(0.11, 0.07) * weatherWater.w).r - texture2D(weatherCloudMap, weatherRipplesAt * 1.3 - vec2(0.09, 0.13) * weatherWater.w).r);
-        float weatherFresnel = 0.1 + 0.6 * pow(1.0 - clamp(viewDirectionW.y, 0.0, 1.0), 5.0);
+        float weatherFootprint = length(fwidth(vPositionW.xz));
+        vec2 weatherRipple = vec2(0.0);
+        if (weatherWet * weatherWater.z > 0.0) {
+          weatherRipple = weatherRipples(vPositionW.xz, weatherWater.w, weatherWater.z);
+        }
+        weatherRipple *= 1.0 - smoothstep(0.012, 0.045, weatherFootprint);
+        float weatherFacing = clamp(dot(normalize(vec3(weatherRipple.x, 1.0, weatherRipple.y)), viewDirectionW), 0.0, 1.0);
+        float weatherFresnel = 0.1 + 0.6 * pow(1.0 - weatherFacing, 5.0);
+        float weatherGlint = dot(weatherRipple, normalize(viewDirectionW.xz + vec2(1e-4)));
         weatherDrift = texture2D(weatherCloudMap, weatherGround * 6.7).r;
-        vec3 weatherPuddle = mix(color.rgb * 0.35, weatherReflect.rgb, weatherFresnel) * (1.0 + weatherWater.z * (weatherRipple * 1.6 - 0.3));
+        vec3 weatherPuddle = mix(color.rgb * 0.35, weatherReflect.rgb, weatherFresnel) * (1.0 + 2.0 * weatherGlint);
         color.rgb = mix(color.rgb, weatherPuddle, weatherWet);
         color.rgb *= 1.0 - 0.3 * weatherSnow.x * weatherTrodden * weatherLevel;
         #endif
