@@ -144,6 +144,24 @@ describe("the rain", () => {
     rain.dispose()
   })
 
+  it("leaves the sheets out in drizzle and on the low graphics setting, and lets the streaks fall", () => {
+    const world = scene()
+    world.activeCamera = new ArcRotateCamera("camera", 0, 1, 20, new Vector3(10, 0, 10), world)
+    const rain = createRain(world)
+    rain.fall(0.2, 0, 0)
+    expect(rain.streaks.isEnabled()).toBe(true)
+    expect(rain.sheets.isEnabled()).toBe(false)
+    rain.fall(1, 0, 0)
+    expect(rain.sheets.isEnabled()).toBe(true)
+    rain.dispose()
+
+    const low = createRain(world, { sheets: false })
+    low.fall(4, 0, 0)
+    expect(low.streaks.isEnabled()).toBe(true)
+    expect(low.sheets.isEnabled()).toBe(false)
+    low.dispose()
+  })
+
   it("fades its sheets into the ground by the depth of field's depth map, once there is one", () => {
     const world = scene()
     const camera = new ArcRotateCamera("camera", 0, 1, 20, Vector3.Zero(), world)

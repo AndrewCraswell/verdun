@@ -164,7 +164,7 @@ export function createEnvironmentView(
   }
   const daylight = createDaylight(scene, sim.environment, key, sky)
   const low = quality === "low"
-  const precipitation = createPrecipitation(scene, (x, z) => heightAt(sim.map, x, z), { splashes: !low })
+  const precipitation = createPrecipitation(scene, (x, z) => heightAt(sim.map, x, z), { splashes: !low, sheets: !low })
   const wetness = createWetness(materials)
   const surface: WeatherSurface = {
     cloudOffsetX: 0,

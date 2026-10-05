@@ -413,12 +413,14 @@ In `apps/client/src/environment/`:
   drop. Beyond them, two sheets of fine streaks, 14 m and 30 m round the camera, scroll down at a drop's speed and lean
   with the wind (as in Crysis 3 and Remember Me): from the field view, 40 m and more over the ground, the streaks round
   the camera are a few metres of air and the sheets are what reads as rain. Both sheets are drawn in one pass from the
-  near one's cylinder (a ray from the camera reaches the far one at 30/14 of the distance), each fading out where it
-  meets the ground, read from the depth of field's depth map, and the empty air between streaks is discarded rather than
-  blended. Both are lit by the haze's colour, so they follow the sun, the moon and the cloud, flash with lightning, and
-  glow lit from behind by the sun or the nearest flare; against a bright sky they all but vanish, as real rain does.
-  Where the camera is within 15 m of the ground, drops striking it throw tiny crowns, 2 to 4 cm, faint and still, seen
-  for a frame or two (`precipitation.ts`): a real crown lasts 10 to 20 ms.
+  near one's cylinder (a ray from the camera reaches the far one at 30/14 of the distance), from 0.3 mm an hour, fading
+  in to full strength at 0.6: in drizzle the rain beyond doesn't show, and the sheets' full-screen pass, about 1.4 ms of
+  GPU at 1080p, isn't spent on it. Each fades out where it meets the ground, read from the depth of field's depth map,
+  and the empty air between streaks is discarded rather than blended. Both are lit by the haze's colour, so they follow
+  the sun, the moon and the cloud, flash with lightning, and glow lit from behind by the sun or the nearest flare;
+  against a bright sky they all but vanish, as real rain does. Where the camera is within 15 m of the ground, drops
+  striking it throw tiny crowns, 2 to 4 cm, faint and still, seen for a frame or two (`precipitation.ts`): a real crown
+  lasts 10 to 20 ms.
 - **Snow** (`precipitation.ts`): particles falling around the camera's target, blown by the wind, as dense as the rate.
 - **Wet ground and props** darken and catch the light; **thunderstorms** flash, and `onLightning` reports each strike's
   distance (1.5–8 km) so thunder can follow at 3 s a kilometre; the level's **smoke and mist** drift on the weather's
@@ -483,12 +485,13 @@ Low drops what costs most for least:
 | Fog pooling in the hollows          | Not drawn (the low-lying fog itself stays)                       |
 | Grass and trees swaying             | Still                                                            |
 | Rain splashes                       | None                                                             |
+| Sheets of rain beyond the streaks   | Not drawn: the streaks round the camera still fall               |
 | Flares                              | One light, for the brightest flare, instead of three; no shadows |
 | Gunfire                             | No muzzle smoke; two grains of dirt a strike instead of five     |
 | Edges                               | FXAA instead of 4× multisampling (about 5 ms a frame at 1080p)   |
 
-Cloud shadows, lying snow, rain and snow falling, and the fog stay on both settings. Other sessions' costly effects (the
-post-process, the sun's shadows) can read the same setting.
+Cloud shadows, lying snow, the streaks of rain round the camera, snow falling, and the fog stay on both settings. Other
+sessions' costly effects (the post-process, the sun's shadows) can read the same setting.
 
 ## Saves and networking
 

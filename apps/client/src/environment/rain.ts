@@ -74,7 +74,12 @@ const SHEETS = {
   segments: 48,
   rings: 12,
   /** The texture: columns, rows, and streaks in each of its two channels. */
-  texture: { columns: 128, rows: 256, streaks: 220 }
+  texture: { columns: 128, rows: 256, streaks: 220 },
+  /**
+   * The sheets are drawn from this rate of rain, in mm an hour, fading in to their full strength at twice it: in drizzle
+   * the rain beyond doesn't show, and the sheets cover the screen, whatever the rate, at a fixed cost on the GPU.
+   */
+  from: 0.3
 } as const
 /** The fall is wrapped at this many metres, a whole number of every layer's tiles, before it loses precision. */
 const SHEET_PERIOD = 9.6
@@ -528,8 +533,11 @@ export interface Rain {
   dispose(): void
 }
 
-/** Rain on the GPU round the camera, as fine streaks near it and sheets of rain beyond (see `STREAKS` and `SHEETS`). */
-export function createRain(scene: Scene): Rain {
+/**
+ * Rain on the GPU round the camera, as fine streaks near it and sheets of rain beyond (see `STREAKS` and `SHEETS`).
+ * Without `sheets` (the low graphics setting) only the streaks fall.
+ */
+export function createRain(scene: Scene, { sheets: sheeting = true }: { readonly sheets?: boolean } = {}): Rain {
   storeShader("rainStreaks", STREAK_GLSL, STREAK_WGSL)
   storeShader("rainSheets", SHEET_GLSL, SHEET_WGSL)
   const streakMaterial = rainMaterial(
@@ -681,11 +689,15 @@ export function createRain(scene: Scene): Rain {
       const lean = Math.min(1, SHEETS.lean / Math.max(1e-6, Math.hypot(windX, windZ) / STREAKS.speed))
       uniforms.sheetMotion.y = (windX / STREAKS.speed) * lean
       uniforms.sheetMotion.z = (windZ / STREAKS.speed) * lean
-      uniforms.sheetLook.x = SHEETS.layers[0].opacity * share ** 0.8
-      uniforms.sheetLook.y = SHEETS.layers[1].opacity * share ** 0.8
+      const fadeIn = Math.min(1, Math.max(0, (millimetresPerHour - SHEETS.from) / SHEETS.from))
+      uniforms.sheetLook.x = SHEETS.layers[0].opacity * share ** 0.8 * fadeIn
+      uniforms.sheetLook.y = SHEETS.layers[1].opacity * share ** 0.8 * fadeIn
       if (streaks.isEnabled(false) !== drops > 0) {
         streaks.setEnabled(drops > 0)
-        sheets.setEnabled(drops > 0)
+      }
+      const sheeted = sheeting && drops > 0 && fadeIn > 0
+      if (sheets.isEnabled(false) !== sheeted) {
+        sheets.setEnabled(sheeted)
       }
     },
     dispose() {

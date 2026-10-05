@@ -119,9 +119,9 @@ export interface Precipitation {
 export function createPrecipitation(
   scene: Scene,
   groundAt: GroundHeight = () => 0,
-  { splashes: splashing = true }: { readonly splashes?: boolean } = {}
+  { splashes: splashing = true, sheets = true }: { readonly splashes?: boolean; readonly sheets?: boolean } = {}
 ): Precipitation {
-  const rain = createRain(scene)
+  const rain = createRain(scene, { sheets })
 
   const snow = particles(scene, "snow", SNOW.capacity, flakeTexture(scene))
   snow.createBoxEmitter(
