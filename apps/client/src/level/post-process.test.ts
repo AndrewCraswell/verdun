@@ -2,6 +2,7 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { Scene } from "@babylonjs/core/scene"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createPostProcess } from "./post-process.ts"
@@ -43,17 +44,26 @@ describe("createPostProcess", () => {
     expect(closeUp.pipeline.samples).toBe(4)
     expect(closeUp.pipeline.fxaaEnabled).toBe(false)
     expect(closeUp.pipeline.bloomEnabled && closeUp.pipeline.grainEnabled).toBe(true)
+    expect(closeUp.pipeline.depthOfFieldBlurLevel).toBe(DepthOfFieldEffectBlurLevel.Medium)
     closeUp.dispose()
     overview.dispose()
   })
 
-  it("smooths edges with FXAA instead of multisampling on the low setting", () => {
+  it("smooths edges with FXAA instead of multisampling on the low setting, blurs less and leaves out the grain", () => {
     const { scene, camera } = setup(40)
     const low = createPostProcess(scene, camera, { quality: "low" })
+    if (!low) {
+      throw new Error("the pipeline should run on the null engine")
+    }
 
-    expect(low?.pipeline.samples).toBe(1)
-    expect(low?.pipeline.fxaaEnabled).toBe(true)
-    low?.dispose()
+    expect(low.pipeline.samples).toBe(1)
+    expect(low.pipeline.fxaaEnabled).toBe(true)
+    expect(low.pipeline.depthOfFieldBlurLevel).toBe(DepthOfFieldEffectBlurLevel.Low)
+    expect(low.pipeline.grainEnabled).toBe(false)
+    // The bloom and the miniature's focus stay.
+    expect(low.pipeline.bloomEnabled && low.pipeline.depthOfFieldEnabled).toBe(true)
+    expect(low.pipeline.bloomScale).toBe(0.5)
+    low.dispose()
   })
 
   it("draws the depth the focus reads at half the screen's size, leaving out what it's told to", () => {

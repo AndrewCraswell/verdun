@@ -55,9 +55,10 @@ export interface PostProcess {
 }
 
 /**
- * The image after the scene is drawn: multisampled edges (FXAA on the low setting), the miniature's depth of field,
- * bloom so flames, flashes and sparks glow, and a little film grain over it all. The scene's colour grade (see
- * atmosphere.ts) runs in the pipeline's image processing pass. Resolves null where the engine can't run it.
+ * The image after the scene is drawn: multisampled edges, the miniature's depth of field, bloom so flames, flashes and
+ * sparks glow, and a little film grain over it all. The low setting smooths edges with FXAA instead, blurs less and
+ * leaves out the grain. The scene's colour grade (see atmosphere.ts) runs in the pipeline's image processing pass.
+ * Resolves null where the engine can't run it.
  */
 export function createPostProcess(
   scene: Scene,
@@ -105,11 +106,15 @@ export function createPostProcess(
   pipeline.bloomScale = 0.5
 
   pipeline.depthOfFieldEnabled = true
-  pipeline.depthOfFieldBlurLevel = DepthOfFieldEffectBlurLevel.Medium
-
-  pipeline.grainEnabled = true
-  pipeline.grain.intensity = 7
-  pipeline.grain.animated = true
+  // The low setting goes without what costs most here for least, each measured at 1080p on an integrated GPU: a second,
+  // smaller blur that about doubles the softness furthest from the focus (1.3 ms a frame), and the grain (1 ms). Its
+  // blur is Babylon's default, so it isn't built twice at load.
+  if (quality === "high") {
+    pipeline.depthOfFieldBlurLevel = DepthOfFieldEffectBlurLevel.Medium
+    pipeline.grainEnabled = true
+    pipeline.grain.intensity = 7
+    pipeline.grain.animated = true
+  }
 
   const { fStop, distance, focalLengthPerMetre } = MINIATURE
   return {
