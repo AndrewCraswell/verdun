@@ -240,11 +240,12 @@ describe("createTerrainChunks", () => {
     const rebuilt: string[] = []
     terrain.onRebuilt.add((mesh) => rebuilt.push(mesh.name))
 
-    terrain.rebuildRegion(30, 30, 34, 34)
-    terrain.refine(352, 32)
-    expect(rebuilt).toEqual(["terrain-0-0", "terrain-5-0"])
+    // A crater in the first chunk, and the detail around the far end's middle: the chunk there and its neighbour.
+    terrain.markChanged({ minX: 30, minZ: 30, maxX: 34, maxZ: 34 })
+    terrain.flush(352, 32, 10)
+    expect([...rebuilt].sort()).toEqual(["terrain-0-0", "terrain-4-0", "terrain-5-0"])
     terrain.shapeForTrenchKit()
-    expect(rebuilt).toHaveLength(2 + terrain.meshes.length)
+    expect(rebuilt).toHaveLength(3 + terrain.meshes.length)
   })
 
   it("rejects render steps that don't divide a chunk", () => {
