@@ -29,6 +29,7 @@ import {
 } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { bucketInstanceCounts } from "../effects/instance-buffer.ts"
+import { nearestDepth } from "../render/nearest-depth.ts"
 import {
   AIM_WALKS,
   type BakedClip,
@@ -454,6 +455,35 @@ describe("createSoldierCrowd", () => {
     expect(drawn(kit.bodies[Side.French])).toBe(1)
     crowd.dispose()
     expect(scene.onBeforeCameraRenderObservable.hasObservers()).toBe(false)
+  })
+
+  it("measures how near the camera each layer's nearest man drawn comes, for the sun's shadows", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    spawnSoldier(sim, { side: Side.French, x: 65, z: 45 })
+    spawnSoldier(sim, { side: Side.French, x: 75, z: 60, weapon: Weapon.MachineGun })
+    // Nearer the camera than either, but below its view, so not drawn.
+    spawnSoldier(sim, { side: Side.French, x: 60, z: 15 })
+    const { crowd, kit, scene, drawn } = harness(sim)
+    const bodies = kit.bodies[Side.French]
+    crowd.sync()
+    // Before the first frame there's no view to measure by: the men drawn could be anywhere, and a layer drawing no one
+    // is nowhere.
+    crowd.update()
+    expect(nearestDepth(bodies)).toBe(Number.NEGATIVE_INFINITY)
+    expect(nearestDepth(kit.bodies[Side.German])).toBe(Number.POSITIVE_INFINITY)
+
+    const camera = new FreeCamera("camera", new Vector3(60, 40, 20), scene)
+    camera.setTarget(new Vector3(70, heightAt(map, 70, 50), 50))
+    scene.render()
+
+    // The near side of the sphere a man is culled by, 2.2 m round his chest, along the camera's view.
+    const depth = (x: number, z: number) =>
+      Vector3.TransformCoordinates(new Vector3(x, heightAt(map, x, z) + 0.9, z), camera.getViewMatrix()).z - 2.2
+    expect(drawn(bodies)).toBe(2)
+    expect(nearestDepth(bodies)).toBeCloseTo(Math.min(depth(65, 45), depth(75, 60)))
+    expect(nearestDepth(kit.rifle)).toBeCloseTo(depth(65, 45))
+    expect(nearestDepth(kit.guns[Side.French])).toBeCloseTo(depth(75, 60))
+    expect(nearestDepth(kit.mask)).toBe(Number.POSITIVE_INFINITY)
   })
 
   it("turns an aiming man into his stance, rifle on target, but keeps a machine gun square to the front", () => {

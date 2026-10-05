@@ -10,7 +10,9 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
+import { nearestDepth, recordNearestDepth } from "../render/nearest-depth.ts"
 import {
+  cascadeEnd,
   castersInCascade,
   castsShadow,
   createAtmosphere,
@@ -79,14 +81,46 @@ describe("receivesShadow", () => {
   })
 })
 
+/** The sun's shadow figures (see atmosphere.ts), on the game's camera, seeing from half a metre to two kilometres. */
+const SPLIT = {
+  numCascades: 2,
+  lambda: 0.85,
+  shadowMaxZ: 160,
+  minDistance: 0,
+  maxDistance: 1,
+  camera: { minZ: 0.5, maxZ: 2000 }
+} as const
+
+/** The way the sun's light goes from `elevation` degrees up. */
+function sunFrom(elevation: number): Vector3 {
+  const radians = (elevation * Math.PI) / 180
+  return new Vector3(Math.cos(radians), -Math.sin(radians), 0)
+}
+
+describe("cascadeEnd", () => {
+  it("splits the view where Babylon does: the first slice ends about 20 m out, the last where shadows end", () => {
+    expect(cascadeEnd(SPLIT, 0)).toBeCloseTo(19.64, 2)
+    expect(cascadeEnd(SPLIT, 1)).toBeCloseTo(160)
+    // Evenly, with lambda at 0.
+    expect(cascadeEnd({ ...SPLIT, lambda: 0 }, 0)).toBeCloseTo(80.25)
+    // A generator without a camera of its own follows whichever is drawing.
+    expect(cascadeEnd({ ...SPLIT, camera: null }, 0)).toBe(Number.POSITIVE_INFINITY)
+  })
+})
+
 describe("castersInCascade", () => {
+  // The sun overhead, looking down on twenty metres square from fifty up, a hundred deep.
+  const transform = Matrix.LookAtLH(new Vector3(0, 50, 0), Vector3.Zero(), new Vector3(0, 0, 1)).multiply(
+    Matrix.OrthoOffCenterLH(-10, 10, -10, 10, 0, 100)
+  )
+
   it("keeps for a cascade the casters in the sun's view of it, and whatever stands between it and the sun", () => {
     const { scene } = field()
-    // The sun overhead, looking down on twenty metres square from fifty up, a hundred deep.
-    const transform = Matrix.LookAtLH(new Vector3(0, 50, 0), Vector3.Zero(), new Vector3(0, 0, 1)).multiply(
-      Matrix.OrthoOffCenterLH(-10, 10, -10, 10, 0, 100)
-    )
-    const cull = castersInCascade({ getCascadeTransformMatrix: (cascade) => (cascade === 0 ? transform : null) })
+    const cull = castersInCascade({
+      ...SPLIT,
+      getCascadeTransformMatrix: (cascade) => (cascade === 0 ? transform : null),
+      getLight: () => ({ direction: sunFrom(90) })
+    })
     const box = (name: string, x: number, y: number, z: number) => {
       const mesh = CreateBox(name, { size: 1 }, scene)
       mesh.position.set(x, y, z)
@@ -105,6 +139,51 @@ describe("castersInCascade", () => {
     // A cascade the generator doesn't have, or nothing to cast.
     expect(cull(1, casters, casters.length)).toEqual([])
     expect(cull(0, null, 0)).toEqual([])
+  })
+
+  it("leaves a crowd out of slices nearer than its men's shadows fall, and out of all when it draws no one", () => {
+    const { scene } = field()
+    let sun = sunFrom(45)
+    const cull = castersInCascade({
+      ...SPLIT,
+      getCascadeTransformMatrix: () => transform,
+      getLight: () => ({ direction: sun })
+    })
+    const crowd = (name: string, depth?: number) => {
+      const mesh = CreateBox(name, { size: 1 }, scene)
+      mesh.alwaysSelectAsActiveMesh = true
+      if (depth !== undefined) {
+        recordNearestDepth(mesh, depth)
+      }
+      return mesh
+    }
+    const near = crowd("near", 10)
+    // A shadow falls 4.9 m toward the camera from a man with the sun at 45 degrees: the first slice ends at 19.64 m.
+    const close = crowd("just past the first slice", 24)
+    const far = crowd("in the play view", 35)
+    const empty = crowd("no one drawn", Number.POSITIVE_INFINITY)
+    const unmeasured = crowd("not measured")
+    const casters = [near, close, far, empty, unmeasured]
+
+    expect(nearestDepth(unmeasured)).toBe(Number.NEGATIVE_INFINITY)
+    expect(cull(0, casters, casters.length)).toEqual([near, close, unmeasured])
+    expect(cull(1, casters, casters.length)).toEqual([near, close, far, unmeasured])
+    // From a sun at 30 degrees they fall 8.5 m: a man 27 m off can shade the first slice, and one 29 m off can't.
+    sun = sunFrom(30)
+    recordNearestDepth(far, 27)
+    expect(cull(0, casters, casters.length)).toEqual([near, close, far, unmeasured])
+    recordNearestDepth(far, 29)
+    expect(cull(0, casters, casters.length)).toEqual([near, close, unmeasured])
+    // Beyond where shadows end, and their reach past it, no slice wants them.
+    recordNearestDepth(far, 170)
+    expect(cull(1, casters, casters.length)).toEqual([near, close, unmeasured])
+    // A low sun casts too far to bound: every crowd drawing someone casts into every slice.
+    sun = sunFrom(8)
+    recordNearestDepth(far, 100)
+    expect(cull(0, casters, casters.length)).toEqual([near, close, far, unmeasured])
+    // So does a sun below the horizon.
+    sun = new Vector3(0, 1, 0)
+    expect(cull(0, casters, casters.length)).toEqual([near, close, far, unmeasured])
   })
 })
 

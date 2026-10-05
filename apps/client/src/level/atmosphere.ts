@@ -17,6 +17,7 @@ import type { Scene } from "@babylonjs/core/scene"
 import type { Immutable, Nullable } from "@babylonjs/core/types"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { trimCascadeVaryings } from "../render/cascade-varyings.ts"
+import { nearestDepth } from "../render/nearest-depth.ts"
 import { displaySettings } from "../settings/display.ts"
 
 /** Effect sprites from the level kit. */
@@ -118,16 +119,88 @@ export function receivesShadow(mesh: AbstractMesh): boolean {
   return !BEYOND_SHADOWS.test(mesh.name)
 }
 
-/** What culling to a cascade needs of the shadow generator: each cascade's view and projection from the sun. */
-interface Cascades {
+/** What splitting the camera's view into slices takes: the shadow generator's figures, the camera's near and far. */
+interface CascadeSplit {
+  readonly numCascades: number
+  readonly lambda: number
+  readonly shadowMaxZ: number
+  readonly minDistance: number
+  readonly maxDistance: number
+  readonly camera: Nullable<{ readonly minZ: number; readonly maxZ: number }>
+}
+
+/**
+ * How far into the camera's view, in view depth, a cascade's slice of it reaches: Babylon's own split
+ * (`CascadedShadowGenerator._splitFrustum`), whose figures it keeps to itself. Receivers nearer than a cascade's end,
+ * and further than the one before's, take their shadows from it. With no camera of its own the generator follows
+ * whichever is drawing, so any slice may reach anywhere.
+ */
+export function cascadeEnd(shadows: CascadeSplit, cascade: number): number {
+  const camera = shadows.camera
+  if (!camera) {
+    return Number.POSITIVE_INFINITY
+  }
+  const near = camera.minZ
+  // A far plane at 0 is infinitely far.
+  const far = camera.maxZ || shadows.shadowMaxZ
+  const range = far - near
+  const maxDistance =
+    shadows.shadowMaxZ < far && shadows.shadowMaxZ >= near
+      ? Math.min((shadows.shadowMaxZ - near) / range, shadows.maxDistance)
+      : shadows.maxDistance
+  const from = near + shadows.minDistance * range
+  const to = near + maxDistance * range
+  // Between slices of equal depth and slices growing in proportion to their distance, by lambda.
+  const share = (cascade + 1) / shadows.numCascades
+  const even = from + (to - from) * share
+  const growing = from * (to / from) ** share
+  return shadows.lambda * (growing - even) + even
+}
+
+/**
+ * A soldier's shadow falls toward the camera, in view depth, at most the height it falls from over the tangent of the
+ * sun's elevation, for a camera looking level or down, as the game's always does. The height is from the top of a man
+ * standing to the floor of a trench beside him. With the sun lower than `lowSun` degrees shadows grow too long to
+ * bound, and the soldiers cast into every cascade.
+ */
+const CROWD_SHADOW = { height: 1.9 + 3, lowSun: 10 } as const
+
+/** How far toward the camera, in view depth, a soldier's shadow can fall from him, with the sun's light going `way`. */
+function crowdShadowReach(way: Vector3): number {
+  const length = way.length()
+  const sine = length > 0 ? -way.y / length : 0
+  if (sine < Math.sin((CROWD_SHADOW.lowSun * Math.PI) / 180)) {
+    return Number.POSITIVE_INFINITY
+  }
+  return (CROWD_SHADOW.height * Math.sqrt(1 - sine * sine)) / sine
+}
+
+/**
+ * Whether a mesh whose nearest instance drawn is `depth` into the camera's view comes within `reach` of it: one with
+ * none drawn doesn't, and one whose depth is unknown, infinitely near, does.
+ */
+const within = (depth: number, reach: number) => depth < Number.POSITIVE_INFINITY && depth <= reach
+
+/**
+ * What culling to a cascade needs of the shadow generator: each cascade's view and projection from the sun, the slice
+ * of the camera's view it covers, and which way the sun's light goes.
+ */
+interface Cascades extends CascadeSplit {
   getCascadeTransformMatrix(cascade: number): Nullable<Matrix>
+  getLight(): { readonly direction: Vector3 }
 }
 
 /**
  * Babylon draws every shadow caster into every cascade. A cascade is the sun's view of one slice of the camera's, so a
  * caster outside that view can't shade anything in the slice: this keeps, for each cascade, only the casters its view
  * takes in, by its sides and its far end. Not by its near end, toward the sun: whatever stands between the sun and the
- * slice shades it, and depth clamping draws it. Meshes Babylon must never cull, like the soldiers' crowds, are kept.
+ * slice shades it, and depth clamping draws it.
+ *
+ * Meshes Babylon must never cull are kept, but for the layers of the soldiers' crowds, which have no bounds to cull by:
+ * each is left out of a slice that ends nearer the camera than its nearest man drawn, by more than his shadow can fall
+ * toward it (see render/nearest-depth.ts), and out of every slice when it draws no one. In the play view the first
+ * slice ends some 20 m out and the nearest ground is some 35 m off, so nothing in it receives a soldier's shadow, yet
+ * every soldier was skinned into it: about a third of all the soldiers' vertex work.
  */
 export function castersInCascade(
   shadows: Cascades
@@ -149,9 +222,11 @@ export function castersInCascade(
       near.normal.setAll(0)
       near.d = Number.MAX_VALUE
     }
+    // A crowd whose nearest man drawn is this far into the camera's view, or nearer, can shade the slice.
+    const reach = cascadeEnd(shadows, cascade) + crowdShadowReach(shadows.getLight().direction)
     for (let index = 0; index < count; index++) {
       const mesh = casters[index]
-      if (mesh && (mesh.alwaysSelectAsActiveMesh || mesh.isInFrustum(view))) {
+      if (mesh && (mesh.alwaysSelectAsActiveMesh ? within(nearestDepth(mesh), reach) : mesh.isInFrustum(view))) {
         inView.push(mesh)
       }
     }

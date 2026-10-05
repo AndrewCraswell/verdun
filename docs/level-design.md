@@ -316,15 +316,18 @@ The colour grade runs in the pipeline's image processing pass.
   makes trench walls, craters and the shattered woods read from above.
 - **Cascaded shadows**: two cascades out to 160 m, from the ground itself (craters, the ravine, trench walls) and from
   trees, ruins, guns, wrecks and soldiers. Small or flat props and the trench kit (already shadowed by the carved ground
-  beneath it) don't cast. Once the camera is high enough that shadows would be sub-pixel, over 200 m up until it comes
-  back below 180 m, the sun casts none and nothing receives any, with the shaders for that built while the battle loads.
-  That keeps the cost at about 5 ms of CPU a frame at gameplay zoom. Engines without cascaded shadow maps go without.
+  beneath it) don't cast. That keeps the cost at about 5 ms of CPU a frame at gameplay zoom. Once the camera is high
+  enough that shadows would be sub-pixel, over 200 m up until it comes back below 180 m, the sun casts none and nothing
+  receives any, with the shaders for that built while the battle loads. Engines without cascaded shadow maps go without.
   Babylon draws every caster into every cascade, so each cascade keeps only the casters in the sun's view of it
   (`castersInCascade` in [atmosphere.ts](../apps/client/src/level/atmosphere.ts)). The ground beyond the sector and its
   woods, three kilometres of them and seven tenths of every cascade's triangles, cast nothing, except the few hundred
   trees within 200 m of the sector, which the camera can look on from its edge. That took the shadow pass from about
   twelve million triangles a frame to under three at gameplay zoom, and the shadows' share of the frame from about 24 ms
-  to 17 ms on an integrated GPU at 1080p, with the picture unchanged.
+  to 17 ms on an integrated GPU at 1080p, with the picture unchanged. The soldiers have no bounds to cull by, so the crowd
+  measures how near the camera each of its layers' nearest man drawn comes, and a cascade ending nearer than that, by
+  more than his shadow can fall toward the camera, leaves the layer out. In the play view the first cascade ends about
+  20 m out and holds no ground, so no soldier is drawn into it. With the sun under 10 degrees they cast into both.
 - **One colour grade**: desaturated, a touch of contrast, warm highlights, cool shadows, a light vignette.
 - **Smoke** drifting east on the wind from about one ruin in four and every wreck, in Synty's faceted smoke sprite, and
   **mist** lying in the hollows. Smoke, dust and mist are drawn unlit, so they're lit by hand

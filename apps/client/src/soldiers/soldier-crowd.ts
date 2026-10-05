@@ -24,6 +24,7 @@ import {
 } from "@verdun/sim"
 import type { SoldierRenderer } from "../battlefield-scene.ts"
 import { drawnCount } from "../effects/instance-buffer.ts"
+import { recordNearestDepth } from "../render/nearest-depth.ts"
 import {
   type Action,
   actionClip,
@@ -159,6 +160,11 @@ interface Layer {
   count: number
   /** Instances drawn last frame: the live ones, then the rest of their bucket collapsed to nothing. */
   drawn: number
+  /**
+   * How near the camera, in view depth, the nearest of the soldiers it draws this frame comes (see
+   * render/nearest-depth.ts): infinitely far when it draws none.
+   */
+  nearest: number
 }
 
 function createLayer(mesh: Mesh, animated: boolean): Layer {
@@ -172,7 +178,8 @@ function createLayer(mesh: Mesh, animated: boolean): Layer {
     matrices: new Float32Array(0),
     settings: new Float32Array(0),
     count: 0,
-    drawn: 0
+    drawn: 0,
+    nearest: Number.POSITIVE_INFINITY
   }
   allocate(layer, 64)
   mesh.thinInstanceCount = 0
@@ -216,6 +223,7 @@ function flush(layer: Layer): void {
   if (layer.mesh.thinInstanceCount !== drawn) {
     layer.mesh.thinInstanceCount = drawn
   }
+  recordNearestDepth(layer.mesh, layer.nearest)
 }
 
 /** Shortest signed turn from one heading to another, in radians. */
@@ -713,12 +721,13 @@ export function createSoldierCrowd(
 
   /**
    * Where the soldier being added is drawn: his place, less any drift his clip has carried him, and his body's heading,
-   * turned into his clip's stance.
+   * turned into his clip's stance; and how near the camera he comes, in view depth.
    */
-  const at = { x: 0, z: 0, yaw: 0 }
+  const at = { x: 0, z: 0, yaw: 0, depth: 0 }
 
   function add(layer: Layer, track: Track, row: number): void {
     const index = claim(layer)
+    layer.nearest = Math.min(layer.nearest, at.depth)
     writeMatrix(layer, index, track, at.x, track.y, at.z, at.yaw)
     if (layer.animated) {
       const offset = index * 4
@@ -750,7 +759,12 @@ export function createSoldierCrowd(
     lastFrame = now
     for (const layer of allLayers) {
       layer.count = 0
+      layer.nearest = Number.POSITIVE_INFINITY
     }
+    // The camera's view, to measure how near it each man drawn comes along its depth axis, as the sun's shadow cascades
+    // measure their slices. Babylon sets it with the culling planes: before the first frame there's neither, and a man
+    // could be anywhere.
+    const view = scene.frustumPlanes ? scene.getViewMatrix().m : null
     const turning = Math.min(1, frameSeconds * TURN_RATE)
     for (const track of drawn) {
       place(track, now)
@@ -769,6 +783,10 @@ export function createSoldierCrowd(
       at.x = track.x
       at.z = track.z
       at.yaw = track.yaw + track.turn
+      // The near side of the sphere he's culled by, which takes in his gun too.
+      at.depth = view
+        ? view[2] * track.x + view[6] * (track.y + CULL.height) + view[10] * track.z + view[14] - CULL.radius
+        : Number.NEGATIVE_INFINITY
       if (track.status === "fallen") {
         // Keep the hips over the spot where he fell: a body falling back a metre lands in the trench, not its wall.
         const driftX = kit.drift[row * 2] ?? 0
@@ -787,8 +805,10 @@ export function createSoldierCrowd(
       }
       if (track.status === "fighting" && track.weapon === Weapon.MachineGun && track.speed < MOVING_SPEED) {
         // The gun stands square to where he faces, on the ground ahead, however he kneels to it.
-        const gun = claim(layers.guns[track.side])
-        writeMatrix(layers.guns[track.side], gun, track, track.x, track.y + track.gunLift, track.z, track.yaw)
+        const guns = layers.guns[track.side]
+        const gun = claim(guns)
+        guns.nearest = Math.min(guns.nearest, at.depth)
+        writeMatrix(guns, gun, track, track.x, track.y + track.gunLift, track.z, track.yaw)
       }
     }
     for (const layer of allLayers) {
