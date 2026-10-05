@@ -324,10 +324,10 @@ The colour grade runs in the pipeline's image processing pass.
   woods, three kilometres of them and seven tenths of every cascade's triangles, cast nothing, except the few hundred
   trees within 200 m of the sector, which the camera can look on from its edge. That took the shadow pass from about
   twelve million triangles a frame to under three at gameplay zoom, and the shadows' share of the frame from about 24 ms
-  to 17 ms on an integrated GPU at 1080p, with the picture unchanged. The soldiers have no bounds to cull by, so the crowd
-  measures how near the camera each of its layers' nearest man drawn comes, and a cascade ending nearer than that, by
-  more than his shadow can fall toward the camera, leaves the layer out. In the play view the first cascade ends about
-  20 m out and holds no ground, so no soldier is drawn into it. With the sun under 10 degrees they cast into both.
+  to 17 ms on an integrated GPU at 1080p, with the picture unchanged. The soldiers have no bounds to cull by, so the
+  crowd measures how near the camera each of its layers' nearest man drawn comes, and a cascade ending nearer than that,
+  by more than his shadow can fall toward the camera, leaves the layer out. In the play view the first cascade ends
+  about 20 m out and holds no ground, so no soldier is drawn into it. With the sun under 10 degrees they cast into both.
 - **One colour grade**: desaturated, a touch of contrast, warm highlights, cool shadows, a light vignette.
 - **Smoke** drifting east on the wind from about one ruin in four and every wreck, in Synty's faceted smoke sprite, and
   **mist** lying in the hollows. Smoke, dust and mist are drawn unlit, so they're lit by hand
