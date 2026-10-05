@@ -77,6 +77,8 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | U                               | The squad book: every man, and the fallen                                      |
 | Esc                             | The menu: the war map, options, controls; the battle waits                     |
 | Z                               | Lie down and crawl, or get back up                                             |
+| C                               | Crouch, or stand back up                                                       |
+| Space                           | Climb the wall or wire fence ahead (a fence takes a few seconds), or man a gun |
 | Q                               | Throw a grenade at the pointer                                                 |
 | F3                              | Debug statistics                                                               |
 | K                               | Dev builds only: kill the soldier you control                                  |
