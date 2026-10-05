@@ -157,6 +157,8 @@ export async function serverHost(
     schedule,
     remote: true,
     sight: null,
+    // Of the enemy, the page is kept up to date on only the men its side can see.
+    known: (soldier) => decoder?.seen?.has(soldier) ?? true,
     update() {
       // The server keeps its own time: the page takes the steps that have come, and sends what it has commanded. Its
       // own clock moves the player's soldier on meanwhile.

@@ -72,7 +72,7 @@ describe("the relay", () => {
     const take = () => {
       const sync = relay.due()
       if (sync && squad) {
-        applySync(mirror, joined.decoder.decode(sync.for("player", relay.nearCells(squad))))
+        applySync(mirror, joined.decoder.decode(sync.for("player", relay.recipient(squad))))
       }
       return sync
     }
@@ -96,9 +96,11 @@ describe("the relay", () => {
     const { decoder } = decodeJoined(relay.welcome(0), field())
     sector.advance(2)
     const sync = relay.due()
-    expect(decoder.decode(sync?.for("player", new Set()) ?? new Uint8Array()).steps.map((step) => step.tick)).toEqual([
-      5, 6
-    ])
+    expect(
+      decoder
+        .decode(sync?.for("player", { near: new Set(), side: Side.French, own: [] }) ?? new Uint8Array())
+        .steps.map((step) => step.tick)
+    ).toEqual([5, 6])
     relay.forget("player")
   })
 
@@ -109,12 +111,12 @@ describe("the relay", () => {
     if (!squad) {
       throw new Error("No squad")
     }
-    expect(relay.nearCells(squad).has(0)).toBe(true)
+    expect(relay.recipient(squad)).toEqual({ near: new Set([0]), side: Side.French, own: squad.members })
     for (const member of squad.members) {
       enqueueCommand(sector.sim, { type: "kill", soldier: member })
     }
     sector.advance(1)
-    expect(relay.nearCells(squad)).toEqual(new Set())
+    expect(relay.recipient(squad).near).toEqual(new Set())
   })
 
   it("welcomes a player to unshelled ground with no patch", () => {

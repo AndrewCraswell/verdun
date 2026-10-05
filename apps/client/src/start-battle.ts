@@ -397,7 +397,8 @@ export async function startBattle(
     groundMaterial: view.groundMaterial,
     // Props darken with the ground they stand on.
     materials: level?.materials,
-    enabled: true
+    enabled: true,
+    known: host.known ?? undefined
   })
   view.camera.radius = 60
   if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {

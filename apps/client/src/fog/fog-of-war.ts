@@ -38,6 +38,11 @@ export interface FogOfWarOptions {
   readonly framesPerUpdate?: number
   /** Whether fog starts on. When off, all ground is lit and every soldier is shown. */
   readonly enabled?: boolean
+  /**
+   * Whether the page knows where an enemy soldier is. A server sends a side only the enemy it can see; the rest stay
+   * where they were last seen, and are never shown, fog or not. Every soldier, if absent.
+   */
+  readonly known?: (soldier: EntityId) => boolean
 }
 
 export interface FogOfWar {
@@ -71,7 +76,8 @@ export function createFogOfWar(
     range = 300,
     updatesPerSecond = 4,
     framesPerUpdate = 4,
-    enabled = true
+    enabled = true,
+    known = () => true
   }: FogOfWarOptions
 ): FogOfWar {
   const fed = "take" in sight ? sight : null
@@ -188,7 +194,10 @@ export function createFogOfWar(
       return changed
     },
     isShown(soldier) {
-      return !plugin.darkenUnseen || sim.soldiers.side.value[soldier] === squad.side || visibleEnemies.has(soldier)
+      return (
+        sim.soldiers.side.value[soldier] === squad.side ||
+        (known(soldier) && (!plugin.darkenUnseen || visibleEnemies.has(soldier)))
+      )
     }
   }
 }

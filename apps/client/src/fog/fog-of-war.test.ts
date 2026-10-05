@@ -197,6 +197,26 @@ describe("createFogOfWar", () => {
     expect(fog.plugin.getClassName()).toBe("FogOfWarPlugin")
   })
 
+  it("never shows an enemy the server hasn't said its side can see, fog or not", async () => {
+    const { sim, squad, player, friend, enemyInOpen, lineOfSight } = await trenchSetup()
+    sim.soldiers.position.z[player] = 30 + (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
+    const known = new Set<number>()
+    const fog = createFogOfWar(scene(), sim, lineOfSight, {
+      squad,
+      groundMaterial: new StandardMaterial("ground", scene()),
+      framesPerUpdate: 1,
+      known: (soldier) => known.has(soldier)
+    })
+    fog.update(0)
+
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+    expect(fog.isShown(friend)).toBe(true)
+    fog.enabled = false
+    expect(fog.isShown(enemyInOpen)).toBe(false)
+    known.add(enemyInOpen)
+    expect(fog.isShown(enemyInOpen)).toBe(true)
+  })
+
   it("only recomputes a few times a second", async () => {
     const { fog } = await trenchSetup()
 

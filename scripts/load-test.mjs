@@ -52,7 +52,7 @@ const count = (part, value) => {
 
 /**
  * Sorts a message's parts: the soldiers' arrays from its cells, by array, and from its global part the clouds, the rest
- * of the state, events and craters.
+ * of the state, events and craters; who the player's side can see, and what only their own squad is sent.
  */
 function breakDown(bytes) {
   const message = packr.unpack(bytes)
@@ -72,6 +72,12 @@ function breakDown(bytes) {
     for (const [name, change] of Object.entries(packr.unpack(inflateSync(part)))) {
       count(`soldiers: ${name}`, change)
     }
+  }
+  if (message.k) {
+    count("who the side can see", packr.unpack(inflateSync(message.k)))
+  }
+  if (message.p) {
+    count("own squad only", message.p)
   }
 }
 

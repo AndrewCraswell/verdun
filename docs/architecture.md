@@ -109,8 +109,24 @@ before, for development and `pnpm perf`.
   fifth (`FAR_EVERY`), each built on what that player had: a player's cells change only at those messages, and a man who
   crosses into a cell is sent whole. The global part (state, clouds, events, craters) goes to everyone. Positions go as
   16 bits on a grid fitted to the map (a centimetre on Fleury). The page eases every man between the server's word on
-  him (`smoothing.ts`), so the far ones walk rather than hop. Visibility filtering (sending only what a player's men can
-  see) waits on fog of war being on.
+  him (`smoothing.ts`), so the far ones walk rather than hop.
+- **Each side is sent only the enemy it can see** (`apps/server/src/sight.ts`): every message's cells are encoded once
+  for each side, with its own men and the enemies it can make out, and each player gets their side's. A man is seen when
+  one of the ten nearest living enemies within 300 m (the page's fog range) has a clear line to him through the ground
+  and the scenery, by the light on him and the weather; the page's fog then judges the smoke and which of them the
+  player's own squad sees. Every man is looked at five times a second, and counted seen for two seconds after, so one
+  bobbing behind a traverse isn't sent whole each time. A man coming into sight is sent whole; one going out of it stays
+  where he was last seen, and the page never draws an enemy the server hasn't said its side can see (the fog's `known`).
+  A late joiner isn't told where the unseen enemy are. It defeats wallhacks for men's positions; the global part
+  (events, squads' orders, who has which component) still goes to everyone. The sight lines are cast in a worker thread
+  (`sight-thread.ts`) with its own copy of the ground, reshaped by each message's craters, so they cost the room's
+  thread about 0.3 ms a message; until its first answer, or if it fails, the room works them out itself. A line is kept
+  while neither man moves a metre (most of a trench line holds still), and a parapet within 6 m of either end is found
+  from the heights without a cast.
+- **What only a man's own squad uses goes to his squad's player alone** (`OWN_SQUAD_ONLY`): breath, rounds, cooldowns,
+  move orders, steering, the gas mask's time. Other men are drawn from the rest (their firing from `weapon.firedAt`,
+  which changes once a shot, not the cooldown, which counts down every step). Which soldiers have which components goes
+  as a flag a soldier, so a man gaining or losing one changes a byte rather than shifting a list of ids.
 - **A hidden tab** draws no frames, so it sends no commands and plays out no steps; its mirror stays up to date, and it
   keeps only the last two seconds of steps to play on coming back (`server-host.ts`).
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
@@ -177,10 +193,15 @@ What it said, and what was done about it:
   their trenches, who change little anyway. Finer cells (50 m within 75 m) sent no less and took twice as long to
   encode. With 100 players encoding takes 6 to 10 ms a message and making each player's message from it 4 to 6 ms more,
   on the room's thread: moving it to a worker thread is the next step if the step needs the time.
-- **What players are sent now**, per message: soldiers' arrays about 60% (positions 20%), smoke 13 to 15%, which
-  soldiers have which components 7 to 8%, events 5 to 7%. Smoke goes to everyone whole; sending it at a lower rate, or
-  by cells too, is the next saving.
-- **Hosting**: at 100 players a sector sends about 7 MB/s (60 Mbit/s), which matters for Railway's egress pricing.
+- **Sending each side only the enemy it can see, and other squads' men without what only their own squad uses**, took
+  each player's share from about 75 to 58 KB/s, and sending which soldiers have which components as flags to 44 KB/s (50
+  at most). In this test each side sees about 40% of the enemy at any time: everyone fights over one objective in the
+  open. Sight lines cast on the room's thread cost 30 ms a message at first; in a worker they cost it 0.3 ms.
+- **What players are sent now**, per message: soldiers' arrays about 65% (positions 40%, facing 13%), smoke 12%, events
+  11%. Positions are the next saving: sending a moving man's velocity when it changes, and letting the page carry him
+  along between (dead reckoning), rather than his position every message. Smoke goes to everyone whole; sending it at a
+  lower rate, or by cells too, is the one after.
+- **Hosting**: at 100 players a sector sends about 4.3 MB/s (35 Mbit/s), which matters for Railway's egress pricing.
 - **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
   over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
   algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module
@@ -355,7 +376,8 @@ first candidate for Rust/WebAssembly if profiling demands it.
   view adds an encoding pass.
 - **Area of interest**: nearby entities at full rate, distant ones at 2–5 Hz, ranked by priority. Sending everything
   would be about 400 KB/s per player; area of interest brings it to 20–30 KB/s.
-- **Visibility filtering**: clients only receive what their soldiers can see. Saves bandwidth, defeats wallhacks.
+- **Visibility filtering**: clients only receive what their side can see (see [the sector server](#the-sector-server)).
+  Saves bandwidth, defeats wallhacks.
 - References: [Colyseus client prediction](https://docs.colyseus.io/netcode/client-prediction), Gabriel Gambetta's
   "Fast-Paced Multiplayer" articles.
 
@@ -393,7 +415,7 @@ first candidate for Rust/WebAssembly if profiling demands it.
   stages on existing trenches are cheap; new trenches need a spike on local rebuild cost.
 - **One room is one thread.** A sector's whole simulation shares one Node event loop. The first load test (see
   [above](#the-load-test)) puts 100 players and 1,100 men at the edge of it: the step needs profiling before the sector
-  grows, and whatever relevance filtering costs must stay off that thread.
+  grows, and whatever relevance filtering costs must stay off that thread, as the sight lines already are.
 
 ## Considered and not chosen
 

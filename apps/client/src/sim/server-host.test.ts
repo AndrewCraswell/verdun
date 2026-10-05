@@ -52,7 +52,7 @@ class FakeServer implements SectorConnection {
     if (type === MESSAGE.ready && this.welcome) {
       this.step(1)
       this.encoder.encode(this.source.take())
-      const welcome = this.encoder.welcome(this.squad.id, schedule, null)
+      const welcome = this.encoder.welcome(this.squad.id, this.squad.side, schedule, null)
       setTimeout(() => this.handlers.get(MESSAGE.joined)?.(welcome))
     }
     if (type === MESSAGE.commands) {
@@ -93,7 +93,11 @@ class FakeServer implements SectorConnection {
     // Every one of the map's cells, so the page is sent every man every message.
     const { columns, rows } = this.encoder.grid
     const everyCell = new Set(Array.from({ length: columns * rows }, (_, cell) => cell))
-    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()).for("page", everyCell))
+    this.handlers.get(MESSAGE.sync)?.(
+      this.encoder
+        .encode(this.source.take())
+        .for("page", { near: everyCell, side: this.squad.side, own: this.squad.members })
+    )
   }
 
   sendJunk(): void {

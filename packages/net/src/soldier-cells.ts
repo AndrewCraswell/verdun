@@ -82,18 +82,23 @@ export function cellsNear(
 /**
  * What changed from `previous` to `next`, by the cell each soldier is in (`cells`, by soldier). Soldiers listed in
  * `whole` go with every array, changed or not: men who've just crossed into a cell, whom some players have only now
- * begun to follow. `previous` null sends everything.
+ * begun to follow. `previous` null sends everything. Given `sent` (by soldier, 1 or 0), only the soldiers it marks go:
+ * those a side can see.
  */
 export function cellPatches(
   previous: SoldierArrays | null,
   next: SoldierArrays,
   cells: Int32Array,
-  whole: ReadonlySet<number> = new Set()
+  whole: ReadonlySet<number> = new Set(),
+  sent: Uint8Array | null = null
 ): Map<number, CellPatch> {
   const found = new Map<number, Record<string, [number[], number[]]>>()
   for (const [name, values] of Object.entries(next)) {
     const before = previous?.[name]
     for (let soldier = 0; soldier < values.length; soldier++) {
+      if (sent && sent[soldier] !== 1) {
+        continue
+      }
       const value = values[soldier] ?? 0
       if (before && soldier < before.length && Object.is(before[soldier], value) && !whole.has(soldier)) {
         continue

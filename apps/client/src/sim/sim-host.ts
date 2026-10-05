@@ -2,6 +2,7 @@ import type { BattlefieldMap } from "@verdun/map"
 import {
   applySync,
   type Command,
+  type EntityId,
   createSimulation,
   type LineOfSight,
   planOperation,
@@ -35,6 +36,11 @@ export interface SimHost {
   readonly remote: boolean
   /** What the player's squad can see, worked out in the worker beside the simulation; null when it runs inline. */
   readonly sight: SightFeed | null
+  /**
+   * Whether the page knows where an enemy soldier is: a server sends a side only the enemy it can see (see the fog's
+   * `known`). Null when the page has every soldier.
+   */
+  readonly known: ((soldier: EntityId) => boolean) | null
   /**
    * Called once a frame: sends the commands queued on `sim`, asks for `steps` more steps, and returns every step taken
    * since the last call, oldest first. In a worker the steps asked for come back a frame or so later.
@@ -80,6 +86,7 @@ function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
     },
     remote: false,
     sight: null,
+    known: null,
     update(steps) {
       const taken: StepTaken[] = []
       for (let step = 0; step < steps; step++) {
@@ -143,6 +150,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
     sim: mirror,
     playerSquad,
     remote: true,
+    known: null,
     sight: {
       take() {
         const look = latestSight

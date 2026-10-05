@@ -2,8 +2,10 @@ import { type Client, Room } from "@colyseus/core"
 import { joinSide, MESSAGE } from "@verdun/net"
 import { STEP_SECONDS } from "@verdun/sim"
 import { createPlayers } from "./players.ts"
-import { createRelay } from "./relay.ts"
+import { createRelay, SYNC_EVERY } from "./relay.ts"
 import type { Sector } from "./sector.ts"
+import { createSightThread } from "./sight-thread.ts"
+import { SIGHT_SHARES } from "./sight.ts"
 
 /** Half a step, so the battle never runs more than half a step behind the clock. */
 const LOOP_MS = (STEP_SECONDS * 1000) / 2
@@ -81,7 +83,8 @@ function createStats() {
  */
 export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) {
   const players = createPlayers(sector.sim, dev)
-  const relay = createRelay(sector)
+  // Each side's sight of the enemy is worked out in a worker, off the thread the battle steps on.
+  const relay = createRelay(sector, SYNC_EVERY, createSightThread(sector.sim, SIGHT_SHARES, log))
   sector.onStep(() => players.stepped())
   const stats = createStats()
   let reported = performance.now()
@@ -112,11 +115,15 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
         const stepped = performance.now()
         const sync = relay.due()
         if (sync) {
-          // One encoding for everyone; each player's message is its parts for the cells near their men.
+          // One encoding for everyone; each player's message is its parts for the cells near their men, as their side sees
+          // them, with what only their own squad is sent.
           let bytes = 0
           for (const client of this.clients) {
             const squad = players.squadOf(client.sessionId)
-            const message = sync.for(client.sessionId, squad ? relay.nearCells(squad) : new Set())
+            if (!squad) {
+              continue
+            }
+            const message = sync.for(client.sessionId, relay.recipient(squad))
             client.sendBytes(MESSAGE.sync, message)
             bytes += message.byteLength
           }
