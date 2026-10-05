@@ -27,7 +27,7 @@ const FIXED: Readonly<Record<string, readonly Binding[]>> = {
   ],
   "Your squad": [{ keys: "1 to 8", action: "Switch to a squad slot" }],
   Camera: [
-    { keys: "Screen edges", action: "Pan; the pointer rests at an edge a moment first" },
+    { keys: "Screen edges", action: "Pan, once the view is off your man" },
     { keys: "Shift + middle-drag", action: "Grab and drag the ground" },
     { keys: "Middle-drag", action: "Turn and tilt" },
     { keys: "Mouse wheel", action: "Zoom, toward the pointer" }

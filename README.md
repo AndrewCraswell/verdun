@@ -58,13 +58,13 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | Input                           | Action                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------ |
 | W A S D                         | Move the soldier you control, relative to the camera                           |
-| Mouse                           | Aim                                                                            |
+| Mouse                           | Aim; the view leans toward the pointer                                         |
 | Left-click                      | Fire                                                                           |
-| Arrow keys, screen edges        | Pan the camera                                                                 |
+| Arrow keys                      | Pan the camera; once it's off your man, screen edges pan too                   |
 | Shift + middle-drag             | Grab and drag the ground                                                       |
 | Middle-drag, Shift + Left/Right | Turn and tilt the camera                                                       |
 | Mouse wheel                     | Zoom, toward the pointer                                                       |
-| Space                           | Back to the soldier you control (moving them or switching soldier does it too) |
+| Home, L                         | Back to the soldier you control (moving them or switching soldier does it too) |
 | Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                 |
 | F, H                            | Squad order: follow me, hold                                                   |
 | Right-click                     | Squad order: advance to that point                                             |

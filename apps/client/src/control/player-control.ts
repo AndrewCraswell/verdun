@@ -321,9 +321,7 @@ export function createPlayerControl(
           rig.recenter()
         }
         followedSoldier = soldier
-        // The way he's walking, not the way he faces: the pointer turns him, and a view led by his facing would slide
-        // the ground under a still pointer and turn him again.
-        rig.follow(x, z, steer)
+        rig.follow(x, z)
         return
       }
       const blend = 1 - Math.exp(-FOLLOW_RATE * frameSeconds)

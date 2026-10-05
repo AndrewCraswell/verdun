@@ -7,16 +7,17 @@
 /** Closest and furthest the camera pulls back from what it looks at, in metres. */
 export const ZOOM_RANGE = { min: 8, max: 450 } as const
 /**
- * Angle down from straight overhead (ArcRotateCamera's beta), close in and far out. Close in, the view drops toward a
- * soldier's-eye angle; pulled back, it tips over toward a map view.
+ * Angle down from straight overhead (ArcRotateCamera's beta). Through the zooms a soldier is played from it is the
+ * vision's 55° below the horizon (`field`); only close in, under `closeFrom` metres, does it drop toward `close`, and
+ * pulled back past `mapFrom` it tips over toward `map`, a map view.
  */
-const PITCH = { close: 1.25, far: 0.5, curve: 1.6 } as const
+const PITCH = { field: 0.61, close: 0.85, map: 0.5, closeFrom: 16, mapFrom: 90 } as const
 /** How far the player can tilt either side of the zoom's natural angle, in radians. */
 const TILT_RANGE = 0.3
 /** Never steeper than this from overhead, nor shallower: the ground stays in view. */
 const PITCH_LIMITS = { min: 0.15, max: 1.35 } as const
 /** Damping rates, per second: how quickly each part of the view settles on where it's going. Higher is snappier. */
-const RATES = { focus: 9, height: 5, distance: 11, yaw: 12, pitch: 10, pan: 10 } as const
+const RATES = { focus: 9, height: 5, distance: 11, yaw: 12, pitch: 10, pan: 10, lean: 4 } as const
 /** Panning speed at full deflection, as a multiple of the zoom distance per second: the same feel at any zoom. */
 const PAN_SPEED = 0.5
 /** The camera keeps at least this far above the ground beneath it, in metres. */
@@ -24,38 +25,34 @@ const GROUND_CLEARANCE = 2.5
 /** What the camera looks at sits this far above the ground: a man's chest, not his boots. */
 const FOCUS_HEIGHT = 1.2
 /**
- * While following, the view leads a soldier on the move the way he's going, by this share of the zoom distance up to a
- * limit in metres, so he sees what he's walking into. Standing, he's in the middle. It follows where he goes, never
- * where he faces: the pointer turns him, and a view that swung with his facing would slide the ground under a still
- * pointer and turn him again.
+ * While following, the view leans toward the pointer, as Running With Rifles extends the view toward it: its middle
+ * moves `share` of the way from where it would be toward the ground under the pointer's place on the screen, which
+ * settles with the middle a third of the way from the soldier to what the pointer is over. It comes from where the
+ * pointer sits on the screen, which the view moving doesn't change, so it settles rather than chasing itself. It goes
+ * no further than `cap` of the ground the screen shows across, so the soldier stays well on the screen.
  */
-const WALK_LEAD = { share: 0.12, max: 20 } as const
-/**
- * Aiming, the view leans toward the pointer: at the screen's edge by this share of the zoom distance, up to a limit in
- * metres. The lean comes from where the pointer sits on the screen, which the view moving doesn't change, so it settles
- * rather than chasing itself.
- */
-const AIM_LEAN = { share: 0.45, max: 100 } as const
-/**
- * Close in, the view looks past the soldier it follows: its middle sits ahead of him, the way the view faces, by this
- * share of the zoom distance, so he stands low on the screen with the ground in front of him above. Fully so within
- * `full` metres of zoom, fading to nothing by `none`, where the view is a map. Along the view rather than his facing,
- * for the same reason the walking lead is: it mustn't slide the ground under the pointer as he turns.
- */
-const LOOK_AHEAD = { share: 0.3, full: 25, none: 120 } as const
-
-/** How far ahead of the followed soldier the view looks, in metres, at a zoom distance. */
-export function lookAhead(distance: number): number {
-  const fade = clamp((LOOK_AHEAD.none - distance) / (LOOK_AHEAD.none - LOOK_AHEAD.full), 0, 1)
-  return LOOK_AHEAD.share * distance * fade
-}
+const LEAN = { share: 0.5, cap: 0.35 } as const
 /**
  * Manning a machine gun, the view rises and looks down along the ground the gun sweeps: at least this far back, in
- * metres, and this far down from overhead, so the gunner sees men coming across the open well before they're on him.
+ * metres, and at this angle from overhead, a little lower than the field view's, so the gunner sees men coming across
+ * the open well before they're on him.
  */
-const GUN_VIEW = { distance: 45, pitch: 0.8 } as const
-/** How quickly the lead swings round, per second: aiming answers faster than walking. */
-const LEAD_RATE = { walk: 2.5, aim: 4 } as const
+const GUN_VIEW = { distance: 45, pitch: 0.75 } as const
+
+/** The camera's lens: its field of view top to bottom, in radians, and the screen's width over its height. */
+export interface Lens {
+  readonly fov: number
+  readonly aspect: number
+}
+
+/** Babylon's usual field of view on a wide screen: the lens until the rig says otherwise. */
+const DEFAULT_LENS: Lens = { fov: 0.8, aspect: 16 / 9 }
+
+/** A place on the screen, from -1 to 1: from the middle to the right edge, and to the top edge. */
+export interface ScreenPoint {
+  readonly right: number
+  readonly up: number
+}
 
 export interface RigView {
   readonly focusX: number
@@ -78,16 +75,15 @@ export interface CameraRigModel {
   readonly view: RigView
   /** Whether the camera is following the soldier under control. Panning lets go; recentring takes hold again. */
   readonly following: boolean
+  /** Where the followed soldier is now. Call every frame; ignored while panning freely. */
+  follow(x: number, z: number): void
   /**
-   * Where the followed soldier is now, and the way they're walking on the ground (a unit vector, or none). Call every
-   * frame; ignored while panning freely.
+   * Where the pointer sits on the screen: while following, the view leans toward the ground under it. Null leans back
+   * to the soldier.
    */
-  follow(x: number, z: number, moving?: { readonly x: number; readonly z: number }): void
-  /**
-   * Aims, leaning the view toward the pointer, from where it sits on the screen: -1 to 1 from the middle to the right
-   * edge and to the top edge. Null stops aiming. Aiming goes back to following the soldier.
-   */
-  setAim(pointer: { readonly right: number; readonly up: number } | null): void
+  setPointer(pointer: ScreenPoint | null): void
+  /** The camera's lens, which the lean is worked out through. */
+  setLens(lens: Lens): void
   /** Goes back to following the soldier. */
   recenter(): void
   /** Holds a pan, from -1 to 1 right and forward relative to the view, until changed. Zero stops. */
@@ -131,14 +127,57 @@ function ease(rate: number, seconds: number): number {
   return 1 - Math.exp(-rate * seconds)
 }
 
+/** Eases from 0 to 1 and back without a jolt at either end. */
+function smoothstep(value: number): number {
+  const t = clamp(value, 0, 1)
+  return t * t * (3 - 2 * t)
+}
+
 /**
- * The natural angle down from overhead at a zoom distance: lower close in, steeper far out. It stays low through the
- * middle distances a soldier is followed from, so the top of the screen reaches out across no man's land, and only
- * tips over into a map view well out.
+ * The natural angle down from overhead at a zoom distance: the vision's 55° through the distances a soldier is played
+ * from, dropping a little toward the ground only close in, and tipping over toward a map view well out.
  */
 export function pitchForDistance(distance: number): number {
-  const along = Math.log(distance / ZOOM_RANGE.min) / Math.log(ZOOM_RANGE.max / ZOOM_RANGE.min)
-  return PITCH.close + (PITCH.far - PITCH.close) * clamp(along, 0, 1) ** PITCH.curve
+  if (distance < PITCH.closeFrom) {
+    const near = clamp((PITCH.closeFrom - distance) / (PITCH.closeFrom - ZOOM_RANGE.min), 0, 1)
+    return PITCH.field + (PITCH.close - PITCH.field) * near * near
+  }
+  const out = Math.log(distance / PITCH.mapFrom) / Math.log(ZOOM_RANGE.max / PITCH.mapFrom)
+  return PITCH.field + (PITCH.map - PITCH.field) * smoothstep(out)
+}
+
+/** The ground directions to the view's right and straight ahead, for a bearing. */
+function axes(bearing: number) {
+  // ArcRotateCamera sits at (cos α, sin α) from its target, so it looks along the opposite way.
+  const forward = { x: -Math.cos(bearing), z: -Math.sin(bearing) }
+  return { forward, right: { x: forward.z, z: -forward.x } }
+}
+
+/**
+ * Where the ray through a place on the screen meets level ground at the focus's height, from the focus, in metres east
+ * and north. A ray at or above the horizon reaches `far` metres along the ground its way.
+ */
+function groundOffset(view: RigView, lens: Lens, at: ScreenPoint, far: number): { x: number; z: number } {
+  const { yaw, pitch, distance } = view
+  const sinPitch = Math.sin(pitch)
+  const cosPitch = Math.cos(pitch)
+  // The camera sits at (cos α sin β, cos β, sin α sin β) from its focus and looks back at it.
+  const look = { x: -Math.cos(yaw) * sinPitch, y: -cosPitch, z: -Math.sin(yaw) * sinPitch }
+  const up = { x: -Math.cos(yaw) * cosPitch, y: sinPitch, z: -Math.sin(yaw) * cosPitch }
+  const { right } = axes(yaw)
+  const half = Math.tan(lens.fov / 2)
+  const ray = {
+    x: look.x + up.x * at.up * half + right.x * at.right * half * lens.aspect,
+    y: look.y + up.y * at.up * half,
+    z: look.z + up.z * at.up * half + right.z * at.right * half * lens.aspect
+  }
+  const eye = { x: -look.x * distance, y: -look.y * distance, z: -look.z * distance }
+  if (ray.y > -1e-4) {
+    const flat = Math.hypot(ray.x, ray.z) || 1
+    return { x: (ray.x / flat) * far, z: (ray.z / flat) * far }
+  }
+  const along = -eye.y / ray.y
+  return { x: eye.x + ray.x * along, z: eye.z + ray.z * along }
 }
 
 /** Turning speed at full deflection of the turn keys, in radians a second. */
@@ -151,27 +190,34 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
   let following = true
   let target = { x: start.focusX, z: start.focusZ }
   let followed = { x: start.focusX, z: start.focusZ }
-  let moving = { x: 0, z: 0 }
-  let aim: { right: number; up: number } | null = null
-  let lead = { x: 0, z: 0 }
+  let pointer: ScreenPoint | null = null
+  let lens = DEFAULT_LENS
+  let lean = { x: 0, z: 0 }
   let distance = start.distance
   let yaw = start.yaw
-  let tilt = start.pitch - pitchForDistance(start.distance)
+  // The player's tilt either side of the zoom's angle: none to begin with, whatever angle the camera was made at.
+  let tilt = 0
   let pan = { right: 0, forward: 0 }
   let panMultiple = 1
   let velocity = { x: 0, z: 0 }
   let turn = 0
   let gunView = false
 
-  /** The ground directions to the view's right and straight ahead, for a bearing. */
-  function axes(bearing: number) {
-    // ArcRotateCamera sits at (cos α, sin α) from its target, so it looks along the opposite way.
-    const forward = { x: -Math.cos(bearing), z: -Math.sin(bearing) }
-    return { forward, right: { x: forward.z, z: -forward.x } }
-  }
-
   function clampTarget(): void {
     target = { x: clamp(target.x, 0, bounds.width), z: clamp(target.z, 0, bounds.depth) }
+  }
+
+  /** How far the view leans from the soldier toward the ground under the pointer, as things stand. */
+  function wantedLean(): { x: number; z: number } {
+    if (!pointer) {
+      return { x: 0, z: 0 }
+    }
+    const across = 2 * view.distance * Math.tan(lens.fov / 2) * lens.aspect
+    const cap = LEAN.cap * across
+    const offset = groundOffset(view, lens, pointer, cap / LEAN.share)
+    const wanted = { x: offset.x * LEAN.share, z: offset.z * LEAN.share }
+    const length = Math.hypot(wanted.x, wanted.z)
+    return length > cap ? { x: (wanted.x / length) * cap, z: (wanted.z / length) * cap } : wanted
   }
 
   return {
@@ -181,14 +227,15 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     get following() {
       return following
     },
-    follow(x, z, going) {
+    follow(x, z) {
       followed = { x, z }
-      moving = going ? { x: going.x, z: going.z } : { x: 0, z: 0 }
     },
-    setAim(pointer) {
-      aim = pointer ? { right: clamp(pointer.right, -1, 1), up: clamp(pointer.up, -1, 1) } : null
-      if (aim) {
-        following = true
+    setPointer(at) {
+      pointer = at ? { right: clamp(at.right, -1, 1), up: clamp(at.up, -1, 1) } : null
+    },
+    setLens(next) {
+      if (next.fov > 0 && next.aspect > 0) {
+        lens = { fov: next.fov, aspect: next.aspect }
       }
     },
     recenter() {
@@ -250,22 +297,10 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
         z: velocity.z + (wanted.z - velocity.z) * accelerate
       }
       if (following) {
-        let wantedLead: { x: number; z: number }
-        if (aim) {
-          const reach = Math.min(AIM_LEAN.max, AIM_LEAN.share * view.distance)
-          wantedLead = {
-            x: (right.x * aim.right + forward.x * aim.up) * reach,
-            z: (right.z * aim.right + forward.z * aim.up) * reach
-          }
-        } else {
-          const reach = Math.min(WALK_LEAD.max, WALK_LEAD.share * view.distance)
-          wantedLead = { x: moving.x * reach, z: moving.z * reach }
-        }
-        const swing = ease(aim ? LEAD_RATE.aim : LEAD_RATE.walk, seconds)
-        const ahead = lookAhead(view.distance)
-        wantedLead = { x: wantedLead.x + forward.x * ahead, z: wantedLead.z + forward.z * ahead }
-        lead = { x: approach(lead.x, wantedLead.x, swing), z: approach(lead.z, wantedLead.z, swing) }
-        target = { x: followed.x + lead.x, z: followed.z + lead.z }
+        const toward = wantedLean()
+        const swing = ease(RATES.lean, seconds)
+        lean = { x: approach(lean.x, toward.x, swing), z: approach(lean.z, toward.z, swing) }
+        target = { x: followed.x + lean.x, z: followed.z + lean.z }
         velocity = { x: 0, z: 0 }
       } else {
         target = { x: target.x + velocity.x * seconds, z: target.z + velocity.z * seconds }

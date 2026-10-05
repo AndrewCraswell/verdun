@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createCameraRigModel, lookAhead, pitchForDistance, type RigView, ZOOM_RANGE } from "./camera-rig-model.ts"
+import { createCameraRigModel, pitchForDistance, type RigView, ZOOM_RANGE } from "./camera-rig-model.ts"
 
 const flat = () => 0
 const bounds = { width: 600, depth: 400 }
@@ -12,8 +12,10 @@ const start: RigView = {
   pitch: pitchForDistance(60)
 }
 
-/** Close in, the view looks this far past the soldier, north (+z) in these tests' view. */
-const ahead = lookAhead(60)
+/** The lens the tests see through: Babylon's usual field of view on a 16:9 screen. */
+const lens = { fov: 0.8, aspect: 16 / 9 }
+/** How far the ground runs from the middle of the screen to its right edge, at the focus, per metre of zoom. */
+const halfAcross = Math.tan(lens.fov / 2) * lens.aspect
 
 function settle(
   model: ReturnType<typeof createCameraRigModel>,
@@ -37,60 +39,62 @@ describe("camera rig", () => {
     expect(first.focusX).toBeLessThan(310)
     const settled = settle(model, 4)
     expect(settled.focusX).toBeCloseTo(320, 1)
-    expect(settled.focusZ).toBeCloseTo(220 + ahead, 1)
+    expect(settled.focusZ).toBeCloseTo(220, 1)
     expect(model.following).toBe(true)
   })
 
-  it("leads a soldier a little the way he walks, and centres on him when he stops", () => {
+  it("leans a third of the way from the soldier to the ground under the pointer, settling rather than chasing", () => {
     const model = createCameraRigModel(bounds, start)
-    model.follow(300, 200, { x: 0, z: 1 })
-    const walking = settle(model, 4)
-    // 12% of the 60 m zoom ahead of him.
-    expect(walking.focusX).toBeCloseTo(300, 1)
-    expect(walking.focusZ).toBeCloseTo(200 + 0.12 * 60 + ahead, 0)
-
-    model.setDistance(400)
-    expect(settle(model, 4).focusZ).toBeCloseTo(200 + 20, 0)
-
+    model.setLens(lens)
     model.follow(300, 200)
-    // Pulled back to a map view, it no longer looks past him.
-    expect(settle(model, 4).focusZ).toBeCloseTo(200, 0)
-  })
-
-  it("leans toward the pointer while aiming, by where it sits on the screen, and comes back when the aim is let go", () => {
-    const model = createCameraRigModel(bounds, start)
-    model.follow(300, 200)
-    // Looking north (yaw -90°): the screen's top is +z, its right +x. The pointer halfway to the top right corner.
-    model.setAim({ right: 0.5, up: 0.5 })
+    // Looking north (yaw -90°): the screen's right is +x. The pointer at the right edge, level with the middle.
+    model.setPointer({ right: 1, up: 0 })
     const first = model.step(1 / 60, flat)
     expect(first.focusX).toBeGreaterThan(300)
-    expect(first.focusZ).toBeGreaterThan(200)
-    // Settles at 45% of the zoom per unit of screen: the view moving doesn't move the lean.
-    const leaning = settle(model, 4)
-    expect(leaning.focusX).toBeCloseTo(300 + 0.5 * 0.45 * 60, 0)
-    expect(leaning.focusZ).toBeCloseTo(200 + 0.5 * 0.45 * 60 + ahead, 0)
+    const leaning = settle(model, 6)
+    // The ground under the right edge is half the screen's width of ground right of the middle; the middle sits a
+    // third of the way from him to it.
+    const underPointer = leaning.focusX + 60 * halfAcross
+    expect(leaning.focusX - 300).toBeCloseTo((underPointer - 300) / 3, 1)
+    expect(leaning.focusZ).toBeCloseTo(200, 1)
     expect(settle(model, 4)).toEqual(leaning)
 
-    model.setAim({ right: 0, up: 2 })
-    expect(settle(model, 4).focusZ).toBeCloseTo(200 + 0.45 * 60 + ahead, 0)
+    // Toward the top of the screen it leans ahead, the way the view looks.
+    model.setPointer({ right: 0, up: 0.8 })
+    const ahead = settle(model, 6)
+    expect(ahead.focusZ).toBeGreaterThan(210)
+    expect(ahead.focusX).toBeCloseTo(300, 1)
 
-    model.setAim(null)
-    const released = settle(model, 4)
-    expect(released.focusX).toBeCloseTo(300, 0)
-    expect(released.focusZ).toBeCloseTo(200 + ahead, 0)
+    model.setPointer(null)
+    const released = settle(model, 6)
+    expect(released.focusX).toBeCloseTo(300, 1)
+    expect(released.focusZ).toBeCloseTo(200, 1)
   })
 
-  it("goes back to the soldier when the player aims after panning away", () => {
+  it("never leans further than about a third of the ground the screen shows across", () => {
+    const model = createCameraRigModel(bounds, { ...start, distance: 10, pitch: pitchForDistance(10) })
+    model.setLens(lens)
+    model.follow(300, 200)
+    // Close in and tilted toward the horizon, the top of the screen looks far out over the ground.
+    model.rotate(0, 1)
+    model.setPointer({ right: 0, up: 1 })
+    const view = settle(model, 6)
+    const across = 2 * 10 * halfAcross
+    expect(Math.hypot(view.focusX - 300, view.focusZ - 200)).toBeCloseTo(0.35 * across, 1)
+  })
+
+  it("doesn't lean, nor take the view back, once the player has panned away", () => {
     const model = createCameraRigModel(bounds, start)
     model.follow(300, 200)
     model.setPan(1, 0)
-    settle(model, 1)
+    const panned = settle(model, 1)
     model.setPan(0, 0)
     expect(model.following).toBe(false)
 
-    model.setAim({ right: 0, up: 0 })
-    expect(model.following).toBe(true)
-    expect(settle(model, 3).focusX).toBeCloseTo(300, 0)
+    model.setPointer({ right: -1, up: 0 })
+    expect(model.following).toBe(false)
+    const still = settle(model, 2)
+    expect(still.focusX).toBeGreaterThan(panned.focusX)
   })
 
   it("pans freely with held keys, letting go of the soldier, and recentring brings it back", () => {
@@ -110,7 +114,7 @@ describe("camera rig", () => {
     model.recenter()
     const back = settle(model, 4)
     expect(back.focusX).toBeCloseTo(300, 1)
-    expect(back.focusZ).toBeCloseTo(200 + ahead, 1)
+    expect(back.focusZ).toBeCloseTo(200, 1)
   })
 
   it("pans faster the further back it is, so it feels the same at any zoom", () => {
@@ -169,8 +173,18 @@ describe("camera rig", () => {
     expect(settle(following, 3).distance).toBeCloseTo(ZOOM_RANGE.min, 0)
   })
 
-  it("tips toward overhead as it pulls back and toward the ground close in, within the player's tilt", () => {
-    expect(pitchForDistance(ZOOM_RANGE.min)).toBeGreaterThan(pitchForDistance(ZOOM_RANGE.max) + 0.5)
+  it("looks down at about 55° wherever a soldier is played from, tipping over toward a map far out", () => {
+    for (const distance of [16, 25, 35, 60, 90]) {
+      expect(pitchForDistance(distance)).toBeCloseTo(0.61, 2)
+    }
+    // No lower than 45° above the horizon until the zoom is under 12 m.
+    expect(pitchForDistance(12)).toBeLessThanOrEqual(Math.PI / 4)
+    expect(pitchForDistance(ZOOM_RANGE.min)).toBeGreaterThan(pitchForDistance(12))
+    expect(pitchForDistance(150)).toBeLessThan(0.61)
+    expect(pitchForDistance(ZOOM_RANGE.max)).toBeCloseTo(0.5, 2)
+  })
+
+  it("tilts within the player's range either side of the zoom's angle, and turns", () => {
     const model = createCameraRigModel(bounds, start)
     model.rotate(0.5, 10)
     const tilted = settle(model, 2)
@@ -183,8 +197,8 @@ describe("camera rig", () => {
 
   it("never puts the camera under the ground: it climbs over a hill behind it", () => {
     const model = createCameraRigModel(bounds, start)
-    // A ridge 40 m high behind the camera, south of the focus.
-    const ridge = (_x: number, z: number) => (z < 180 ? 40 : 0)
+    // A ridge 60 m high behind the camera, south of the focus.
+    const ridge = (_x: number, z: number) => (z < 180 ? 60 : 0)
     const view = settle(model, 2, ridge)
     const back = view.distance * Math.sin(view.pitch)
     const cameraY = view.focusY + view.distance * Math.cos(view.pitch)
@@ -200,7 +214,7 @@ describe("camera rig", () => {
     const after = model.step(1 / 60, flat)
 
     expect(settled.focusX).toBe(320)
-    expect(settled.focusZ).toBe(220 + ahead)
+    expect(settled.focusZ).toBe(220)
     expect(after).toEqual(settled)
   })
 
@@ -218,20 +232,13 @@ describe("camera rig", () => {
     expect(atThirty.distance).toBeCloseTo(atOneFortyFour.distance, 0)
   })
 
-  it("looks past the soldier close in, fading out as it pulls back to a map view", () => {
-    expect(lookAhead(ZOOM_RANGE.min)).toBeCloseTo(0.3 * ZOOM_RANGE.min)
-    expect(lookAhead(60)).toBeGreaterThan(5)
-    expect(lookAhead(120)).toBe(0)
-    expect(lookAhead(ZOOM_RANGE.max)).toBe(0)
-  })
-
   it("rises to look down along the gun's arc while manning a machine gun, and comes back down after", () => {
     const model = createCameraRigModel(bounds, { ...start, distance: 20, pitch: pitchForDistance(20) })
     model.follow(300, 200)
     model.setGunView(true)
     const manning = settle(model, 3)
     expect(manning.distance).toBeCloseTo(45, 0)
-    expect(manning.pitch).toBeLessThan(pitchForDistance(20) - 0.2)
+    expect(manning.pitch).toBeGreaterThan(pitchForDistance(20) + 0.1)
 
     model.setGunView(false)
     const left = settle(model, 3)

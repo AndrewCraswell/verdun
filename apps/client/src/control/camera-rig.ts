@@ -3,22 +3,22 @@ import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { cameraSettings } from "../settings/camera.ts"
 import { canonicalCode, keymap } from "../ui/keymap.ts"
-import { type CameraRigModel, createCameraRigModel, ZOOM_RANGE } from "./camera-rig-model.ts"
+import { type CameraRigModel, createCameraRigModel, type ScreenPoint, ZOOM_RANGE } from "./camera-rig-model.ts"
 import { groundUnderPointer } from "./ground-pick.ts"
 
 export interface CameraRig {
   readonly model: CameraRigModel
   /**
-   * Where the soldier under control is now, and the way they're walking; the camera tracks them, a little ahead, while
-   * following. Call every frame.
+   * Where the soldier under control is now; the camera tracks them while following, leaning toward the pointer. Call
+   * every frame.
    */
-  follow(x: number, z: number, moving?: { readonly x: number; readonly z: number }): void
+  follow(x: number, z: number): void
   /** Goes back to following the soldier under control. */
   recenter(): void
   dispose(): void
 }
 
-/** The pointer within this many pixels of the screen's edge pans the view that way... */
+/** Once the view is off the soldier, the pointer within this many pixels of the screen's edge pans it that way... */
 const EDGE_PIXELS = 14
 /** ...once it has rested there this many seconds: a flick across the screen to aim at a man near its edge doesn't. */
 const EDGE_DWELL = 0.35
@@ -56,10 +56,10 @@ function typing(event: KeyboardEvent): boolean {
 
 /**
  * The battlefield camera, as tactics games do it: follows the soldier under control until the player pans away, and
- * goes back to them on Space.
+ * goes back to them on Home or when he moves.
  *
- * - Aim: hold the right mouse button, and the view leans toward the pointer.
- * - Pan: arrow keys, the pointer resting at a screen edge (not while aiming), or Shift + middle-drag to grab the ground.
+ * - Following, the view leans toward the pointer, a third of the way from him to the ground under it.
+ * - Pan: arrow keys, or Shift + middle-drag to grab the ground; once panned away, the pointer resting at a screen edge.
  * - Turn and tilt: middle-drag, or Shift + Left and Right.
  * - Zoom: the wheel, toward the point under the pointer when panning freely. The view tips toward overhead as it pulls
  *   back and drops toward the ground close in.
@@ -92,7 +92,6 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
   const arrows = new Set<string>()
   let pointer: { x: number; y: number } | null = null
   let dragging: { x: number; y: number; grab: boolean } | null = null
-  let aiming = false
   let shift = false
   /** When the pointer reached a screen edge, by the frame clock, or null when it isn't at one. */
   let atEdgeSince: number | null = null
@@ -103,7 +102,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
 
   /** How far into each screen edge the pointer is, from 0 to 1, right and up; zero away from the edges. */
   function edgePush(): { right: number; forward: number } {
-    if (!pointer || !canvas || dragging || aiming || !document.hasFocus() || !settings.current.edgePan) {
+    // Following the soldier, the pointer leans the view instead: an edge pans only once the player has panned away.
+    if (!pointer || !canvas || dragging || model.following || !document.hasFocus() || !settings.current.edgePan) {
       return { right: 0, forward: 0 }
     }
     const { clientWidth: width, clientHeight: height } = canvas
@@ -138,13 +138,18 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     model.setTurn(turn)
   }
 
-  /** Where the pointer sits on the screen, -1 to 1 from the middle to the right and top edges, for aiming. */
-  function aimPointer(): { right: number; up: number } | null {
-    if (!aiming || !pointer || !canvas) {
-      return null
+  /**
+   * Where the pointer sits on the screen, -1 to 1 from the middle to the right and top edges, for the lean. It stays
+   * where it last was over the battlefield while the pointer is over the HUD, or turns the view with the middle
+   * button.
+   */
+  let leanPointer: ScreenPoint | null = null
+  function updateLean(): void {
+    if (pointer && canvas && !dragging) {
+      const { clientWidth: width, clientHeight: height } = canvas
+      leanPointer = { right: (pointer.x - width / 2) / (width / 2), up: (height / 2 - pointer.y) / (height / 2) }
     }
-    const { clientWidth: width, clientHeight: height } = canvas
-    return { right: (pointer.x - width / 2) / (width / 2), up: (height / 2 - pointer.y) / (height / 2) }
+    model.setPointer(leanPointer)
   }
 
   function arrowsAgain(): void {
@@ -183,8 +188,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     down.clear()
     arrows.clear()
     pointer = null
+    leanPointer = null
     dragging = null
-    aiming = false
     shift = false
   }
   const onPointerDown = (event: PointerEvent) => {
@@ -193,8 +198,6 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
       event.preventDefault()
       dragging = { x: event.clientX, y: event.clientY, grab: event.shiftKey }
       canvas?.setPointerCapture(event.pointerId)
-    } else if (event.button === 2) {
-      aiming = true
     }
   }
   const onPointerMove = (event: PointerEvent) => {
@@ -219,14 +222,12 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     if (event.button === 1) {
       dragging = null
       canvas?.releasePointerCapture(event.pointerId)
-    } else if (event.button === 2) {
-      aiming = false
     }
   }
   const onPointerLeave = () => {
     pointer = null
   }
-  // The right button aims: no menu.
+  // The right button is the game's: no menu.
   const onContextMenu = (event: MouseEvent) => {
     event.preventDefault()
   }
@@ -261,7 +262,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
     const seconds = Math.min(0.1, scene.getEngine().getDeltaTime() / 1000)
     clock += seconds
     updateHeld()
-    model.setAim(aimPointer())
+    updateLean()
+    model.setLens({ fov: camera.fov, aspect: scene.getEngine().getAspectRatio(camera) })
     const view = model.step(seconds, (x, z) => heightAt(map, x, z))
     camera.target.set(view.focusX, view.focusY, view.focusZ)
     camera.alpha = view.yaw
@@ -272,8 +274,8 @@ export function createCameraRig(camera: ArcRotateCamera, scene: Scene, map: Batt
 
   const rig: CameraRig = {
     model,
-    follow(x, z, moving) {
-      model.follow(x, z, moving)
+    follow(x, z) {
+      model.follow(x, z)
     },
     recenter() {
       model.recenter()
