@@ -1,8 +1,9 @@
 import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
-import { GRENADE_RANGE, throwGrenade } from "./combat.ts"
+import { throwGrenade } from "./combat.ts"
 import { Side } from "./components.ts"
+import { GRENADE_RANGE } from "./grenade.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import {
   createSimulation,
@@ -45,12 +46,18 @@ describe("grenades", () => {
     const thrower = spawnSoldier(sim, { side: Side.French, x: 100, z: 140 })
 
     expect(throwGrenade(sim, thrower, 100, 60)).toBe(true)
-    expect(sim.events).toContainEqual({ type: "throw", soldier: thrower })
     expect(sim.soldiers.grenades.count[thrower]).toBe(GRENADES_CARRIED - 1)
     const [grenade] = sim.artillery.shells
     expect(grenade?.shell).toBe(Shell.Grenade)
     expect(Math.abs((grenade?.z ?? 0) - (140 - GRENADE_RANGE.max))).toBeLessThan(10)
     expect(grenade?.landsAtTick).toBe(90)
+    // The throw says where it goes, for drawing it on its way: from his hand to where it bursts, when it does.
+    const thrown = sim.events.find((event) => event.type === "throw")
+    expect(thrown).toMatchObject({ type: "throw", soldier: thrower, grenade: { burstTick: 90, struck: null } })
+    const way = thrown?.type === "throw" ? thrown.grenade : undefined
+    expect(way?.rest).toEqual({ x: grenade?.x, z: grenade?.z })
+    expect(way?.from.z).toBe(140)
+    expect(way?.from.y).toBeCloseTo(5 + 1.9, 5)
     // Still priming and throwing: no second grenade yet.
     expect(throwGrenade(sim, thrower, 100, 60)).toBe(false)
   })

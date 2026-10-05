@@ -1,7 +1,9 @@
+import { heightAt } from "@verdun/map"
 import { type EntityId, hasComponent } from "bitecs"
 import { Shell } from "./artillery.ts"
 import { reloadFactor } from "./climate.ts"
 import { MaskState, Side, Stance } from "./components.ts"
+import { GRENADE_RANGE, type GroundPoint, grenadeFlight } from "./grenade.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut } from "./sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
@@ -37,12 +39,15 @@ export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
   [Weapon.MachineGun]: { interval: 0.15, accuracy: 0.1, falloff: 220, range: 600, suppression: 0.12 }
 }
 
-/** Grenades are thrown at enemies between these distances, in metres: closer risks the thrower, further is too far. */
-export const GRENADE_RANGE = { min: 6, max: 25 } as const
 /** Seconds from deciding to throw until the grenade bursts: pull the pin or the cord, throw, and a 4-5 s fuse. */
-const GRENADE_FUSE = 4.5
+export const GRENADE_FUSE = 4.5
 /** Nobody throws where a friend is within this many metres of the target: grenades scatter, and so do fragments. */
 const GRENADE_CLEARANCE = 8
+/**
+ * Bombers throw at enemies this close, in metres: a throw they can rely on. A man can heave one further (GRENADE_RANGE),
+ * and the player may, but at the far end of a throw it scatters wide and is easily dropped short.
+ */
+const BOMBING_RANGE = 25
 /** Seconds a throw takes the thrower out of the fight, priming and throwing. */
 const THROW_SECONDS = 3
 /** Throws scatter by this much, plus a share of the distance, in metres (probable error). */
@@ -102,10 +107,26 @@ export interface ShotEvent {
   readonly to: WorldPoint
 }
 
-/** A soldier throwing a grenade this step, for animation. */
+/** A soldier throwing a grenade this step: for his animation, and to draw the grenade on its way. */
 export interface ThrowEvent {
   readonly type: "throw"
   readonly soldier: EntityId
+  /** The grenade's way, for a throw the simulation made. */
+  readonly grenade?: ThrownGrenade
+}
+
+/** A grenade's way from the hand to where it bursts, as the simulation threw it (grenade.ts). */
+export interface ThrownGrenade {
+  /** Where it leaves the hand. */
+  readonly from: WorldPoint
+  /** Where its arc was thrown to come down, on the ground. */
+  readonly mark: WorldPoint
+  /** Where the arc struck the ground short of the mark, or null when it came down on it. */
+  readonly struck: WorldPoint | null
+  /** Where it comes to rest after any roll, and bursts. */
+  readonly rest: GroundPoint
+  /** The tick it bursts on. */
+  readonly burstTick: number
 }
 
 /** Just the shots among a step's events. */
@@ -401,29 +422,46 @@ function scatter(sim: Simulation, probableError: number): number {
   return (Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * probableError) / 0.6745
 }
 
+/** The probable error of a throw at a ground point, in metres: a man's aim worsens with the distance. */
+export function throwError(distance: number): number {
+  return THROW_ERROR.base + THROW_ERROR.perMetre * Math.min(distance, GRENADE_RANGE.max)
+}
+
 /**
  * Throws a grenade toward a ground point, if the soldier has one and is ready, at most the maximum throw away. It
- * bursts after its fuse wherever it lands. Returns whether a grenade was thrown.
+ * flies an arc from his hand and bursts after its fuse where it comes to rest: where it lands, or, if it struck steep
+ * ground short of its mark, wherever it rolled back to (grenade.ts). Returns whether a grenade was thrown.
  */
 export function throwGrenade(sim: Simulation, thrower: EntityId, x: number, z: number): boolean {
   const { grenades, weapon, position } = sim.soldiers
   if (!isAlive(sim, thrower) || grenades.count[thrower] === 0 || weapon.cooldown[thrower] > 0) {
     return false
   }
-  const dx = x - position.x[thrower]
-  const dz = z - position.z[thrower]
-  const distance = Math.sqrt(dx * dx + dz * dz)
-  const reach = distance > GRENADE_RANGE.max ? GRENADE_RANGE.max / distance : 1
-  const error = THROW_ERROR.base + THROW_ERROR.perMetre * Math.min(distance, GRENADE_RANGE.max)
+  const distance = Math.hypot(x - position.x[thrower], z - position.z[thrower])
+  const error = throwError(distance)
   grenades.count[thrower] -= 1
   weapon.cooldown[thrower] = THROW_SECONDS
-  sim.events.push({ type: "throw", soldier: thrower })
+  // The throw's error is in where he aims it; the arc and the ground decide where it ends up.
+  const flight = grenadeFlight(sim, thrower, x + scatter(sim, error), z + scatter(sim, error))
+  const burstTick = sim.tick + Math.round(GRENADE_FUSE / STEP_SECONDS)
+  const ground = (point: GroundPoint) => ({ x: point.x, y: heightAt(sim.map, point.x, point.z), z: point.z })
+  sim.events.push({
+    type: "throw",
+    soldier: thrower,
+    grenade: {
+      from: flight.from,
+      mark: ground(flight.mark),
+      struck: flight.struck ? ground(flight.struck) : null,
+      rest: flight.rest,
+      burstTick
+    }
+  })
   sim.artillery.shells.push({
     shell: Shell.Grenade,
     side: sim.soldiers.side.value[thrower] === 1 ? 1 : 0,
-    x: position.x[thrower] + dx * reach + scatter(sim, error),
-    z: position.z[thrower] + dz * reach + scatter(sim, error),
-    landsAtTick: sim.tick + Math.round(GRENADE_FUSE / STEP_SECONDS)
+    x: flight.rest.x,
+    z: flight.rest.z,
+    landsAtTick: burstTick
   })
   return true
 }
@@ -441,7 +479,7 @@ function bombIfWorthIt(sim: Simulation, soldier: EntityId): boolean {
   const ours = side.value[soldier]
   let best: EntityId = -1
   let bestDistance = Infinity
-  const near = soldiersNear(sim, position.x[soldier], position.z[soldier], GRENADE_RANGE.max)
+  const near = soldiersNear(sim, position.x[soldier], position.z[soldier], BOMBING_RANGE)
   for (const enemy of near) {
     if (side.value[enemy] === ours || !isAlive(sim, enemy)) {
       continue
@@ -451,7 +489,7 @@ function bombIfWorthIt(sim: Simulation, soldier: EntityId): boolean {
     const distance = Math.sqrt(dx * dx + dz * dz)
     if (
       distance >= GRENADE_RANGE.min &&
-      distance <= GRENADE_RANGE.max &&
+      distance <= BOMBING_RANGE &&
       (distance < bestDistance || (distance === bestDistance && enemy < best))
     ) {
       best = enemy
@@ -474,7 +512,10 @@ function bombIfWorthIt(sim: Simulation, soldier: EntityId): boolean {
       (toTarget < GRENADE_CLEARANCE ** 2 || toTarget < bestDistance ** 2)
     )
   })
-  return !friendNear && throwGrenade(sim, soldier, x, z)
+  // Nor a throw he can see won't get there: from too low in a trench it would strike the parapet and roll back.
+  const flight = grenadeFlight(sim, soldier, x, z)
+  const fallsWide = Math.hypot(flight.rest.x - x, flight.rest.z - z) > GRENADE_CLEARANCE / 2
+  return !friendNear && !fallsWide && throwGrenade(sim, soldier, x, z)
 }
 
 /**

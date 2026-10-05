@@ -168,7 +168,9 @@ describe("dugouts", () => {
     const [, ...men] = garrison(sim)
     shellNear(sim)
     stepFor(sim, 1)
-    spawnSoldier(sim, { side: Side.French, x: 95, z: 130 })
+    const attacker = spawnSoldier(sim, { side: Side.French, x: 95, z: 130 })
+    // Within a grenade's throw of the bay: without his grenades, so only the sentry's alarm decides it.
+    sim.soldiers.grenades.count[attacker] = 0
     stepFor(sim, 3 + 21)
 
     expect(men.every((member) => sim.soldiers.stance.value[member] === Stance.Standing)).toBe(true)

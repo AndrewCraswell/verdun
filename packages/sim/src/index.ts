@@ -20,12 +20,14 @@ export {
   BROKEN_MORALE,
   aimedTarget,
   fireAimed,
-  GRENADE_RANGE,
+  GRENADE_FUSE,
   hitChance,
   PINNED,
   type ShotEvent,
   shotEvents,
+  throwError,
   type ThrowEvent,
+  type ThrownGrenade,
   Weapon,
   WEAPONS
 } from "./combat.ts"
@@ -147,6 +149,15 @@ export {
   isDark
 } from "./flares.ts"
 export { aimInLight, canMakeOut, FLASH_REACH, FLASH_SECONDS, isFlashing, lightAt, sightReach } from "./sight.ts"
+export {
+  GRENADE_RANGE,
+  type GrenadeFlight,
+  grenadeFlight,
+  type GroundPoint,
+  type Lob,
+  lob,
+  throwReach
+} from "./grenade.ts"
 export { isNight, isStandTo } from "./routine.ts"
 export { weatherPace } from "./ground.ts"
 export {
