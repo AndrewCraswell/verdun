@@ -44,6 +44,7 @@ import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
 import { playSettings } from "./settings/play.ts"
+import { sideSettings } from "./settings/side.ts"
 import { browserStorage } from "./settings/store.ts"
 import { createSimHost } from "./sim/sim-host.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn } from "./skirmish.ts"
@@ -134,7 +135,16 @@ export async function startBattle(
   const host = await createSimHost(
     map,
     // ?free plays the battle as it stands, without the playtest's operation: free play, for development.
-    { elevation: elevationData, mapSeed: 1916, simSeed: 1916, region, weatherSeed, free: address.has("free") },
+    // The side the player chose at the front door: French unless Germany was chosen.
+    {
+      elevation: elevationData,
+      mapSeed: 1916,
+      simSeed: 1916,
+      region,
+      weatherSeed,
+      free: address.has("free"),
+      side: sideSettings().current.side === "german" ? Side.German : Side.French
+    },
     address.has("inline")
   )
   const { sim, playerSquad } = host
@@ -151,7 +161,7 @@ export async function startBattle(
   )
 
   menu.attach({ war, renderer: engine.isWebGPU ? "WebGPU" : "WebGL" })
-  const view = createBattlefieldScene(engine, sim, { attachControl: true })
+  const view = createBattlefieldScene(engine, sim, { attachControl: true, side: playerSquad.side })
   // Babylon chooses what to draw from the enabled meshes only, not the kit's switched-off sources too.
   selectEnabledMeshes(view.scene)
   // The war map's view shows the enemy only where the fog of war does: the men our side can see.
