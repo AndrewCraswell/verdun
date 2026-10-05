@@ -34,15 +34,21 @@ export interface Atmosphere {
   readonly mist: ParticleSystem
   /** Grades the picture for how the air is lit now (see particle-light.ts's airLight): blue at night. */
   update(light: Color3): void
+  /**
+   * Builds, while the battle loads, the shaders for the sector seen from high up, without the sun's shadows (see
+   * `SunShadows`). Done at once where there are no shadows.
+   */
+  warmUp(): Promise<void>
   dispose(): void
 }
 
 /**
  * Shadows only near the camera, where they show, from the pieces big enough to cast one that reads: trench walls,
- * trees, ruins, guns, soldiers, the ground itself. Above `cameraHeight` the sector is too small on screen for shadows
- * to show, so none are drawn.
+ * trees, ruins, guns, soldiers, the ground itself. With the camera over `offAbove` metres up the sector is too small on
+ * screen for shadows to show, so the sun casts none and nothing pays to receive them, until it comes back below
+ * `onBelow`: the gap keeps a camera hovering about the height from switching every material's shader back and forth.
  */
-const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, cameraHeight: 190 } as const
+const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, offAbove: 200, onBelow: 180 } as const
 /**
  * Pieces not worth drawing again for every cascade: too small or flat for a shadow that reads (grass, the litter of
  * battle, planks, tiles and the railway's track), or, like the trench kit, already shadowed by the carved ground
@@ -203,12 +209,63 @@ function createShadows(
   if (shadowMap) {
     shadowMap.renderList = casters
     shadowMap.getCustomRenderList = castersInCascade(shadows)
-    const none: AbstractMesh[] = []
-    scene.onBeforeRenderObservable.add(() => {
-      shadowMap.renderList = camera.globalPosition.y > SHADOW.cameraHeight ? none : casters
-    })
   }
   return shadows
+}
+
+/** Whether the sun casts shadows for a camera this high, by whether it did until now (see `SHADOW`). */
+export function sunCastsShadows(height: number, casting: boolean): boolean {
+  return height < (casting ? SHADOW.offAbove : SHADOW.onBelow)
+}
+
+/** The sun's shadows, switched by the camera's height. */
+export interface SunShadows {
+  /**
+   * Builds the shaders that draw the sector without the sun's shadows, as from high up, while the battle loads, and
+   * draws a frame with them for the renderer to set them up, then lets the sun cast shadows again: the first climb
+   * finds them built, rather than every material building its own at once. Resolves with the shaders for shadows
+   * still to build: wait for the scene to be ready after it.
+   */
+  warmUp(): Promise<void>
+  dispose(): void
+}
+
+/**
+ * Switches the sun's shadows off with the camera high up and on again as it comes down (see `SHADOW`). Off, the
+ * cascades aren't drawn and the materials take their shaders without shadows, where emptying the cascades of casters
+ * still drew both, empty, and had every material read them for every pixel. Each switch changes every receiving
+ * material's shader.
+ */
+export function switchSunShadows(scene: Scene, sun: DirectionalLight, camera: Camera): SunShadows {
+  let casting = sun.shadowEnabled
+  let held = false
+  const cast = (on: boolean) => {
+    casting = on
+    sun.shadowEnabled = on
+  }
+  const observer = scene.onBeforeRenderObservable.add(() => {
+    const on = sunCastsShadows(camera.globalPosition.y, casting)
+    // Set only when the height calls for a change, so one made elsewhere holds, as scripts/perf.mjs's does.
+    if (!held && on !== casting) {
+      cast(on)
+    }
+  })
+  return {
+    async warmUp() {
+      held = true
+      sun.shadowEnabled = false
+      await scene.whenReadyAsync()
+      await new Promise<void>((resolve) => scene.onAfterRenderObservable.addOnce(() => resolve()))
+      held = false
+      cast(sunCastsShadows(camera.globalPosition.y, casting))
+      // Babylon counts a material it found ready in a frame as ready for the rest of it, whatever changes since: a new
+      // frame's count has the loading's next check find the shaders for shadows still to build.
+      scene.incrementRenderId()
+    },
+    dispose() {
+      observer.remove()
+    }
+  }
 }
 
 /** Where smoke rises: about one ruin in four still burning, and every wreck. */
@@ -356,6 +413,7 @@ export function createAtmosphere(
   })
 
   const shadows = createShadows(scene, map, sun, camera)
+  const sunShadows = shadows ? switchSunShadows(scene, sun, camera) : null
   // The soft spot rather than Synty's faceted puff: drawn many times over, the puff's hard edges show as discs.
   const smoke = createSmoke(scene, sprites.mist, smokeSources(map))
   const mist = createMist(scene, sprites.mist, mistSpots(map))
@@ -374,10 +432,14 @@ export function createAtmosphere(
       curves.globalDensity = NIGHT_GRADE.density * night
       expose()
     },
+    async warmUp() {
+      await sunShadows?.warmUp()
+    },
     dispose() {
       unlistenDisplay()
       smoke.dispose()
       mist.dispose()
+      sunShadows?.dispose()
       shadows?.dispose()
     }
   }

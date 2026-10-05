@@ -516,6 +516,8 @@ export async function startBattle(
     stats.update()
   })
   window.addEventListener("resize", () => engine.resize())
-  // The loading screen gives way once the battle has drawn its first frame, its shaders built.
+  // The loading screen gives way once the battle has drawn its first frame, its shaders built: first those for the
+  // sector seen from high up, without the sun's shadows (see atmosphere.ts).
+  await level?.atmosphere?.warmUp()
   view.scene.executeWhenReady(() => view.scene.onAfterRenderObservable.addOnce(() => menu.ready()))
 }

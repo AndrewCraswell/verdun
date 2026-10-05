@@ -320,12 +320,13 @@ const SCENARIOS = [
     teardown:
       "{ const s = verdun.engine.scenes[0]; const p = s.postProcessRenderPipelineManager.supportedPipelines[0]; if (p) s.postProcessRenderPipelineManager.attachCamerasToRenderPipeline(p.name, [s.activeCamera]) }"
   },
+  // Put back as found: with the camera high up (--eval), the game has already switched the sun's shadows off.
   {
     name: "day, no sun shadows",
     setup:
-      "{ const sun = verdun.engine.scenes[0].lights.find((l) => l.name === 'sun'); if (sun) sun.shadowEnabled = false }",
+      "{ const sun = verdun.engine.scenes[0].lights.find((l) => l.name === 'sun'); if (sun) { window.__perfWas = sun.shadowEnabled; sun.shadowEnabled = false } }",
     teardown:
-      "{ const sun = verdun.engine.scenes[0].lights.find((l) => l.name === 'sun'); if (sun) sun.shadowEnabled = true }"
+      "{ const sun = verdun.engine.scenes[0].lights.find((l) => l.name === 'sun'); if (sun) sun.shadowEnabled = window.__perfWas }"
   },
   ...pipelineProbe("no depth of field", "depthOfFieldEnabled", false),
   ...pipelineProbe("no bloom", "bloomEnabled", false),

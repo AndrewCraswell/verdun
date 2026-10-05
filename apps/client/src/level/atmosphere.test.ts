@@ -1,4 +1,5 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
+import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
@@ -9,7 +10,15 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
-import { castersInCascade, castsShadow, createAtmosphere, nightness, receivesShadow } from "./atmosphere.ts"
+import {
+  castersInCascade,
+  castsShadow,
+  createAtmosphere,
+  nightness,
+  receivesShadow,
+  sunCastsShadows,
+  switchSunShadows
+} from "./atmosphere.ts"
 
 const engines: NullEngine[] = []
 
@@ -99,6 +108,65 @@ describe("castersInCascade", () => {
   })
 })
 
+describe("sunCastsShadows", () => {
+  it("takes the sun's shadows away above 200 m and gives them back below 180 m, holding them between", () => {
+    expect(sunCastsShadows(60, true)).toBe(true)
+    expect(sunCastsShadows(195, true)).toBe(true)
+    expect(sunCastsShadows(200, true)).toBe(false)
+    expect(sunCastsShadows(185, false)).toBe(false)
+    expect(sunCastsShadows(175, false)).toBe(true)
+  })
+})
+
+/** Draws frames, a task apart, until the promise settles. */
+async function drawUntil(scene: Scene, promise: Promise<void>): Promise<void> {
+  let settled = false
+  void promise.finally(() => {
+    settled = true
+  })
+  while (!settled) {
+    scene.render()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+  await promise
+}
+
+describe("switchSunShadows", () => {
+  it("builds the shaders without shadows as the battle loads, then switches them by the camera's height", async () => {
+    const { scene } = field()
+    const sun = new DirectionalLight("sun", new Vector3(0, -1, 0), scene)
+    const eye = new TargetCamera("eye", new Vector3(100, 40, 100), scene)
+    scene.activeCamera = eye
+    const switched = switchSunShadows(scene, sun, eye)
+    const from = (height: number) => {
+      eye.position.y = height
+      // The camera's place is worked out as a frame draws, after the switch has looked at the last one's.
+      scene.render()
+      scene.render()
+      return sun.shadowEnabled
+    }
+
+    const warming = switched.warmUp()
+    // Off while the battle loads, however low the camera.
+    expect(from(40)).toBe(false)
+    await drawUntil(scene, warming)
+    expect(sun.shadowEnabled).toBe(true)
+
+    expect(from(195)).toBe(true)
+    expect(from(205)).toBe(false)
+    expect(from(185)).toBe(false)
+    expect(from(175)).toBe(true)
+    // A switch made elsewhere, as scripts/perf.mjs makes, holds until the height calls for one.
+    sun.shadowEnabled = false
+    expect(from(60)).toBe(false)
+    expect(from(205)).toBe(false)
+    expect(from(60)).toBe(true)
+
+    switched.dispose()
+    expect(from(205)).toBe(true)
+  })
+})
+
 describe("createAtmosphere", () => {
   it("needs the scene's sun and sky to work with", () => {
     const { map, scene, camera, sprites } = field()
@@ -106,7 +174,7 @@ describe("createAtmosphere", () => {
     expect(createAtmosphere(scene, map, camera, sprites)).toBeNull()
   })
 
-  it("grades the image and lets smoke and mist drift, shadowless where the engine can't", () => {
+  it("grades the image and lets smoke and mist drift, shadowless where the engine can't", async () => {
     const { map, scene, camera, sprites } = field()
     const sun = new DirectionalLight("sun", new Vector3(0, -1, 0), scene)
     const sky = new HemisphericLight("sky", Vector3.Up(), scene)
@@ -121,6 +189,9 @@ describe("createAtmosphere", () => {
     expect(atmosphere?.shadows).toBeNull()
     expect(atmosphere?.smoke.isStarted()).toBe(true)
     expect(atmosphere?.mist.isStarted()).toBe(true)
+    // Nor anything to build for the sector seen from high up, without them.
+    await atmosphere?.warmUp()
+    expect(sun.shadowEnabled).toBe(true)
     atmosphere?.dispose()
   })
 
