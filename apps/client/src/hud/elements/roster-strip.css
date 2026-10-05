@@ -30,16 +30,22 @@
   font: inherit;
   text-shadow: inherit;
   cursor: pointer;
+  /* Quick, so a pointer over a tile or a click on it answers at once. */
   transition:
-    transform var(--hud-med) var(--hud-ease),
-    border-color var(--hud-med) var(--hud-ease),
-    background-color var(--hud-med) var(--hud-ease),
+    transform var(--hud-fast) var(--hud-ease),
+    border-color var(--hud-fast) var(--hud-ease),
+    background-color var(--hud-fast) var(--hud-ease),
     opacity var(--hud-slow) var(--hud-ease);
 }
 
 .rs-tile:hover {
   border-color: var(--hud-hairline-strong);
   transform: translateY(-0.12em);
+}
+
+.rs-tile:active {
+  transform: translateY(0.04em);
+  transition-duration: 0ms;
 }
 
 .rs-tile:focus-visible {

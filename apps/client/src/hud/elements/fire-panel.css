@@ -157,8 +157,8 @@
   opacity: 0.45;
   transition:
     opacity var(--hud-med) var(--hud-ease),
-    border-color var(--hud-med) var(--hud-ease),
-    background-color var(--hud-med) var(--hud-ease);
+    border-color var(--hud-fast) var(--hud-ease),
+    background-color var(--hud-fast) var(--hud-ease);
 }
 
 .fp-call[data-available] {
