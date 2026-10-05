@@ -44,7 +44,7 @@ export interface Menu {
     readonly renderer?: string
     readonly battle?: BattleParts
   }): void
-  /** Settles when the player is in the line and the battle shows: at once when there is neither front door nor loading. */
+  /** Settles when the player is in the line and the battle shows, once the loading screen has given way to it. */
   readonly entered: Promise<void>
   /** Opens the menu over the battle at one of its pages: "options", "front", "sector"... */
   showPage(id: string): void
@@ -57,8 +57,6 @@ export interface MenuOptions {
   readonly development?: boolean
   /** Whether the game opens on the front door, or goes straight into the line. */
   readonly frontDoor?: boolean
-  /** Whether a loading screen covers the battle until it's ready; off for measuring, which starts straight away. */
-  readonly loadingScreen?: boolean
   /** The build, for the footer: a commit, or "dev". */
   readonly build?: string
 }
@@ -91,17 +89,13 @@ function reloadAddress(play: boolean): string {
  */
 export function createMenu(
   parent: HTMLElement,
-  { development = false, frontDoor = true, loadingScreen = true, build = "dev" }: MenuOptions = {}
+  { development = false, frontDoor = true, build = "dev" }: MenuOptions = {}
 ): Menu {
   let war: { readonly day: WarDay } | null = null
   let renderer: string | null = null
   let battle: BattleParts | null = null
-  let screen: Screen = "battle"
-  if (frontDoor) {
-    screen = "front-door"
-  } else if (loadingScreen) {
-    screen = "loading"
-  }
+  // The front door, or straight to the loading screen (?play, ?debug): nothing of the battle shows until it's drawing.
+  let screen: Screen = frontDoor ? "front-door" : "loading"
   let open = frontDoor
   /** A page shown on its own over the running battle, by its key. */
   let alone = false
@@ -483,14 +477,13 @@ export function createMenu(
   }, 1000)
 
   root.hidden = !open
-  hint.hidden = screen !== "battle"
+  // The hint comes once the battle shows.
+  hint.hidden = true
   setText(enterNote, "Bringing up the battle")
   layout()
   if (screen === "loading") {
     loadingSince = performance.now() - GOING_UP
     loading.show()
-  } else if (screen === "battle") {
-    entering()
   }
   if (open) {
     enterButton.focus()
