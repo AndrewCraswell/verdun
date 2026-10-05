@@ -3,7 +3,6 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
-import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
@@ -32,12 +31,12 @@ function setup(light = 0) {
     seed: 1
   })
   const state = { tick: 0, light }
-  const wall = CreateBox("Bld_Wall#1", { size: 2 }, scene)
-  const view = createFlareView(
-    scene,
-    { sim, tick: () => state.tick, light: () => state.light, focus: () => new Vector3(100, 0, 100) },
-    (mesh) => mesh === wall
-  )
+  const view = createFlareView(scene, {
+    sim,
+    tick: () => state.tick,
+    light: () => state.light,
+    focus: () => new Vector3(100, 0, 100)
+  })
   const launch = (x: number, z: number, firedAt = 0): Flare => {
     const flare: Flare = {
       side: Side.French,
@@ -76,7 +75,7 @@ describe("the flare view", () => {
     expect(material instanceof StandardMaterial && material.emissiveColor.r > 1.05).toBe(true)
   })
 
-  it("swings under its parachute and lights the ground beneath with the leading spot light and its shadows", () => {
+  it("swings under its parachute and lights the ground beneath with the leading spot light", () => {
     const { view, launch, state, scene } = setup()
     const flare = launch(100, 100)
     state.tick = 8 * TICKS
@@ -105,7 +104,8 @@ describe("the flare view", () => {
     expect(lead?.intensity).toBeGreaterThan(0.5)
     expect(lead?.position.y).toBeGreaterThan(40)
     expect(second?.intensity).toBe(0)
-    expect(view.shadows?.getShadowMap()?.renderList).toHaveLength(1)
+    // No shadows: they never showed, for all a shadow map's drawing (see flare-view.ts).
+    expect(lead?.getShadowGenerator()).toBeNull()
   })
 
   it("burns brighter as it sinks, then gutters orange and goes out, its smoke lingering", () => {
@@ -137,7 +137,7 @@ describe("the flare view", () => {
     expect(scene.fogColor.r).toBeGreaterThan(fogBefore.r)
   })
 
-  it("makes do with one light and no flare shadows on the low setting", () => {
+  it("makes do with one light on the low setting", () => {
     const engine = new NullEngine()
     engines.push(engine)
     const world = new Scene(engine)
@@ -145,11 +145,9 @@ describe("the flare view", () => {
     const view = createFlareView(
       world,
       { sim, tick: () => 0, light: () => 0, focus: () => Vector3.Zero() },
-      () => true,
       { quality: "low" }
     )
     expect(view.lights).toHaveLength(1)
-    expect(view.shadows).toBeNull()
     view.dispose()
   })
 

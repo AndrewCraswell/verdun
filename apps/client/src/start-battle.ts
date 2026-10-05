@@ -38,7 +38,6 @@ import { createEnvironmentView } from "./environment/environment-view.ts"
 import { browserStore, localSchedule } from "./environment/war-schedule.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
-import { castsShadow } from "./level/atmosphere.ts"
 import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
 import type { KitFiles } from "./level/kit-files.ts"
@@ -282,7 +281,7 @@ export async function startBattle(
   if (lowFog && environment) {
     useHeightFog(view.scene, () => environment.heightFog)
   }
-  // Very lights over no man's land at night, drawn from the simulation's flares; shadows from what throws the sun's.
+  // Very lights over no man's land at night, drawn from the simulation's flares.
   const flares = createFlareView(
     view.scene,
     {
@@ -294,7 +293,6 @@ export async function startBattle(
         return camera instanceof TargetCamera ? camera.getTarget() : view.camera.getTarget()
       }
     },
-    castsShadow,
     { quality }
   )
 

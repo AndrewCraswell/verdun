@@ -1,7 +1,7 @@
 import { Frustum } from "@babylonjs/core/Maths/math.frustum"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { describe, expect, it } from "vitest"
-import { lowestGround, pointShadowInView, sunShadowInView } from "./shadow-reach.ts"
+import { lowestGround, sunShadowInView } from "./shadow-reach.ts"
 
 /**
  * A camera's view of the ground from x 0 to 10 and z 0 to 10, from 100 m below to 100 m above: as clip space has it,
@@ -16,7 +16,7 @@ describe("whether a shadow can fall within the view", () => {
   it("keeps a caster in view, whichever way the light goes", () => {
     const [min, max] = box(4, 2)
     expect(sunShadowInView(min, max, new Vector3(-1, -1, 0), 0, VIEW)).toBe(true)
-    expect(pointShadowInView(min, max, new Vector3(50, 100, 5), 0, VIEW)).toBe(true)
+    expect(sunShadowInView(min, max, new Vector3(1, -1, 0), 0, VIEW)).toBe(true)
   })
 
   it("leaves out a caster off to the side whose shadow can't reach the view, as far as the sun's height lets it fall", () => {
@@ -36,15 +36,6 @@ describe("whether a shadow can fall within the view", () => {
     const [min, max] = box(400, 1)
     expect(sunShadowInView(min, max, new Vector3(-1, 0, 0), 0, VIEW)).toBe(true)
     expect(sunShadowInView(min, max, new Vector3(-1, 0.1, 0), 0, VIEW)).toBe(true)
-  })
-
-  it("follows a flare's light out from it, and keeps a caster level with it or above", () => {
-    const [min, max] = box(40, 5)
-    // Over the view, 100 m up: the shadow of a caster 35 m off the view falls further out still.
-    expect(pointShadowInView(min, max, new Vector3(5, 100, 5), 0, VIEW)).toBe(false)
-    // Beyond it, the caster stands between the flare and the view.
-    expect(pointShadowInView(min, max, new Vector3(80, 6, 5), 0, VIEW)).toBe(true)
-    expect(pointShadowInView(min, new Vector3(41, 120, 5), new Vector3(5, 100, 5), 0, VIEW)).toBe(true)
   })
 
   it("takes the lowest ground as the map's lowest height less what shellfire can dig", () => {

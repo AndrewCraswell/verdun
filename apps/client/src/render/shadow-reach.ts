@@ -36,8 +36,8 @@ function boxInView(view: readonly DeepImmutable<Plane>[]): boolean {
 /**
  * Whether anything of a caster's shadow can fall within the camera's view (its planes, `view`): the caster's bounds and
  * where the light through each of their corners meets the ground no lower than `floor`, the lowest the ground can be,
- * hold every shadow it casts. `project` puts a corner down on the floor, or returns false where it can't be bounded (a
- * corner level with or above the light), and then the caster is kept.
+ * hold every shadow it casts. `project` puts a corner down on the floor, or returns false where it can't be bounded,
+ * and then the caster is kept.
  */
 function shadowInView(
   min: DeepImmutable<Vector3>,
@@ -83,26 +83,6 @@ export function sunShadowInView(
   return shadowInView(min, max, view, (x, y, z) => {
     const along = Math.max(0, y - floor) / down
     take(x + (way.x / length) * along, y - down * along, z + (way.z / length) * along)
-    return true
-  })
-}
-
-/** Whether a caster's shadow from a light at `from` (a flare's) can fall within the camera's view. */
-export function pointShadowInView(
-  min: DeepImmutable<Vector3>,
-  max: DeepImmutable<Vector3>,
-  from: DeepImmutable<Vector3>,
-  floor: number,
-  view: readonly DeepImmutable<Plane>[]
-): boolean {
-  return shadowInView(min, max, view, (x, y, z) => {
-    const drop = from.y - y
-    if (drop <= 0) {
-      return false
-    }
-    // Along the ray from the light through the corner, on down to the floor.
-    const scale = Math.max(0, from.y - floor) / drop
-    take(from.x + (x - from.x) * scale, floor, from.z + (z - from.z) * scale)
     return true
   })
 }

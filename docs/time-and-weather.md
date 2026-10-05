@@ -257,8 +257,9 @@ what the eye adds:
 - **Light on the ground**: three spot lights go to the flares that matter most (brightest, nearest where the camera
   looks), pointing down from them. Babylon's standard lighting fades to a range rather than by the inverse square, so
   range and intensity follow the flare's height: dim and wide high up, fierce and tight low down, cold blue-white.
-- **Shadows**: the leading flare's light casts them (a 1,024 shadow map, PCF filtering, deep), from the meshes that cast
-  the sun's, culled to those in its light and chosen again twice a second as it drifts. Swinging with the parachute.
+- **No shadows**: the leading flare's light cast them once, from a 1,024 shadow map, but at the night's count of lights
+  Babylon had materials take them only if a flare was already casting as night fell, which it never was: they never
+  showed, and their shadow map cost the night some 2 ms of the GPU and more of the page. Taken out in October 2026.
 - **The night brightens round a flare**: the sky's fill light and the haze lift with the flare light where the camera
   looks.
 - **Budget**: at most 12 flares drawn, their drawings made once at the start and reused, hidden by shrinking them to
@@ -479,18 +480,18 @@ read once at load, since effects choose their shaders as the battle is built: a 
 
 Low drops what costs most for least:
 
-| Effect                              | Low                                                              |
-| ----------------------------------- | ---------------------------------------------------------------- |
-| Puddles, their ripples, snow trails | Not drawn: the weather plugin skips the ground-marks textures    |
-| Fog pooling in the hollows          | Not drawn (the low-lying fog itself stays)                       |
-| Grass and trees swaying             | Still                                                            |
-| Rain splashes                       | None                                                             |
-| Sheets of rain beyond the streaks   | Not drawn: the streaks round the camera still fall               |
-| Flares                              | One light, for the brightest flare, instead of three; no shadows |
-| Gunfire                             | No muzzle smoke; two grains of dirt a strike instead of five     |
-| Edges                               | FXAA instead of 4× multisampling (about 5 ms a frame at 1080p)   |
-| Depth of field                      | Half as soft furthest from the focus (about 1.3 ms)              |
-| Film grain                          | None (about 1 ms)                                                |
+| Effect                              | Low                                                            |
+| ----------------------------------- | -------------------------------------------------------------- |
+| Puddles, their ripples, snow trails | Not drawn: the weather plugin skips the ground-marks textures  |
+| Fog pooling in the hollows          | Not drawn (the low-lying fog itself stays)                     |
+| Grass and trees swaying             | Still                                                          |
+| Rain splashes                       | None                                                           |
+| Sheets of rain beyond the streaks   | Not drawn: the streaks round the camera still fall             |
+| Flares                              | One light, for the brightest flare, instead of three           |
+| Gunfire                             | No muzzle smoke; two grains of dirt a strike instead of five   |
+| Edges                               | FXAA instead of 4× multisampling (about 5 ms a frame at 1080p) |
+| Depth of field                      | Half as soft furthest from the focus (about 1.3 ms)            |
+| Film grain                          | None (about 1 ms)                                              |
 
 Cloud shadows, lying snow, the streaks of rain round the camera, snow falling, the fog and the bloom stay on both
 settings. The sun's shadows, also costly, could read the same setting.

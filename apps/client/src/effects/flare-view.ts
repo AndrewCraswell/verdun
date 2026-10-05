@@ -1,15 +1,11 @@
 import { Constants } from "@babylonjs/core/Engines/constants"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
-import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"
-import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 import { SpotLight } from "@babylonjs/core/Lights/spotLight"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
-import { Frustum } from "@babylonjs/core/Maths/math.frustum"
-import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
+import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder"
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
@@ -19,15 +15,17 @@ import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
 import { FLARE, type Flare, flareBrightness, flareLight, flarePosition, type Simulation } from "@verdun/sim"
 import { setInFog } from "../level/particle-light.ts"
-import { lowestGround, pointShadowInView, shadowCasterCulling } from "../render/shadow-reach.ts"
 import type { GraphicsQuality } from "../settings/graphics.ts"
 
 /**
  * Very lights as the eye saw them over no man's land at night: a streak of sparks climbing from the trench, a pop as
  * the star catches and the parachute opens, then a hard, cold white light hanging in the air, lighting the haze around
- * it, swinging gently under its canopy as it sinks, throwing long shadows that swing with it, dripping burning
- * magnesium and trailing smoke on the wind; at the last it gutters, warms to orange and goes out, and its smoke drifts
- * on in the dark.
+ * it, swinging gently under its canopy as it sinks, dripping burning magnesium and trailing smoke on the wind; at the
+ * last it gutters, warms to orange and goes out, and its smoke drifts on in the dark.
+ *
+ * It casts no shadows. A flare's shadow map drew a hundred and more casters a frame, and at the night's count of lights
+ * Babylon only had materials take its shadows if a flare was already casting when night fell, which it never was: they
+ * never showed, and drawing them cost the night some 2 ms of the GPU and more of the page.
  *
  * The simulation decides where flares are and how bright they burn (packages/sim/src/flares.ts); this draws them.
  */
@@ -57,12 +55,8 @@ const CANOPY = { lines: 3.5, width: 1.4, depth: 0.55, opening: 1.5, glow: 0.9, n
  * a low one a tight, bright one.
  */
 const LIGHT = { count: 3, angle: 2.6, exponent: 1.3, rangePerHeight: 3, intensity: 1.7, lowest: 25, most: 4.6 } as const
-/** Shadows from the flare nearest the camera: deep, crisp, and swinging as the flare sways. */
-const SHADOW = { mapSize: 1024, darkness: 0.12 } as const
 /** Lights come on below this much light and go off above it, as `lightLevel` reads it, so dusk doesn't flicker them. */
 const DARK = { on: 0.55, off: 0.62 } as const
-/** Seconds between choosing again what throws the leading flare's shadow, as it drifts. */
-const CASTER_REFRESH = 0.5
 /** Seconds a flare's smoke and last sparks linger after it burns out. */
 const AFTERLIFE = 7
 /** At most this many flares drawn at once. */
@@ -76,7 +70,7 @@ export interface FlareSources {
   tick(): number
   /** How bright it looks, 0 (moonless night) to 1 (daylight). */
   light(): number
-  /** Where the camera looks: lights and shadows go to the flares nearest it. */
+  /** Where the camera looks: lights go to the flares nearest it. */
   focus(): Vector3
 }
 
@@ -93,8 +87,6 @@ export interface FlareView {
   readonly drawn: readonly DrawnFlare[]
   /** The spot lights, given to the flares nearest the camera. */
   readonly lights: readonly SpotLight[]
-  /** Shadows from the most important flare; null where the engine can't draw them. */
-  readonly shadows: ShadowGenerator | null
   /** Draws the flares for this frame. Call after the environment view has lit the scene. */
   update(frameSeconds: number): void
   dispose(): void
@@ -261,25 +253,13 @@ function hazeOf(sim: Simulation): number {
 
 const isSky = (light: unknown): light is HemisphericLight => light instanceof HemisphericLight
 
-/** A shadow map for the leading flare's light, or null where the engine can't make one. */
-function createShadows(light: SpotLight): ShadowGenerator | null {
-  try {
-    return new ShadowGenerator(SHADOW.mapSize, light)
-  } catch {
-    return null
-  }
-}
-
-/**
- * Draws the simulation's flares. `casters` decides which meshes throw a flare's shadow: those that throw the sun's.
- */
+/** Draws the simulation's flares. */
 export function createFlareView(
   scene: Scene,
   sources: FlareSources,
-  casters: (mesh: AbstractMesh) => boolean = () => true,
   { quality = "high" }: { readonly quality?: GraphicsQuality } = {}
 ): FlareView {
-  // The low graphics setting: one light, for the brightest flare, and no flare shadows, the costliest part of the night.
+  // The low graphics setting: one light, for the brightest flare.
   const low = quality === "low"
   const textures = {
     core: radialTexture(scene, "flare-core", 64, 2.2),
@@ -304,71 +284,8 @@ export function createFlareView(
     light.setEnabled(false)
     return light
   })
-  const shadows = low ? null : createShadows(lights[0]!)
-  if (shadows) {
-    shadows.usePercentageCloserFiltering = true
-    shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM
-    shadows.bias = 0.0008
-    shadows.normalBias = 0.02
-    shadows.setDarkness(SHADOW.darkness)
-  }
-  const shadowMap = shadows?.getShadowMap() ?? null
-  const none: AbstractMesh[] = []
-  if (shadowMap) {
-    // Of the casters in the leading flare's light, only those whose shadows can fall within the camera's view (see
-    // render/shadow-reach.ts): its light reaches some 280 m across, the camera's view a good deal less, and the ground
-    // and trees beyond the view were most of its draws.
-    const floor = lowestGround(sources.sim.map.heights)
-    const seen = Frustum.GetPlanes(Matrix.Identity())
-    const shown: AbstractMesh[] = []
-    shadowMap.getCustomRenderList = (_layer, list, count) => {
-      shown.length = 0
-      const camera = scene.activeCamera
-      const light = lights[0]
-      // Without a camera to see by, Babylon draws its own list (null).
-      if (!list || !camera || !light || !shadowCasterCulling.enabled) {
-        return null
-      }
-      Frustum.GetPlanesToRef(camera.getTransformationMatrix(), seen)
-      for (let index = 0; index < count; index++) {
-        const mesh = list[index]
-        if (!mesh) {
-          continue
-        }
-        const { minimumWorld, maximumWorld } = mesh.getBoundingInfo().boundingBox
-        if (pointShadowInView(minimumWorld, maximumWorld, light.position, floor, seen)) {
-          shown.push(mesh)
-        }
-      }
-      return shown
-    }
-  }
-  // What throws a flare's shadow: found when the first flare casts, once the level is dressed, then kept up to date as
-  // meshes come and go rather than sought out every frame.
-  let throwing: AbstractMesh[] | null = null
-  const throwers = (): AbstractMesh[] => {
-    if (throwing === null) {
-      const found = scene.meshes.filter(casters)
-      throwing = found
-      // Babylon tells of a mesh added only after the code adding it has run (see shadowCasters in atmosphere.ts): one
-      // disposed by then, or already found, isn't taken in again.
-      scene.onNewMeshAddedObservable.add((mesh) => {
-        if (casters(mesh) && !mesh.isDisposed() && !found.includes(mesh)) {
-          found.push(mesh)
-        }
-      })
-      scene.onMeshRemovedObservable.add((mesh) => {
-        const index = found.indexOf(mesh)
-        if (index >= 0) {
-          found.splice(index, 1)
-        }
-      })
-    }
-    return throwing
-  }
   let lit = false
   let clock = 0
-  let sinceCasters = 0
   const drawn: DrawnFlare[] = []
 
   const visualFor = (flare: Flare): Visual | null => {
@@ -397,7 +314,6 @@ export function createFlareView(
       return drawn
     },
     lights,
-    shadows,
     update(frameSeconds) {
       clock += frameSeconds
       const { sim } = sources
@@ -523,7 +439,7 @@ export function createFlareView(
         drawn.push({ flare, position: visual.position.clone(), brightness: visual.brightness })
       }
 
-      // The lights go to the brightest flares nearest where the camera looks; the first throws the shadows.
+      // The lights go to the brightest flares nearest where the camera looks.
       const focus = sources.focus()
       const ranked = [...drawn]
         .filter((each) => each.brightness > 0)
@@ -550,21 +466,6 @@ export function createFlareView(
         const nearer = (FLARE.height / Math.max(height, LIGHT.lowest)) ** 0.8
         spot.intensity = Math.min(LIGHT.most, LIGHT.intensity * nearer) * target.brightness * (1 - light)
       }
-      if (shadowMap) {
-        const lead = ranked[0]
-        if (!lit || !lead) {
-          shadowMap.renderList = none
-        } else if ((sinceCasters += frameSeconds) >= CASTER_REFRESH || shadowMap.renderList === none) {
-          // Only what stands in the leading flare's light throws its shadow: a few hundred pieces, not the whole map.
-          sinceCasters = 0
-          const reach = lights[0]!.range
-          shadowMap.renderList = throwers().filter((mesh) => {
-            const sphere = mesh.getBoundingInfo().boundingSphere
-            return Vector3.Distance(sphere.centerWorld, lead.position) <= reach + sphere.radiusWorld
-          })
-        }
-      }
-
       // The night brightens round a flare: the sky's fill light and the haze take some of its light.
       const near = flareLight(sim, focus.x, focus.z)
       if (near > 0 && light < DARK.off) {
@@ -586,7 +487,6 @@ export function createFlareView(
         visual.sparks.dispose()
         visual.smoke.dispose()
       }
-      shadows?.dispose()
       for (const light of lights) {
         light.dispose()
       }
