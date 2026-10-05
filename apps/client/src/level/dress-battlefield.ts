@@ -388,6 +388,11 @@ export async function dressLevel(
   const scorch = createScorchMap(view.scene, mapWidth(map), mapDepth(map))
   const ground = new GroundSplatPlugin(view.groundMaterial, kit.ground, scorch)
   const backdrop = surroundings ? createBackdrop(view.scene, map, surroundings, view.groundMaterial) : null
+  // The textures cover its colours too, and it shares the chunks' material, which would otherwise be built twice: once
+  // for them, once for it with colours.
+  if (backdrop) {
+    backdrop.useVertexColors = false
+  }
   view.terrain.shapeForTrenchKit()
   const atmosphere = createAtmosphere(view.scene, map, view.camera, kit.fx)
   // Pieces the kit lacks, made in code.
