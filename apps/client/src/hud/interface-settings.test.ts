@@ -38,6 +38,8 @@ describe("interface settings", () => {
     expect(read.markers).toBe(2)
     expect(read.presses).toEqual({ run: "toggle", crouch: "toggle", prone: "toggle", grenade: "toggle" })
     expect(readSettings({ clock: 12, zones: "none" })).toMatchObject({ clock: "24", zones: DEFAULT_SETTINGS.zones })
+    expect(readSettings({ hitChance: false }).hitChance).toBe(false)
+    expect(readSettings({ hitChance: "no" }).hitChance).toBe(true)
   })
 
   it("shares one live value: a change is kept and every listener hears it", () => {

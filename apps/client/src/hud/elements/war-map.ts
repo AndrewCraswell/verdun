@@ -150,6 +150,40 @@ export const warMap: HudElementFactory = (context) => {
     }
   }
 
+  /** The stretch of the enemy's line the attack goes in on: brass over their red, for the attackers. */
+  function drawStretch(state: HudState): void {
+    const stretch = state.operation?.stretch
+    if (!drawing || !stretch || stretch.length === 0) {
+      return
+    }
+    drawing.beginPath()
+    for (const line of stretch) {
+      groundLine(line)
+    }
+    drawing.lineJoin = "round"
+    drawing.lineCap = "round"
+    drawing.strokeStyle = "rgb(8 7 5 / 70%)"
+    drawing.lineWidth = 9
+    drawing.stroke()
+    drawing.strokeStyle = colours.brass
+    drawing.lineWidth = 5
+    drawing.stroke()
+    // Named once, over the middle of its longest run.
+    const longest = [...stretch].sort((a, b) => b.length - a.length)[0]
+    const middle = longest?.[Math.floor(longest.length / 2)]
+    const label = middle ? project(middle[0], middle[1], 6) : null
+    if (label) {
+      drawing.font = "700 12px 'Archivo Variable', sans-serif"
+      drawing.textAlign = "center"
+      drawing.textBaseline = "bottom"
+      drawing.lineWidth = 3.5
+      drawing.strokeStyle = "rgb(8 7 5 / 85%)"
+      drawing.strokeText("OUR ATTACK", label.x, label.y - 6)
+      drawing.fillStyle = colours.brass
+      drawing.fillText("OUR ATTACK", label.x, label.y - 6)
+    }
+  }
+
   function drawSoldiers(state: HudState): void {
     if (!drawing) {
       return
@@ -239,6 +273,7 @@ export const warMap: HudElementFactory = (context) => {
       drawing.fillRect(0, 0, innerWidth, innerHeight)
       drawGrid()
       drawTrenches()
+      drawStretch(state)
       drawSoldiers(state)
     }
   }

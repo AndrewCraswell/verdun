@@ -22,6 +22,11 @@ export const POINTER_KEYS: ReadonlySet<string> = new Set(["KeyQ", "KeyE", "KeyV"
  * thrown at the pointer. A quick tap throws at once, as before.
  */
 export const THROW_KEY = canonicalCode("throw")
+/**
+ * The calls for fire on the pointer, by their keys: held, the HUD shows where the shells would fall (H10); let go, the
+ * call goes. Right-click while holding puts it away.
+ */
+export const CALL_KEYS: ReadonlySet<string> = new Set([canonicalCode("fire-mission"), canonicalCode("gas")])
 const RUN_KEY = canonicalCode("run")
 /** The stance keys, which the player can set to work while held rather than as a press on and a press off. */
 const STANCE_KEYS: ReadonlyMap<string, "crouch" | "prone"> = new Map([
@@ -97,6 +102,8 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
   let aimingThrow = false
   // Running, by a press of the run key set to toggle.
   let runOn = false
+  // The call for fire being aimed, by its key, until it's let go or put away.
+  let aimingCall: string | null = null
   // Stance keys held down, set to work while held: let go, and he gets up again.
   const stancesHeld = new Set<string>()
   const presses = () => interfaceSettings().current.presses
@@ -150,6 +157,12 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
       }
       return
     }
+    if (CALL_KEYS.has(code)) {
+      if (!event.repeat) {
+        aimingCall = code
+      }
+      return
+    }
     if (POINTER_KEYS.has(code)) {
       const point = event.repeat ? null : pointerGround()
       const action = point ? pointerAction(code, point.x, point.z) : null
@@ -185,6 +198,14 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     if (code === THROW_KEY && aimingThrow && presses().grenade === "hold") {
       throwAtPointer()
     }
+    if (code !== null && code === aimingCall) {
+      aimingCall = null
+      const point = pointerGround()
+      const action = point ? pointerAction(code, point.x, point.z) : null
+      if (action) {
+        actions.push(action)
+      }
+    }
     // A stance held: let go, and the same key's toggle takes him back.
     if (code && stancesHeld.delete(code)) {
       const action = actionForKey(code)
@@ -198,13 +219,17 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     held.clear()
     runOn = false
     stancesHeld.clear()
-    // Losing the window mid-aim puts the grenade away rather than throwing it blind.
+    // Losing the window mid-aim puts the grenade away rather than throwing it blind, and the call too.
     aimingThrow = false
+    aimingCall = null
   })
   const canvas = scene.getEngine().getRenderingCanvas()
   canvas?.addEventListener("pointerdown", (event) => {
     if (event.button === 0) {
       actions.push({ kind: "fire" })
+    } else if (event.button === 2) {
+      // The right button puts away a call being aimed.
+      aimingCall = null
     }
   })
 

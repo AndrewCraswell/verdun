@@ -1,6 +1,6 @@
 import { PLAYTEST_OPERATION, planOperation, Side, TICK_RATE } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { operationView, planFires } from "./operation-state.ts"
+import { clipToEastings, operationView, planFires } from "./operation-state.ts"
 import { testBattle } from "./test-battle.ts"
 
 describe("the operation's countdown", () => {
@@ -42,5 +42,57 @@ describe("the operation's countdown", () => {
     })
     expect(operationView(sim, Side.German, TICK_RATE)?.note).toBe("A footing lost")
     expect(planFires(sim)).toBe(false)
+  })
+
+  it("shows the attackers the stretch of the enemy's line they go in on, and keeps it from the defenders", () => {
+    const { sim } = testBattle()
+    const operation = planOperation(sim, PLAYTEST_OPERATION)
+    const stretch = operationView(sim, Side.French, TICK_RATE)?.stretch ?? []
+    expect(stretch.length).toBeGreaterThan(0)
+    for (const line of stretch) {
+      for (const [x] of line) {
+        expect(x).toBeGreaterThanOrEqual(operation.fromX - 1e-6)
+        expect(x).toBeLessThanOrEqual(operation.toX + 1e-6)
+      }
+    }
+    // Their front line only: not the support and reserve lines behind it.
+    const middles = stretch.map((line) => line.reduce((sum, [, z]) => sum + z, 0) / line.length)
+    expect(Math.max(...middles) - Math.min(...middles)).toBeLessThanOrEqual(20)
+    expect(operationView(sim, Side.German, TICK_RATE)?.stretch).toBeNull()
+  })
+
+  it("cuts lines where they cross the eastings it keeps", () => {
+    const line: [number, number][] = [
+      [0, 10],
+      [40, 10],
+      [60, 30],
+      [100, 30]
+    ]
+    expect(clipToEastings([line], 20, 80)).toEqual([
+      [
+        [20, 10],
+        [40, 10],
+        [60, 30],
+        [80, 30]
+      ]
+    ])
+    // Out and back in again: two runs.
+    const zigzag: [number, number][] = [
+      [10, 0],
+      [30, 0],
+      [10, 5],
+      [30, 5]
+    ]
+    expect(clipToEastings([zigzag], 0, 20)).toEqual([
+      [
+        [10, 0],
+        [20, 0]
+      ],
+      [
+        [20, 2.5],
+        [10, 5],
+        [20, 5]
+      ]
+    ])
   })
 })

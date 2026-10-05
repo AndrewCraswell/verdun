@@ -113,7 +113,9 @@ export const worldMarks: HudElementFactory = (context) => {
   const orderLayer = element("g", "wm-order")
   const objectivesLayer = element("g", "wm-objectives")
   const squadLayer = element("g", "wm-squad")
-  root.append(defs, missionsLayer, objectivesLayer, orderLayer, squadLayer)
+  // The stretch of the enemy's line our attack goes in on, in the overview: the war map draws it further out.
+  const stretchPath = element("path", "wm-stretch")
+  root.append(defs, stretchPath, missionsLayer, objectivesLayer, orderLayer, squadLayer)
 
   const orderLine = element("path", "wm-order__line")
   const orderPin = element("g", "wm-order__pin")
@@ -327,6 +329,23 @@ export const worldMarks: HudElementFactory = (context) => {
     },
     frame(state) {
       const now = latest ?? state
+      const stretch = now.view.overview && now.view.tactical <= 0.5 ? now.operation?.stretch : null
+      let stretchD = ""
+      for (const line of stretch ?? []) {
+        let open = false
+        for (const [x, z] of line) {
+          const point = project(x, z, 0.4)
+          if (!point) {
+            open = false
+            continue
+          }
+          stretchD += `${open ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+          open = true
+        }
+      }
+      if (stretchPath.getAttribute("d") !== stretchD) {
+        stretchPath.setAttribute("d", stretchD)
+      }
       const soldier = now.soldier?.position ?? null
       const from = soldier ? project(soldier.x, soldier.z, 0.2) : null
 

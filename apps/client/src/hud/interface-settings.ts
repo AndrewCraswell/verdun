@@ -37,6 +37,8 @@ export interface InterfaceSettings {
   readonly markers: number
   /** For each of these keys, whether it works while held or is pressed once to turn on and again to turn off. */
   readonly presses: Readonly<Record<PressAction, PressMode>>
+  /** Whether the cursor shows how good a shot at the man in the sights is: good, fair or poor, as pips. */
+  readonly hitChance: boolean
 }
 
 export const DEFAULT_SETTINGS: InterfaceSettings = {
@@ -56,7 +58,8 @@ export const DEFAULT_SETTINGS: InterfaceSettings = {
   },
   clock: "24",
   markers: 1,
-  presses: { run: "hold", crouch: "toggle", prone: "toggle", grenade: "hold" }
+  presses: { run: "hold", crouch: "toggle", prone: "toggle", grenade: "hold" },
+  hitChance: true
 }
 
 const VISIONS: readonly ColourVision[] = ["default", "deuteranopia", "protanopia", "tritanopia"]
@@ -97,7 +100,8 @@ export function readSettings(stored: unknown): InterfaceSettings {
     zones: choices(record.zones, HUD_ZONES, SHOWINGS, DEFAULT_SETTINGS.zones),
     clock: record.clock === "12" ? "12" : "24",
     markers: number(record.markers, DEFAULT_SETTINGS.markers, 0.75, 2),
-    presses: choices(record.presses, PRESS_ACTIONS, MODES, DEFAULT_SETTINGS.presses)
+    presses: choices(record.presses, PRESS_ACTIONS, MODES, DEFAULT_SETTINGS.presses),
+    hitChance: typeof record.hitChance === "boolean" ? record.hitChance : DEFAULT_SETTINGS.hitChance
   }
 }
 

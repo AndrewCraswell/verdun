@@ -1,5 +1,7 @@
 import {
   aimedTarget,
+  hitChance,
+  WEAPONS,
   arrivalOf,
   capturedIds,
   concentrationAt,
@@ -40,7 +42,7 @@ import {
   STEADY_MORALE
 } from "./soldier-state.ts"
 import { type SpottedGun, spottedGunsView } from "./spotted-guns.ts"
-import { createSquadNames, type SoldierName, type SquadNames } from "./squad-names.ts"
+import { createSquadNames, type SquadNames, weaponOf } from "./squad-names.ts"
 import { createOrderWatch, type OrderView } from "./squad-order.ts"
 import { createSuccessionWatch, type Succession } from "./succession.ts"
 import { middleOf, type TakeOverChoice, takeOverChoices } from "./take-over.ts"
@@ -101,7 +103,6 @@ export interface WipedView {
   readonly men: number
   /** Men left in the side's pool after these, or null without a pool. */
   readonly reserves: number | null
-  readonly fallen: readonly { readonly name: SoldierName; readonly status: RosterSlot["status"] }[]
   /** Squads nearby the player can take over at once instead of waiting, nearest first. */
   readonly choices: readonly TakeOverChoice[]
   /** Where the squad fell: the middle of its men. */
@@ -132,6 +133,22 @@ export interface CursorView {
   readonly ready: number
   /** Aim spoiled by fire. */
   readonly shaken: boolean
+  /** How good a shot at the man in the sights is, in words, never a number (H8); null with nobody in them. */
+  readonly chance: ShotChance | null
+}
+
+export type ShotChance = "good" | "fair" | "poor"
+
+/**
+ * A shot's chance of hitting, as a share of the best this weapon can do (point-blank at a man standing in the open):
+ * good from half of that, fair from a quarter, poor below.
+ */
+export function shotChance(chance: number, best: number): ShotChance {
+  const share = best > 0 ? chance / best : 0
+  if (share >= 0.5) {
+    return "good"
+  }
+  return share >= 0.25 ? "fair" : "poor"
 }
 
 export interface HudModel {
@@ -218,13 +235,18 @@ export function createHudModel(
 
   function cursorOf(soldier: SoldierView | null): CursorView {
     if (!soldier) {
-      return { state: "none", ready: 0, shaken: false }
+      return { state: "none", ready: 0, shaken: false, chance: null }
     }
     const shaken = soldier.fire === "pinned" || soldier.spirit !== "steady"
     if (soldier.weapon.ready < 1) {
-      return { state: "reload", ready: soldier.weapon.ready, shaken }
+      return { state: "reload", ready: soldier.weapon.ready, shaken, chance: null }
     }
-    return { state: aimedTarget(sim, soldier.id) >= 0 ? "target" : "aim", ready: 1, shaken }
+    const target = aimedTarget(sim, soldier.id)
+    if (target < 0) {
+      return { state: "aim", ready: 1, shaken, chance: null }
+    }
+    const best = WEAPONS[weaponOf(sim, soldier.id)].accuracy
+    return { state: "target", ready: 1, shaken, chance: shotChance(hitChance(sim, soldier.id, target), best) }
   }
 
   // The order squads were first offered in, kept while the list is up, so none moves under the player's pointer.
@@ -254,7 +276,6 @@ export function createHudModel(
       seconds: arrival >= 0 ? Math.max(0, (arrival - sim.tick) / tickRate) : null,
       men: coming?.men ?? 0,
       reserves,
-      fallen: roster.map((slot) => ({ name: slot.name, status: slot.status })),
       choices: inOfferedOrder(takeOverChoices(sim, squad, names)),
       fell: middleOf(sim, squad)
     }

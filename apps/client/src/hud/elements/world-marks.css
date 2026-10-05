@@ -10,6 +10,16 @@
   font-size: calc(1em * var(--hud-marker, 1));
 }
 
+/* Our attack's stretch of the enemy's line, in the overview: brass over their trench, with a dark halo. */
+.wm-stretch {
+  fill: none;
+  stroke: var(--hud-brass-bright);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 2px rgb(8 7 5 / 90%));
+}
+
 .wm-text {
   font-family: var(--hud-font-ui);
   font-size: 0.72em;

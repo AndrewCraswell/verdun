@@ -151,7 +151,7 @@ const LESSONS: readonly Lesson[] = [
   {
     id: "guns",
     text: () =>
-      `${key("fire-mission")} calls the guns onto the pointer; ${key("bombard")} bombards the enemy line. Keep clear of your own fire.`,
+      `Hold ${key("fire-mission")} to see where the guns would fall, and let go to call them; ${key("bombard")} bombards the enemy line.`,
     done: (sim, _squad, start) => sim.artillery.missions.length > start.missions
   },
   {

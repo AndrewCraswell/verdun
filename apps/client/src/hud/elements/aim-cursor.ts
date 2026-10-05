@@ -1,5 +1,5 @@
 import type { HudElementFactory } from "../element.ts"
-import type { HudState } from "../hud-state.ts"
+import type { HudState, ShotChance } from "../hud-state.ts"
 import { interfaceSettings } from "../interface-settings.ts"
 
 /**
@@ -14,6 +14,9 @@ const CENTRE = SIZE / 2
 /** Reload frames drawn ahead: the ring fills in this many steps. */
 const RELOAD_STEPS = 8
 
+/** Pips under the ring for a shot's chance: three for good, two for fair, one for poor. */
+const PIPS: Readonly<Record<ShotChance, number>> = { good: 3, fair: 2, poor: 1 }
+
 interface Reticle {
   /** Gap from the centre to the ticks, and their length, in pixels. */
   readonly gap: number
@@ -22,10 +25,12 @@ interface Reticle {
   readonly ring: number | null
   readonly ringColour?: string
   readonly dot: boolean
+  /** Chance pips under it, out of three, or none. */
+  readonly pips?: number
 }
 
 /** A reticle as a cursor, drawn `scale` times its size: the player's marker size. */
-function svgOf({ gap, tick, colour, ring, ringColour, dot }: Reticle, scale: number): string {
+function svgOf({ gap, tick, colour, ring, ringColour, dot, pips }: Reticle, scale: number): string {
   const lines = [
     [CENTRE, CENTRE - gap, CENTRE, CENTRE - gap - tick],
     [CENTRE, CENTRE + gap, CENTRE, CENTRE + gap + tick],
@@ -45,11 +50,25 @@ function svgOf({ gap, tick, colour, ring, ringColour, dot }: Reticle, scale: num
   const centre = dot
     ? `<circle cx="${CENTRE}" cy="${CENTRE}" r="2.1" fill="#000" fill-opacity=".6"/><circle cx="${CENTRE}" cy="${CENTRE}" r="1.25" fill="${colour}"/>`
     : ""
+  // Three small pips in a row under the ring, the ones not earned left hollow: readable without words or numbers.
+  const pipMarks =
+    pips === undefined
+      ? ""
+      : [0, 1, 2]
+          .map((index) => {
+            const x = CENTRE - 5 + index * 5
+            const solid = index < pips
+            return (
+              `<circle cx="${x}" cy="${SIZE - 3.2}" r="2.1" fill="#000" fill-opacity=".6"/>` +
+              `<circle cx="${x}" cy="${SIZE - 3.2}" r="1.3" fill="${solid ? colour : "none"}" stroke="${colour}" stroke-width=".6"/>`
+            )
+          })
+          .join("")
   const size = Math.round(SIZE * scale)
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${SIZE} ${SIZE}">` +
     `<path d="${lines}" stroke="#000" stroke-opacity=".6" stroke-width="3.6" stroke-linecap="round"/>` +
-    `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}</svg>`
+    `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}${pipMarks}</svg>`
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(size / 2)} ${Math.round(size / 2)}, crosshair`
 }
 
@@ -61,15 +80,24 @@ interface Cursors {
   readonly aim: string
   readonly spoiled: string
   readonly target: string
+  /** On target, with the shot's chance shown. */
+  readonly chances: Readonly<Record<ShotChance, string>>
   readonly reloading: readonly string[]
 }
 
 /** The cursors at a size, drawn once each. */
 function cursorsAt(scale: number): Cursors {
+  const onTarget = (pips: number) =>
+    svgOf({ gap: 7.5, tick: 4.5, colour: DANGER, ring: 1, ringColour: DANGER, dot: true, pips }, scale)
   return {
     aim: svgOf({ gap: 4.5, tick: 5, colour: INK, ring: null, dot: true }, scale),
     spoiled: svgOf({ gap: 8.5, tick: 4.5, colour: INK, ring: null, dot: true }, scale),
     target: svgOf({ gap: 7.5, tick: 4.5, colour: DANGER, ring: 1, ringColour: DANGER, dot: true }, scale),
+    chances: {
+      good: onTarget(PIPS.good),
+      fair: onTarget(PIPS.fair),
+      poor: onTarget(PIPS.poor)
+    },
     reloading: Array.from({ length: RELOAD_STEPS + 1 }, (_, step) =>
       svgOf(
         { gap: 4.5, tick: 4, colour: "rgba(242,217,115,.5)", ring: step / RELOAD_STEPS, ringColour: INK, dot: false },
@@ -93,7 +121,7 @@ export const aimCursor: HudElementFactory = (context) => {
       if (!canvas) {
         return
       }
-      const wanted = interfaceSettings().current.markers
+      const { markers: wanted, hitChance: showChance } = interfaceSettings().current
       if (wanted !== size) {
         size = wanted
         cursors = cursorsAt(size)
@@ -101,7 +129,7 @@ export const aimCursor: HudElementFactory = (context) => {
       const { cursor } = state
       let next = ""
       if (cursor.state === "target") {
-        next = cursors.target
+        next = showChance && cursor.chance ? cursors.chances[cursor.chance] : cursors.target
       } else if (cursor.state === "reload") {
         next = cursors.reloading[Math.min(RELOAD_STEPS, Math.floor(cursor.ready * RELOAD_STEPS))] ?? cursors.aim
       } else if (cursor.state === "aim") {

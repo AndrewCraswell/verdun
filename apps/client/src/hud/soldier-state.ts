@@ -8,6 +8,7 @@ import {
   GAS_DETECTED,
   gasTolerance,
   GRENADES_CARRIED,
+  RIFLE_GRENADES_CARRIED,
   isAlive,
   isDark,
   isInTrench,
@@ -24,9 +25,6 @@ import {
   wireAt
 } from "@verdun/sim"
 import { type Role, roleLabel, roleOf, type SoldierName, type SquadNames, weaponName, weaponOf } from "./squad-names.ts"
-
-/** The VB rifle grenades a grenadier goes into action with, as the simulation issues them (rifle-grenades.ts). */
-const RIFLE_GRENADES_CARRIED = 8
 
 /** The weapon a man carries, as the HUD draws it. */
 export type WeaponView = "rifle" | "machine-gun" | "sniper" | "rifle-grenade"

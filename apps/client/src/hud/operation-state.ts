@@ -22,6 +22,87 @@ export interface OperationView {
   /** What's happening now, in a few words, or null: "Our guns are firing", "The enemy's guns are firing". */
   readonly note: string | null
   readonly result: OperationResult | null
+  /**
+   * The stretch of the enemy's front line the attack goes in on, as lines over the ground (x east, z north): for the
+   * attackers only, until it's over. The defenders aren't told where it will fall.
+   */
+  readonly stretch: readonly (readonly GroundPoint[])[] | null
+}
+
+type GroundPoint = readonly [number, number]
+
+/** Each polyline's run between two eastings, cut where it crosses them. */
+export function clipToEastings(
+  lines: readonly (readonly GroundPoint[])[],
+  fromX: number,
+  toX: number
+): GroundPoint[][] {
+  const runs: GroundPoint[][] = []
+  for (const line of lines) {
+    let run: GroundPoint[] = []
+    const inside = (point: GroundPoint) => point[0] >= fromX && point[0] <= toX
+    const cut = (a: GroundPoint, b: GroundPoint, x: number): GroundPoint => {
+      const t = (x - a[0]) / (b[0] - a[0])
+      return [x, a[1] + (b[1] - a[1]) * t]
+    }
+    line.forEach((point, index) => {
+      const before = line[index - 1]
+      if (before) {
+        for (const edge of [fromX, toX]) {
+          // Crossing an edge: where it crosses starts or ends the run.
+          if ((before[0] - edge) * (point[0] - edge) < 0) {
+            const crossing = cut(before, point, edge)
+            if (run.length > 0) {
+              run.push(crossing)
+              runs.push(run)
+              run = []
+            } else {
+              run = [crossing]
+            }
+          }
+        }
+      }
+      if (inside(point)) {
+        run.push(point)
+      } else if (run.length > 0) {
+        runs.push(run)
+        run = []
+      }
+    })
+    if (run.length > 1) {
+      runs.push(run)
+    }
+  }
+  return runs.filter((line) => line.length > 1)
+}
+
+/** How deep a front line's own bays and traverses run, in metres: lines further back are its support and reserve. */
+const FRONT_LINE_DEPTH = 20
+
+/** The enemy's front line over an operation's stretch, kept for as long as the stretch stays the same. */
+let stretchKey = ""
+let stretchLines: readonly (readonly GroundPoint[])[] = []
+
+function stretchOf(sim: Simulation, operation: OperationState, side: Side): readonly (readonly GroundPoint[])[] {
+  const key = `${operation.fromX}:${operation.toX}:${side}`
+  if (key !== stretchKey) {
+    // The enemy's fire trenches face the attackers: the Germans' south, the French north.
+    const facing = side === Side.French ? "south" : "north"
+    const trenches = sim.map.trenches.filter((trench) => trench.kind === "fire" && trench.facing === facing)
+    const runs = clipToEastings(
+      trenches.map((trench) => trench.points),
+      operation.fromX,
+      operation.toX
+    )
+    // Their front line only, not the support and reserve lines behind it: the runs nearest the attackers, who come
+    // from the south when the French attack and from the north when the Germans do.
+    const middleZ = (run: readonly GroundPoint[]) => run.reduce((sum, point) => sum + point[1], 0) / run.length
+    const toward = side === Side.French ? -1 : 1
+    const nearest = Math.max(...runs.map((run) => toward * middleZ(run)))
+    stretchKey = key
+    stretchLines = runs.filter((run) => toward * middleZ(run) >= nearest - FRONT_LINE_DEPTH)
+  }
+  return stretchLines
 }
 
 /** How it ended, from the player's side. */
@@ -59,7 +140,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       seconds: null,
       progress: 1,
       note: attacking ? ours : theirs,
-      result: operation.result
+      result: operation.result,
+      stretch: null
     }
   }
   const tick = sim.tick
@@ -72,7 +154,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       seconds: null,
       progress: null,
       note: coming && bombardingAt(sim, operation, tickRate) ? "Their guns are firing" : null,
-      result: null
+      result: null,
+      stretch: null
     }
   }
   if (tick < operation.zeroHourAt) {
@@ -83,7 +166,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       seconds: (operation.zeroHourAt - tick) / tickRate,
       progress: (tick - operation.plannedAt) / Math.max(1, operation.zeroHourAt - operation.plannedAt),
       note: bombardingAt(sim, operation, tickRate) ? "Our guns are firing" : null,
-      result: null
+      result: null,
+      stretch: stretchOf(sim, operation, side)
     }
   }
   return {
@@ -93,7 +177,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
     seconds: Math.max(0, (operation.endsAt - tick) / tickRate),
     progress: (tick - operation.zeroHourAt) / Math.max(1, operation.endsAt - operation.zeroHourAt),
     note: null,
-    result: null
+    result: null,
+    stretch: stretchOf(sim, operation, side)
   }
 }
 

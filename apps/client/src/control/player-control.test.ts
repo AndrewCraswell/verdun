@@ -306,6 +306,41 @@ describe("createPlayerControl", () => {
     expect(calls).toEqual(["fire", "whistle", "bombard"])
   })
 
+  it("calls fire onto our own men only when called twice", () => {
+    const calls: string[] = []
+    const engine = new NullEngine()
+    engines.push(engine)
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const squad = createSquad(sim, Side.French, [spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })], "player")
+    const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))
+    const actions: PlayerAction[] = []
+    const control = createPlayerControl(
+      sim,
+      squad,
+      camera,
+      { held: new Set(), pointerGround: () => null, takeActions: () => actions.splice(0) },
+      {
+        commands: {
+          whistle: () => calls.push("whistle"),
+          bombard: () => calls.push("bombard"),
+          callFire: (x) => calls.push(`fire ${x}`),
+          callGas: (x) => calls.push(`gas ${x}`)
+        }
+      }
+    )
+    // On his own head: held back the first time, called the second.
+    actions.push({ kind: "call-fire", x: 50, z: 50 })
+    control.update(0.05)
+    expect(calls).toEqual([])
+    actions.push({ kind: "call-fire", x: 50, z: 50 })
+    control.update(0.05)
+    expect(calls).toEqual(["fire 50"])
+    // Well clear of him: at once.
+    actions.push({ kind: "call-gas", x: 10, z: 95 })
+    control.update(0.05)
+    expect(calls).toEqual(["fire 50", "gas 10"])
+  })
+
   it("passes control on when the controlled soldier dies, and kills only in dev builds", () => {
     const released = setup(false)
     released.actions.push({ kind: "debug-kill" })

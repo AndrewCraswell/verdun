@@ -1,0 +1,64 @@
+/* H10's footprint on the ground: brass for high explosive, the gas colour for gas, vermilion with our men under it. */
+.call-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  --call: var(--hud-brass-bright);
+}
+
+.call-preview[data-kind="gas"] {
+  --call: var(--hud-gas);
+}
+
+.call-preview[data-danger="true"] {
+  --call: var(--hud-danger);
+}
+
+/* Where the shells fall. */
+.cpv-area {
+  fill: color-mix(in srgb, var(--call) 18%, transparent);
+  stroke: var(--call);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* How far beyond it a burst still kills, or gas drifts. */
+.cpv-margin {
+  fill: none;
+  stroke: var(--call);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 5;
+  opacity: 0.6;
+}
+
+.cpv-centre {
+  stroke: var(--call);
+  stroke-width: 1.6;
+}
+
+.cpv-title,
+.cpv-detail {
+  font-family: var(--hud-font-ui);
+  text-anchor: middle;
+  stroke: rgb(6 5 4 / 80%);
+  stroke-width: 3.2px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.cpv-title {
+  font-size: 0.8em;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--call);
+}
+
+.cpv-detail {
+  font-size: 0.66em;
+  font-weight: 600;
+  fill: var(--hud-ink-2);
+}

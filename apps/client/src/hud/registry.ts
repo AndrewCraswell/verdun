@@ -1,6 +1,7 @@
 import type { HudElementFactory } from "./element.ts"
 import { aimCursor } from "./elements/aim-cursor.ts"
 import { bannerStrip } from "./elements/banner-strip.ts"
+import { callPreviewMarks } from "./elements/call-preview.ts"
 import { clockPanel } from "./elements/clock-panel.ts"
 import { effectsList } from "./elements/effects-list.ts"
 import { firePanel } from "./elements/fire-panel.ts"
@@ -36,6 +37,7 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   worldMarks,
   // H9 and W7: the grenade's arc, reach and blast while the throw key is held, over every other mark.
   throwPreviewMarks,
+  callPreviewMarks,
   takeOverMarks,
   gunMarks,
   // Bottom left, from the bottom: H1, H3 and H4; H5; H6; H2 beside them.

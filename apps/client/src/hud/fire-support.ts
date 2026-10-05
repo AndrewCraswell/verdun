@@ -15,7 +15,6 @@ export interface CallView {
   readonly id: CallId
   readonly key: string
   readonly label: string
-  readonly detail: string
   /** Whether it would fire now: there are shells for it, and it isn't already going. */
   readonly available: boolean
   /** Why it isn't available, in a few words. */
@@ -258,7 +257,6 @@ export function callsOf(sim: Simulation, side: Side, missions: readonly MissionV
     id: CallId,
     key: string,
     label: string,
-    detail: string,
     shells: readonly Shell[],
     busy: boolean,
     busyReason: string
@@ -270,33 +268,23 @@ export function callsOf(sim: Simulation, side: Side, missions: readonly MissionV
     } else if (busy) {
       reason = busyReason
     }
-    return { id, key, label, detail, available: stocked && !busy, reason, active: busy }
+    return { id, key, label, available: stocked && !busy, reason, active: busy }
   }
   const calls = [
     call(
       "bombard",
       keyOf("bombard"),
       "Bombard",
-      "The enemy line, for two minutes",
       [Shell.HeavyHighExplosive, Shell.FieldHighExplosive],
       active("bombardment"),
       "Bombardment firing"
     ),
-    call(
-      "fire",
-      keyOf("fire-mission"),
-      "Fire mission",
-      "High explosive on the pointer",
-      [Shell.FieldHighExplosive],
-      false,
-      ""
-    ),
-    call("gas", keyOf("gas"), "Gas shoot", "Gas shells on the pointer", [Shell.FieldGas], false, ""),
+    call("fire", keyOf("fire-mission"), "Fire mission", [Shell.FieldHighExplosive], false, ""),
+    call("gas", keyOf("gas"), "Gas shoot", [Shell.FieldGas], false, ""),
     call(
       "whistle",
       keyOf("whistle"),
       "Whistle",
-      "Every squad over the top, behind a creeping barrage",
       [Shell.FieldHighExplosive],
       active("creeping"),
       "The attack is going in"

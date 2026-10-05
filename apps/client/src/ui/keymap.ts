@@ -78,8 +78,8 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
     title: "Artillery and the attack",
     actions: [
       { action: "bombard", label: "Bombard the enemy line and cut its wire, for two minutes", keys: ["KeyB"] },
-      { action: "fire-mission", label: "Call artillery onto the point under the pointer", keys: ["KeyV"] },
-      { action: "gas", label: "Call a gas shoot onto the point under the pointer", keys: ["KeyX"] },
+      { action: "fire-mission", label: "Hold to aim artillery at the pointer, let go to call it", keys: ["KeyV"] },
+      { action: "gas", label: "Hold to aim a gas shoot at the pointer, let go to call it", keys: ["KeyX"] },
       { action: "whistle", label: "Whistle: every squad attacks behind a creeping barrage", keys: ["KeyG"] }
     ]
   },

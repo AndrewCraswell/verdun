@@ -10,6 +10,7 @@ import {
   Stance,
   takeOverCandidates
 } from "@verdun/sim"
+import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
 import { planFires } from "../hud/operation-state.ts"
 import { cameraRigOf } from "./camera-rig.ts"
 
@@ -92,6 +93,8 @@ export function aimToward(from: GroundVector, target: GroundVector): GroundVecto
   return length < 0.25 ? null : { x: dx / length, z: dz / length }
 }
 
+/** A call that would hit our own men needs calling again within this many milliseconds. */
+const CONFIRM_MS = 3000
 /** Aim changes smaller than about one degree aren't worth a command. */
 const AIM_EPSILON = 0.0002
 /** How quickly the camera catches up with the soldier, per second. Higher is snappier. */
@@ -147,6 +150,23 @@ export function createPlayerControl(
     }
   }
 
+  // A call that would put our own men under it goes only on a second call of the same kind within a few seconds.
+  let warned: { readonly kind: CallKind; readonly at: number } | null = null
+
+  /** Whether a call can go: nobody of ours under it, or the player has called it again to say so. */
+  function confirmed(kind: CallKind, x: number, z: number): boolean {
+    const now = performance.now()
+    if (!callEndangers(sim, squad.side, kind, { x, z })) {
+      return true
+    }
+    if (warned && warned.kind === kind && now - warned.at <= CONFIRM_MS) {
+      warned = null
+      return true
+    }
+    warned = { kind, at: now }
+    return false
+  }
+
   function act(action: PlayerAction): void {
     switch (action.kind) {
       case "switch-next":
@@ -186,10 +206,14 @@ export function createPlayerControl(
         }
         return
       case "call-gas":
-        commands?.callGas?.(action.x, action.z)
+        if (confirmed("gas", action.x, action.z)) {
+          commands?.callGas?.(action.x, action.z)
+        }
         return
       case "call-fire":
-        commands?.callFire(action.x, action.z)
+        if (confirmed("fire", action.x, action.z)) {
+          commands?.callFire(action.x, action.z)
+        }
         return
       case "toggle-fog":
         toggleFog?.()
