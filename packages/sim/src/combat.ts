@@ -4,6 +4,7 @@ import { Shell } from "./artillery.ts"
 import { reloadFactor } from "./climate.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import { GRENADE_RANGE, type GroundPoint, grenadeFlight } from "./grenade.ts"
+import { inCover } from "./hollows.ts"
 import { eyeAt, type WorldPoint } from "./line-of-sight.ts"
 import { aimInLight, canMakeOut } from "./sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
@@ -202,9 +203,11 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   let chance = stats.accuracy * Math.exp(-Math.sqrt(dx * dx + dz * dz) / stats.falloff)
   if (sim.soldiers.stance.value[target] === Stance.Prone) {
+    const x = sim.soldiers.position.x[target]
+    const z = sim.soldiers.position.z[target]
+    // A man lying in a shell hole is below the sweep, as in a trench.
     const grazed =
-      sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun &&
-      !isInTrench(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target])
+      sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun && !isInTrench(sim.map, x, z) && !inCover(sim, x, z)
     chance *= grazed ? GRAZED_FACTOR : PRONE_FACTOR
   } else if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
     // A pinned target is flat in the bottom of a trench or crater: as good as covered. A sniper's business is the

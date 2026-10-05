@@ -1,6 +1,7 @@
 import { createFlatMap, stampCrater, Surface } from "@verdun/map"
 import { describe, expect, it } from "vitest"
-import { coverNear, hollowDepth } from "./cover.ts"
+import { coverNear } from "./cover.ts"
+import { hollowDepth } from "./hollows.ts"
 import { createSimulation } from "./simulation.ts"
 
 function field(withCrater: boolean) {

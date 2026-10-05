@@ -1,4 +1,4 @@
-import { carveTrenches, createFlatMap, heightAt, layOutFront, mapDepth, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, heightAt, layOutFront, mapDepth, stampCrater, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   addAmmunition,
@@ -12,6 +12,7 @@ import {
 } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
+import { hollowDepth } from "./hollows.ts"
 import { type LineOfSight } from "./line-of-sight.ts"
 import { createLineOfSight } from "./physics-sight.ts"
 import {
@@ -321,6 +322,34 @@ describe("creeping barrage attack", () => {
     expect(mission?.lineZ).toBe(85)
     stepFor(sim, 200)
     expect(mission?.finished).toBe(true)
+  })
+
+  it("crosses by rushes from shell hole to shell hole, half the squad lying in them while the other half goes", async () => {
+    const { sim, members } = await attack()
+    // Rows of shell holes on the rush lines, every 12 m north from 24 m, where they'll follow the barrage to.
+    for (const z of [24, 36, 48, 60]) {
+      for (const x of [90, 95, 100, 105]) {
+        stampCrater(sim.map, { x, z, radius: 2, depth: 1 })
+      }
+    }
+    let lyingInHoles = 0
+    let upInTheOpen = 0
+    for (let step = 0; step < 60 * TICK_RATE; step++) {
+      stepSimulation(sim)
+      if (step % TICK_RATE !== 0) {
+        continue
+      }
+      for (const member of members.filter((soldier) => isAlive(sim, soldier))) {
+        const { x, z } = sim.soldiers.position
+        if (hollowDepth(sim, x[member], z[member]) >= 0.3) {
+          lyingInHoles++
+        } else if (z[member] > 21) {
+          upInTheOpen++
+        }
+      }
+    }
+    // Between the start line and their place behind the barrage, more time down in the holes than up in the open.
+    expect(lyingInHoles).toBeGreaterThan(upInTheOpen)
   })
 
   it("keeps the infantry behind the barrage, then sends them onto the objective once it lifts past", async () => {

@@ -1,14 +1,11 @@
-import { heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { mapDepth, mapWidth } from "@verdun/map"
+import { hollowDepth, SHALLOWEST } from "./hollows.ts"
 import { groundVersion } from "./navigation.ts"
 import type { Simulation } from "./simulation.ts"
 import { wirePace } from "./wire.ts"
 
-/** A hollow is measured against the ground this far around it, in metres: a shell hole's lip, a fold in the ground. */
-const RING = 2.5
 /** A man looks for cover this far from where he was sent, in metres, a metre at a time. */
 const REACH = 3
-/** Hollows shallower than this, in metres, are no cover: lying in them, a man is as much in view as on the flat. */
-const SHALLOWEST = 0.3
 /** Depth counts for no more than this, in metres: a deep crater shelters a man no better than one his own depth. */
 const DEEPEST = 1
 /** Each metre further from where he was sent costs this much depth: of two holes alike, he takes the nearer. */
@@ -19,16 +16,6 @@ const WIRE_MARGIN = 0.4
 const WIRE_SNAG = 0.5
 /** At most this many spots are remembered before the store starts afresh. */
 const MAX_REMEMBERED = 8192
-
-/** How far a point lies below the ground around it, in metres: a crater's bottom is well below its lip. */
-export function hollowDepth(sim: Simulation, x: number, z: number): number {
-  let around = 0
-  for (let eighth = 0; eighth < 8; eighth++) {
-    const angle = (eighth * Math.PI) / 4
-    around += heightAt(sim.map, x + Math.cos(angle) * RING, z + Math.sin(angle) * RING)
-  }
-  return around / 8 - heightAt(sim.map, x, z)
-}
 
 function inWire(sim: Simulation, x: number, z: number): boolean {
   const caught = (px: number, pz: number) => wirePace(sim.wire, px, pz) < WIRE_SNAG

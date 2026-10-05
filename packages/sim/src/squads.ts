@@ -4,6 +4,7 @@ import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
 import type { Side } from "./components.ts"
 import { coverNear } from "./cover.ts"
+import { inCover } from "./hollows.ts"
 import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 
@@ -186,6 +187,28 @@ function creepSlot(
  */
 const RUSH_CLEARANCE = 30
 
+/**
+ * Following a creeping barrage, men cross no man's land by rushes from shell hole to shell hole: lines every this many
+ * metres across it, fixed to the ground, each rush ending in the best cover on the next line once their place behind
+ * the barrage has passed it. So the barrage's lifts set the pace, and between rushes the men lie in the craters rather
+ * than walk in the open.
+ */
+const RUSH_LINES = 12
+/** A man this near a rush line, in metres, has reached it: the cover found on it may lie a little short. */
+const RUSH_ARRIVED = 3
+/**
+ * Men run their rushes only with this much breath left (of 100), and walk them otherwise: run all the way, they came to
+ * the enemy's wire too blown to charge it, and the guns had them.
+ */
+const RUSH_BREATH = 70
+
+/** The first rush line beyond `z`, going `direction`. */
+function nextRushLine(z: number, direction: number): number {
+  return direction > 0
+    ? (Math.floor((z + RUSH_ARRIVED) / RUSH_LINES) + 1) * RUSH_LINES
+    : (Math.ceil((z - RUSH_ARRIVED) / RUSH_LINES) - 1) * RUSH_LINES
+}
+
 /** Whether a creeping barrage has lifted well past a squad's objective, or finished. */
 function barrageLifted(sim: Simulation, order: { mission: number; objectiveZ: number }): boolean {
   const line = barrageLine(sim, order.mission)
@@ -267,13 +290,29 @@ export function squadSystem(sim: Simulation): void {
       }
       if (order.kind === "creep") {
         const target = creepSlot(sim, order, slot, followers.length)
-        const direction = Math.sign(order.objectiveZ - sim.soldiers.position.z[member])
-        // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on. Once the
-        // barrage has lifted off the objective, they run for it.
-        if ((target.z - sim.soldiers.position.z[member]) * direction >= 0) {
-          const goal: NavGoal = { kind: "line", z: target.z, direction: direction || 1 }
-          orderMoveTo(sim, member, target, goal, barrageLifted(sim, order))
+        const { x, z } = sim.soldiers.position
+        const direction = Math.sign(order.objectiveZ - z[member]) || 1
+        // Never fall back: a soldier already ahead of their slot waits there for the barrage to move on.
+        if ((target.z - z[member]) * direction < 0) {
+          return
         }
+        const goal: NavGoal = { kind: "line", z: target.z, direction }
+        // Once the barrage has lifted off the objective, they run for it.
+        if (barrageLifted(sim, order)) {
+          orderMoveTo(sim, member, target, goal, true)
+          return
+        }
+        // The next rush ends in the best cover on the next line, or, where their place falls short of it, in their place
+        // itself: lagging a line behind it, they'd be the further off when the barrage lifts off the objective.
+        const line = nextRushLine(z[member], direction)
+        const next = (target.z - line) * direction < 0 ? target : coverNear(sim, target.x, line)
+        const away = (next.x - x[member]) ** 2 + (next.z - z[member]) ** 2 > SLOT_TOLERANCE * SLOT_TOLERANCE
+        if (away && slot % 2 !== movingHalf && inCover(sim, x[member], z[member])) {
+          // Down in his hole while the other half rush.
+          applyCommand(sim, { type: "move-to", soldier: member, x: x[member], z: z[member] })
+          return
+        }
+        orderMoveTo(sim, member, next, goal, sim.soldiers.stamina.value[member] >= RUSH_BREATH)
         return
       }
       if (order.kind === "follow") {
