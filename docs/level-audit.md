@@ -93,3 +93,11 @@ In order, each verified in the browser and committed on its own:
   cascade and the backdrop kept out of the shadows (twelve million shadow triangles a frame to under three), and the
   backdrop's woods thinned with distance and cut into cells (3.8 million of the frame's 6.3 million triangles to 0.87
   million, the scene pass from about 35 ms to 17 ms at 1080p on an integrated GPU).
+- **Performance, the ground's pixels**: the ground's shader fetched all four layers three ways, and their normal maps,
+  on every pixel; it now looks up only the layers present there, and sideways only on steep ground. On a quiet machine
+  (Radeon 860M, 1080p, `pnpm perf`), day went from 27 to 32–36 fps and the GPU frame from 33–34 ms to 23–28 ms; the low
+  graphics setting saves about 5 ms more by drawing one sample with FXAA. What's left in the 24–26 ms GPU frame, by
+  switching each part off: the ground about 8 ms, shadow receiving about 4 ms (not its filtering: low or no PCF saves
+  nothing), the depth of field 3 ms, bloom 2 ms, grain 1 ms, the soldiers 1.5 ms; the far woods, the trench kit and
+  particles are lost in the noise. A 0.75 render scale saves about 5.5 ms. The ground's textures are still uncompressed
+  PNG; KTX2 would cut what they cost in bandwidth. The page's CPU (about 27 ms a frame) is now close behind the GPU.
