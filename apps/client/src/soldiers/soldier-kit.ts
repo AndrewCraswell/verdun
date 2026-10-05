@@ -427,10 +427,38 @@ function findMesh(container: AssetContainer, name: string): Mesh {
   return mesh
 }
 
+/** A bone's weight too slight to count: it moves a vertex of a man less than a millimetre. */
+const SLIGHT = 1e-4
+
+/**
+ * How many bone slots a skinned mesh's vertices fill: up to the last one any vertex weights, and at least the first,
+ * which the baked-animation shader reads whatever. Babylon reads four unless told otherwise, each a matrix from the
+ * animation texture, and the kit's men hang off three bones a vertex at most, their masks off one.
+ */
+function influencesUsed(mesh: Mesh): number {
+  let used = 1
+  const slots = [
+    mesh.getVerticesData(VertexBuffer.MatricesWeightsKind),
+    mesh.getVerticesData(VertexBuffer.MatricesWeightsExtraKind)
+  ]
+  for (const [set, weights] of slots.entries()) {
+    if (!weights) {
+      continue
+    }
+    for (let index = 0; index < weights.length; index++) {
+      if (weights[index] > SLIGHT) {
+        used = Math.max(used, set * 4 + (index % 4) + 1)
+      }
+    }
+  }
+  return used
+}
+
 /**
  * Readies a loaded soldier kit: matte materials, the clips baked into one animation texture shared by every skinned
  * mesh, each mesh standing at the origin with its transform taken into the bake (or, for the rifle and the guns, its
- * vertices), the rifle skinned to its own column of the bake, and the animation groups, done with, disposed.
+ * vertices), the rifle skinned to its own column of the bake, every skinned mesh reading only the bone slots its
+ * vertices fill, and the animation groups and the bones' links to the glTF's nodes, done with, let go.
  */
 export function prepareSoldierKit(scene: Scene, container: AssetContainer): SoldierKit {
   const skeleton = container.skeletons[0]
@@ -478,6 +506,11 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
   for (const group of container.animationGroups.slice()) {
     group.dispose()
   }
+  // The bake is done with the glTF's bone nodes. Left linked, the skeleton would copy them into its bones and work out
+  // every bone's matrix again each frame, for meshes that take theirs from the texture.
+  for (const bone of skeleton.bones) {
+    bone.linkTransformNode(null)
+  }
 
   const skinned = [bodies[Side.French], bodies[Side.German], mask]
   const statics = [rifle, guns[Side.French], guns[Side.German]]
@@ -496,6 +529,7 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
     mesh.rotationQuaternion = Quaternion.Identity()
     mesh.scaling.setAll(1)
     mesh.bakedVertexAnimationManager = manager
+    mesh.numBoneInfluencers = influencesUsed(mesh)
     // The bake mirrors (left-handed from right-handed), so the triangles wind the other way.
     if (world.determinant() < 0) {
       mesh.flipFaces()
@@ -518,6 +552,7 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
   rifle.setVerticesData(VertexBuffer.MatricesWeightsKind, weights, false)
   rifle.skeleton = skeleton
   rifle.bakedVertexAnimationManager = manager
+  rifle.numBoneInfluencers = 1
   const materials = [...new Set(matte.values())]
   // The squad's markers, drawn over the battlefield, keep off the men (render/marker-stencil.ts).
   for (const material of materials) {

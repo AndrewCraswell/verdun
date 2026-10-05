@@ -60,6 +60,30 @@ function clip(
 }
 
 /**
+ * Hangs a mesh's vertices off one bone more in turn, up to `slots`, with the float dust an exporter can leave in the
+ * slot after.
+ */
+function skin(mesh: Mesh, slots: number): void {
+  const vertices = mesh.getTotalVertices()
+  const weights = new Float32Array(vertices * 4)
+  for (let vertex = 0; vertex < vertices; vertex++) {
+    const filled = 1 + (vertex % slots)
+    weights.fill(1 / filled, vertex * 4, vertex * 4 + filled)
+    if (filled < 4) {
+      weights[vertex * 4 + filled] = 1e-6
+    }
+  }
+  mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, new Float32Array(vertices * 4), false)
+  mesh.setVerticesData(VertexBuffer.MatricesWeightsKind, weights, false)
+}
+
+/** How many bones a vertex the kit's men hang off at most, as soldier.glb has them. The rest hang off one. */
+const SLOTS = new Map([
+  ["Soldier_French", 3],
+  ["Soldier_German", 2]
+])
+
+/**
  * What the glTF loader hands back for soldier.glb, in miniature: a mirrored root, a scaled armature, one bone, the
  * rifle unrigged under the root like the guns (or, from a kit built before that, rigged like the mask).
  */
@@ -93,6 +117,7 @@ function loadedContainer(
     const mesh = CreateBox(name, { size: 0.5 }, target)
     mesh.parent = armature
     mesh.skeleton = skeleton
+    skin(mesh, SLOTS.get(name) ?? 1)
     mesh.material = materials.get(name) ?? plain
     container.meshes.push(mesh)
   }
@@ -439,6 +464,32 @@ describe("prepareSoldierKit", () => {
     // One bone, then Babylon's identity, then the rifle.
     expect(new Set(Array.from(indices).filter((_, index) => index % 4 === 0))).toEqual(new Set([2]))
     expect(new Set(Array.from(weights).filter((_, index) => index % 4 === 0))).toEqual(new Set([1]))
+  })
+
+  it("has each mesh read only the bone slots its vertices fill, and unlinks the bones from the glTF's nodes", () => {
+    const target = scene()
+    const container = loadedContainer(target)
+    const kit = prepareSoldierKit(target, container)
+
+    // Up to the last slot weighted; the dust after it moves nothing.
+    expect(kit.bodies[Side.French].numBoneInfluencers).toBe(3)
+    expect(kit.bodies[Side.German].numBoneInfluencers).toBe(2)
+    expect(kit.mask.numBoneInfluencers).toBe(1)
+    expect(kit.rifle.numBoneInfluencers).toBe(1)
+    // The bake done, the bones no longer follow the nodes about every frame.
+    expect(container.skeletons[0]?.bones.map((bone) => bone.getTransformNode())).toEqual([null])
+
+    // A vertex leaving a slot empty before a weighted one still needs that one read.
+    const gapped = loadedContainer(target)
+    const mask = gapped.meshes.find((mesh) => mesh.name === "Soldier_Mask")
+    const weighted = mask?.getVerticesData(VertexBuffer.MatricesWeightsKind)
+    if (!mask || !weighted) {
+      throw new Error("no mask weights")
+    }
+    const weights = Float32Array.from(weighted)
+    weights.set([0.9, 0, 0.1, 0])
+    mask.setVerticesData(VertexBuffer.MatricesWeightsKind, weights, false)
+    expect(prepareSoldierKit(target, gapped).mask.numBoneInfluencers).toBe(3)
   })
 
   it("bakes the guns' place into their vertices", () => {
