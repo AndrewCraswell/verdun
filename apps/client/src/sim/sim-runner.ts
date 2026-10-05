@@ -4,15 +4,15 @@ import {
   createSyncSource,
   enqueueCommand,
   loadWeatherRegion,
-  PLAYTEST_OPERATION,
   planOperation,
+  PLAYTEST_OPERATION,
+  setupSkirmish,
   type Simulation,
   stepSimulation,
   type SyncSource
 } from "@verdun/sim"
 import { createLineOfSight } from "@verdun/sim/physics"
 import { createSightModel, type SightModel } from "../fog/sight-model.ts"
-import { setupSkirmish } from "../skirmish.ts"
 import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
 
 /** The squad's sight is looked at again every this many steps (a quarter of a second), and whenever orders come. */

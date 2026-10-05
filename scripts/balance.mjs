@@ -10,11 +10,11 @@ import { readFileSync } from "node:fs"
 import { availableParallelism } from "node:os"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
-import { setupSkirmish } from "../apps/client/src/skirmish.ts"
 import { decodeElevation, generateFleurySector, generatePrototypeSector } from "../packages/map/src/index.ts"
 import {
   attackBehindBarrage,
   bombardEnemyLine,
+  setupSkirmish,
   capturedIds,
   createSimulation,
   evacuatedIds,

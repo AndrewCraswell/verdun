@@ -1,18 +1,18 @@
 import {
+  callForFire,
   enqueueCommand,
   MaskState,
-  PLAYTEST_OPERATION,
   planOperation,
+  PLAYTEST_OPERATION,
   Shell,
-  type SimEvent,
   Side,
+  type SimEvent,
   spawnSoldier,
   stepSimulation,
   TICK_RATE,
   WeatherPattern
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { callForFire } from "../skirmish.ts"
 import { createBattleLog, LOG_LENGTH } from "./battle-log.ts"
 import { createSquadNames } from "./squad-names.ts"
 import { slot, testBattle } from "./test-battle.ts"

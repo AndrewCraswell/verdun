@@ -4,8 +4,9 @@ import {
   type Command,
   createSimulation,
   type LineOfSight,
-  PLAYTEST_OPERATION,
   planOperation,
+  PLAYTEST_OPERATION,
+  setupSkirmish,
   type SimEvent,
   type Simulation,
   type Squad,
@@ -13,7 +14,6 @@ import {
 } from "@verdun/sim"
 import type { SightFeed } from "../fog/fog-of-war.ts"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
-import { setupSkirmish } from "../skirmish.ts"
 import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
 
 /** A step taken, as the page plays it out: its tick and what happened in it. */

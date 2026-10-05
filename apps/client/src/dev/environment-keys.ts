@@ -1,17 +1,17 @@
 import {
   clockMoment,
   enqueueCommand,
+  forecastFrom,
   type ForecastSpec,
   type Simulation,
   typicalWeather,
-  WEEK,
+  type WarClock,
   WeatherPattern,
-  forecastFrom
+  WEEK
 } from "@verdun/sim"
 import { debugDock } from "../debug/dock.ts"
 import { battleHour, countdownLabel, turnLabel, weekLabel } from "../environment/calendar.ts"
 import { forecastLabel } from "../environment/forecast-label.ts"
-import type { WarClock } from "../environment/war-clock.ts"
 import { registerBindings } from "../ui/bindings.ts"
 
 const HOUR = 3_600_000

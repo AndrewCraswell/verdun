@@ -1,19 +1,11 @@
 import { pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
-import {
-  allotReinforcements,
-  createSquad,
-  enqueueCommand,
-  type EntityId,
-  Shell,
-  Side,
-  type Simulation,
-  type Squad,
-  spawnSoldier,
-  Weapon
-} from "@verdun/sim"
-
-// The whistle and the bombardment are the simulation's now, so an operation can fire them on time.
-export { attackBehindBarrage, bombardEnemyLine } from "@verdun/sim"
+import type { EntityId } from "bitecs"
+import { Shell } from "./artillery.ts"
+import { Weapon } from "./combat.ts"
+import { Side } from "./components.ts"
+import { allotReinforcements } from "./reinforcements.ts"
+import { enqueueCommand, type Simulation, spawnSoldier } from "./simulation.ts"
+import { createSquad, type Squad } from "./squads.ts"
 
 /** Soldiers per squad: the player commands one squad. */
 export const SQUAD_SIZE = 8

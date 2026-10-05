@@ -1,7 +1,6 @@
-import { TICK_RATE } from "@verdun/sim"
+import { callForFire, TICK_RATE } from "@verdun/sim"
 import { Side, stepSimulation } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { callForFire } from "../skirmish.ts"
 import { ATTENTION_SECONDS, createAttentionWatch } from "./attention.ts"
 import { missionsOf } from "./fire-support.ts"
 import { clockView, createLightReader, sectorView } from "./sector-state.ts"

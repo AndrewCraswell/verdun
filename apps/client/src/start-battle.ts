@@ -6,13 +6,18 @@ import { type ChangedArea, decodeElevation, generateFleurySector, mergeAreas } f
 import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
 import surroundingsUrl from "@verdun/map/data/fleury-surroundings.bin?url"
 import {
+  attackBehindBarrage,
+  bombardEnemyLine,
+  callForFire,
+  callGasOn,
   createFixedStepper,
-  shotEvents,
+  createWarClock,
   loadWeatherRegion,
-  WEATHER_REGIONS,
+  shotEvents,
   Side,
   STEP_SECONDS,
-  TICK_RATE
+  TICK_RATE,
+  WEATHER_REGIONS
 } from "@verdun/sim"
 import { createBattleSounds } from "./audio/battle-sounds.ts"
 import { type Music, startMusic } from "./audio/music.ts"
@@ -29,7 +34,6 @@ import { bucketInstanceCounts } from "./effects/instance-buffer.ts"
 import { createTracers } from "./effects/tracers.ts"
 import { lightLevel } from "./environment/daylight.ts"
 import { createEnvironmentView } from "./environment/environment-view.ts"
-import { createWarClock } from "./environment/war-clock.ts"
 import { browserStore, localSchedule } from "./environment/war-schedule.ts"
 import { createFogOfWar } from "./fog/fog-of-war.ts"
 import { createHud } from "./hud/hud.ts"
@@ -47,7 +51,6 @@ import { playSettings } from "./settings/play.ts"
 import { sideSettings } from "./settings/side.ts"
 import { browserStorage } from "./settings/store.ts"
 import { createSimHost } from "./sim/sim-host.ts"
-import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
 import { createBattleNotes } from "./ui/battle-notes.ts"

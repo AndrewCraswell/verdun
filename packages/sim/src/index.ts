@@ -208,6 +208,8 @@ export {
   warWeekOf,
   type WarSchedule
 } from "./war-calendar.ts"
+export { createWarClock, type WarClock } from "./war-clock.ts"
+export { callForFire, callGasOn, SHELL_ALLOTMENT, type Skirmish, setupSkirmish, SQUAD_SIZE } from "./skirmish.ts"
 export { type DayOutlook, dayOutlook, type ForecastDay, forecastDay, forecastFrom, windFrom } from "./outlook.ts"
 export { loadWeatherRegion, WEATHER_REGIONS, type WeatherRegion } from "./records.ts"
 export { applySync, createSyncSource, type GroundPatch, type SimSync, type SyncSource } from "./sync.ts"

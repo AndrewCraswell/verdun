@@ -1,6 +1,15 @@
-import { enqueueCommand, Shell, Side, stepSimulation, TICK_RATE } from "@verdun/sim"
+import {
+  attackBehindBarrage,
+  bombardEnemyLine,
+  callForFire,
+  callGasOn,
+  enqueueCommand,
+  Shell,
+  Side,
+  stepSimulation,
+  TICK_RATE
+} from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn } from "../skirmish.ts"
 import { callsOf, countdownWord, createShellLedger, missionsOf } from "./fire-support.ts"
 import { testBattle } from "./test-battle.ts"
 

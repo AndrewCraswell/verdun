@@ -1,6 +1,9 @@
 import { createFlatMap, layOutFront, mapDepth } from "@verdun/map"
-import { createSimulation, Shell, Side, soldierIds, stepSimulation, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
+import { Shell } from "./artillery.ts"
+import { Weapon } from "./combat.ts"
+import { Side } from "./components.ts"
+import { createSimulation, soldierIds, stepSimulation } from "./simulation.ts"
 import { callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
 
 const flat = createFlatMap({ name: "test", cellSize: 1, columns: 300, rows: 200 })

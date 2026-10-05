@@ -1,4 +1,5 @@
-import { enqueueCommand, type Simulation, type WarDay, warDayAt, type WarSchedule } from "@verdun/sim"
+import { enqueueCommand, type Simulation } from "./simulation.ts"
+import { type WarDay, warDayAt, type WarSchedule } from "./war-calendar.ts"
 
 /** Drives a battle from the war's calendar: the week it is fought in, and whether it waits. */
 export interface WarClock {
