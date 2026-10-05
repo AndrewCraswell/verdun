@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { decodeElevation, generateFleurySector } from "@verdun/map"
+import { decodeElevation, generateFleurySector, heightAt, sampleIndex } from "@verdun/map"
 import { enqueueCommand, type LineOfSight, Side } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createSimHost, type SimHost, type StepTaken } from "./sim-host.ts"
@@ -56,9 +56,6 @@ async function stepsTaken(host: SimHost, count: number): Promise<StepTaken[]> {
   }
   return taken
 }
-
-/** Lets the stand-in worker answer. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 100))
 
 const hosts: SimHost[] = []
 afterEach(() => {
@@ -125,41 +122,47 @@ describe("the simulation's host", () => {
     expect(host.sim.tick).toBe(20)
   })
 
-  it("rebuilds the page's sight lines where craters have reshaped the ground", async () => {
+  it("answers the page's questions of sight from the map as it is, with no physics, in a worker", async () => {
     vi.stubGlobal("Worker", InProcessWorker)
-    const host = await createSimHost(map(), setup)
+    const ground = map()
+    const host = await createSimHost(ground, setup)
     hosts.push(host)
-    const rebuilt: number[][] = []
-    const lineOfSight: LineOfSight = {
-      isClear: () => true,
-      rebuildRegion: (...area: number[]) => {
-        rebuilt.push(area)
-        return 0
-      },
+    const physics: LineOfSight = {
+      isClear: () => false,
+      rebuildRegion: () => 0,
       setSightHeight: () => undefined,
       dispose: () => undefined
     }
-    host.attachLineOfSight(lineOfSight)
-    expect(host.sim.lineOfSight).toBe(lineOfSight)
-    enqueueCommand(host.sim, {
-      type: "fire-mission",
-      plan: {
-        side: Side.French,
-        shell: 0,
-        fromX: 250,
-        toX: 350,
-        z: 250,
-        band: 20,
-        roundsPerMinute: 600,
-        delay: 0,
-        duration: 60
-      }
-    })
-    for (let frame = 0; frame < 120 && rebuilt.length === 0; frame++) {
-      host.update(8)
-      await settle()
-    }
+    host.attachLineOfSight(physics)
 
-    expect(rebuilt.length).toBeGreaterThan(0)
+    // The page's sight lines stay its own light ones, read from the map.
+    expect(host.sim.lineOfSight).toBe(host.sightLines)
+    const from = { x: 300, y: heightAt(ground, 300, 200) + 1.6, z: 200 }
+    const to = { x: 302, y: heightAt(ground, 302, 200) + 1.6, z: 200 }
+    expect(host.sightLines.isClear(from, to)).toBe(true)
+    // A ridge thrown up between them, as the ground changes, blocks the line at once: nothing to rebuild.
+    for (let column = 0; column <= ground.columns; column++) {
+      for (let row = 0; row <= ground.rows; row++) {
+        if (Math.abs(column * ground.cellSize - 301) < 0.3) {
+          ground.heights[sampleIndex(ground, column, row)] += 5
+        }
+      }
+    }
+    expect(host.sightLines.isClear(from, to)).toBe(false)
+  })
+
+  it("gives the simulation the physics' sight lines when it runs inline", async () => {
+    const host = await createSimHost(map(), setup, true)
+    hosts.push(host)
+    const physics: LineOfSight = {
+      isClear: () => false,
+      rebuildRegion: () => 0,
+      setSightHeight: () => undefined,
+      dispose: () => undefined
+    }
+    host.attachLineOfSight(physics)
+
+    expect(host.sim.lineOfSight).toBe(physics)
+    expect(host.sightLines).toBe(physics)
   })
 })

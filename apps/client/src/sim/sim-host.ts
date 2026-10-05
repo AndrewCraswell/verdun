@@ -1,4 +1,4 @@
-import { type BattlefieldMap, type ChangedArea, mergeAreas } from "@verdun/map"
+import type { BattlefieldMap } from "@verdun/map"
 import {
   applySync,
   type Command,
@@ -10,6 +10,7 @@ import {
   stepSimulation
 } from "@verdun/sim"
 import type { SightFeed } from "../fog/fog-of-war.ts"
+import { createTerrainSight } from "../fog/terrain-sight.ts"
 import { setupSkirmish } from "../skirmish.ts"
 import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
 
@@ -37,15 +38,21 @@ export interface SimHost {
    * since the last call, oldest first. In a worker the steps asked for come back a frame or so later.
    */
   update(steps: number): readonly StepTaken[]
-  /** The page's own sight lines, for the fog of war and the sound, kept in step with craters. */
+  /**
+   * Sight lines for the page's own questions (where the player's aim falls, whether a sound comes muffled through the
+   * ground): without physics in a worker (see terrain-sight.ts), the simulation's own inline.
+   */
+  readonly sightLines: LineOfSight
+  /**
+   * Inline, gives the simulation its sight lines. In a worker the simulation has its own and the page needs none: it
+   * does nothing, and the physics needn't be made on the page at all.
+   */
   attachLineOfSight(lineOfSight: LineOfSight): void
   dispose(): void
 }
 
 /** A batch asks for no more steps than this: a worker falling behind catches up over a few frames. */
 const MOST_STEPS = 8
-/** The page's sight lines follow the craters at most this often, in seconds, as the simulation's own do. */
-const SIGHT_REBUILD_SECONDS = 2
 
 function simulationFor(map: BattlefieldMap, setup: BattleSetup): Simulation {
   return createSimulation({
@@ -59,9 +66,13 @@ function simulationFor(map: BattlefieldMap, setup: BattleSetup): Simulation {
 function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
   const sim = simulationFor(map, setup)
   const { playerSquad } = setupSkirmish(sim)
+  let sightLines: LineOfSight = createTerrainSight(map)
   return {
     sim,
     playerSquad,
+    get sightLines() {
+      return sightLines
+    },
     inWorker: false,
     sight: null,
     update(steps) {
@@ -73,6 +84,7 @@ function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
       return taken
     },
     attachLineOfSight(lineOfSight) {
+      sightLines = lineOfSight
       sim.lineOfSight = lineOfSight
     },
     dispose() {
@@ -89,9 +101,9 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   let inFlight = false
   let owed = 0
   let commands: Command[] = []
-  let lineOfSight: LineOfSight | null = null
-  let unseenGround: ChangedArea | null = null
-  let sightRebuiltAt = 0
+  // The page's own questions of sight, answered from the map as craters reshape it.
+  const sightLines = createTerrainSight(map)
+  mirror.lineOfSight = sightLines
   let latestSight: SightLook | null = null
 
   const started = new Promise<number>((resolve, reject) => {
@@ -109,13 +121,6 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
       inFlight = false
       arrived.push(...message.sync.steps)
       latestSight = message.sight ?? latestSight
-      for (const step of message.sync.steps) {
-        for (const event of step.events) {
-          if (event.type === "burst" && event.crater) {
-            unseenGround = mergeAreas(unseenGround, event.crater)
-          }
-        }
-      }
     })
     worker.addEventListener("error", (event) => reject(new Error(`the simulation's worker failed: ${event.message}`)))
   })
@@ -148,20 +153,13 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
         commands = []
         inFlight = true
       }
-      const ground = unseenGround
-      const now = performance.now() / 1000
-      if (lineOfSight && ground && now - sightRebuiltAt >= SIGHT_REBUILD_SECONDS) {
-        lineOfSight.rebuildRegion(ground.minX, ground.minZ, ground.maxX, ground.maxZ)
-        unseenGround = null
-        sightRebuiltAt = now
-      }
       const taken = arrived
       arrived = []
       return taken
     },
-    attachLineOfSight(sightLines) {
-      lineOfSight = sightLines
-      mirror.lineOfSight = sightLines
+    sightLines,
+    attachLineOfSight() {
+      // The simulation has its own, in the worker; the page keeps its light ones.
     },
     dispose() {
       worker.terminate()
