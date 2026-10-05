@@ -112,6 +112,7 @@ export {
 export {
   allotReinforcements,
   arrivalOf,
+  arrivalPoint,
   type ReinforcementEvent,
   type ReinforcementState,
   type SquadTakenOverEvent,

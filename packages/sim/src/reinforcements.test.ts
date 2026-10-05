@@ -5,6 +5,7 @@ import { Side } from "./components.ts"
 import {
   allotReinforcements,
   arrivalOf,
+  arrivalPoint,
   FULL_SQUAD,
   joinRefusal,
   joinSquad,
@@ -91,6 +92,10 @@ describe("reinforcements", () => {
 
     stepFor(sim, 1)
     expect(arrivalOf(sim, squad)).toBeGreaterThan(sim.tick)
+    // Where they'll come up, marked while they're on their way.
+    const coming = arrivalPoint(sim, squad)
+    expect(coming?.z).toBeCloseTo(40, 0)
+    expect(Math.abs((coming?.x ?? 0) - 100)).toBeLessThan(15)
     expect(stepFor(sim, REDEPLOY_SECONDS - 2).some((event) => event.type === "reinforcement")).toBe(false)
     const events = stepFor(sim, 2)
 
@@ -106,6 +111,7 @@ describe("reinforcements", () => {
       expect(Math.abs(sim.soldiers.position.x[member] - 100)).toBeLessThan(15)
       expect(sim.soldiers.squad.id[member]).toBe(squad.id)
     }
+    expect(arrivalPoint(sim, squad)).toBeNull()
     expect(sim.soldiers.weapon.kind[squad.members[7] ?? -1]).toBe(Weapon.MachineGun)
   })
 

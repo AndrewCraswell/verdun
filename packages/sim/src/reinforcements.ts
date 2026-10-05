@@ -171,6 +171,16 @@ function arrivalPositions(sim: Simulation, side: Side, x: number, count: number)
     .map(({ px, pz }) => ({ x: px, z: pz }))
 }
 
+/** Where a wiped squad's replacements will come up while they're on their way, or null when none are coming. */
+export function arrivalPoint(sim: Simulation, squad: Squad): { x: number; z: number } | null {
+  const arrival = sim.reinforcements.arrivals.find((entry) => entry.squad === squad.id)
+  if (!arrival) {
+    return null
+  }
+  const places = arrivalPositions(sim, squad.side, arrival.x ?? squadX(sim, squad), arrival.men)
+  return places[Math.floor(places.length / 2)] ?? null
+}
+
 /** Refills a wiped squad with `men` fresh men in its side's rear trench, keeping each slot's weapon. */
 function bringUp(sim: Simulation, squad: Squad, men: number, x = squadX(sim, squad)): void {
   const weapons = squad.members.map((member) => sim.soldiers.weapon.kind[member])

@@ -9,7 +9,7 @@ import "./take-over-marks.css"
  * H17 on the map: with the squad lost, the camera draws back into the war map's view, and each squad that can be taken
  * over is a marker where its leader stands: its number (the key that takes it), how many men, and what it carries
  * that matters. Pointing at one tells who leads it and what it's doing; clicking it takes it over. A cross marks where
- * the player's squad fell.
+ * the player's squad fell, and a brass pill where its replacements come up (W10).
  */
 
 /** Metres above the ground the markers sit. */
@@ -35,7 +35,9 @@ interface Marker {
 export const takeOverMarks: HudElementFactory = (context) => {
   const root = h("div", "take-over-marks")
   const fell = h("div", "tom-fell", icon("killed", "tom-fell__icon"), h("span", "tom-fell__text", "Your squad"))
-  root.append(fell)
+  // W10: where the replacements come up, while they're on their way.
+  const arrival = h("div", "tom-arrival", icon("men", "tom-arrival__icon"), h("span", "", "Replacements"))
+  root.append(fell, arrival)
   const markers = new Map<number, Marker>()
 
   function markerFor(choice: TakeOverChoice): Marker {
@@ -109,6 +111,11 @@ export const takeOverMarks: HudElementFactory = (context) => {
         }
       }
       place(fell, wiped.fell.x, wiped.fell.z)
+      if (wiped.arrival) {
+        place(arrival, wiped.arrival.x, wiped.arrival.z)
+      } else {
+        arrival.style.display = "none"
+      }
       for (const choice of wiped.choices) {
         const marker = markers.get(choice.squad)
         if (marker) {

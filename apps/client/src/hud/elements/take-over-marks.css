@@ -13,7 +13,8 @@
 }
 
 .tom-marker,
-.tom-fell {
+.tom-fell,
+.tom-arrival {
   position: absolute;
   top: 0;
   left: 0;
@@ -146,6 +147,28 @@
   color: var(--hud-ink-2);
   translate: -50% -50%;
   pointer-events: none;
+}
+
+/* Where the replacements come up: brass, waiting on the rear trench. */
+.tom-arrival {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.2em 0.5em 0.2em 0.35em;
+  border: 1px dashed var(--hud-brass);
+  border-radius: 1em;
+  font-size: 0.74em;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--hud-brass-bright);
+  background: rgb(10 9 7 / 72%);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.tom-arrival__icon {
+  width: 1.2em;
+  height: 1.2em;
 }
 
 .tom-fell__icon {

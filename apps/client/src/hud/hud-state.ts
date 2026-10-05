@@ -1,6 +1,7 @@
 import {
   WEAPONS,
   arrivalOf,
+  arrivalPoint,
   capturedIds,
   concentrationAt,
   type EntityId,
@@ -19,6 +20,7 @@ import { type Banner, createBannerQueue } from "./banners.ts"
 import { type BattleLog, createBattleLog, type LogMessage } from "./battle-log.ts"
 import { callsOf, createShellLedger, type FireSupportView, missionsOf } from "./fire-support.ts"
 import { type OperationView, operationView } from "./operation-state.ts"
+import { type RearView, rearView } from "./rear.ts"
 import {
   type ClockView,
   clockView,
@@ -70,6 +72,8 @@ export interface HudState {
   readonly banner: { readonly banner: Banner; readonly progress: number } | null
   readonly succession: Succession | null
   readonly wiped: WipedView | null
+  /** Our aid post. */
+  readonly rear: RearView
   /** Machine guns given away by their fire: the enemy's we've spotted, and ours once the enemy has. */
   readonly guns: readonly SpottedGun[]
   /** Where the danger comes from now: fire at the man under control, shells about to land near him. */
@@ -107,6 +111,8 @@ export interface WipedView {
   readonly choices: readonly TakeOverChoice[]
   /** Where the squad fell: the middle of its men. */
   readonly fell: { readonly x: number; readonly z: number }
+  /** Where the replacements come up (W10), while they're on their way. */
+  readonly arrival: { readonly x: number; readonly z: number } | null
 }
 
 /** How strongly each screen effect shows, from 0 to 1 (E1-E8). */
@@ -286,7 +292,8 @@ export function createHudModel(
       men: coming?.men ?? 0,
       reserves,
       choices: inOfferedOrder(takeOverChoices(sim, squad, names)),
-      fell: middleOf(sim, squad)
+      fell: middleOf(sim, squad),
+      arrival: arrivalPoint(sim, squad)
     }
   }
 
@@ -348,6 +355,7 @@ export function createHudModel(
         banner: banners.current(now),
         succession: handover,
         wiped: wipedOf(soldier, roster, strength.reserves?.men ?? null),
+        rear: rearView(sim, squad),
         guns: spottedGunsView(sim, squad, tickRate),
         threats: threats.read(),
         operation: operationView(sim, squad.side, tickRate),

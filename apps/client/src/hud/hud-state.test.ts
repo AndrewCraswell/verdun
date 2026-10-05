@@ -82,6 +82,8 @@ describe("the HUD's state", () => {
     expect(state.cursor.state).toBe("none")
     expect(state.wiped).toMatchObject({ men: 8, reserves: 32 })
     expect(state.wiped?.seconds).toBeGreaterThan(20)
+    // Where they'll come up: in our rear trench, behind the stretch of front the squad held.
+    expect(Math.abs((state.wiped?.arrival?.x ?? Infinity) - 50.5)).toBeLessThan(15)
     expect(state.succession?.next).toBeNull()
   })
 

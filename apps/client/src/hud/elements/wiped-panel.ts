@@ -85,7 +85,11 @@ export const wipedPanel: HudElementFactory = (context) => {
       if (up && !offered && wiped) {
         // Drawn back over the sector into the war map, over where the squad fell; put back once the player has men.
         distanceBefore = context.cameraDistance()
-        const view = framing([wiped.fell, ...wiped.choices.map((choice) => choice.at)])
+        const view = framing([
+          wiped.fell,
+          ...(wiped.arrival ? [wiped.arrival] : []),
+          ...wiped.choices.map((choice) => choice.at)
+        ])
         context.setCameraDistance(Math.max(distanceBefore, view.distance))
         context.lookAt(view.x, view.z)
       } else if (!up && offered && distanceBefore !== null) {

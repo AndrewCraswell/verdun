@@ -86,10 +86,18 @@ each season, the theatres each season opens, Verdun's sectors, Fleury playable),
 their rebinding, S2, as a tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on
 their own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
 
-The orders wheel (H7: hold R, point at Advance, Hold or Follow, let go), the shot's chance on the cursor (H8: three pips
-for good, two for fair, one for poor, never a number; the hitChance setting) and the call previews (H10: hold V or X for
-the footprint, the margin a burst kills in and the delay, a second call needed when our men are under it) are built too,
-and the attackers see their stretch of the enemy's front line bracketed in brass on the war map and in the overview.
+The orders wheel (H7: held, point at an order, let go: Advance, Run to, Suppress, Dig in, Withdraw, Rally, Hold and
+Follow, one the squad can't take now greyed with the reason under the wheel), the shot's chance on the cursor (H8: three
+pips for good, two for fair, one for poor, never a number; the hitChance setting) and the call previews (H10: hold V or
+X for the footprint, the margin a burst kills in and the delay, a second call needed when our men are under it) are
+built too, and the attackers see their stretch of the enemy's front line bracketed in brass on the war map and in the
+overview. Our aid post is marked on the ground (W9), and where a wiped squad's replacements come up on the take-over map
+(W10).
+
+The battle's text was cut back at the developer's asking (October 2026): banners are a kicker and a headline with
+nothing under them; the log's feed leaves out what a banner has just said and the weather turning, which wait in its
+history; the order plate and the clock no longer list keys; the soldier card no longer says "Ready" or "Mask off"; the
+hold marker is the shield without its word.
 
 Still to come: operations, tasks and chat (H19-H21), and the rest of stage 2-3's screens.
 
@@ -361,7 +369,8 @@ Behaviour:
 
 **Stage** P. **Kind** Overlay + World. **Zone** above H5.
 
-What the squad is doing now. Today the order is never shown (`squad.order`, `squads.ts:10-44`).
+What the squad is doing now. **Built** (`elements/order-plate.ts`): the order's mark, its words and who can't obey; the
+keys are on the orders wheel and in the controls, not listed on the plate.
 
 | Order     | Shown as                                                                                             | World marker                                        | Stage    |
 | --------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------- |
@@ -553,14 +562,17 @@ full list of messages is in [notifications](#notifications).
   moments when they matter most.
 - No kill feed. A man of your own squad falling is reported by name ("Pvt. Martin killed"); enemy deaths are not
   reported one by one.
+- **Built**: what a banner has just said (zero hour, objectives, the enemy's counter-attack, gas, stand-to,
+  replacements, a squad taken over, the operation's end) and the weather turning are kept for the history but left off
+  the feed.
 
 ### H15 Banners
 
 **Stage** Now (stand-to), P, 2. **Kind** Overlay. **Zone** top centre, above the log.
 
-Big, rare, short messages that change what everyone is doing. Today the only banner is the stand-to at the daily cutoff
-("Stand-to: the communiqué is coming in"), plus "Paused. P to carry on" from the menu, in the same spot so they can
-overlap.
+Big, rare, short messages that change what everyone is doing. **Built** as a kicker and a headline ("Zero hour", "Over
+the top!"), nothing under them: what to do about it shows on the order plate, the ground and the men. Only the war's
+wait, at the daily turn or between seasons, keeps a line under it, saying when the battle goes on.
 
 | Banner                  | Text, for example                                                                       | Stage    |
 | ----------------------- | --------------------------------------------------------------------------------------- | -------- |
@@ -719,7 +731,7 @@ fades. The preview while choosing is the same marker, lighter.
 ### W5 Hold marker
 
 **Stage** P. A small mark where the squad was told to hold. Shown faintly, brighter when the squad is drawn away from
-it.
+it. **Built**: the shield in a ring, without a word over it; the order plate names the order.
 
 ### W6 Artillery
 
@@ -746,12 +758,16 @@ taken-not-consolidated states show here as well as in H12. Today objectives aren
 ### W9 Aid post and bearers
 
 **Stage** P. The side's aid post with the red cross (`aidPost`) and how many wait there. Stretcher-bearer teams are
-already meant to be visible as men with a stretcher; a light marker helps find them at far zoom.
+already meant to be visible as men with a stretcher; a light marker helps find them at far zoom. **Built**
+(`hud/rear.ts`, `elements/world-marks.ts`): the red cross on a dark disc, with the number of our men being treated there
+under it, shown in the overview and within 80 m; the bearers' marker isn't.
 
 ### W10 Arrival point
 
 **Stage** P. Where replacements come up (the rearmost fire trench behind the squad's stretch), while the squad is wiped
-or replacements are on their way.
+or replacements are on their way. **Built** on the take-over map (`elements/take-over-marks.ts`): "Replacements" in a
+dashed brass pill at the middle of the places they'll arrive at (`arrivalPoint` in the simulation), while they're on
+their way, and the camera's framing takes it in with where the squad fell and the squads on offer.
 
 ### W11 Later markers
 

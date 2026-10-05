@@ -9,9 +9,11 @@ import type { RosterSlot } from "../soldier-state.ts"
 import "./world-marks.css"
 
 /**
- * W2, W4-W8: marks drawn on the battlefield, following the camera. Where our guns' shells will fall and are falling,
+ * W2, W4-W9: marks drawn on the battlefield, following the camera. Where our guns' shells will fall and are falling,
  * with their countdowns, and how far back to keep from a creeping barrage; where the squad was sent or told to hold;
- * the objectives, with who holds them; and over the squad's men, the state of any in trouble and where the fallen lie.
+ * the objectives, with who holds them; over the squad's men, the state of any in trouble and where the fallen lie; our
+ * aid post, with the men being treated there, near it or in the overview. Where a wiped squad's replacements come up
+ * is on the take-over map (take-over-marks.ts).
  * Drawn over the battle and under the panels, a fixed size on the screen at any zoom. Enemies are never marked: the
  * player learns where they are by seeing them.
  */
@@ -87,9 +89,6 @@ interface ManMark {
   slot: RosterSlot
 }
 
-/** Orders marked on the ground by a word of their own; the rest by the order's own label. */
-const ORDER_TITLES: Readonly<Partial<Record<HudState["order"]["kind"], string>>> = { hold: "Hold", raid: "Raid" }
-
 const MAN_ICONS: Readonly<Partial<Record<RosterSlot["status"], IconName>>> = {
   shaken: "shaken",
   broken: "broken",
@@ -113,9 +112,10 @@ export const worldMarks: HudElementFactory = (context) => {
   const orderLayer = element("g", "wm-order")
   const objectivesLayer = element("g", "wm-objectives")
   const squadLayer = element("g", "wm-squad")
+  const rearLayer = element("g", "wm-rear")
   // The stretch of the enemy's line our attack goes in on, in the overview: the war map draws it further out.
   const stretchPath = element("path", "wm-stretch")
-  root.append(defs, stretchPath, missionsLayer, objectivesLayer, orderLayer, squadLayer)
+  root.append(defs, stretchPath, missionsLayer, objectivesLayer, rearLayer, orderLayer, squadLayer)
 
   const orderLine = element("path", "wm-order__line")
   const orderPin = element("g", "wm-order__pin")
@@ -125,10 +125,16 @@ export const worldMarks: HudElementFactory = (context) => {
     element("circle", "wm-order__dot", { r: 2.2 }),
     iconUse("hold", 14)
   )
-  const orderTitle = element("text", "wm-text wm-order__title", { y: -24 })
+  // The order plate names the order: on the ground only how far an advance has to go.
   const orderDistance = element("text", "wm-text wm-order__distance", { y: 32 })
-  orderPin.append(orderTitle, orderDistance)
+  orderPin.append(orderDistance)
   orderLayer.append(orderLine, orderPin)
+
+  // W9: our aid post, a red cross, with how many men are being treated there.
+  const post = element("g", "wm-post")
+  const patients = element("text", "wm-text wm-post__count", { y: 27 })
+  post.append(element("circle", "wm-post__disc", { r: 11 }), iconUse("aid-post", 15), patients)
+  rearLayer.append(post)
 
   const missions = new Map<number, MissionMark>()
   const objectives = new Map<string, ObjectiveMark>()
@@ -324,8 +330,12 @@ export const worldMarks: HudElementFactory = (context) => {
       syncMen(state)
       const { order } = state
       orderLayer.dataset.kind = order.kind
-      setText(orderTitle, ORDER_TITLES[order.kind] ?? order.label)
       setText(orderDistance, order.kind === "advance" ? (order.detail ?? "") : "")
+      const { rear } = state
+      const here = state.soldier?.position
+      const near = here ? Math.hypot(rear.aidPost.x - here.x, rear.aidPost.z - here.z) < NEAR : false
+      setAttribute(post, "display", root.dataset.full !== undefined || near ? "inline" : "none")
+      setText(patients, rear.aidPost.patients > 0 ? String(rear.aidPost.patients) : "")
     },
     frame(state) {
       const now = latest ?? state
@@ -392,6 +402,8 @@ export const worldMarks: HudElementFactory = (context) => {
           from && pin ? `M${from.x.toFixed(1)} ${from.y.toFixed(1)}L${pin.x.toFixed(1)} ${pin.y.toFixed(1)}` : ""
         )
       }
+
+      place(post, project(now.rear.aidPost.x, now.rear.aidPost.z, 0.5))
 
       for (const mark of men.values()) {
         const at = context.positionOf(mark.slot.id)
