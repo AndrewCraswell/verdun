@@ -12,7 +12,7 @@ import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem"
 import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { isInTrench, type ShotEvent, Side, type Simulation, Weapon, wireAt } from "@verdun/sim"
+import { type EntityId, isInTrench, type ShotEvent, Side, type Simulation, Weapon, wireAt } from "@verdun/sim"
 import { airLight, lightParticles, setInFog } from "../level/particle-light.ts"
 import type { GraphicsQuality } from "../settings/graphics.ts"
 import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
@@ -123,6 +123,11 @@ export interface GunfireSources {
   light(): number
   /** The graphics setting: "low" kicks up no muzzle smoke and less dirt. */
   readonly quality?: GraphicsQuality
+  /**
+   * Where a shooter's muzzle is as he's drawn, or null to put it a little ahead of his eye: the animated soldiers'
+   * rifles (soldiers/soldier-crowd.ts).
+   */
+  muzzle?(soldier: EntityId): Vector3 | null
 }
 
 /** A small, fixed hash to 0..1, so the same shot always scatters the same way without touching the simulation's dice. */
@@ -485,7 +490,8 @@ export function createTracers(scene: Scene, sources: GunfireSources): Tracers {
           continue
         }
         const forward = aim.scale(1 / distance)
-        const muzzle = eye.add(forward.scale(FLASH.forward)).add(new Vector3(0, -FLASH.drop, 0))
+        const drawn = machineGun ? null : (sources.muzzle?.(event.shooter) ?? null)
+        const muzzle = drawn ?? eye.add(forward.scale(FLASH.forward)).add(new Vector3(0, -FLASH.drop, 0))
         if (machineGun) {
           heat.set(event.shooter, Math.min(HEAT.most, (heat.get(event.shooter) ?? 0) + 1))
         }

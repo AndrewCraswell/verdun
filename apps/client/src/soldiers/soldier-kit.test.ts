@@ -16,7 +16,15 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import { Scene } from "@babylonjs/core/scene"
 import { Side } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { BAKE_FPS, bakeClips, loadSoldierKit, prepareSoldierKit, restingRifle, rifleBetween } from "./soldier-kit.ts"
+import {
+  BAKE_FPS,
+  bakeClips,
+  loadSoldierKit,
+  muzzleOf,
+  prepareSoldierKit,
+  restingRifle,
+  rifleBetween
+} from "./soldier-kit.ts"
 
 const engines: NullEngine[] = []
 
@@ -216,7 +224,7 @@ describe("bakeClips", () => {
       throw new Error("no skeleton")
     }
     const world = Matrix.Scaling(2, 2, -2)
-    const { data, drift, clips, width } = bakeClips(skeleton, container.animationGroups, world)
+    const { data, drift, rifles, clips, width } = bakeClips(skeleton, container.animationGroups, world)
 
     // One second at 24 frames a second, both ends included; the bazooka isn't among the crowd's clips.
     expect(clips.get("rifle_standing_idle")).toEqual({
@@ -247,11 +255,13 @@ describe("bakeClips", () => {
     expect(drift[0]).toBe(0)
     // The appended identity picks up the world transform: the mirror reaches every matrix.
     expect(Matrix.FromArray(data, 16).determinant()).toBeLessThan(0)
-    // A skeleton without hands leaves the rifle where it was modelled.
+    // A skeleton without hands leaves the rifle where it was modelled, and every row's rifle is kept for its muzzle.
     expect(Matrix.FromArray(data, 32).isIdentity()).toBe(true)
+    expect(rifles).toHaveLength(16 * 2 * (BAKE_FPS + 1))
+    expect(Matrix.FromArray(rifles, 16 * 12).isIdentity()).toBe(true)
   })
 
-  it("holds the rifle between the palms in every frame, however the hands move", () => {
+  it("grips the rifle in the right hand as the first frame has it between the palms, however the left hand moves", () => {
     const target = scene()
     const { skeleton, left } = hands(target)
     // The left hand reaches further out and lower, still a rifle's length from the right.
@@ -267,8 +277,43 @@ describe("bakeClips", () => {
         .map((value) => Number(value.toFixed(4)))
     ).toEqual([0.2, 1, 0.05])
     expect(Vector3.Dot(forwardOf(first), new Vector3(-0.3, 0.1, 0.4).normalize())).toBeCloseTo(1)
-    const last = rifleAt(data, BAKE_FPS)
-    expect(Vector3.Dot(forwardOf(last), new Vector3(0.3, -0.1, 0.4).normalize())).toBeCloseTo(1)
+    // The right hand hasn't moved, so neither has the rifle.
+    expect(rifleAt(data, BAKE_FPS).equalsWithEpsilon(first, 1e-5)).toBe(true)
+  })
+
+  it("slings the rifle across his back, on the chest, while both hands climb", () => {
+    const target = scene()
+    const { skeleton } = hands(target)
+    const chest = new TransformNode("Spine_03", target)
+    chest.position.set(0, 1.4, 0)
+    chest.rotationQuaternion = Quaternion.Identity()
+    new Bone("Spine_03", skeleton, null, Matrix.Identity()).linkTransformNode(chest)
+    const idle = moves(target, "rifle_standing_idle", [[chest, chest.position.clone()]])
+    // Up a bank: the chest rises half a metre.
+    const climb = moves(target, "climbing_up_a_slope", [[chest, new Vector3(0, 1.9, 0)]])
+    const { data, clips, width } = bakeClips(skeleton, [idle, climb], Matrix.Identity())
+
+    const floatsPerFrame = width * 4
+    const slungAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame + (skeleton.bones.length + 1) * 16)
+    const start = clips.get("climbing_up_a_slope")?.start ?? 0
+    // Behind him (-z), muzzle up.
+    expect(slungAt(start).getTranslation().z).toBeLessThan(-0.1)
+    expect(forwardOf(slungAt(start)).y).toBeGreaterThan(0.9)
+    expect(slungAt(start + BAKE_FPS).getTranslation().y - slungAt(start).getTranslation().y).toBeCloseTo(0.5, 4)
+  })
+
+  it("takes the standing aim's grip in a clip whose palms never meet on the rifle", () => {
+    const target = scene()
+    const { skeleton, left } = hands(target)
+    const aim = moves(target, "rifle_standing_aiming_idle", [[left, left.position.clone()]])
+    // A flinch with the left hand a metre and more off, start to end: no grip of its own to take.
+    left.position.set(1.2, 0.5, 0)
+    const hit = moves(target, "hit_reaction_while_holding_a_rifle", [[left, new Vector3(1.3, 0.4, 0)]])
+    left.position.set(-0.1, 1.1, 0.4)
+    const { data, clips } = bakeClips(skeleton, [aim, hit], Matrix.Identity())
+
+    const flinching = rifleAt(data, clips.get("hit_reaction_while_holding_a_rifle")?.start ?? 0)
+    expect(flinching.equalsWithEpsilon(rifleAt(data, 0), 1e-5)).toBe(true)
   })
 
   it("keeps the rifle in the right hand as it was last held when the left hand lets go of it, or closes up", () => {
@@ -346,6 +391,21 @@ describe("bakeClips", () => {
         .asArray()
         .map((value) => Number(value.toFixed(4)))
     ).toEqual([-0.6, 0, 0.8])
+  })
+})
+
+describe("muzzleOf", () => {
+  it("finds the middle of the barrel's end, the vertices furthest along the way it points", () => {
+    const target = scene()
+    const rifle = CreateBox("rifle", { width: 0.04, height: 0.06, depth: 1.2 }, target)
+    rifle.position.set(0.1, 0.05, 0.6)
+    rifle.bakeCurrentTransformIntoVertices()
+
+    expect(
+      muzzleOf(rifle)
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.1, 0.05, 1.2])
   })
 })
 

@@ -32,7 +32,7 @@ rifle-run-forward-right.fbx
 rifle-run-right.fbx
 rifle-run-backward-right.fbx
 rifle-run-backward.fbx
-rifle-run-backward-left.fbx
+rifle-sprint-backward-left.fbx
 rifle-run-left.fbx
 rifle-run-forward-left.fbx
 walking-while-aiming-rifle.fbx

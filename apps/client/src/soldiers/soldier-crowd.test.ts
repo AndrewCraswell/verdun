@@ -121,6 +121,12 @@ for (const [index, name] of ALL_CLIPS.entries()) {
   }
 }
 
+/** Every row holds the rifle level at the right hip, a metre and a quarter up, pointing ahead; its muzzle a metre on. */
+const rifleRows = new Float32Array(ALL_CLIPS.length * CLIP_FRAMES * 16)
+for (let row = 0; row < ALL_CLIPS.length * CLIP_FRAMES; row++) {
+  Matrix.Translation(0.2, 1.25, 0).copyToArray(rifleRows, row * 16)
+}
+
 function clipAt(row: number | undefined): ClipName | undefined {
   return row === undefined ? undefined : ALL_CLIPS[Math.floor(row / CLIP_FRAMES)]
 }
@@ -151,6 +157,8 @@ function harness(sim: Simulation, options: Omit<SoldierCrowdOptions, "clock"> = 
     mask: box("mask"),
     guns: { [Side.French]: box("french-gun"), [Side.German]: box("german-gun") },
     drift,
+    rifleRows,
+    muzzle: new Vector3(0, 0, 1),
     clips,
     materials: []
   }
@@ -814,6 +822,23 @@ describe("createSoldierCrowd", () => {
     crowd.sync()
     crowd.update()
     expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("reloading_rifle_while_standing")
+  })
+
+  it("says where a rifleman's muzzle is as he's drawn, and has none for a machine gunner", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const rifleman = spawnSoldier(sim, { side: Side.French, x: 10, z: 10, facing: { x: 1, z: 0 } })
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 20, z: 10, weapon: Weapon.MachineGun })
+    const { crowd } = harness(sim)
+    expect(crowd.muzzle(rifleman)).toBeNull()
+    crowd.sync()
+    crowd.update()
+
+    // Facing east: the rifle a metre east of the hip, its right a fifth of a metre to the south.
+    const muzzle = crowd.muzzle(rifleman)
+    expect(muzzle?.x).toBeCloseTo(11, 4)
+    expect(muzzle?.y).toBeCloseTo(heightAt(map, 10, 10) + 1.25, 4)
+    expect(muzzle?.z).toBeCloseTo(9.8, 4)
+    expect(crowd.muzzle(gunner)).toBeNull()
   })
 
   it("goes down to a crouch with a clip when still, and is crouched after it", () => {

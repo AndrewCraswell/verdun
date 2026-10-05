@@ -19,14 +19,17 @@ export const WALKS = [
   "rifle_walk_left",
   "rifle_walk_forward_left"
 ] as const
-/** Runs, in the same order. Mixamo has the run backward left only in its packs: this one is the backward right mirrored. */
+/**
+ * Runs, in the same order. Mixamo has the run backward left only in its packs, and mirroring the backward right puts
+ * the rifle in the wrong hand: the sprint backward left stands in.
+ */
 const RUNS = [
   "rifle_run_forward",
   "rifle_run_forward_right",
   "rifle_run_right",
   "rifle_run_backward_right",
   "rifle_run_backward",
-  "rifle_run_backward_left",
+  "rifle_sprint_backward_left",
   "rifle_run_left",
   "rifle_run_forward_left"
 ] as const
@@ -117,6 +120,26 @@ export const BOLT_FIRES: ReadonlySet<ClipName> = new Set([
   "fire_bolt_standing",
   "fire_bolt_crouched",
   "fire_bolt_prone"
+])
+/**
+ * Clips where the rifle goes with the left hand: the bolt worked by the right, and a grenade thrown with it. From the
+ * clip's first frame, where the right hand grips it as everywhere else.
+ */
+export const RIFLE_IN_LEFT_HAND: ReadonlySet<ClipName> = new Set([
+  ...BOLT_FIRES,
+  "throwing_something_holding_rifle_aimed",
+  "throwing_a_grenade_while_walking",
+  "throw_grenade_while_running",
+  "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
+  "throw_grenade_while_in_prone_position"
+])
+/** Clips where both hands are busy, climbing, cowering or raised: the rifle hangs slung across his back. */
+export const RIFLE_SLUNG: ReadonlySet<ClipName> = new Set([
+  "climbing_up_a_slope",
+  "climb_over",
+  "being_terrified_while_standing",
+  "hands_up",
+  "hands_up_walk"
 ])
 /** Reloading, by stance: Mixamo's are a box magazine's, spread over the simulation's reload. */
 const RELOADS = {

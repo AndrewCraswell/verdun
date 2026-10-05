@@ -22,11 +22,12 @@ import {
   AIM_LAYERS,
   AIMING,
   type BakedClip,
-  BOLT_FIRES,
   CLIPS,
   type ClipName,
   DEATHS,
-  IDLE
+  IDLE,
+  RIFLE_IN_LEFT_HAND,
+  RIFLE_SLUNG
 } from "./soldier-animation.ts"
 
 /** The soldier models and their baked animation, as scripts/build-level-kit.py builds them into soldier.glb. */
@@ -47,6 +48,13 @@ export interface SoldierKit {
    * deaths carry a body a metre or more, which can put it into a trench wall unless taken back out.
    */
   readonly drift: Float32Array
+  /**
+   * Per baked row, the rifle's place: the matrix (16 floats) taking the rifle model's own frame into the meshes', as
+   * the rifle is drawn. With `muzzle`, where its muzzle is in each frame of each clip.
+   */
+  readonly rifleRows: Float32Array
+  /** The rifle's muzzle in the rifle model's own frame: the middle of the barrel's end, in metres. */
+  readonly muzzle: Vector3
   /** Where each clip lies in the baked animation texture. Clips the kit lacks are missing. */
   readonly clips: ReadonlyMap<ClipName, BakedClip>
   readonly materials: readonly Material[]
@@ -60,16 +68,28 @@ const HIPS = "Hips"
 /** The hands that hold the rifle: the right at its grip, the left under the barrel. */
 const HANDS = { grip: "Hand_R", forend: "Hand_L" } as const
 /**
- * Clips where the left hand leaves the rifle, falling, throwing a grenade, climbing or cowering: it stays in the right
- * hand as it began.
+ * How the right hand grips the rifle through a clip: as the clip's first frame with both palms on it has it between
+ * them, this far apart in metres, and fixed in the hand from then on. Mixamo made its rifle clips with the gun fixed in
+ * the right hand and the left reaching for it, so the rifle never swings about when the left lets go.
  */
-const ONE_HANDED = /throw|climb|terrified/
+const GRIP_SPAN = { min: 0.22, max: 0.55 } as const
+/** A clip whose palms never hold the rifle takes the grip the standing aim's first frame has. */
+const GRIP_FROM: ClipName = "rifle_standing_aiming_idle"
+/** The frames looked through for a clip's grip, from the first. */
+const GRIP_LOOK = 12
+/** The clip whose first frame sets where the slung rifle hangs on his back: standing at ease. */
+const SLING_FROM: ClipName = IDLE
+/** The bone the slung rifle hangs from: the chest. */
+const CHEST = "Spine_03"
 /**
- * The palms hold a rifle between them only this far apart, in metres: 0.25 to 0.5 in every clip that grips one. Closer
- * or further (a hand flung out when hit, hands meeting in front of the chest), the line between them is no rifle's,
- * and the rifle stays in the right hand as it was last held.
+ * Slung across the back, for a man facing +z (the meshes' forward, +x his right): the grip this far from the chest, in
+ * metres (to his right, down, behind), the barrel up toward his left shoulder, the sights facing back.
  */
-const GRIP_SPAN = { min: 0.2, max: 0.55 } as const
+const SLING = {
+  grip: new Vector3(0.14, -0.32, -0.2),
+  along: new Vector3(-0.35, 0.94, -0.05),
+  sights: new Vector3(0, 0, -1)
+} as const
 /** The bones an aimed walk lays over a walk (see `AIM_LAYERS`): the spine and all above it. */
 const UPPER = /Spine|Neck|Head|Clavicle|Shoulder|Elbow|Hand|Finger|Thumb/
 /** The spine's first bone, the hips' child: turned so the aimed walk's upper body faces the way its own hips did. */
@@ -239,6 +259,33 @@ export function rifleBetween(grip: Vector3, forend: Vector3, result: Matrix): Ma
   return result
 }
 
+/** A rifle with its grip at `grip`, pointing `along`, its sights turned toward `sights`, as `rifleBetween` lays it. */
+function rifleAlong(grip: Vector3, along: Vector3, sights: Vector3, result: Matrix): Matrix {
+  const forward = along.normalizeToNew()
+  const up = sights.subtract(forward.scale(Vector3.Dot(sights, forward))).normalize()
+  const right = Vector3.Cross(up, forward)
+  Matrix.FromValuesToRef(
+    right.x,
+    right.y,
+    right.z,
+    0,
+    up.x,
+    up.y,
+    up.z,
+    0,
+    forward.x,
+    forward.y,
+    forward.z,
+    0,
+    grip.x,
+    grip.y,
+    grip.z,
+    1,
+    result
+  )
+  return result
+}
+
 /** A rifle let go of: on its side on the ground below where it was held, lying the way it pointed. */
 export function restingRifle(held: Matrix, result: Matrix): Matrix {
   const forward = Vector3.TransformNormal(Vector3.Forward(), held)
@@ -299,7 +346,7 @@ export function bakeClips(
   skeleton: Skeleton,
   groups: readonly AnimationGroup[],
   world: Matrix
-): { data: Float32Array; drift: Float32Array; clips: Map<ClipName, BakedClip>; width: number } {
+): { data: Float32Array; drift: Float32Array; rifles: Float32Array; clips: Map<ClipName, BakedClip>; width: number } {
   const byName = new Map(groups.map((group) => [group.name, group]))
   const clips = new Map<ClipName, BakedClip>()
   const rows: { name: ClipName; group: AnimationGroup; frames: number; upper?: AnimationGroup }[] = []
@@ -328,6 +375,7 @@ export function bakeClips(
   const floatsPerFrame = boneFloats + 16
   const data = new Float32Array(floatsPerFrame * start)
   const drift = new Float32Array(2 * start)
+  const rifles = new Float32Array(16 * start)
   const hips = skeleton.bones.find((candidate) => candidate.name === HIPS)
   const thighs = {
     left: skeleton.bones.find((candidate) => candidate.name === THIGHS.left),
@@ -340,10 +388,11 @@ export function bakeClips(
   const bone = new Matrix()
   const placed = new Matrix()
   const rifle = new Matrix()
-  const heldBy = new Matrix()
-  // The rifle in the left hand, for a bolt worked: the right hand leaves the grip, the left holds on.
+  // The rifle in the left hand, for a bolt worked or a grenade thrown: the right hand leaves it, the left holds on.
   const heldByLeft = new Matrix()
   const leftPlaced = new Matrix()
+  const chestPlaced = new Matrix()
+  const chest = skeleton.bones.find((candidate) => candidate.name === CHEST)
   const hipsAt = Vector3.Zero()
   const hipsFrom = Vector3.Zero()
   const joint = Vector3.Zero()
@@ -354,12 +403,45 @@ export function bakeClips(
       .copyFrom(jointAt(hand.wrist, world, placed, joint))
       .addInPlace(jointAt(hand.finger, world, placed, joint))
       .scaleInPlace(0.5)
-  // The rifle in the right hand as last held between the palms, for frames where the hands let go of it.
-  let held = false
+  /**
+   * The rifle between the palms, relative to the right hand, at the clip's first frame (of the first `GRIP_LOOK`) with
+   * both palms on it: how that hand grips it. Null when they never are.
+   */
+  const gripOf = (group: AnimationGroup): Matrix | null => {
+    if (!gripHand || !forendHand) {
+      return null
+    }
+    const frames = Math.min(GRIP_LOOK, Math.round(clipSeconds(group) * BAKE_FPS) + 1)
+    for (let frame = 0; frame < frames; frame++) {
+      poseAt(group, frame / BAKE_FPS)
+      skeleton.prepare(true)
+      const span = Vector3.Distance(palm(gripHand, grip), palm(forendHand, forend))
+      if (span >= GRIP_SPAN.min && span <= GRIP_SPAN.max) {
+        rifleBetween(grip, forend, rifle)
+        gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
+        return rifle.multiply(placed.invertToRef(bone))
+      }
+    }
+    return null
+  }
+  const reference = byName.get(GRIP_FROM)
+  const sharedGrip = reference ? gripOf(reference) : null
+  // Slung across the back, relative to the chest, as he stands at ease.
+  const slingFrom = byName.get(SLING_FROM)
+  let sling: Matrix | null = null
+  if (chest && slingFrom) {
+    poseAt(slingFrom, 0)
+    skeleton.prepare(true)
+    chest.getFinalMatrix().multiplyToRef(world, chestPlaced)
+    const at = chestPlaced.getTranslation().addInPlace(SLING.grip)
+    sling = rifleAlong(at, SLING.along, SLING.sights, new Matrix()).multiply(chestPlaced.invertToRef(bone))
+  }
   let row = 0
   for (const { name, group, frames, upper } of rows) {
-    const oneHanded = ONE_HANDED.test(name) || DEATHS.has(name)
-    const leftHeld = BOLT_FIRES.has(name)
+    const leftHeld = RIFLE_IN_LEFT_HAND.has(name)
+    const slung = sling && chest && RIFLE_SLUNG.has(name) ? sling : null
+    // An aimed walk's arms, and so its grip, are the aimed walk's.
+    const gripped = gripOf(upper ?? group) ?? sharedGrip
     // Where an aiming clip points the rifle, summed over its frames: the soldier is turned to put that ahead.
     let aimX = 0
     let aimZ = 0
@@ -393,33 +475,21 @@ export function bakeClips(
         }
         lastFacing = facing
       }
-      if (gripHand && forendHand) {
-        palm(gripHand, grip)
-        palm(forendHand, forend)
-        const span = Vector3.Distance(grip, forend)
-        const gripped = span >= GRIP_SPAN.min && span <= GRIP_SPAN.max
-        // The right hand in the world: the rifle is carried by it whenever the left isn't on it.
+      if (slung && chest) {
+        chest.getFinalMatrix().multiplyToRef(world, chestPlaced)
+        slung.multiplyToRef(chestPlaced, rifle)
+      } else if (gripHand && forendHand && gripped) {
+        // The right hand in the world, and the rifle in it as it grips it.
         gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
+        gripped.multiplyToRef(placed, rifle)
         if (leftHeld) {
-          // Between the palms as the shot begins, then wherever the left hand takes it.
+          // Then wherever the left hand takes it, from the first frame on.
           forendHand.wrist.getFinalMatrix().multiplyToRef(world, leftPlaced)
           if (frame === 0) {
-            rifleBetween(grip, forend, rifle)
-            leftPlaced.invertToRef(bone)
-            rifle.multiplyToRef(bone, heldByLeft)
+            rifle.multiplyToRef(leftPlaced.invertToRef(bone), heldByLeft)
           } else {
             heldByLeft.multiplyToRef(leftPlaced, rifle)
           }
-        } else if (gripped && (!oneHanded || frame === 0)) {
-          rifleBetween(grip, forend, rifle)
-          placed.invertToRef(bone)
-          rifle.multiplyToRef(bone, heldBy)
-          held = true
-        } else if (held) {
-          // Rifle to hand, then hand to the world.
-          heldBy.multiplyToRef(placed, rifle)
-        } else {
-          rifleBetween(grip, forend, rifle)
         }
       } else {
         rifle.copyFrom(Matrix.IdentityReadOnly)
@@ -439,7 +509,10 @@ export function bakeClips(
       dropRifle(data, { first: row - frames, count: frames }, floatsPerFrame, boneFloats)
     }
   }
-  return { data, drift, clips, width: floatsPerFrame / 4 }
+  for (let at = 0; at < start; at++) {
+    rifles.set(data.subarray(at * floatsPerFrame + boneFloats, at * floatsPerFrame + boneFloats + 16), at * 16)
+  }
+  return { data, drift, rifles, clips, width: floatsPerFrame / 4 }
 }
 
 function findMesh(container: AssetContainer, name: string): Mesh {
@@ -519,7 +592,7 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
 
   // The glTF root turns right-handed into left-handed and the armature scales centimetres to metres: bake both in.
   const world = bodies[Side.French].computeWorldMatrix(true).clone()
-  const { data, drift, clips, width } = bakeClips(skeleton, container.animationGroups, world)
+  const { data, drift, rifles, clips, width } = bakeClips(skeleton, container.animationGroups, world)
   if (!clips.has(IDLE)) {
     throw new Error("soldier kit: no idle clip")
   }
@@ -585,12 +658,34 @@ export function prepareSoldierKit(scene: Scene, container: AssetContainer): Sold
   rifle.skeleton = skeleton
   rifle.bakedVertexAnimationManager = manager
   rifle.numBoneInfluencers = 1
+  const muzzle = muzzleOf(rifle)
   const materials = [...new Set(matte.values())]
   // The squad's markers, drawn over the battlefield, keep off the men (render/marker-stencil.ts).
   for (const material of materials) {
     marksSoldier(material)
   }
-  return { bodies, rifle, mask, guns, drift, clips, materials }
+  return { bodies, rifle, mask, guns, drift, rifleRows: rifles, muzzle, clips, materials }
+}
+
+/** How near the barrel's end a vertex must be, in metres, to be taken for part of the muzzle. */
+const MUZZLE_DEPTH = 0.03
+
+/** The middle of the rifle model's barrel end: its vertices furthest along +z, the way it points. */
+export function muzzleOf(rifle: Mesh): Vector3 {
+  const positions = rifle.getVerticesData(VertexBuffer.PositionKind) ?? []
+  let end = Number.NEGATIVE_INFINITY
+  for (let index = 2; index < positions.length; index += 3) {
+    end = Math.max(end, positions[index] ?? end)
+  }
+  const sum = Vector3.Zero()
+  let count = 0
+  for (let index = 0; index + 2 < positions.length; index += 3) {
+    if ((positions[index + 2] ?? end) >= end - MUZZLE_DEPTH) {
+      sum.addInPlaceFromFloats(positions[index] ?? 0, positions[index + 1] ?? 0, positions[index + 2] ?? 0)
+      count++
+    }
+  }
+  return count > 0 ? sum.scaleInPlace(1 / count) : Vector3.Zero()
 }
 
 /**

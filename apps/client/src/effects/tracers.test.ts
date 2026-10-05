@@ -54,6 +54,29 @@ describe("gunfire", () => {
     expect(tracers.rounds).toBe(0)
   })
 
+  it("flies a rifleman's round from his rifle's muzzle as he's drawn, but a machine gun's from ahead of the eye", () => {
+    const engine = new NullEngine()
+    engines.push(engine)
+    const scene = new Scene(engine)
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2, 1, 80, new Vector3(50, 0, 60), scene)
+    const sim = createSimulation({
+      map: createFlatMap({ name: "field", cellSize: 1, columns: 200, rows: 200 }),
+      seed: 1
+    })
+    const rifleman = spawnSoldier(sim, { side: Side.French, x: 50, z: 10 })
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 60, z: 10, weapon: Weapon.MachineGun })
+    // His rifle held off to his right, three metres east of his eye: far enough to tell.
+    const tracers = createTracers(scene, { sim, camera, light: () => 1, muzzle: () => new Vector3(53, 1.4, 11) })
+    tracers.add([shot(rifleman, true)])
+    tracers.update(0.001)
+    expect(tracers.instances.matrices()[0]?.getTranslation().x).toBeGreaterThan(52.5)
+
+    tracers.update(1)
+    tracers.add([shot(gunner, true)])
+    tracers.update(0.001)
+    expect(tracers.instances.matrices()[0]?.getTranslation().x).toBeCloseTo(50, 0)
+  })
+
   it("sends misses on past their man, most of them into the ground near him, kicking up dirt", () => {
     const { tracers, rifleman } = setup()
     const strikes: number[] = []

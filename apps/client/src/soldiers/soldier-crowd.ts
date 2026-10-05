@@ -50,6 +50,11 @@ import type { SoldierKit } from "./soldier-kit.ts"
 export interface SoldierCrowd extends SoldierRenderer {
   /** Moves and poses everyone for this frame. Runs before each render; exposed for tests. */
   update(): void
+  /**
+   * Where a rifleman's muzzle is as he was last drawn, in the world, or null: a machine gunner, a man not drawn of late,
+   * or one not fighting. Gunfire flashes and flies from it.
+   */
+  muzzle(soldier: EntityId): Vector3 | null
   /** How many soldiers the last update drew, and how long it took in milliseconds. */
   readonly stats: { drawn: number; updateMs: number }
   dispose(): void
@@ -148,6 +153,11 @@ interface Track {
   masked: boolean
   /** How much higher the ground is under a gunner's gun than under him. */
   gunLift: number
+  /** The row he was last drawn showing and where, turned how: -1 before he has been drawn. */
+  drawnRow: number
+  drawnX: number
+  drawnZ: number
+  drawnYaw: number
   /**
    * A turn on the spot or a change of stance in progress: its clip, when it ends, and for a turn, the way he faced when
    * it began and how far the clip turns him. The clip turns the body itself, so his drawn facing holds until it ends.
@@ -388,6 +398,10 @@ export function createSoldierCrowd(
       phase: idFraction(id),
       masked: false,
       gunLift: 0,
+      drawnRow: -1,
+      drawnX: x,
+      drawnZ: z,
+      drawnYaw: yaw,
       shift: null,
       parapet: null
     }
@@ -835,6 +849,10 @@ export function createSoldierCrowd(
         at.z -= driftZ * cos - driftX * sin
       }
       add(layers.bodies[track.side], track, row)
+      track.drawnRow = row
+      track.drawnX = at.x
+      track.drawnZ = at.z
+      track.drawnYaw = at.yaw
       if (track.status !== "captured" && track.weapon === Weapon.Rifle) {
         add(layers.rifle, track, row)
       }
@@ -865,9 +883,29 @@ export function createSoldierCrowd(
     }
   })
 
+  const rifleAt = new Matrix()
+  const standing = new Matrix()
+  function muzzle(soldier: EntityId): Vector3 | null {
+    const track = tracks[soldier]
+    if (!track || track.drawnRow < 0 || track.status !== "fighting" || track.weapon !== Weapon.Rifle) {
+      return null
+    }
+    Matrix.FromArrayToRef(kit.rifleRows, track.drawnRow * 16, rifleAt)
+    Matrix.RotationYToRef(track.drawnYaw, yawMatrix)
+    if (track.tilt) {
+      yawMatrix.multiplyToRef(track.tilt, standing)
+    } else {
+      standing.copyFrom(yawMatrix)
+    }
+    standing.setTranslationFromFloats(track.drawnX, track.y, track.drawnZ)
+    const inRifle = Vector3.TransformCoordinates(kit.muzzle, rifleAt)
+    return Vector3.TransformCoordinates(inRifle, standing)
+  }
+
   return {
     sync,
     update,
+    muzzle,
     stats,
     dispose() {
       scene.onBeforeCameraRenderObservable.remove(observer)
