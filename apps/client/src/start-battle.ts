@@ -380,7 +380,9 @@ export async function startBattle(
     sim,
     camera: view.camera,
     light: () => lightLevel(sim.environment.illuminance),
-    quality
+    quality,
+    // The flash and the round leave the rifle's muzzle as the soldier is drawn holding it.
+    muzzle: (soldier) => soldiers?.muzzle(soldier) ?? null
   })
   // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
   tracers.onStrike.add(({ at, time, on }) => sounds?.strike(at.x, at.z, time, on))
