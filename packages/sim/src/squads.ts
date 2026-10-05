@@ -2,7 +2,7 @@ import { type EntityId, hasComponent } from "bitecs"
 import { barrageLine } from "./artillery.ts"
 import { BROKEN_MORALE } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
-import type { Side } from "./components.ts"
+import { Side } from "./components.ts"
 import { coverNear } from "./cover.ts"
 import { inCover } from "./hollows.ts"
 import { type NavGoal, nextWaypoint } from "./navigation.ts"
@@ -20,6 +20,22 @@ export type SquadOrder =
   | { readonly kind: "reserve" }
   /** Move to a point and spread out in a line there. */
   | { readonly kind: "advance"; readonly x: number; readonly z: number }
+  /** Get to a point fast: everyone runs while his breath lasts, no bounds, and spreads out in a line there. */
+  | { readonly kind: "run-to"; readonly x: number; readonly z: number }
+  /**
+   * Fire on an area where they stand: every man who can see it shoots into it at a steady rate whether or not he sees
+   * anyone there, keeping a gun or a bay's heads down while others move.
+   */
+  | { readonly kind: "suppress"; readonly x: number; readonly z: number }
+  /** Fall back at a run to a trench of their own behind them (see `withdrawPoint`), and hold it. */
+  | { readonly kind: "withdraw"; readonly x: number; readonly z: number }
+  /** Go to ground in the best cover a few metres around a point, in a line, and keep low until told otherwise. */
+  | { readonly kind: "dig-in"; readonly x: number; readonly z: number }
+  /**
+   * Close up on the leader: shaken and broken men near him get up and steady much faster, at his voice. They stay
+   * closed up on him until given another order.
+   */
+  | { readonly kind: "rally" }
   /**
    * Follow a creeping barrage: keep `standoff` metres behind its line, centred on `x`, never falling back. When the
    * barrage lifts beyond the objective, rush the objective line.
@@ -268,12 +284,13 @@ export function squadSystem(sim: Simulation): void {
     return
   }
   for (const squad of sim.squads) {
-    if (squad.leader < 0 || squad.order.kind === "hold" || squad.order.kind === "reserve") {
+    const order = squad.order
+    if (squad.leader < 0 || order.kind === "hold" || order.kind === "reserve" || order.kind === "suppress") {
       continue
     }
-    const order = squad.order
-    // In an advance an AI squad's leader goes too; a player's leader goes where the player steers.
-    const leaderMoves = order.kind !== "follow" && squad.controller === "ai"
+    // In an advance an AI squad's leader goes too; a player's leader goes where the player steers. Rallying, the others
+    // close on him where he stands.
+    const leaderMoves = order.kind !== "follow" && order.kind !== "rally" && squad.controller === "ai"
     const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
     const bounding =
       order.kind === "advance" &&
@@ -282,6 +299,17 @@ export function squadSystem(sim: Simulation): void {
     // Which half is on the move: they change about every bound, by the clock, so every squad keeps the same rhythm.
     const movingHalf = Math.floor(sim.tick / BOUND.steps) % 2
     followers.forEach((member, slot) => {
+      if (order.kind === "rally") {
+        // Broken men too: at his voice they get up and come in to him.
+        const { x, z } = sim.soldiers.position
+        orderMoveTo(sim, member, followSlot(sim, squad.leader, slot), {
+          kind: "point",
+          x: x[squad.leader],
+          z: z[squad.leader],
+          radius: FOLLOW_GOAL_RADIUS
+        })
+        return
+      }
       if (sim.soldiers.morale.value[member] < BROKEN_MORALE) {
         // Broken soldiers go to ground where they are.
         const { x, z } = sim.soldiers.position
@@ -329,6 +357,10 @@ export function squadSystem(sim: Simulation): void {
       const goal = order.kind === "raid" ? raidGoal(order) : order
       const navGoal: NavGoal = { kind: "point", x: goal.x, z: goal.z, radius: ADVANCE_GOAL_RADIUS }
       const place = advanceSlot(sim, goal, slot, followers.length)
+      if (order.kind === "run-to" || order.kind === "withdraw") {
+        orderMoveTo(sim, member, place, navGoal, true)
+        return
+      }
       if (!bounding) {
         orderMoveTo(sim, member, place, navGoal)
         return
@@ -349,4 +381,82 @@ export function squadSystem(sim: Simulation): void {
       orderMoveTo(sim, member, next, navGoal, true)
     })
   }
+}
+
+/** A squad falls back to a trench at least this far behind where it stands, in metres... */
+const WITHDRAW_BEYOND = 8
+/** ...looking along its trenches at points this far apart. */
+const WITHDRAW_STEP = 4
+/** Members below this morale are shaken: a rally steadies them. */
+export const SHAKEN_MORALE = 0.6
+
+/** Where a squad's living men are on average, or null if none are left. */
+function squadCentre(sim: Simulation, squad: Squad): { x: number; z: number } | null {
+  let x = 0
+  let z = 0
+  let count = 0
+  for (const member of squad.members) {
+    if (isAlive(sim, member)) {
+      x += sim.soldiers.position.x[member]
+      z += sim.soldiers.position.z[member]
+      count++
+    }
+  }
+  return count === 0 ? null : { x: x / count, z: z / count }
+}
+
+/**
+ * Where a squad would withdraw to: the nearest point on one of its side's fire trenches behind it, toward its own lines;
+ * null if it has none behind it.
+ */
+export function withdrawPoint(sim: Simulation, squad: Squad): { x: number; z: number } | null {
+  const centre = squadCentre(sim, squad)
+  if (centre === null) {
+    return null
+  }
+  const facing = squad.side === Side.French ? "north" : "south"
+  const rearward = squad.side === Side.French ? -1 : 1
+  let best: { x: number; z: number } | null = null
+  let bestDistance = Infinity
+  for (const trench of sim.map.trenches) {
+    if (trench.kind !== "fire" || trench.facing !== facing) {
+      continue
+    }
+    for (let index = 1; index < trench.points.length; index++) {
+      const [ax, az] = trench.points[index - 1]!
+      const [bx, bz] = trench.points[index]!
+      const steps = Math.max(1, Math.ceil(Math.sqrt((bx - ax) ** 2 + (bz - az) ** 2) / WITHDRAW_STEP))
+      for (let step = 0; step <= steps; step++) {
+        const x = ax + ((bx - ax) * step) / steps
+        const z = az + ((bz - az) * step) / steps
+        const distance = (x - centre.x) ** 2 + (z - centre.z) ** 2
+        if ((z - centre.z) * rearward >= WITHDRAW_BEYOND && distance < bestDistance) {
+          best = { x, z }
+          bestDistance = distance
+        }
+      }
+    }
+  }
+  return best
+}
+
+/** The orders a squad can be given. */
+export type SquadOrderKind = SquadOrder["kind"]
+
+/**
+ * Why a squad can't take an order now, in a few words for the player, or null if it can: nobody left to give it to, no
+ * trench of theirs behind them to withdraw to, nobody shaken to rally.
+ */
+export function orderRefusal(sim: Simulation, squad: Squad, kind: SquadOrderKind): string | null {
+  const living = squad.members.filter((member) => isAlive(sim, member))
+  if (living.length === 0) {
+    return "Nobody left"
+  }
+  if (kind === "withdraw" && withdrawPoint(sim, squad) === null) {
+    return "No trench of ours behind them"
+  }
+  if (kind === "rally" && !living.some((member) => sim.soldiers.morale.value[member] < SHAKEN_MORALE)) {
+    return "Nobody is shaken"
+  }
+  return null
 }

@@ -11,7 +11,7 @@ import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simu
 import { smokeBetween } from "./smoke.ts"
 import { nearestSoldiers, soldiersNear } from "./spatial.ts"
 import { spottedGuns } from "./spotting.ts"
-import { isAlive } from "./squads.ts"
+import { isAlive, type Squad } from "./squads.ts"
 import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
 import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
@@ -122,6 +122,15 @@ const MASKED_SHOOTER_FACTOR = 0.7
  */
 const SUPPRESSION_DECAY = 0.12
 const MORALE_RECOVERY = 0.02
+/** Morale regained per second by men within `RALLY_REACH` of a leader rallying his squad, on top of the usual. */
+const RALLY_RECOVERY = 0.15
+const RALLY_REACH = 30
+/**
+ * Fire on an area (the suppress order): men shoot into ground within `radius` metres of the point, at this many times
+ * their weapon's usual interval; each shot adds this share of their weapon's suppression to every enemy there, and has
+ * this share of an aimed shot's chance of hitting one of them.
+ */
+const AREA_FIRE = { radius: 8, pace: 2, suppression: 0.5, hitShare: 0.25 } as const
 /** Morale lost by each member of a squad when one of them falls. */
 const CASUALTY_SHOCK = 0.15
 /** Below this morale, soldiers stop advancing and only defend themselves. */
@@ -601,6 +610,44 @@ function bombIfWorthIt(sim: Simulation, soldier: EntityId): boolean {
   return !friendNear && !fallsWide && throwGrenade(sim, soldier, x, z)
 }
 
+/** Whether a soldier is close enough to his rallying leader to be steadied by him. */
+function rallied(sim: Simulation, squad: Squad | undefined, soldier: EntityId): boolean {
+  if (squad?.order.kind !== "rally" || squad.leader < 0) {
+    return false
+  }
+  const { x, z } = sim.soldiers.position
+  return (x[soldier] - x[squad.leader]) ** 2 + (z[soldier] - z[squad.leader]) ** 2 <= RALLY_REACH * RALLY_REACH
+}
+
+/**
+ * A shot into an area rather than at a man: if the soldier can see the point and it's in range, he fires into it,
+ * keeping down every enemy near it and now and then hitting one.
+ */
+function fireOnArea(sim: Simulation, shooter: EntityId, x: number, z: number): void {
+  const kind = weaponKind(sim, shooter)
+  const stats = WEAPONS[kind]
+  const from = soldierEye(sim, shooter)
+  const to = { x, y: heightAt(sim.map, x, z) + 0.5, z }
+  const reach = (to.x - from.x) ** 2 + (to.z - from.z) ** 2
+  if (!sim.lineOfSight || reach > stats.range * stats.range || !sim.lineOfSight.isClear(from, to)) {
+    return
+  }
+  const { side, suppression } = sim.soldiers
+  for (const other of soldiersNear(sim, x, z, AREA_FIRE.radius)) {
+    if (side.value[other] === side.value[shooter] || !isAlive(sim, other)) {
+      continue
+    }
+    suppression.value[other] = Math.min(1, suppression.value[other] + stats.suppression * AREA_FIRE.suppression)
+    if (sim.rng.next() < hitChance(sim, shooter, other) * AREA_FIRE.hitShare) {
+      strike(sim, other, shooter)
+    }
+  }
+  const fouled = reloadFactor(sim, kind === Weapon.MachineGun)
+  sim.soldiers.weapon.cooldown[shooter] = stats.interval * AREA_FIRE.pace * fouled * (0.85 + sim.rng.next() * 0.3)
+  sim.soldiers.weapon.firedAt[shooter] = sim.tick
+  sim.events.push({ type: "shot", shooter, target: -1, hit: false, from, to })
+}
+
 /**
  * One step of fighting: suppression fades and morale recovers, soldiers re-pick targets a few times a second
  * (staggered), and everyone whose weapon is ready fires at their target if they can still see it.
@@ -613,7 +660,9 @@ export function combatSystem(sim: Simulation): void {
       continue
     }
     suppression.value[soldier] = Math.max(0, suppression.value[soldier] - SUPPRESSION_DECAY * STEP_SECONDS)
-    morale.value[soldier] = Math.min(1, morale.value[soldier] + MORALE_RECOVERY * STEP_SECONDS)
+    const squad = sim.squads[sim.soldiers.squad.id[soldier]]
+    const recovery = MORALE_RECOVERY + (rallied(sim, squad, soldier) ? RALLY_RECOVERY : 0)
+    morale.value[soldier] = Math.min(1, morale.value[soldier] + recovery * STEP_SECONDS)
     weapon.cooldown[soldier] = Math.max(0, weapon.cooldown[soldier] - STEP_SECONDS)
     if (!firesOnTheirOwn(sim, soldier) || suppression.value[soldier] >= PINNED || isSheltering(sim, soldier)) {
       continue
@@ -633,6 +682,9 @@ export function combatSystem(sim: Simulation): void {
         // Target down or out of sight: traverse straight to the next, rather than wait for the next look round.
         target.id[soldier] = pickTarget(sim, soldier)
       }
+    }
+    if (target.id[soldier] < 0 && weapon.cooldown[soldier] <= 0 && squad?.order.kind === "suppress") {
+      fireOnArea(sim, soldier, squad.order.x, squad.order.z)
     }
   }
 }

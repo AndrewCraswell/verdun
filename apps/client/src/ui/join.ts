@@ -48,7 +48,12 @@ const ORDERS: Readonly<Record<SquadOrder["kind"], string>> = {
   reserve: "In reserve, in the dugouts",
   advance: "Advancing",
   creep: "Following the barrage",
-  raid: "Out on a raid"
+  raid: "Out on a raid",
+  "run-to": "Running for a point",
+  suppress: "Firing on an area",
+  withdraw: "Falling back",
+  "dig-in": "Dug in",
+  rally: "Rallying on its corporal"
 }
 
 /** Where a point is, in words: near the nearest objective, or in its square. */

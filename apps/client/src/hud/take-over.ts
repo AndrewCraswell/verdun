@@ -47,7 +47,12 @@ const ORDERS: Readonly<Record<SquadOrder["kind"], string>> = {
   reserve: "In reserve",
   advance: "Advancing",
   creep: "Behind the barrage",
-  raid: "Raiding"
+  raid: "Raiding",
+  "run-to": "Running",
+  suppress: "Suppressing",
+  withdraw: "Withdrawing",
+  "dig-in": "Dug in",
+  rally: "Rallying"
 }
 
 const KITS: readonly (readonly [number, SquadKit])[] = [

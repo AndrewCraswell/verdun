@@ -114,6 +114,10 @@ function noMansLandMiddle(map: BattlefieldMap): number {
  * Whether a soldier is in a trench on the enemy's side of no man's land: one his side has broken into. Its dugouts'
  * entrances face the wrong way and the enemy knows where every one is, so he doesn't go down them.
  */
+function squadOrder(sim: Simulation, soldier: EntityId): string | undefined {
+  return sim.squads[sim.soldiers.squad.id[soldier]]?.order.kind
+}
+
 function inEnemyTrench(sim: Simulation, soldier: EntityId): boolean {
   const middle = noMansLandMiddle(sim.map)
   const beyond = sim.soldiers.position.z[soldier] - middle
@@ -266,7 +270,7 @@ export function stanceSystem(sim: Simulation): void {
       const goesDown = justShelled || inReserve(sim, soldier) || restsTonight(sim, soldier)
       if (moving) {
         stance.value[soldier] = Stance.Standing
-      } else if (inEnemyTrench(sim, soldier)) {
+      } else if (inEnemyTrench(sim, soldier) || squadOrder(sim, soldier) === "dig-in") {
         // In a trench just taken: heads below its parapet, which faces the wrong way, until the enemy comes close.
         const comes = !justShelled && enemyWithin(sim, soldier, ALARM_RANGE)
         stance.value[soldier] = comes ? Stance.Standing : Stance.Crouching

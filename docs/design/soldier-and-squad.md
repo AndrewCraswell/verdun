@@ -136,23 +136,26 @@ with machine guns. The kit changes with the year. All of it is in [roles and loa
 
 Orders go to the squad as a whole; the AI decides who does what. Built:
 
-| Order     | Key              | Behaviour                                                                            |
-| --------- | ---------------- | ------------------------------------------------------------------------------------ |
-| Follow me | F                | Squad keeps with the soldier you control                                             |
-| Hold      | H                | Stay and fight where they stand; lie down in the open, man the fire step in a trench |
-| Advance   | E at the pointer | Go to a point, detouring through wire gaps; run if ordered                           |
-| Reserve   | (AI only today)  | Wait below in the dugouts, sentries up, until sent in                                |
+| Order     | Key              | Behaviour                                                                                                   |
+| --------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| Follow me | F                | Squad keeps with the soldier you control                                                                    |
+| Hold      | H                | Stay and fight where they stand; lie down in the open, man the fire step in a trench                        |
+| Advance   | E at the pointer | Go to a point, detouring through wire gaps; run if ordered                                                  |
+| Reserve   | (AI only today)  | Wait below in the dugouts, sentries up, until sent in                                                       |
+| Run to    | Order wheel      | Get to a point fast: everyone runs while his breath lasts, no bounds                                        |
+| Suppress  | Order wheel      | Fire into an area at half the usual rate, seen or not: keeps everyone there down, and now and then hits one |
+| Withdraw  | Order wheel      | Run back to the nearest trench of ours behind them and hold it; refused with none behind                    |
+| Dig in    | Order wheel      | Go to the best cover a few metres around a point and keep low: crouched in a trench, prone in the open      |
+| Rally     | Order wheel      | Close up on the leader; the shaken within 30 m of him steady eight times faster; refused with nobody shaken |
 
 Planned:
 
 | Order           | Behaviour                                                                                                                             |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Suppress        | Fire on an area, not a target: keep a machine gun or a bay's heads down                                                               |
 | Bomb along      | Clear a trench toward a point, bay by bay, bombers leading                                                                            |
 | Consolidate     | Turn a captured trench: reverse the fire step, block the trench, put out wire; speeds [consolidation](sector-battle.md#consolidation) |
 | Carry wounded   | Take the nearest badly wounded man to the aid post                                                                                    |
 | Cut or lay wire | Engineers work a belt by hand: slow, silent, deadly if seen                                                                           |
-| Withdraw        | Fall back to a named trench, covering each other                                                                                      |
 
 Orders need a fast interface: a radial menu on a held key, plus pings on the map. The squad must obey the way a player
 expects, every time; a squad that ignores orders feels worse than one that is weak.

@@ -18,7 +18,12 @@ const ICONS: Readonly<Record<SquadOrder["kind"], IconName>> = {
   advance: "advance",
   reserve: "dugout",
   creep: "creep",
-  raid: "raid"
+  raid: "raid",
+  "run-to": "advance",
+  suppress: "fire-mission",
+  withdraw: "arrow",
+  "dig-in": "prone",
+  rally: "pennant"
 }
 
 export const orderPlate: HudElementFactory = () => {

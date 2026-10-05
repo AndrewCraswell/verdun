@@ -102,6 +102,26 @@ export function createOrderWatch(sim: Simulation, squad: Squad): OrderWatch {
           const target = order.phase === "home" ? { x: order.homeX, z: order.homeZ } : { x: order.x, z: order.z }
           return { ...base, label: "Raiding", detail: RAID_PHASES[order.phase], target }
         }
+        case "run-to":
+        case "withdraw": {
+          const target = { x: order.x, z: order.z }
+          const there = from !== null && Math.hypot(target.x - from.x, target.z - from.z) < ARRIVED
+          const going = order.kind === "run-to" ? "Running" : "Withdrawing"
+          return {
+            ...base,
+            label: there ? "In position" : going,
+            detail: from && !there ? direction(from, target) : null,
+            target
+          }
+        }
+        case "suppress": {
+          const target = { x: order.x, z: order.z }
+          return { ...base, label: "Suppressing", detail: from ? direction(from, target) : null, target }
+        }
+        case "dig-in":
+          return { ...base, label: "Dug in", detail: "keeping low", target: { x: order.x, z: order.z } }
+        case "rally":
+          return { ...base, label: "Rallying", detail: "on their corporal", target: null }
       }
     }
   }
