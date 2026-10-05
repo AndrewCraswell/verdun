@@ -56,6 +56,10 @@ describe("GroundSplatPlugin", () => {
       expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("vGroundWetness")
       // Steep ground takes a sideways lookup.
       expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toMatch(/groundSideUv.*(select\(|\?)/)
+      // Layers absent from a pixel, and the sideways lookup on flat ground, cost no texture fetches.
+      expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("if (groundWeights.w >= 0.0001) {")
+      expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("if (groundSteep > 0.0) {")
+      expect(fragment?.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).not.toMatch(/textureSample\(groundGrass|texture2D\(groundGrass/)
       expect(fragment?.CUSTOM_FRAGMENT_DEFINITIONS).toContain("groundGrass")
     }
     expect(plugin.getCustomCode("compute")).toBeNull()

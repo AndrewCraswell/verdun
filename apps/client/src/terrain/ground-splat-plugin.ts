@@ -53,6 +53,8 @@ const SCORCH_TINT = [0.26, 0.22, 0.19] as const
 const SCORCH_SAMPLER = "groundScorch"
 
 const LAYERS = ["Grass", "Mud", "Chalk", "Churned"] as const
+/** Each layer's weight in the splat's vec4. */
+const CHANNELS = ["x", "y", "z", "w"] as const
 const ALBEDO_SAMPLERS = LAYERS.map((layer) => `ground${layer}`)
 const NORMAL_SAMPLERS = LAYERS.map((layer) => `ground${layer}Normal`)
 
@@ -63,6 +65,13 @@ interface ShaderSyntax {
   readonly float: string
   /** Samples a texture: `sample(sampler, uv)`. */
   sample(sampler: string, uv: string): string
+  /**
+   * Samples a texture with the screen-space gradients of its coordinates given, `${uv}Dx` and `${uv}Dy` (see
+   * `gradients`), so it can be skipped inside a branch: sampling there with implicit gradients is undefined.
+   */
+  sampleGrad(sampler: string, uv: string): string
+  /** Declares `${uv}Dx` and `${uv}Dy`, the gradients of a vec2 local. Only where every pixel of the quad runs. */
+  gradients(uv: string): string
   readonly position: string
   /** Picks `b` where `condition` holds, else `a`. */
   select(a: string, b: string, condition: string): string
@@ -78,6 +87,8 @@ const GLSL: ShaderSyntax = {
   vec4: "vec4",
   float: "float",
   sample: (sampler, uv) => `texture2D(${sampler}, ${uv})`,
+  sampleGrad: (sampler, uv) => `textureGrad(${sampler}, ${uv}, ${uv}Dx, ${uv}Dy)`,
+  gradients: (uv) => `vec2 ${uv}Dx = dFdx(${uv});\nvec2 ${uv}Dy = dFdy(${uv});`,
   position: "vPositionW",
   select: (a, b, condition) => `((${condition}) ? ${b} : ${a})`,
   splat: "vGroundSplat",
@@ -92,6 +103,8 @@ const WGSL: ShaderSyntax = {
   vec4: "vec4f",
   float: "f32",
   sample: (sampler, uv) => `textureSample(${sampler}, ${sampler}Sampler, ${uv})`,
+  sampleGrad: (sampler, uv) => `textureSampleGrad(${sampler}, ${sampler}Sampler, ${uv}, ${uv}Dx, ${uv}Dy)`,
+  gradients: (uv) => `let ${uv}Dx: vec2f = dpdx(${uv});\nlet ${uv}Dy: vec2f = dpdy(${uv});`,
   position: "fragmentInputs.vPositionW",
   select: (a, b, condition) => `select(${a}, ${b}, ${condition})`,
   splat: "fragmentInputs.vGroundSplat",
@@ -107,12 +120,22 @@ function declare(syntax: ShaderSyntax, type: string, name: string, value: string
 
 /** The ground's colour and normal from the blended layers, replacing the material's diffuse colour. */
 function groundCode(s: ShaderSyntax): string {
+  // Each layer is looked up only where it's present, and sideways only on steep ground: most of the ground is one or
+  // two layers on the flat, and every lookup skipped is one fewer filtered fetch for every pixel of it.
   const albedo = (index: number) => {
     const sampler = ALBEDO_SAMPLERS[index] ?? ""
-    const top = `mix(${s.sample(sampler, "groundUv")}.rgb, ${s.sample(sampler, "groundBreakupUv")}.rgb, 0.35)`
-    return `mix(${top}, ${s.sample(sampler, "groundSideUv")}.rgb, groundSteep)`
+    const layer = `groundLayer${index}`
+    return [
+      `if (groundWeights.${CHANNELS[index]} >= 0.0001) {`,
+      `${layer} = mix(${s.sampleGrad(sampler, "groundUv")}.rgb, ${s.sampleGrad(sampler, "groundBreakupUv")}.rgb, 0.35);`,
+      `if (groundSteep > 0.0) { ${layer} = mix(${layer}, ${s.sampleGrad(sampler, "groundSideUv")}.rgb, groundSteep); }`,
+      "}"
+    ].join("\n")
   }
-  const normal = (index: number) => `${s.sample(NORMAL_SAMPLERS[index] ?? "", "groundUv")}.rgb`
+  const normal = (index: number) => {
+    const weight = `groundWeights.${CHANNELS[index]}`
+    return `if (${weight} > 0.0) { groundNormal += ${s.sampleGrad(NORMAL_SAMPLERS[index] ?? "", "groundUv")}.rgb * ${weight}; }`
+  }
   return [
     declare(s, s.vec2, "groundXz", `${s.position}.xz`),
     declare(s, s.vec2, "groundUv", `groundXz * ${s.params}.x`),
@@ -135,13 +158,17 @@ function groundCode(s: ShaderSyntax): string {
       "groundSteep",
       `clamp((${STEEP_START.toFixed(2)} - abs(normalW.y)) / ${(STEEP_START - STEEP_FULL).toFixed(2)}, 0.0, 1.0)`
     ),
-    ...LAYERS.map((_, index) => declare(s, s.vec3, `groundLayer${index}`, albedo(index))),
+    s.gradients("groundUv"),
+    s.gradients("groundBreakupUv"),
+    s.gradients("groundSideUv"),
     declare(
       s,
       s.vec4,
       "groundWeights",
       `${s.vec4}(${s.splat}.xyz, max(0.0, 1.0 - ${s.splat}.x - ${s.splat}.y - ${s.splat}.z))`
     ),
+    ...LAYERS.map((_, index) => declare(s, s.vec3, `groundLayer${index}`, `${s.vec3}(0.0)`)),
+    ...LAYERS.map((_, index) => albedo(index)),
     declare(
       s,
       s.vec4,
@@ -164,12 +191,9 @@ function groundCode(s: ShaderSyntax): string {
       "groundColor",
       `groundLayer0 * groundWeights.x + groundLayer1 * groundWeights.y + groundLayer2 * groundWeights.z + groundLayer3 * groundWeights.w`
     ),
-    declare(
-      s,
-      s.vec3,
-      "groundNormal",
-      `(${normal(0)} * groundWeights.x + ${normal(1)} * groundWeights.y + ${normal(2)} * groundWeights.z + ${normal(3)} * groundWeights.w) * 2.0 - 1.0`
-    ),
+    declare(s, s.vec3, "groundNormal", `${s.vec3}(0.0)`),
+    ...LAYERS.map((_, index) => normal(index)),
+    "groundNormal = groundNormal * 2.0 - 1.0;",
     // Texture u runs east and v north: bend the normal in that frame.
     declare(s, s.vec3, "groundTangent", `normalize(${s.vec3}(1.0, 0.0, 0.0) - normalW * normalW.x)`),
     declare(s, s.vec3, "groundBitangent", "cross(groundTangent, normalW)"),
