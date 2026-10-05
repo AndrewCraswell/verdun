@@ -55,6 +55,11 @@ Decisions still to make. Move each to the relevant doc once decided.
   forms and dialogs in quantity.
 - **Terrain resolution.** 0.5 m cells for the simulation is the working assumption
   ([architecture](architecture.md#world)); confirm with line-of-sight and crater tests.
+- **uWebSockets.js for the sector server's transport.** The [architecture](architecture.md#networking-stage-2-and-later)
+  chose it for its lower CPU and memory per connection than `ws`, but `@colyseus/uwebsockets-transport` installs it from
+  GitHub, which pnpm's supply-chain policy (`blockExoticSubdeps`) refuses, so the server runs on `ws` for now. Migrate
+  once it can be installed (an allowance for that one package, or a published build), measuring the difference with the
+  stage 2 load test; the swap is one line in `apps/server/src/main.ts`.
 - **Map authoring.** Tiled first, in-game editor later ([editor plan](tooling.md#editor-plan)). Confirm Tiled polylines
   are good enough for trench layout.
 

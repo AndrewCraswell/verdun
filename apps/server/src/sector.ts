@@ -1,8 +1,8 @@
 import { gunzipSync, gzipSync } from "node:zlib"
 import type { BattlefieldMap } from "@verdun/map"
+import { type GroundMovement, groundMovement } from "@verdun/net"
 import {
   createFixedStepper,
-  type GroundPatch,
   createWarClock,
   scheduleForWeek,
   SIM_STATE_VERSION,
@@ -15,7 +15,7 @@ import {
   type WarClock
 } from "@verdun/sim"
 import { newBattle, resumeBattle } from "./battle.ts"
-import { groundOf, reshapedGround, restoreGround, saveGround } from "./ground.ts"
+import { groundOf, restoreGround, saveGround } from "./ground.ts"
 import type { SavedBattle, SectorStore } from "./store.ts"
 
 /** A sector's battle, running on the server whether anyone is playing it or not. */
@@ -28,8 +28,8 @@ export interface Sector {
   advance(now: number): number
   /** Calls `listener` after every step the battle takes. */
   onStep(listener: () => void): void
-  /** The ground shells have reshaped, for a player joining late: see `reshapedGround`. */
-  reshapedGround(): GroundPatch | null
+  /** How shells have moved the ground, for a player joining late: see `groundMovement`. */
+  reshapedGround(): GroundMovement | null
   /** The battle as it stands, ready to keep. */
   save(now: number): SavedBattle
 }
@@ -126,7 +126,7 @@ export async function openSector({ store, name, map, now, log }: SectorOptions):
       listeners.push(listener)
     },
     reshapedGround() {
-      return reshapedGround(map, generated)
+      return groundMovement(map, generated)
     },
     save(at) {
       return {

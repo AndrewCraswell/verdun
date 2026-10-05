@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { decodeElevation, generateFleurySector } from "@verdun/map"
-import { encodeJoined, encodeSync, MESSAGE } from "@verdun/net"
+import { createSyncEncoder, MESSAGE } from "@verdun/net"
 import {
   createSimulation,
   createSyncSource,
@@ -32,6 +32,7 @@ class FakeServer implements SectorConnection {
   readonly squad = setupSkirmish(this.sim).playerSquad
   readonly received: unknown[] = []
   private readonly source: SyncSource = createSyncSource(this.sim)
+  private readonly encoder = createSyncEncoder()
   private readonly handlers = new Map<string, (payload: unknown) => void>()
   private readonly leaving: ((code: number) => void)[] = []
   left = false
@@ -44,10 +45,10 @@ class FakeServer implements SectorConnection {
 
   send(type: string, message?: unknown): void {
     if (type === MESSAGE.ready && this.welcome) {
-      // A sync on its way before the welcome is played out on nothing.
       this.step(1)
-      const sync = encodeJoined({ playerSquad: this.squad.id, schedule, sync: this.source.take() })
-      setTimeout(() => this.handlers.get(MESSAGE.joined)?.(sync))
+      this.encoder.encode(this.source.take())
+      const welcome = this.encoder.welcome(this.squad.id, schedule, null)
+      setTimeout(() => this.handlers.get(MESSAGE.joined)?.(welcome))
     }
     if (type === MESSAGE.commands) {
       this.received.push(message)
@@ -80,7 +81,7 @@ class FakeServer implements SectorConnection {
   }
 
   sync(): void {
-    this.handlers.get(MESSAGE.sync)?.(encodeSync(this.source.take()))
+    this.handlers.get(MESSAGE.sync)?.(this.encoder.encode(this.source.take()))
   }
 
   sendJunk(): void {

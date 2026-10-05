@@ -1,5 +1,5 @@
 import { createFlatMap, stampCrater } from "@verdun/map"
-import { decodeJoined, decodeSync } from "@verdun/net"
+import { decodeJoined, groundMovement } from "@verdun/net"
 import {
   applySync,
   createSimulation,
@@ -11,7 +11,7 @@ import {
   stepSimulation
 } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { groundOf, reshapedGround } from "./ground.ts"
+import { groundOf } from "./ground.ts"
 import { createRelay } from "./relay.ts"
 import type { Sector } from "./sector.ts"
 
@@ -44,7 +44,7 @@ function smallSector(): Sector {
       return steps
     },
     onStep: (listener) => listeners.push(listener),
-    reshapedGround: () => reshapedGround(map, generated),
+    reshapedGround: () => groundMovement(map, generated),
     save: () => {
       throw new Error("Not kept")
     }
@@ -59,42 +59,50 @@ describe("the relay", () => {
     sector.advance(5)
 
     const mirror = createSimulation({ map: field(), seed: 3 })
-    const joined = decodeJoined(relay.welcome(0))
+    const joined = decodeJoined(relay.welcome(0), field())
     applySync(mirror, joined.sync)
     expect(joined.playerSquad).toBe(0)
     expect(joined.schedule).toEqual(sector.war.schedule)
-    expect(mirror.map.heights).toEqual(sector.sim.map.heights)
+    mirror.map.heights.forEach((height, sample) => expect(height).toBeCloseTo(sector.sim.map.heights[sample] ?? 0, 3))
     expect(mirror.squads.length).toBe(1)
 
-    sector.advance(1)
-    expect(relay.due(true)).not.toBeNull()
-    sector.advance(1)
-    expect(relay.due(true)).toBeNull()
-    sector.advance(1)
-    const sync = relay.due(true)
-    if (!sync) {
-      throw new Error("No sync when one was due")
+    // Every message after the welcome builds on the one before.
+    const take = () => {
+      const sync = relay.due(true)
+      if (sync) {
+        applySync(mirror, joined.decoder.decode(sync))
+      }
+      return sync
     }
-    applySync(mirror, decodeSync(sync))
+    sector.advance(1)
+    expect(take()).not.toBeNull()
+    sector.advance(1)
+    expect(take()).toBeNull()
+    sector.advance(1)
+    expect(take()).not.toBeNull()
     expect(Array.from(mirror.soldiers.position.x.slice(0, 4))).toEqual(
       Array.from(sector.sim.soldiers.position.x.slice(0, 4))
     )
   })
 
-  it("sends nothing to no one, and keeps no steps back for later", () => {
+  it("sends nothing to no one, but keeps a player joining after in step, with no steps kept back", () => {
     const sector = smallSector()
     const relay = createRelay(sector)
     sector.advance(4)
-
     expect(relay.due(false)).toBeNull()
+
+    const { decoder } = decodeJoined(relay.welcome(0), field())
     sector.advance(2)
     const sync = relay.due(true)
-    expect(sync && decodeSync(sync).steps.length).toBe(2)
+    if (!sync) {
+      throw new Error("No sync when one was due")
+    }
+    expect(decoder.decode(sync).steps.map((step) => step.tick)).toEqual([5, 6])
   })
 
   it("welcomes a player to unshelled ground with no patch", () => {
     const relay = createRelay(smallSector())
 
-    expect(decodeJoined(relay.welcome(0)).sync.ground).toEqual([])
+    expect(decodeJoined(relay.welcome(0), field()).sync.ground).toEqual([])
   })
 })

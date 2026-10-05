@@ -83,17 +83,23 @@ before, for development and `pnpm perf`.
   (`join-squad`) swaps men with a squad of bots, never with another player's.
 - **The battle on the page**: the client's third `SimHost` (`sim/server-host.ts`) mirrors the server's simulation as the
   worker's is mirrored: the server sends `SimSync` ten times a second (every second step), and a player joining late is
-  sent the whole battle, with the ground the shells have reshaped as one patch. The war's calendar is the server's. The
-  menu doesn't pause the battle. What the squad sees is worked out on the page, from the ground.
-- **Encoding** (`packages/net`): the sync goes as MessagePack bytes that keep typed arrays (msgpackr's `moreTypes`);
-  commands go in Colyseus's own encoding.
+  sent the whole battle, with how far shells have moved the ground. The war's calendar is the server's. The menu doesn't
+  pause the battle. What the squad sees is worked out on the page, from the ground.
+- **Encoding** (`packages/net`): each message is only what changed since the last (`delta.ts`): the fields of state, and
+  runs of the soldier arrays, the wire and the clouds, as MessagePack that keeps typed arrays (msgpackr's `moreTypes`),
+  deflated once for every player (fflate). A joining player is welcomed to the battle as of the last message, and every
+  message after builds on it. Gas and smoke go as a byte a cell on a log scale (about 7% a step); the ground a late
+  joiner gets is how far shells have moved each sample, in millimetres, against the map they generate themselves.
+  Commands go in Colyseus's own encoding.
 - **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
   their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
   keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
   aren't checked yet (a call for fire could ask for any number of rounds a minute; the side's ammunition still caps it).
-- **Bandwidth**: about 140 KB a sync, 1.4 MB/s a player, with the whole battle sent to everyone; a late joiner's welcome
-  is 1 to 2 MB. Fine on one machine, too much over the internet: relevance filtering and quantization are the stage 2
-  load test's work.
+- **Bandwidth**, measured over the battle's first six minutes, bombardments and all: about 26 KB/s a player (38 KB/s at
+  the worst minute), and a late joiner's welcome about 220 KB. Sending the whole battle every time, it was 1.4 to 2.8
+  MB/s and 1.75 MB. What's left: smoke drifting (about 12 KB/s), soldiers moving (7), shells in flight (7). The odd
+  message is still about 200 KB, when a grid or the soldiers' list changes size and goes whole. Every player is still
+  sent the whole battle; relevance filtering, and quantizing positions, are the stage 2 load test's work.
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
   pnpm's supply-chain policy (`blockExoticSubdeps`) refuses; swapping it in is one line in `main.ts` once that's
   settled.

@@ -1,12 +1,4 @@
+export { type GroundMovement, groundMovement } from "./ground-movement.ts"
 export { playerCommand } from "./player-commands.ts"
-export {
-  decodeJoined,
-  decodeSync,
-  encodeJoined,
-  encodeSync,
-  type Joined,
-  type JoinOptions,
-  joinSide,
-  MESSAGE,
-  SECTOR_ROOM
-} from "./protocol.ts"
+export { type JoinOptions, joinSide, MESSAGE, SECTOR_ROOM } from "./protocol.ts"
+export { createSyncEncoder, decodeJoined, type Joined, type SyncDecoder, type SyncEncoder } from "./sync-codec.ts"

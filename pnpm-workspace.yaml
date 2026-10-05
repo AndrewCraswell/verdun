@@ -19,6 +19,7 @@ catalog:
   "@vitest/coverage-v8": 5.0.2
   astronomy-engine: 2.1.19
   bitecs: 0.4.0
+  fflate: 0.8.3
   msgpackr: 2.1.0
   typescript: 7.0.2
   vite: 8.3.1

@@ -1,4 +1,4 @@
-import { encodeJoined, encodeSync } from "@verdun/net"
+import { createSyncEncoder } from "@verdun/net"
 import { createSyncSource } from "@verdun/sim"
 import type { Sector } from "./sector.ts"
 
@@ -7,7 +7,7 @@ export const SYNC_EVERY = 2
 
 /** Keeps every player's mirror of a sector's battle in step with it. */
 export interface Relay {
-  /** What a player joining to lead `playerSquad` is sent: the whole battle as it stands, craters and all. */
+  /** What a player joining to lead `playerSquad` is sent: the whole battle as of the last sync, craters and all. */
   welcome(playerSquad: number): Uint8Array
   /**
    * After the battle has stepped: what changed since the last sync, for every player, once `SYNC_EVERY` steps have been
@@ -18,6 +18,9 @@ export interface Relay {
 
 export function createRelay(sector: Sector, every = SYNC_EVERY): Relay {
   const source = createSyncSource(sector.sim)
+  const encoder = createSyncEncoder()
+  // A first sync, so a player can be welcomed straight away.
+  encoder.encode(source.take())
   let steps = 0
   sector.onStep(() => {
     source.stepped()
@@ -25,24 +28,16 @@ export function createRelay(sector: Sector, every = SYNC_EVERY): Relay {
   })
   return {
     welcome(playerSquad) {
-      // A source of its own, so the first sync carries the wire and the clouds whole; the shared one's next sync brings
-      // the player the steps since.
-      const sync = createSyncSource(sector.sim).take()
-      const ground = sector.reshapedGround()
-      return encodeJoined({
-        playerSquad,
-        schedule: sector.war.schedule,
-        sync: { ...sync, ground: ground ? [ground] : [] }
-      })
+      return encoder.welcome(playerSquad, sector.war.schedule, sector.reshapedGround())
     },
     due(listening) {
       if (steps < every) {
         return null
       }
       steps = 0
-      // Taken even with no one listening, so the steps don't pile up for the next player.
-      const sync = source.take()
-      return listening ? encodeSync(sync) : null
+      // Encoded even with no one listening: the next player is welcomed to this sync, and the next builds on it.
+      const sync = encoder.encode(source.take())
+      return listening ? sync : null
     }
   }
 }

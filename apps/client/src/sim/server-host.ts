@@ -1,5 +1,5 @@
 import type { BattlefieldMap } from "@verdun/map"
-import { decodeJoined, decodeSync, type JoinOptions, MESSAGE, SECTOR_ROOM } from "@verdun/net"
+import { decodeJoined, type JoinOptions, MESSAGE, SECTOR_ROOM, type SyncDecoder } from "@verdun/net"
 import { applySync, type Command, createSimulation, type Side, type WarSchedule } from "@verdun/sim"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
 import type { SimHost, StepTaken } from "./sim-host.ts"
@@ -68,14 +68,16 @@ export async function serverHost(
   mirror.lineOfSight = sightLines
   let arrived: StepTaken[] = []
   let left: number | null = null
+  // Each message is what changed since the one before: the welcome starts the reading, and messages before it are
+  // passed over, as they build on a battle this page never had.
+  let decoder: SyncDecoder | null = null
 
   const joined = new Promise<{ playerSquad: number; schedule: WarSchedule }>((resolve, reject) => {
     connection.onMessage(MESSAGE.joined, (payload) => {
-      const { playerSquad, schedule, sync } = decodeJoined(bytesOf(payload))
-      applySync(mirror, sync)
-      // Steps sent before the battle came were played out on a mirror that wasn't there yet.
-      arrived = []
-      resolve({ playerSquad, schedule })
+      const welcome = decodeJoined(bytesOf(payload), map)
+      decoder = welcome.decoder
+      applySync(mirror, welcome.sync)
+      resolve(welcome)
     })
     connection.onLeave((code) => {
       left = code
@@ -83,7 +85,10 @@ export async function serverHost(
     })
   })
   connection.onMessage(MESSAGE.sync, (payload) => {
-    const sync = decodeSync(bytesOf(payload))
+    if (!decoder) {
+      return
+    }
+    const sync = decoder.decode(bytesOf(payload))
     applySync(mirror, sync)
     arrived.push(...sync.steps)
   })

@@ -15,11 +15,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@verdun/map": "workspace:*",
     "@verdun/sim": "workspace:*",
+    "fflate": "catalog:",
     "msgpackr": "catalog:"
   },
   "devDependencies": {
-    "@verdun/map": "workspace:*",
     "@verdun/oxlint-config": "workspace:*",
     "@verdun/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "catalog:",

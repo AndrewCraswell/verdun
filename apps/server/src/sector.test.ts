@@ -62,7 +62,7 @@ describe("a sector", () => {
     // A shell's crater, so there's ground to put back.
     const crater = sector.sim.map.heights.length >> 1
     sector.sim.map.heights[crater] = (sector.sim.map.heights[crater] ?? 0) - 1.5
-    expect(sector.reshapedGround()?.heights.length).toBeGreaterThan(0)
+    expect(sector.reshapedGround()?.moved.length).toBeGreaterThan(0)
     store.save("fleury", sector.save(NOW + 30_000))
 
     const later = NOW + 90_000
