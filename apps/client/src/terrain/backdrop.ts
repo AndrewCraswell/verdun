@@ -181,7 +181,6 @@ export function createBackdrop(
   backdrop.setVerticesData(WETNESS_ATTRIBUTE, wetness, false, 1)
   backdrop.material = material
   backdrop.isPickable = false
-  backdrop.receiveShadows = false
   backdrop.freezeWorldMatrix()
   return backdrop
 }

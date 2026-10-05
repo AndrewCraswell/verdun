@@ -64,7 +64,6 @@ describe("createBackdrop", () => {
     // At the sector's edge, just under it; inside it, well under.
     expect(heightAt(0, 50)).toBeCloseTo(2 - 0.25)
     expect(heightAt(50, 50)).toBeLessThan(-3)
-    expect(backdrop.receiveShadows).toBe(false)
   })
 })
 
