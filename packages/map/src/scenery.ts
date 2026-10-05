@@ -19,8 +19,6 @@ export const SCENERY_KINDS = [
   "stump",
   /** A fallen trunk. */
   "log",
-  /** An orchard's fruit tree, stripped bare by the shelling: a gnarled trunk and a few limbs, a man and a half high. */
-  "fruit-tree",
   /** A field gun in its pit. */
   "gun",
   /** A field gun knocked out by counter-battery fire. */
@@ -78,7 +76,6 @@ export const SCENERY_FOOTPRINTS: Readonly<Record<SceneryKind, SceneryFootprint>>
   tree: { radius: 0.6, sightHeight: 8, walkCost: Infinity },
   stump: { radius: 0.5, sightHeight: 0.8, walkCost: 2 },
   log: { radius: 1, sightHeight: 0.6, walkCost: 3 },
-  "fruit-tree": { radius: 0.3, sightHeight: 2.8, walkCost: Infinity },
   gun: { radius: 2.2, sightHeight: 1.6, walkCost: Infinity },
   "wrecked-gun": { radius: 2.2, sightHeight: 1.4, walkCost: Infinity },
   "wrecked-plane": { radius: 4, sightHeight: 2.2, walkCost: Infinity },
