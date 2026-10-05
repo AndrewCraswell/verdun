@@ -6,6 +6,7 @@
 // Usage: node scripts/perf.mjs [--headed] [--ref HEAD] [--url http://localhost:5173] [--no-build] [--width 1920]
 //                              [--height 1080] [--seconds 6] [--only "day;night"] [--out perf.json] [--shots dir]
 //                              [--eval "page-side expression"] [--query "inline"] [--operation]
+//                              [--ab "page-side toggle" [--ab-undo "page-side undo"] [--rounds 4] [--settle 2500]]
 //                              [--chrome path/to/chrome.exe]
 // --headed runs a real Chrome window off-screen: headless Chrome here aborts some module fetches. --shots saves what
 // each scenario looked like, to check a faster setting still draws the picture. --eval prints a page-side expression
@@ -16,6 +17,11 @@
 // half-made changes stay out) and serves the build itself. Close other copies of the game first. Several runs at once
 // each take a slot of their own (build tree, build folder, port), so they never swap files under each other; --no-build
 // serves the build last made in the slot this run gets.
+// --ab measures one change against the battle as it is, in one page: it alternates a sample of the baseline with a
+// sample after the toggle (undone again by --ab-undo), --rounds times, waiting --settle milliseconds after each toggle
+// for shaders to recompile, and reports the median of the paired differences. Other sessions' games and builds load
+// this machine's GPU on and off, by tens of milliseconds between runs; adjacent pairs share that load, and the 20th
+// percentile of per-frame GPU time (`gpuP20`), which load can only push up, holds steadiest.
 
 import { execFileSync, spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
@@ -35,6 +41,11 @@ const SECONDS = Number(option("--seconds", 6))
 const SLOTS = 8
 /** A page-side evaluation gives up after this long: a setting that recompiles shaders can hang the page for good. */
 const EVALUATE_TIMEOUT_MS = 120_000
+/** --ab: rounds of baseline and toggled samples, and how long to wait after each toggle. */
+const AB = option("--ab", "")
+const AB_UNDO = option("--ab-undo", "")
+const ROUNDS = Number(option("--rounds", 4))
+const SETTLE_MS = Number(option("--settle", 2500))
 // Semicolons between names: the names have commas in them.
 const ONLY = option("--only", "")
   .split(";")
@@ -222,12 +233,25 @@ window.__perf = {
     const engine = verdun.engine
     // With ?gputime, Babylon times the frame, its main pass and each render target's on the GPU, in nanoseconds.
     const gpu = engine._timestampQuery?.enable ? engine._timestampQuery.gpuFrameTimeCounter : null
+    // Each frame's GPU time too: its low percentiles stand clear of other programs' load on the GPU.
+    const frames = []
+    let collecting = true
+    const collect = () => {
+      if (collecting) {
+        if (gpu?.current > 0) frames.push(gpu.current / 1e6)
+        requestAnimationFrame(collect)
+      }
+    }
+    requestAnimationFrame(collect)
     const seconds_ = []
     for (let second = 0; second < seconds; second++) {
       await wait(1000)
       const f = verdun.trace.frames
       seconds_.push({ fps: f.perSecond, ms: f.averageMs, worst: f.worstMs, gpu: gpu ? gpu.lastSecAverage / 1e6 : 0 })
     }
+    collecting = false
+    frames.sort((a, b) => a - b)
+    const percentile = (q) => (frames.length > 0 ? frames[Math.floor((frames.length - 1) * q)] : 0)
     const mean = (key) => seconds_.reduce((sum, s) => sum + s[key], 0) / seconds_.length
     const passes = []
     if (engine.gpuTimeInFrameForMainPass) {
@@ -243,6 +267,8 @@ window.__perf = {
       frameMs: mean("ms"),
       worstMs: Math.max(...seconds_.map((s) => s.worst)),
       gpuMs: mean("gpu"),
+      gpuP20: percentile(0.2),
+      gpuP50: percentile(0.5),
       passes: passes.filter(([, ms]) => ms > 0.05).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, ms]) => [name, +ms.toFixed(2)]),
       snapshot: verdun.snapshots ? (verdun.snapshots.playing ? "replaying" : "live: " + verdun.snapshots.lastReason) : "off",
       hot: verdun.trace.hotSpots(20).map((s) => [s.name, +s.selfMsPerFrame.toFixed(2)])
@@ -313,6 +339,42 @@ const SCENARIOS = [
   // Last: switching snapshot rendering off is for good.
   { name: "day, no snapshot rendering", setup: "verdun.snapshots?.dispose()" }
 ]
+
+/** --ab's scenarios: the day, then baseline and toggled samples in turn, each toggle followed by time to settle. */
+function abScenarios() {
+  const settled = (code) =>
+    `(async () => { ${code}; await new Promise((resolve) => setTimeout(resolve, ${SETTLE_MS})) })()`
+  const rounds = Array.from({ length: ROUNDS }, (_, round) => [
+    { name: `base ${round + 1}`, setup: "0" },
+    { name: `with ${round + 1}`, setup: settled(AB), teardown: AB_UNDO ? settled(AB_UNDO) : undefined }
+  ])
+  return [{ name: "day", setup: "__perf.clock(Date.UTC(1916, 5, 23, 10))" }, ...rounds.flat()]
+}
+
+/** --ab's verdict: the median of each measure's paired differences, toggled minus baseline. */
+function abSummary(results) {
+  const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0
+  const pairs = []
+  for (let round = 1; round <= ROUNDS; round++) {
+    const base = results.find((result) => result.scenario === `base ${round}`)
+    const toggled = results.find((result) => result.scenario === `with ${round}`)
+    if (base && toggled) {
+      pairs.push({ base, toggled })
+    }
+  }
+  const difference = (key) => pairs.map(({ base, toggled }) => toggled[key] - base[key])
+  const line = (label, key) =>
+    `${label.padEnd(16)} ${median(difference(key)).toFixed(1).padStart(6)} ms  (pairs ${difference(key)
+      .map((d) => d.toFixed(1))
+      .join(", ")}; baseline about ${median(pairs.map(({ base }) => base[key])).toFixed(1)} ms)`
+  return [
+    `--ab over ${pairs.length} pairs, toggled minus baseline (negative is faster):`,
+    line("GPU 20th pct", "gpuP20"),
+    line("GPU median", "gpuP50"),
+    line("GPU mean", "gpuMs"),
+    line("frame", "frameMs")
+  ].join("\n")
+}
 
 /**
  * Builds the client as committed at a ref, in a worktree of its own: several sessions edit the shared working tree at
@@ -550,7 +612,7 @@ async function main() {
       print(JSON.stringify(await evaluate(report), null, 1))
     }
     const results = []
-    for (const scenario of SCENARIOS) {
+    for (const scenario of AB ? abScenarios() : SCENARIOS) {
       if (ONLY.length > 0 && !ONLY.includes(scenario.name)) {
         continue
       }
@@ -582,11 +644,14 @@ async function main() {
         .map(([name, ms]) => `${ms} ${name.replace("babylon: ", "")}`)
         .join(" | ")
       print(
-        `${scenario.name.padEnd(28)} ${result.fps.toFixed(1).padStart(5)} fps  ${result.frameMs.toFixed(1).padStart(5)} ms (worst ${result.worstMs.toFixed(0)})  GPU ${result.gpuMs ? result.gpuMs.toFixed(1) + " ms" : "n/a"}  ${result.snapshot}\n${" ".repeat(30)}${hot}` +
+        `${scenario.name.padEnd(28)} ${result.fps.toFixed(1).padStart(5)} fps  ${result.frameMs.toFixed(1).padStart(5)} ms (worst ${result.worstMs.toFixed(0)})  GPU ${result.gpuMs ? `${result.gpuMs.toFixed(1)} ms, 20th pct ${result.gpuP20.toFixed(1)}` : "n/a"}  ${result.snapshot}\n${" ".repeat(30)}${hot}` +
           (result.passes.length > 0
             ? `\n${" ".repeat(30)}GPU: ${result.passes.map(([name, ms]) => `${ms} ${name}`).join(" | ")}`
             : "")
       )
+    }
+    if (AB) {
+      print(abSummary(results))
     }
     const out = option("--out", "")
     if (out) {
