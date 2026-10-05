@@ -115,14 +115,22 @@ describe("receivesShadow", () => {
   })
 })
 
-/** The sun's shadow figures (see atmosphere.ts), on the game's camera, seeing from half a metre to two kilometres. */
+/** A camera seeing from half a metre to two kilometres, looking `forward`. */
+function looking(forward: Vector3) {
+  return { minZ: 0.5, maxZ: 2000, getDirectionToRef: (_axis: Vector3, result: Vector3) => result.copyFrom(forward) }
+}
+
+/**
+ * The sun's shadow figures (see atmosphere.ts), on a camera looking level toward the west, into a sun from the west
+ * (`sunFrom`): every shadow falls straight toward it.
+ */
 const SPLIT = {
   numCascades: 2,
   lambda: 0.85,
   shadowMaxZ: 160,
   minDistance: 0,
   maxDistance: 1,
-  camera: { minZ: 0.5, maxZ: 2000 }
+  camera: looking(new Vector3(-1, 0, 0))
 } as const
 
 /** The way the sun's light goes from `elevation` degrees up. */
@@ -218,6 +226,42 @@ describe("castersInCascade", () => {
     // So does a sun below the horizon.
     sun = new Vector3(0, 1, 0)
     expect(cull(0, casters, casters.length)).toEqual([near, close, far, unmeasured])
+  })
+
+  it("reaches only as far toward the camera as the way it looks lets the shadows fall", () => {
+    const { scene } = field()
+    let forward = new Vector3(1, 0, 0)
+    const cull = castersInCascade({
+      ...SPLIT,
+      camera: looking(forward),
+      getCascadeTransformMatrix: () => transform,
+      getLight: () => ({ direction: sunFrom(45) })
+    })
+    const man = CreateBox("man", { size: 1 }, scene)
+    man.alwaysSelectAsActiveMesh = true
+    const casters = [man]
+    // With the sun behind it his shadow falls away from the camera: past the first slice's 19.64 m he can't shade it.
+    recordNearestDepth(man, 20)
+    expect(cull(0, casters, casters.length)).toEqual([])
+    recordNearestDepth(man, 19)
+    expect(cull(0, casters, casters.length)).toEqual([man])
+    // Looking straight down, as from high over the field, the shadow keeps its depth.
+    forward.set(0, -1, 0)
+    recordNearestDepth(man, 20)
+    expect(cull(0, casters, casters.length)).toEqual([])
+    // Looking level into a sun 30 degrees up, over a soldier's shoulder, all 8.5 m of the shadow along the ground falls
+    // toward the camera.
+    forward = new Vector3(-1, -0.0001, 0)
+    const into = castersInCascade({
+      ...SPLIT,
+      camera: looking(forward),
+      getCascadeTransformMatrix: () => transform,
+      getLight: () => ({ direction: sunFrom(30) })
+    })
+    recordNearestDepth(man, 19.64 + 8.4)
+    expect(into(0, casters, casters.length)).toEqual([man])
+    recordNearestDepth(man, 19.64 + 8.6)
+    expect(into(0, casters, casters.length)).toEqual([])
   })
 })
 

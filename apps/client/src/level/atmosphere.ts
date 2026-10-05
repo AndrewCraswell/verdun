@@ -192,21 +192,30 @@ export function cascadeEnd(shadows: CascadeSplit, cascade: number): number {
 }
 
 /**
- * A soldier's shadow falls toward the camera, in view depth, at most the height it falls from over the tangent of the
- * sun's elevation, for a camera looking level or down, as the game's always does. The height is from the top of a man
- * standing to the floor of a trench beside him. With the sun lower than `lowSun` degrees shadows grow too long to
- * bound, and the soldiers cast into every cascade.
+ * A soldier's shadow falls from at most `height` up, from the top of a man standing to the floor of a trench beside
+ * him. With the sun lower than `lowSun` degrees shadows grow too long to bound, and the soldiers cast into every
+ * cascade.
  */
 const CROWD_SHADOW = { height: 1.9 + 3, lowSun: 10 } as const
 
-/** How far toward the camera, in view depth, a soldier's shadow can fall from him, with the sun's light going `way`. */
-function crowdShadowReach(way: Vector3): number {
+/** The camera's own forward, which it turns into the way it looks. */
+const AHEAD = new Vector3(0, 0, 1)
+const looking = new Vector3()
+
+/**
+ * How far toward the camera, in view depth, a soldier's shadow can fall from him, with the sun's light going `way` and
+ * the camera looking `forward`: the light's path from his height down to the ground, as much of it as goes toward the
+ * camera. Whatever the camera's tilt, from looking straight down to the level view over a soldier's shoulder. Without
+ * a camera, the most it could be.
+ */
+function crowdShadowReach(way: Vector3, forward: Vector3 | null): number {
   const length = way.length()
   const sine = length > 0 ? -way.y / length : 0
   if (sine < Math.sin((CROWD_SHADOW.lowSun * Math.PI) / 180)) {
     return Number.POSITIVE_INFINITY
   }
-  return (CROWD_SHADOW.height * Math.sqrt(1 - sine * sine)) / sine
+  const toward = forward ? Math.max(0, -Vector3.Dot(way, forward) / (length * forward.length())) : 1
+  return (CROWD_SHADOW.height / sine) * toward
 }
 
 /**
@@ -220,6 +229,11 @@ const within = (depth: number, reach: number) => depth < Number.POSITIVE_INFINIT
  * of the camera's view it covers, and which way the sun's light goes.
  */
 interface Cascades extends CascadeSplit {
+  readonly camera: Nullable<{
+    readonly minZ: number
+    readonly maxZ: number
+    getDirectionToRef(localAxis: Vector3, result: Vector3): void
+  }>
   getCascadeTransformMatrix(cascade: number): Nullable<Matrix>
   getLight(): { readonly direction: Vector3 }
 }
@@ -257,7 +271,9 @@ export function castersInCascade(
       near.d = Number.MAX_VALUE
     }
     // A crowd whose nearest man drawn is this far into the camera's view, or nearer, can shade the slice.
-    const reach = cascadeEnd(shadows, cascade) + crowdShadowReach(shadows.getLight().direction)
+    const camera = shadows.camera
+    camera?.getDirectionToRef(AHEAD, looking)
+    const reach = cascadeEnd(shadows, cascade) + crowdShadowReach(shadows.getLight().direction, camera ? looking : null)
     for (let index = 0; index < count; index++) {
       const mesh = casters[index]
       if (mesh && (mesh.alwaysSelectAsActiveMesh ? within(nearestDepth(mesh), reach) : mesh.isInFrustum(view))) {
