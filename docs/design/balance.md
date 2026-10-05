@@ -179,6 +179,12 @@ losses (German just over); own fire 15% and 11%; the two sides within 20 points 
 an unsupported attack's losses, a little under the [target](machine-guns.md#balance-targets) now that snipers and rifle
 grenades hunt them.
 
+**Latest** (on `3be231d` with the counter-thrust at 2.5 to 1, up to three squads a look, every 5 s, counting squads
+already on their way, and commanders' automatic counter-fire off): barrage-only attacks hold 4 in 10 from both sides,
+one bombardment 2 and 5 in 10, three bombardments 9 and 8 in 10 at 59% and 64% losses; guns cause 36–45% of an
+unsupported attack's losses. What's left over the bands is German attacks (one bombardment, and losses after three),
+which matches the [ground favouring a French attack](../level-design.md#playing-the-ground) rather than the rules.
+
 **Losses by cause** (`5907d94`, the harness now reports them): rifles cause about half of every attack's losses
 (46–68%), enemy shells 16–37%, grenades 5–19%, own shells 2–9% (inside the 5–15% band for prepared attacks), and
 **machine guns only 1–7%**. History had it the other way: machine guns were what broke attacks, and the overnight log

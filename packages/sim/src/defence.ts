@@ -19,9 +19,9 @@ const BREAK_IN = 3
  * Defenders sent to a break-in are enough to outnumber the enemies there by this much, counting those still holding the
  * stretch. Each squad counts for its men standing.
  */
-const ODDS = 1.5
+const ODDS = 2.5
 /** At most this many squads go to one break-in in one look: the rest come if it's still needed at the next. */
-const SQUADS_PER_LOOK = 2
+const SQUADS_PER_LOOK = 3
 /** A reserve squad goes only if it has at least this many men standing. */
 const FIT_TO_GO = 4
 /**

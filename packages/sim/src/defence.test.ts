@@ -114,10 +114,12 @@ describe("counter-thrusts", () => {
     for (const x of [62, 66, 70]) {
       spawnSoldier(sim, { side: Side.French, x, z: 150 })
     }
-    spawnSoldier(sim, { side: Side.German, x: 100, z: 150.5 })
+    for (const x of [96, 100, 104]) {
+      spawnSoldier(sim, { side: Side.German, x, z: 150.5 })
+    }
     // Two looks, five seconds apart: the second counts the squad already on its way.
     stepFor(sim, 5.1)
-    // Three intruders against one: the nearer squad of five is enough.
+    // Three intruders against three holding: the nearer squad of five makes the odds.
     expect(near.order.kind).toBe("advance")
     expect(far.order).toEqual({ kind: "reserve" })
 
