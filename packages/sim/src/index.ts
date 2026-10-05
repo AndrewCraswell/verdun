@@ -190,3 +190,4 @@ export {
 } from "./war-calendar.ts"
 export { type DayOutlook, dayOutlook, type ForecastDay, forecastDay, forecastFrom, windFrom } from "./outlook.ts"
 export { loadWeatherRegion, WEATHER_REGIONS, type WeatherRegion } from "./records.ts"
+export { applySync, createSyncSource, type GroundPatch, type SimSync, type SyncSource } from "./sync.ts"
