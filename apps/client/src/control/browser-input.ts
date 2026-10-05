@@ -49,6 +49,9 @@ export function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyH") {
     return { kind: "order-hold" }
   }
+  if (code === "KeyT") {
+    return { kind: "take-over" }
+  }
   if (code === "KeyK") {
     return { kind: "debug-kill" }
   }

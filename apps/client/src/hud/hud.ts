@@ -11,13 +11,12 @@ import {
   type WarDay
 } from "@verdun/sim"
 import { groundUnderPointer } from "../control/ground-pick.ts"
-import { registerBindings } from "../ui/bindings.ts"
 import type { HudContext, HudElement, HudElementFactory, HudZone } from "./element.ts"
 import { browserHintStore } from "./hints.ts"
 import { createHudModel, type HudModel, type HudState, type HudView } from "./hud-state.ts"
 import { installIcons } from "./icons.ts"
 import { type InterfaceSettings, interfaceSettings } from "./interface-settings.ts"
-import { OVERVIEW_KEY } from "./keys.ts"
+import { isOverviewKey } from "./keys.ts"
 import { projectPoint, screenAngleBetween } from "./projection.ts"
 import { HUD_ELEMENTS } from "./registry.ts"
 // The HUD's type: Archivo, a grotesque after the 1890s' (weight and width axes), and Bodoni Moda, the Didone of
@@ -219,7 +218,7 @@ export function createHud(
   })
 
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.code !== OVERVIEW_KEY.code || event.repeat) {
+    if (!isOverviewKey(event.code) || event.repeat) {
       return
     }
     held = true
@@ -227,7 +226,7 @@ export function createHud(
     redraw()
   }
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.code !== OVERVIEW_KEY.code || !held) {
+    if (!isOverviewKey(event.code) || !held) {
       return
     }
     held = false
@@ -242,16 +241,6 @@ export function createHud(
   window.addEventListener("keydown", onKeyDown)
   window.addEventListener("keyup", onKeyUp)
   window.addEventListener("blur", onBlur)
-  const unbind = registerBindings({
-    title: "Interface",
-    bindings: [
-      {
-        keys: OVERVIEW_KEY.label,
-        action: "Overview: hold for the sector's time, weather, objectives, strength and guns; tap to keep it up"
-      }
-    ]
-  })
-
   function apply(next: InterfaceSettings): void {
     settings = next
     root.style.setProperty("--hud-scale", String(next.scale))
@@ -313,7 +302,6 @@ export function createHud(
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
-      unbind()
       unlisten()
       if (afterRender) {
         view?.scene.onAfterRenderObservable.remove(afterRender)

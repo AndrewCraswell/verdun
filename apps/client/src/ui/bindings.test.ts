@@ -1,33 +1,18 @@
 import { describe, expect, it } from "vitest"
-import { actionForKey, MOVEMENT_KEYS, POINTER_KEYS, RUN_KEYS } from "../control/browser-input.ts"
+import { actionForKey, MOVEMENT_KEYS, POINTER_KEYS, RUN_KEYS, THROW_KEY } from "../control/browser-input.ts"
 import { CAMERA_KEYS } from "../control/camera-rig.ts"
-import { allBindings, CONTROLS, registerBindings } from "./bindings.ts"
+import { allBindings, controls, registerBindings } from "./bindings.ts"
+import { createKeymap, type KeyStore, keyName } from "./keymap.ts"
 
-/** How a `KeyboardEvent.code` is written in the controls list. */
-function keyLabel(code: string): string {
-  const names: Record<string, string> = {
-    Space: "Space",
-    Tab: "Tab",
-    Escape: "Esc",
-    ArrowUp: "Arrow keys",
-    ArrowDown: "Arrow keys",
-    ArrowLeft: "Arrow keys",
-    ArrowRight: "Arrow keys",
-    Backquote: "`",
-    ShiftLeft: "Shift",
-    ShiftRight: "Shift"
-  }
-  return names[code] ?? code.replace(/^Key/, "").replace(/^Digit/, "")
-}
+const fresh = (): KeyStore => ({ load: () => null, save: () => undefined })
 
+/** Whether a key, by its default code, is in the controls list as the defaults print it. */
 function listed(code: string): boolean {
-  const label = keyLabel(code)
+  const label = keyName(code)
   const digit = /^[1-8]$/.test(label)
-  return CONTROLS.some((group) =>
+  return controls(createKeymap(fresh())).some((group) =>
     group.bindings.some((binding) =>
-      digit
-        ? binding.keys === "1 to 8"
-        : binding.keys.split(/,\s*|\s+\+\s+|\s+/).includes(label) || binding.keys.includes(label)
+      digit ? binding.keys === "1 to 8" : binding.keys.split(/ or |,\s*|\s+\+\s+/).includes(label)
     )
   )
 }
@@ -47,15 +32,30 @@ describe("the controls list", () => {
       ...MOVEMENT_KEYS,
       ...RUN_KEYS,
       ...POINTER_KEYS,
+      THROW_KEY,
       ...CAMERA_KEYS,
       "Escape",
       "KeyP",
+      "KeyI",
       "F3",
       "F4",
       "Backquote"
     ]
 
     expect(handled.filter((code) => !listed(code))).toEqual([])
+  })
+
+  it("shows each movable key where the player has put it, and marks it as movable", () => {
+    const keys = createKeymap(fresh())
+    keys.rebind("whistle", "KeyY")
+    const whistle = controls(keys)
+      .flatMap((group) => group.bindings)
+      .find((binding) => binding.rebind === "whistle")
+    expect(whistle?.keys).toBe("Y")
+    const fire = controls(keys)
+      .flatMap((group) => group.bindings)
+      .find((binding) => binding.action === "Fire")
+    expect(fire?.rebind).toBeUndefined()
   })
 
   it("hides development keys outside development builds, and takes keys other modules register", () => {

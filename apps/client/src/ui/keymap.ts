@@ -20,6 +20,7 @@ export type KeyAction =
   | "follow"
   | "hold"
   | "advance"
+  | "take-over"
   | "bombard"
   | "fire-mission"
   | "gas"
@@ -67,7 +68,8 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "next-soldier", label: "Switch to the next soldier", keys: ["Tab"] },
       { action: "follow", label: "Squad order: follow me", keys: ["KeyF"] },
       { action: "hold", label: "Squad order: hold", keys: ["KeyH"] },
-      { action: "advance", label: "Squad order: advance to the point under the pointer", keys: ["KeyE"] }
+      { action: "advance", label: "Squad order: advance to the point under the pointer", keys: ["KeyE"] },
+      { action: "take-over", label: "Take over the nearest squad, when yours is lost", keys: ["KeyT"] }
     ]
   },
   {

@@ -281,7 +281,15 @@ export function callsOf(sim: Simulation, side: Side, missions: readonly MissionV
       active("bombardment"),
       "Bombardment firing"
     ),
-    call("fire", keyOf("fire"), "Fire mission", "High explosive on the pointer", [Shell.FieldHighExplosive], false, ""),
+    call(
+      "fire",
+      keyOf("fire-mission"),
+      "Fire mission",
+      "High explosive on the pointer",
+      [Shell.FieldHighExplosive],
+      false,
+      ""
+    ),
     call("gas", keyOf("gas"), "Gas shoot", "Gas shells on the pointer", [Shell.FieldGas], false, ""),
     call(
       "whistle",

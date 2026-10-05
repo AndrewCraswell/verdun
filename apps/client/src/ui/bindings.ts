@@ -1,9 +1,13 @@
+import { KEY_GROUPS, type KeyAction, type Keymap, keymap } from "./keymap.ts"
+
 /** A key or mouse binding as the player sees it in the controls list. */
 export interface Binding {
-  /** The keys or buttons, as written on screen: "W A S D", "Shift + middle-drag". */
+  /** The keys or buttons, as written on screen: "W", "Shift + middle-drag". */
   readonly keys: string
   /** What it does, in a few words. */
   readonly action: string
+  /** The keymap's action, for a binding the player can move to another key; none for the mouse and fixed keys. */
+  readonly rebind?: KeyAction
 }
 
 /** A titled group of bindings in the controls list. */
@@ -14,72 +18,52 @@ export interface BindingGroup {
   readonly devOnly?: boolean
 }
 
+/** The bindings that can't be moved, by the keymap group they're listed in: the mouse, the slots, the menu, debugging. */
+const FIXED: Readonly<Record<string, readonly Binding[]>> = {
+  "Your soldier": [
+    { keys: "Mouse", action: "Face the pointer" },
+    { keys: "Right mouse, held", action: "Aim: the view leans toward the pointer" },
+    { keys: "Left-click", action: "Fire" }
+  ],
+  "Your squad": [{ keys: "1 to 8", action: "Switch to a squad slot" }],
+  Camera: [
+    { keys: "Screen edges", action: "Pan; the pointer rests at an edge a moment first" },
+    { keys: "Shift + middle-drag", action: "Grab and drag the ground" },
+    { keys: "Middle-drag", action: "Turn and tilt" },
+    { keys: "Mouse wheel", action: "Zoom, toward the pointer" }
+  ],
+  Screen: [
+    { keys: "Esc", action: "Menu and controls; the battle pauses while it's open" },
+    { keys: "F3", action: "Debug statistics" },
+    { keys: "F4", action: "Save 5 seconds of frame timings, to open in Perfetto" }
+  ]
+}
+
+const DEVELOPMENT: BindingGroup = {
+  title: "Development",
+  devOnly: true,
+  bindings: [
+    { keys: "K", action: "Kill the soldier you control" },
+    { keys: "`", action: "Babylon's Inspector" }
+  ]
+}
+
 /**
- * The game's own controls, the single list the menu shows. Input handlers own the keys; tests check every key they
- * handle is listed here, so the list can't drift from what the keys really do.
+ * The game's own controls, the single list the menu shows: every action in the keymap on the key it's bound to now,
+ * then the bindings that can't be moved. Input handlers own the keys; tests check every key they handle is listed.
  */
-export const CONTROLS: readonly BindingGroup[] = [
-  {
-    title: "Your soldier",
-    bindings: [
-      { keys: "W A S D", action: "Move, relative to the camera" },
-      { keys: "Shift", action: "Run, while you have the breath" },
-      { keys: "Mouse", action: "Face the pointer" },
-      { keys: "Right mouse, held", action: "Aim: the view leans toward the pointer" },
-      { keys: "Left-click", action: "Fire" },
-      { keys: "Q", action: "Hold to aim a grenade at the pointer, let go to throw" },
-      { keys: "C", action: "Crouch: below the parapet on a fire step, or get back up" },
-      { keys: "Z", action: "Lie down and crawl, or get back up" }
-    ]
-  },
-  {
-    title: "Your squad",
-    bindings: [
-      { keys: "Tab", action: "Switch to the next soldier" },
-      { keys: "1 to 8", action: "Switch to a squad slot" },
-      { keys: "F", action: "Squad order: follow me" },
-      { keys: "H", action: "Squad order: hold" },
-      { keys: "E", action: "Squad order: advance to the point under the pointer" }
-    ]
-  },
-  {
-    title: "Artillery and the attack",
-    bindings: [
-      { keys: "B", action: "Bombard the enemy line and cut its wire, for two minutes" },
-      { keys: "V", action: "Call artillery onto the point under the pointer" },
-      { keys: "X", action: "Call a gas shoot onto the point under the pointer" },
-      { keys: "G", action: "Whistle: every squad attacks behind a creeping barrage" }
-    ]
-  },
-  {
-    title: "Camera",
-    bindings: [
-      { keys: "Arrow keys, screen edges", action: "Pan; the pointer rests at an edge a moment first" },
-      { keys: "Shift + middle-drag", action: "Grab and drag the ground" },
-      { keys: "Middle-drag, Shift + Left and Right", action: "Turn and tilt" },
-      { keys: "Mouse wheel", action: "Zoom, toward the pointer" },
-      { keys: "Space", action: "Back to the soldier you control" }
-    ]
-  },
-  {
-    title: "Screen",
-    bindings: [
-      { keys: "Esc", action: "Menu and controls; the battle pauses while it's open" },
-      { keys: "P", action: "Pause or carry on" },
-      { keys: "O", action: "Fog of war on or off" },
-      { keys: "F3", action: "Debug statistics" },
-      { keys: "F4", action: "Save 5 seconds of frame timings, to open in Perfetto" }
-    ]
-  },
-  {
-    title: "Development",
-    devOnly: true,
-    bindings: [
-      { keys: "K", action: "Kill the soldier you control" },
-      { keys: "`", action: "Babylon's Inspector" }
-    ]
-  }
-]
+export function controls(keys: Keymap = keymap()): BindingGroup[] {
+  return [
+    ...KEY_GROUPS.map((group) => ({
+      title: group.title,
+      bindings: [
+        ...group.actions.map((info) => ({ keys: keys.label(info.action), action: info.label, rebind: info.action })),
+        ...(FIXED[group.title] ?? [])
+      ]
+    })),
+    DEVELOPMENT
+  ]
+}
 
 const registered: BindingGroup[] = []
 
@@ -98,6 +82,6 @@ export function registerBindings(group: BindingGroup): () => void {
 }
 
 /** Every group of bindings to show, the game's own first, without dev-only groups outside development builds. */
-export function allBindings(development: boolean): BindingGroup[] {
-  return [...CONTROLS, ...registered].filter((group) => development || !group.devOnly)
+export function allBindings(development: boolean, keys: Keymap = keymap()): BindingGroup[] {
+  return [...controls(keys), ...registered].filter((group) => development || !group.devOnly)
 }

@@ -1,6 +1,6 @@
 import { MaskState, Stance, stepSimulation } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { browserHintStore, createHints, type HintStore } from "./hints.ts"
+import { browserHintStore, createHints, type HintStore, resetHints } from "./hints.ts"
 import { slot, testBattle } from "./test-battle.ts"
 
 function memoryStore(done: readonly string[] = []): HintStore & { saved: readonly string[] } {
@@ -32,6 +32,16 @@ describe("the prompts", () => {
     // A short pause between prompts.
     expect(hints.read(111.5)).toBeNull()
     expect(hints.read(113)?.id).toBe("fire")
+  })
+
+  it("start over from the first when the player asks for them again", () => {
+    const { sim, squad } = testBattle()
+    const store = memoryStore(["move", "fire", "aim"])
+    const hints = createHints(sim, squad, store, 100)
+    expect(hints.read(104)?.id).toBe("prone")
+    resetHints(store)
+    expect(store.saved).toEqual([])
+    expect(hints.read(105)?.id).toBe("move")
   })
 
   it("skips what the player already knows, kept from earlier visits", () => {

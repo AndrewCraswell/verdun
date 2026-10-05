@@ -30,9 +30,12 @@ export const orderPlate: HudElementFactory = () => {
   const broken = h("span", "op-issue")
   broken.dataset.severity = "danger"
   const issues = h("div", "op-issues", pinned, broken)
-  const follow = h("span", "op-key", keyCap(keyOf("follow")), h("span", "op-key__word", "Follow"))
-  const hold = h("span", "op-key", keyCap(keyOf("hold")), h("span", "op-key__word", "Hold"))
-  const advance = h("span", "op-key", keyCap(keyOf("advance")), h("span", "op-key__word", "Advance"))
+  const followKey = keyCap(keyOf("follow"))
+  const holdKey = keyCap(keyOf("hold"))
+  const advanceKey = keyCap(keyOf("advance"))
+  const follow = h("span", "op-key", followKey, h("span", "op-key__word", "Follow"))
+  const hold = h("span", "op-key", holdKey, h("span", "op-key__word", "Hold"))
+  const advance = h("span", "op-key", advanceKey, h("span", "op-key__word", "Advance"))
   const keys = h("div", "op-keys", follow, hold, advance)
   const root = h(
     "section",
@@ -55,6 +58,10 @@ export const orderPlate: HudElementFactory = () => {
       if (!anyone) {
         return
       }
+      // Wherever the player has bound them now.
+      setText(followKey, keyOf("follow"))
+      setText(holdKey, keyOf("hold"))
+      setText(advanceKey, keyOf("advance"))
       setIcon(glyph, ICONS[order.kind])
       setText(label, order.label)
       setText(detail, order.detail ?? "")
