@@ -159,6 +159,7 @@ export {
   soldierEye
 } from "./stance.ts"
 export { canRun, type Steering, steeredPosition, WINDED } from "./systems/movement.ts"
+export { forgetRoutes } from "./navigation.ts"
 export { blockReach, insideBlock, type SightBlock, sightBlocks } from "./sight-shapes.ts"
 export { climbLimit } from "./terrain.ts"
 export {

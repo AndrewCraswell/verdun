@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib"
-import { SIM_STATE_VERSION, STEP_SECONDS, stepSimulation, takeSnapshot } from "@verdun/sim"
+import { forgetRoutes, SIM_STATE_VERSION, STEP_SECONDS, stepSimulation, takeSnapshot } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { loadSectorMap } from "./battle.ts"
 import { openSector } from "./sector.ts"
@@ -72,6 +72,9 @@ describe("a sector", () => {
     expect(resumed.sector.sim.map.heights[crater]).toBeCloseTo(sector.sim.map.heights[crater] ?? 0, 5)
     expect(takeSnapshot(resumed.sector.sim)).toEqual(takeSnapshot(sector.sim))
 
+    // Routes aren't saved: they're worked out afresh in the battle taken up, so the one that went on starts them afresh
+    // too, or its men might take a route a step sooner or later.
+    forgetRoutes(sector.sim)
     for (let step = 0; step < 200; step++) {
       stepSimulation(sector.sim)
       stepSimulation(resumed.sector.sim)

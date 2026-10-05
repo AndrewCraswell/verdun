@@ -242,6 +242,18 @@ export function groundVersion(sim: Simulation): number {
 }
 
 /**
+ * Forgets the route costs and every route searched or part searched, as a battle taken up from its save starts without
+ * them: they're worked out again as soldiers next ask the way. They're left out of a save, so a battle taken up from one
+ * can have its men choose a route a step or two apart from the battle that went on: searches the step's budget cut
+ * short, and costs a shell changed but that hadn't yet been brought up to date, carry on only in the one that went on.
+ * Forgetting them puts the two level, as the sector's test does; the sector itself doesn't on saving, since rebuilding
+ * the costs stalls a step for over 100 ms.
+ */
+export function forgetRoutes(sim: Simulation): void {
+  states.delete(sim)
+}
+
+/**
  * Tells navigation the ground has been reshaped in an area, as a crater does: its costs there are brought up to date
  * with the next refresh.
  */

@@ -2,7 +2,7 @@ import { createFlatMap, sampleIndex, type Scenery, Surface, type WireBelt } from
 import { describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
-import { type NavGoal, navigationSystem, nextWaypoint } from "./navigation.ts"
+import { forgetRoutes, groundVersion, type NavGoal, navigationSystem, nextWaypoint } from "./navigation.ts"
 import {
   createSimulation,
   enqueueCommand,
@@ -62,6 +62,17 @@ describe("navigation", () => {
     const soldier = spawnSoldier(sim, { side: Side.French, x: 60, z: 110 })
 
     expect(waypointFor(sim, soldier, { x: 60, z: 140 }, ahead)).toEqual({ x: 60, z: 140 })
+  })
+
+  it("forgets its routes and costs when asked, and works them out again, the same, when next asked the way", () => {
+    const sim = createSimulation({ map: field(), seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 120, z: 80 })
+    const before = waypointFor(sim, soldier, { x: 120, z: 120 }, ahead)
+    expect(groundVersion(sim)).toBeGreaterThanOrEqual(0)
+
+    forgetRoutes(sim)
+    expect(groundVersion(sim)).toBe(-1)
+    expect(waypointFor(sim, soldier, { x: 120, z: 120 }, ahead)).toEqual(before)
   })
 
   it("makes for the gap in the wire rather than cutting through", () => {
