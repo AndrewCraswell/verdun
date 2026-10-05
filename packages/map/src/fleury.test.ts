@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { generateFleurySector } from "./fleury.ts"
 import { mapDepth, mapWidth, Surface } from "./format.ts"
 import { heightAt } from "./sampling.ts"
-import { SCENERY_KINDS } from "./scenery.ts"
+import { footprintRadius, SCENERY_KINDS } from "./scenery.ts"
 import { checkTrenchKit, fromTiledMap, toTiledMap } from "./tiled.ts"
 import { TRENCH_GRID } from "./trench-trace.ts"
 import { type GroundPoint, type Trench, TRENCH_PROFILE } from "./trenches.ts"
@@ -204,6 +204,44 @@ describe("generateFleurySector", () => {
     expect(orchard.every((tree) => distanceToTrenches(tree.x, tree.z) > TRENCH_PROFILE.parapetOuter)).toBe(true)
     const stumps = map.scenery.filter(({ kind, x, z }) => kind === "stump" && x > 520 && x < 590 && z > 44 && z < 63)
     expect(stumps.length).toBeGreaterThan(0)
+  })
+
+  it("closes the short gaps in the wire with knife rests at stand-to, leaving no way through", () => {
+    // Every half metre between one belt's end and the next belt's start in its row lies within a knife rest's wire, a
+    // belt end's, a trench (the sap through it) or something standing in it.
+    const rests = map.scenery.filter((item) => item.kind === "knife-rest")
+    const loose = ["knife-rest", "tree", "fruit-tree", "stump", "log", "rubble", "pool", "bridge"]
+    const solid = map.scenery.filter((item) => !loose.includes(item.kind))
+    const starts = map.wire.map((belt) => belt.points[0] ?? [0, 0])
+    let gaps = 0
+    const open: string[] = []
+    for (const belt of map.wire) {
+      const [endX, endZ] = belt.points.at(-1) ?? [0, 0]
+      const [next] = starts
+        .filter(([x, z]) => x > endX && x - endX <= 16 && Math.abs(z - endZ) < 4)
+        .sort(([a], [b]) => a - b)
+      if (!next) {
+        continue
+      }
+      gaps += 1
+      const [nextX, nextZ] = next
+      const length = Math.hypot(nextX - endX, nextZ - endZ)
+      for (let along = 0; along <= length; along += 0.5) {
+        const x = endX + ((nextX - endX) * along) / length
+        const z = endZ + ((nextZ - endZ) * along) / length
+        const closed =
+          along <= 1.7 ||
+          length - along <= 1.7 ||
+          rests.some((rest) => Math.hypot(rest.x - x, rest.z - z) <= 1.5 * rest.scale) ||
+          distanceToTrenches(x, z) < TRENCH_PROFILE.parapetOuter ||
+          solid.some((item) => Math.hypot(item.x - x, item.z - z) < footprintRadius(item) + 0.5)
+        if (!closed) {
+          open.push(`${x.toFixed(1)}, ${z.toFixed(1)}`)
+        }
+      }
+    }
+    expect(gaps).toBeGreaterThan(20)
+    expect(open).toEqual([])
   })
 
   it("stakes wire in front of both front lines, each belt on its own side of no man's land", () => {
