@@ -58,7 +58,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | Input                           | Action                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------ |
 | W A S D                         | Move the soldier you control, relative to the camera                           |
-| Mouse                           | Aim; the view leans toward the pointer                                         |
+| Mouse                           | Aim at the man nearest the pointer, or the ground; the view leans toward it    |
 | Left-click                      | Fire                                                                           |
 | Right button, held              | Aim over the soldier's shoulder: the mouse turns him, and he walks             |
 | Arrow keys                      | Pan the camera; once it's off your man, screen edges pan too                   |
@@ -72,7 +72,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | G, twice                        | Whistle: every French squad attacks behind a creeping barrage                  |
 | B, twice                        | Bombard the German front line for two minutes                                  |
 | V                               | Call artillery onto the point under the pointer                                |
-| O                               | Turn fog of war on or off (off for now)                                        |
+| O                               | Turn fog of war off or on                                                      |
 | M                               | The sector map; the battle goes on while you look                              |
 | U                               | The squad book: every man, and the fallen                                      |
 | Esc                             | The menu: the war map, options, controls; the battle waits                     |

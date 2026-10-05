@@ -38,12 +38,14 @@ data** marks what doesn't exist yet; the [data gaps](#data-gaps) table collects 
   and the [pillars](overview.md#pillars).
 - **The camera is top-down**, tilted about 55° like Company of Heroes (lower only under 12 m), zooming from 8 to 450 m.
   It is not a first-person camera. The **pointer is the aim point** on the ground, drawn as a reticle over the
-  battlefield: the soldier faces wherever it is, and left-click fires. Holding the right button swings the camera behind
-  his shoulder in a quarter of a second (the aim view, magnified for his sights; a setting turns it off): the pointer
-  locks, the mouse turns his aim, he walks, and the middle of the screen is the aim point. Following him, the view leans
-  a third of the way toward the ground under the pointer, as Running With Rifles does; screen edges pan only once the
-  view is off him. E orders the squad to the ground under it. So the middle of the screen belongs to the battlefield,
-  and anything on the HUD that the pointer has to cross gets in the way of aiming.
+  battlefield: the soldier faces wherever it is, and left-click fires. An enemy the player can see within about 28
+  pixels of the pointer is picked out (kept until another is clearly nearer): the soldier faces him exactly, and the
+  shot goes at him. Holding the right button swings the camera behind his shoulder in a quarter of a second (the aim
+  view, magnified for his sights; a setting turns it off): the pointer locks, the mouse turns his aim, he walks, and the
+  middle of the screen is the aim point. Following him, the view leans a third of the way toward the ground under the
+  pointer, as Running With Rifles does; screen edges pan only once the view is off him. E orders the squad to the ground
+  under it. So the middle of the screen belongs to the battlefield, and anything on the HUD that the pointer has to
+  cross gets in the way of aiming.
 - **The player is two people at once**: a soldier (move, aim, fire, throw, lie down) and the squad's leader (orders,
   artillery, who to be next). Later some players are also commanders. The HUD has to serve the man and the squad without
   crowding either.
@@ -665,7 +667,7 @@ in the [options](#s3-options).
 | E6  | Wounded            | `health.value` below 1                  | A slow pulse at the edges, a little slower to recover                                    | —                          | P     |
 | E7  | Winded             | Stamina below 25                        | Breathing, aim sways with it                                                             | —                          | 1     |
 | E8  | Succession         | The controlled man falls                | See [H16](#h16-succession-card)                                                          | —                          | P     |
-| E9  | Fog of war         | Ground no squadmate sees                | Darkened ground; enemies drawn only when seen                                            | Built, off by default (O)  | Now   |
+| E9  | Fog of war         | Ground no squadmate sees                | Darkened ground; enemies drawn only when seen                                            | Built, on by default (O)   | Now   |
 
 All of them are subtle: the player has to aim through them. No red screen, no blood on the lens, no flashing. Effects on
 squadmates show on their markers and tiles, never on the screen.

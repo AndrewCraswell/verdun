@@ -7,10 +7,22 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { heightAt } from "@verdun/map"
-import { isAlive, type Simulation, type Squad } from "@verdun/sim"
+import { aimedTarget, type EntityId, isAlive, type Simulation, type Squad } from "@verdun/sim"
 import { type InstanceBuffer, instanceBuffer } from "../effects/instance-buffer.ts"
 import { keepsOffSoldiers } from "../render/marker-stencil.ts"
 import { aimedTargetNow } from "./aimed-target.ts"
+
+/**
+ * The page's aim for the soldier under control (player-control.ts): the way it last turned him and the man it picked
+ * out, ahead of the simulation's mirror, which hears of them from its worker a step or two later.
+ */
+export interface PageAim {
+  readonly facing: { readonly x: number; readonly z: number } | null
+  readonly aimedSoldier: EntityId
+}
+
+/** The page's facing is the mirror's while within about half a degree of it (the cosine). */
+const SAME_FACING = 0.99996
 
 /** Length of the aim line in front of the controlled soldier with no one in his sights, in metres. */
 const AIM_LENGTH = 4
@@ -52,12 +64,41 @@ function markerMaterial(scene: Scene, name: string, color: Color3): StandardMate
   return material
 }
 
-/** Marks the player's squad: the soldier under control, where they aim, and who else is with them. */
-export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad): SquadMarkers {
+/**
+ * Marks the player's squad: the soldier under control, where they aim, and who else is with them. Given the page's aim,
+ * the facing ring, the aim line and the ring on the man in his sights follow it at once, rather than the simulation's.
+ */
+export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad, page?: PageAim): SquadMarkers {
   const bright = markerMaterial(scene, "squad-leader-marker", new Color3(0.95, 0.85, 0.45))
   const dim = markerMaterial(scene, "squad-member-marker", new Color3(0.62, 0.58, 0.4))
 
   let aimingAt = -1
+
+  /**
+   * Whom his aimed shot would strike once the simulation has the page's aim: worked out against it, put in the mirror
+   * for the moment it takes and then taken out again. While the two agree it's the mirror's own answer, worked out once
+   * a step.
+   */
+  function strikes(soldier: EntityId): EntityId {
+    const sent = page?.facing ?? null
+    const { facing, target } = sim.soldiers
+    const picked = page ? page.aimedSoldier : target.id[soldier]
+    const was = { x: facing.x[soldier], z: facing.z[soldier], target: target.id[soldier] }
+    if (!sent || (sent.x * was.x + sent.z * was.z > SAME_FACING && picked === was.target)) {
+      return aimedTargetNow(sim, soldier)
+    }
+    facing.x[soldier] = sent.x
+    facing.z[soldier] = sent.z
+    target.id[soldier] = picked
+    try {
+      return aimedTarget(sim, soldier)
+    } finally {
+      facing.x[soldier] = was.x
+      facing.z[soldier] = was.z
+      target.id[soldier] = was.target
+    }
+  }
+
   const leader = new TransformNode("squad-leader-marker", scene)
   const ring = CreateTorus("squad-leader-ring", { diameter: 1.4, thickness: 0.08, tessellation: 32 }, scene)
   ring.material = bright
@@ -106,10 +147,11 @@ export function createSquadMarkers(scene: Scene, sim: Simulation, squad: Squad):
         const z = sim.soldiers.position.z[soldier]
         leader.position.set(x, heightAt(sim.map, x, z) + 0.05, z)
         // Babylon's y rotation turns +z toward +x, so the angle is measured from north toward east.
-        leader.rotation.y = Math.atan2(sim.soldiers.facing.x[soldier], sim.soldiers.facing.z[soldier])
+        const facing = page?.facing ?? { x: sim.soldiers.facing.x[soldier], z: sim.soldiers.facing.z[soldier] }
+        leader.rotation.y = Math.atan2(facing.x, facing.z)
       }
       // The sight picture: the line runs out to whoever a shot would strike now, and he's ringed.
-      const aimed = soldier >= 0 ? aimedTargetNow(sim, soldier) : -1
+      const aimed = soldier >= 0 ? strikes(soldier) : -1
       aimingAt = aimed
       let reach = AIM_LENGTH
       if (aimed >= 0) {

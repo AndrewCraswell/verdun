@@ -274,8 +274,13 @@ describe("camera rig", () => {
       expect(camera.x).toBeCloseTo(300.45, 2)
       expect(camera.y).toBeCloseTo(1.9, 2)
       expect(camera.z).toBeCloseTo(198.6, 2)
-      expect(behind.yaw).toBeCloseTo(-Math.PI / 2, 3)
-      expect(behind.pitch).toBeCloseTo(Math.PI / 2, 3)
+      // Its line of sight crosses his line of fire 40 m out, so the middle of the screen is where he aims.
+      const along = Math.hypot(300 - camera.x, 1.65 - camera.y, 240 - camera.z)
+      const sight = { x: behind.focusX - camera.x, y: behind.focusY - camera.y, z: behind.focusZ - camera.z }
+      const out = along / behind.distance
+      expect(camera.x + sight.x * out).toBeCloseTo(300, 2)
+      expect(camera.y + sight.y * out).toBeCloseTo(1.65, 2)
+      expect(camera.z + sight.z * out).toBeCloseTo(240, 2)
       expect(model.magnification).toBeCloseTo(2)
 
       model.holdAim(false)
@@ -299,7 +304,7 @@ describe("camera rig", () => {
       expect(-Math.cos(aim?.yaw ?? 0)).toBeCloseTo(1)
       expect(aim?.pitch).toBeCloseTo(0.2)
       const view = settle(model, 0.5)
-      expect(view.pitch).toBeCloseTo(Math.PI / 2 + 0.2, 3)
+      expect(view.pitch).toBeCloseTo(Math.PI / 2 + 0.2, 1)
       model.turnAim(0, 10)
       expect(model.aim?.pitch).toBeCloseTo(0.45)
       model.turnAim(0, -10)

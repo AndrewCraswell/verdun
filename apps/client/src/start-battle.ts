@@ -333,9 +333,12 @@ export async function startBattle(
     },
     toggleFog: () => {
       fog.enabled = !fog.enabled
-    }
+    },
+    // Only the enemy the player can see is picked out under the pointer. The fog is made further down.
+    shown: (soldier) => fog.isShown(soldier)
   })
-  const markers = createSquadMarkers(view.scene, sim, playerSquad)
+  // The facing ring, the aim line and the ring on the man in his sights follow the page's aim, not the worker's.
+  const markers = createSquadMarkers(view.scene, sim, playerSquad, control)
   // The battle's sound effects, heard from the camera, when the kit has them: last in the asset pack, so they may only
   // now be arriving.
   menu.progress("Listening for the guns", 0.8)
@@ -373,14 +376,15 @@ export async function startBattle(
   const explosions = createExplosions(view.scene)
   // Grenades on their way, from the thrower's hand to where they burst.
   const grenades = createGrenadeView(view.scene, { sim, tick: () => sim.tick + stepper.alpha })
-  // Fog starts off while artillery and the attack are being tuned; O turns it on.
+  // Fog starts on: the player sees the enemy his squad sees, and the sight picture says which of them his man can shoot.
+  // O turns it off.
   // What the squad can see is worked out in the simulation's worker, where its sight lines are; inline, here.
   const fog = createFogOfWar(view.scene, sim, host.sight ?? host.sightLines, {
     squad: playerSquad,
     groundMaterial: view.groundMaterial,
     // Props darken with the ground they stand on.
     materials: level?.materials,
-    enabled: false
+    enabled: true
   })
   view.camera.radius = 60
   if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {

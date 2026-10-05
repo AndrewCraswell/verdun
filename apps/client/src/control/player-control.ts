@@ -1,4 +1,5 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
+import { Matrix } from "@babylonjs/core/Maths/math.vector"
 import { heightAt } from "@verdun/map"
 import {
   enqueueCommand,
@@ -10,12 +11,15 @@ import {
   type Squad,
   Stance,
   soldierEye,
+  soldierIds,
   takeOverCandidates,
   Weapon
 } from "@verdun/sim"
 import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
+import { interfaceSettings } from "../hud/interface-settings.ts"
 import { planFires } from "../hud/operation-state.ts"
 import { cameraRigOf } from "./camera-rig.ts"
+import { type OnScreen, PICK_RADIUS, pickOnScreen } from "./target-pick.ts"
 
 /** Ground-plane vector, `x` east and `z` north. */
 export interface GroundVector {
@@ -125,6 +129,10 @@ function sightsMagnify(weapon: number): number {
  * locked, over whatever ground the view now shows.
  */
 const POINTER_STILL = 3
+/** A man is picked out by his chest, this far below his eye, in metres. */
+const CHEST_BELOW_EYE = 0.3
+/** In the aim view, men are picked out from the reticle only once the camera is this far behind his shoulder. */
+const AIM_PICKS_FROM = 0.9
 
 /** A call that would hit our own men needs calling again within this many milliseconds. */
 const CONFIRM_MS = 3000
@@ -148,6 +156,8 @@ export interface PlayerControlOptions {
   }
   /** Turns fog of war on or off. */
   readonly toggleFog?: () => void
+  /** Whether a soldier is drawn (the fog of war's say): only men the player can see are picked out under the pointer. */
+  readonly shown?: (soldier: EntityId) => boolean
 }
 
 export interface PlayerControl {
@@ -159,6 +169,11 @@ export interface PlayerControl {
    * facing, which comes back from its worker a step or two later.
    */
   readonly facing: GroundVector | null
+  /**
+   * The enemy picked out under the pointer (in the aim view, under the reticle), whom the soldier faces and his aimed
+   * shot goes at: the nearest drawn on the screen near it, kept until another is clearly nearer. -1 for nobody.
+   */
+  readonly aimedSoldier: EntityId
   /** Reads input, turns it into simulation commands, and moves the camera. Call once per frame. */
   update(frameSeconds: number): void
 }
@@ -173,9 +188,12 @@ export function createPlayerControl(
   squad: Squad,
   camera: ArcRotateCamera,
   input: PlayerInput,
-  { debugActions = false, commands, toggleFog }: PlayerControlOptions = {}
+  { debugActions = false, commands, toggleFog, shown }: PlayerControlOptions = {}
 ): PlayerControl {
   let lastSoldier: EntityId = -1
+  // The enemy picked out, and the one the last face command named.
+  let picked: EntityId = -1
+  let lastPicked: EntityId = -1
   let lastSteer: GroundVector = { x: 0, z: 0 }
   let lastRun = false
   let lastAim: GroundVector | null = null
@@ -187,6 +205,34 @@ export function createPlayerControl(
   let wasAiming = false
   let leftAimAt: { readonly x: number; readonly y: number } | null = null
   camera.panningSensibility = 0
+
+  const viewProjection = new Matrix()
+  /** Each enemy drawn in front of the camera, where his chest is on the screen. */
+  function enemiesOnScreen(): OnScreen[] {
+    const engine = camera.getEngine()
+    const scale = engine.getHardwareScalingLevel()
+    const width = engine.getRenderWidth() * scale
+    const height = engine.getRenderHeight() * scale
+    camera.getViewMatrix().multiplyToRef(camera.getProjectionMatrix(), viewProjection)
+    const m = viewProjection.m
+    const men: OnScreen[] = []
+    for (const id of soldierIds(sim)) {
+      if (sim.soldiers.side.value[id] === squad.side || (shown && !shown(id))) {
+        continue
+      }
+      const eye = soldierEye(sim, id)
+      const y = eye.y - CHEST_BELOW_EYE
+      const w = eye.x * m[3] + y * m[7] + eye.z * m[11] + m[15]
+      if (!(w > camera.minZ)) {
+        // Behind the camera.
+        continue
+      }
+      const across = (eye.x * m[0] + y * m[4] + eye.z * m[8] + m[12]) / w
+      const up = (eye.x * m[1] + y * m[5] + eye.z * m[9] + m[13]) / w
+      men.push({ id, x: ((across + 1) / 2) * width, y: ((1 - up) / 2) * height })
+    }
+    return men
+  }
 
   function takeCommand(soldier: EntityId): void {
     if (soldier >= 0 && soldier !== squad.leader && isAlive(sim, soldier)) {
@@ -310,6 +356,9 @@ export function createPlayerControl(
     get facing() {
       return squad.leader >= 0 && squad.leader === lastSoldier ? lastAim : null
     },
+    get aimedSoldier() {
+      return squad.leader >= 0 && squad.leader === lastSoldier ? picked : -1
+    },
     update(frameSeconds) {
       for (const action of input.takeActions()) {
         act(action)
@@ -324,6 +373,8 @@ export function createPlayerControl(
         lastSteer = { x: 0, z: 0 }
         lastRun = false
         lastAim = null
+        picked = -1
+        lastPicked = -1
       }
 
       const x = sim.soldiers.position.x[soldier]
@@ -356,29 +407,49 @@ export function createPlayerControl(
         lastRun = run
       }
 
-      let aim: GroundVector | null = null
       const screen = input.pointerScreen?.() ?? null
-      if (aimView) {
-        aim = { x: -Math.cos(aimView.yaw), z: -Math.sin(aimView.yaw) }
-      } else {
-        if (wasAiming) {
-          leftAimAt = screen
-        }
-        // Just out of the aim view, with the pointer still where it was locked, he holds his aim.
-        const holding =
-          leftAimAt !== null &&
-          screen !== null &&
-          Math.hypot(screen.x - leftAimAt.x, screen.y - leftAimAt.y) <= POINTER_STILL
-        if (!holding) {
-          leftAimAt = null
-          const pointer = input.pointerGround()
-          aim = pointer ? aimToward({ x, z }, pointer) : null
-        }
+      if (wasAiming && !aimView) {
+        leftAimAt = screen
       }
       wasAiming = aimView !== null
-      if (aim && (!lastAim || (aim.x - lastAim.x) ** 2 + (aim.z - lastAim.z) ** 2 > AIM_EPSILON)) {
-        enqueueCommand(sim, { type: "face", soldier, ...aim })
+      // Just out of the aim view, with the pointer still where it was locked, he holds his aim and his man.
+      const holding =
+        !aimView &&
+        leftAimAt !== null &&
+        screen !== null &&
+        Math.hypot(screen.x - leftAimAt.x, screen.y - leftAimAt.y) <= POINTER_STILL
+      if (!holding) {
+        leftAimAt = null
+        // The man nearest the pointer on the screen, or the reticle once the aim view is behind his shoulder.
+        const radius = (aimView ? PICK_RADIUS.aim : PICK_RADIUS.field) * interfaceSettings().current.markers
+        const picking = screen !== null && (!aimView || (rig?.aimShare ?? 0) >= AIM_PICKS_FROM)
+        picked = picking ? pickOnScreen(enemiesOnScreen(), screen, radius, picked) : -1
+      }
+      if (picked >= 0 && !isAlive(sim, picked)) {
+        picked = -1
+      }
+      let aim: GroundVector | null = null
+      if (picked >= 0) {
+        // A man picked out is faced exactly, wherever the pointer is on him.
+        aim = aimToward({ x, z }, { x: sim.soldiers.position.x[picked], z: sim.soldiers.position.z[picked] })
+      } else if (aimView) {
+        aim = { x: -Math.cos(aimView.yaw), z: -Math.sin(aimView.yaw) }
+      } else if (!holding) {
+        const pointer = input.pointerGround()
+        aim = pointer ? aimToward({ x, z }, pointer) : null
+      }
+      // Letting go of a man with nowhere new to face still tells the simulation he's let go.
+      aim ??= picked !== lastPicked ? lastAim : null
+      if (
+        aim &&
+        (!lastAim || picked !== lastPicked || (aim.x - lastAim.x) ** 2 + (aim.z - lastAim.z) ** 2 > AIM_EPSILON)
+      ) {
+        enqueueCommand(
+          sim,
+          picked >= 0 ? { type: "face", soldier, ...aim, target: picked } : { type: "face", soldier, ...aim }
+        )
         lastAim = aim
+        lastPicked = picked
       }
 
       // The aim view sits behind him, and starts from the way the page last turned him.

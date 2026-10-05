@@ -41,11 +41,14 @@ const GUN_VIEW = { distance: 45, pitch: 0.75 } as const
 /**
  * The aim view, while the right button is held: the camera behind the soldier's right shoulder, `back` metres behind his
  * eye along the aim, `right` to his right and `up` above it, looking along the aim (at a point `reach` metres on, which
- * keeps the camera's own limits happy). It swings in and out over `seconds`. The aim tilts between `lowest` and
- * `highest` radians from level, and the camera keeps `clearance` metres above the ground between his eye and it.
+ * keeps the camera's own limits happy). Its line of sight crosses his `converge` metres out, so the middle of the
+ * screen is on his line of fire there and close to it elsewhere. It swings in and out over `seconds`. The aim tilts
+ * between `lowest` and `highest` radians from level, and the camera keeps `clearance` metres above the ground between
+ * his eye and it.
  */
 const AIM_VIEW = {
   back: 1.4,
+  converge: 40,
   right: 0.45,
   up: 0.25,
   reach: 8,
@@ -245,11 +248,13 @@ function shoulderView(
     y: eye.y + (wanted.y - eye.y) * reach,
     z: eye.z + (wanted.z - eye.z) * reach
   }
-  const target = {
-    x: camera.x + look.x * AIM_VIEW.reach,
-    y: camera.y + look.y * AIM_VIEW.reach,
-    z: camera.z + look.z * AIM_VIEW.reach
+  const meet = {
+    x: eye.x + look.x * AIM_VIEW.converge - camera.x,
+    y: eye.y + look.y * AIM_VIEW.converge - camera.y,
+    z: eye.z + look.z * AIM_VIEW.converge - camera.z
   }
+  const along = AIM_VIEW.reach / Math.hypot(meet.x, meet.y, meet.z)
+  const target = { x: camera.x + meet.x * along, y: camera.y + meet.y * along, z: camera.z + meet.z * along }
   return { camera, target }
 }
 

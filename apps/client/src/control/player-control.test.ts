@@ -1,6 +1,6 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, Surface } from "@verdun/map"
 import {
@@ -12,6 +12,7 @@ import {
   planOperation,
   shotEvents,
   Side,
+  soldierEye,
   spawnSoldier,
   Stance,
   stepSimulation,
@@ -87,12 +88,13 @@ function setup(debugActions = false) {
   const actions: PlayerAction[] = []
   let pointer: GroundVector | null = null
   let screen = { x: 400, y: 300 }
+  const hidden = new Set<number>()
   const control = createPlayerControl(
     sim,
     squad,
     camera,
     { held, pointerGround: () => pointer, pointerScreen: () => screen, takeActions: () => actions.splice(0) },
-    { debugActions }
+    { debugActions, shown: (soldier) => !hidden.has(soldier) }
   )
   const frame = () => {
     control.update(0.05)
@@ -109,6 +111,7 @@ function setup(debugActions = false) {
     actions,
     control,
     frame,
+    hidden,
     point: (value: GroundVector | null) => (pointer = value),
     pointAt: (value: { x: number; y: number }) => (screen = value)
   }
@@ -234,6 +237,61 @@ describe("createPlayerControl", () => {
     control.update(0.05)
     expect(faces()).toEqual([{ type: "face", soldier, x: 1, z: 0 }])
     rig.dispose()
+  })
+
+  it("picks out the enemy the pointer is near on the screen, faces him exactly and names him, and keeps him", () => {
+    const { sim, soldier, camera, control, hidden, point, pointAt } = setup()
+    // Looking north over the squad, from 30 m back.
+    camera.setTarget(new Vector3(50, 4, 62))
+    camera.radius = 30
+    camera.beta = 0.9
+    const near = spawnSoldier(sim, { side: Side.German, x: 54, z: 75 })
+    const beside = spawnSoldier(sim, { side: Side.German, x: 49, z: 75 })
+    /** Where a man's chest is on the screen. */
+    const onScreen = (id: number) => {
+      const eye = soldierEye(sim, id)
+      const engine = camera.getEngine()
+      const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+      const transform = camera.getViewMatrix().multiply(camera.getProjectionMatrix())
+      return Vector3.Project(new Vector3(eye.x, eye.y - 0.3, eye.z), Matrix.Identity(), transform, viewport)
+    }
+    const faces = () => sim.pendingCommands.splice(0).filter((command) => command.type === "face")
+    // The ground under the pointer is well past him: the man, not the ground, is aimed at.
+    point({ x: 60, z: 95 })
+    const chest = onScreen(near)
+    pointAt({ x: chest.x + 12, y: chest.y + 6 })
+    control.update(0.05)
+    const length = Math.hypot(4, 25)
+    expect(faces()).toEqual([
+      { type: "face", soldier, x: expect.closeTo(4 / length), z: expect.closeTo(25 / length), target: near }
+    ])
+    expect(control.aimedSoldier).toBe(near)
+
+    // Toward the man beside him, but not clearly nearer him: still the first.
+    const other = onScreen(beside)
+    pointAt({ x: (chest.x + other.x) / 2 - 3, y: chest.y })
+    control.update(0.05)
+    expect(control.aimedSoldier).toBe(near)
+    pointAt({ x: other.x + 2, y: other.y })
+    control.update(0.05)
+    expect(control.aimedSoldier).toBe(beside)
+    expect(faces().at(-1)).toMatchObject({ target: beside })
+
+    // A man the fog hides can't be picked out: the other is still near enough.
+    hidden.add(beside)
+    control.update(0.05)
+    expect(control.aimedSoldier).toBe(near)
+    // With nobody to see near the pointer, he faces the ground under it again.
+    hidden.add(near)
+    faces()
+    control.update(0.05)
+    expect(control.aimedSoldier).toBe(-1)
+    const [free] = faces()
+    expect(free).not.toHaveProperty("target")
+    expect(free).toMatchObject({
+      x: expect.closeTo(10 / Math.hypot(10, 45)),
+      z: expect.closeTo(45 / Math.hypot(10, 45))
+    })
   })
 
   it("keeps the camera on the soldier, easing toward them", () => {
@@ -535,6 +593,32 @@ describe("createSquadMarkers", () => {
     expect(markers.target.position.z).toBe(sim.soldiers.position.z[enemy])
     const line = markers.leader.getChildMeshes().find((mesh) => mesh.name === "squad-leader-aim")
     expect(line?.scaling.z).toBeGreaterThan(25)
+    lineOfSight.dispose()
+  })
+
+  it("draws the aim from the way the page turned him, before the simulation hears of it", async () => {
+    const { scene, sim, squad, soldier } = setup()
+    const lineOfSight = await createLineOfSight(sim.map)
+    sim.lineOfSight = lineOfSight
+    const page: { facing: GroundVector | null; aimedSoldier: number } = { facing: null, aimedSoldier: -1 }
+    const markers = createSquadMarkers(scene, sim, squad, page)
+    const enemy = spawnSoldier(sim, { side: Side.German, x: 50, z: 80 })
+    // The simulation still has him facing east; the page has just turned him north, onto the enemy.
+    sim.soldiers.facing.x[soldier] = 1
+    sim.soldiers.facing.z[soldier] = 0
+    markers.update()
+    expect(markers.leader.rotation.y).toBeCloseTo(Math.PI / 2)
+    expect(markers.aiming).toBe(-1)
+
+    page.facing = { x: 0, z: 1 }
+    page.aimedSoldier = enemy
+    markers.update()
+    expect(markers.leader.rotation.y).toBeCloseTo(0)
+    expect(markers.aiming).toBe(enemy)
+    expect(markers.target.position.z).toBe(80)
+    // The simulation's own aim is left as it was.
+    expect(sim.soldiers.facing.x[soldier]).toBe(1)
+    expect(sim.soldiers.target.id[soldier]).toBe(-1)
     lineOfSight.dispose()
   })
 })
