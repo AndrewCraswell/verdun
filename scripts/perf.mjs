@@ -15,7 +15,9 @@
 // opens on its briefing in the overview.
 // A free battle with nobody at the keyboard is quiet, so the last scenarios put it through what a played one does:
 // "aiming" sweeps the soldier's aim, "overview" pulls the camera back, "dawn" brings the sun low and "barrage" brings a
-// bombardment down in front of the camera. --eval "__perf.barrage(true)" (or aim(true), zoom(300)) starts one for --ab.
+// bombardment down in front of the camera, then "barrage, pulled back" frames it. --eval "__perf.barrage(true)" (or
+// aim(true), zoom(300)) starts one for --ab; the barrage resolves a minute after its first rounds land, once its smoke
+// has built up, so the toggled samples, each later than its baseline, don't read slower for thicker smoke.
 // Without --url it builds the client as committed at --ref (HEAD by default, in a worktree of its own, so others'
 // half-made changes stay out) and serves the build itself. Close other copies of the game first. Several runs at once
 // each take a slot of their own (build tree, build folder, port), so they never swap files under each other; --no-build
@@ -292,28 +294,39 @@ window.__perf = {
       hot: verdun.trace.hotSpots(20).map((s) => [s.name, +s.selfMsPerFrame.toFixed(2)])
     }
   },
-  moveCamera(on) {
+  // Swings the zoom 25 m either side of where it was. Off, it zooms back there: left wherever the swing stopped, every
+  // scenario after it would be seen from a different distance on each run.
+  async moveCamera(on) {
     clearInterval(window.__perfMove)
     if (on) {
       const camera = verdun.engine.scenes[0].activeCamera
       const base = camera.radius
+      window.__perfMoveBase = base
       let t = 0
       window.__perfMove = setInterval(() => { t += 0.05; camera.radius = base + 25 * Math.sin(t) }, 16)
+    } else if (window.__perfMoveBase !== undefined) {
+      const base = window.__perfMoveBase
+      window.__perfMoveBase = undefined
+      await __perf.zoom(base)
     }
   },
   // Zooms the player's camera as the wheel would: the camera rig takes a radius set from outside as the player's zoom
-  // (camera-rig.ts) and eases the view there, tipping it toward overhead. Resolves once the view has arrived.
+  // (camera-rig.ts) and eases the view there, tipping it toward overhead. Resolves once the view has arrived, and
+  // throws if it hasn't within five seconds, rather than measure a camera still on the move.
   async zoom(radius) {
     const camera = verdun.view.camera
     camera.radius = radius
     // A few frames for the rig to take it, then until the distance has landed and the angle, which lags it, stopped.
+    // The rig lands the last half millimetre at once, so landed is all but exact: within a centimetre it would still
+    // be easing, and through the field view's zooms, where the angle holds at 55°, nothing else would show it.
     await new Promise((r) => setTimeout(r, 250))
     let beta = NaN
-    await __perf.until(() => {
-      const still = Math.abs(camera.radius - radius) < 0.01 && camera.beta === beta
+    const arrived = await __perf.until(() => {
+      const still = Math.abs(camera.radius - radius) < 1e-5 && camera.beta === beta
       beta = camera.beta
       return still
     }, 5000)
+    if (!arrived) throw new Error("zoom: the view didn't settle at " + radius + " m")
   },
   // Sweeps the controlled soldier's aim 30° either side of straight at the enemy and back, a face command every 16 ms as
   // the player's mouse sends them at 60 fps (player-control.ts), 1.2° apart: more than the 0.8° under which the page
@@ -343,9 +356,12 @@ window.__perf = {
   },
   // The bombardment the player calls on the enemy's front line (bombardEnemyLine, packages/sim/src/operation.ts), on the
   // 200 m of it in front of the camera at the same weight of fire a metre: heavy and field guns on the trench, field guns
-  // sweeping the wire in front of it. It fires until switched off, and resolves once its first rounds land, some ten
-  // seconds after the order. Off, it stops the guns, gives the side back the shells fired and lets those in the air land.
-  async barrage(on) {
+  // sweeping the wire in front of it. It fires until switched off. Its first rounds land some ten seconds after the
+  // order, and it resolves settle seconds after that, once their smoke has built up: smoke thins with a half-life of
+  // 25 s (BURST_SMOKE, packages/sim/src/gas.ts), so sampled sooner it would still be thickening, and later samples
+  // would read slower for it. Off, it stops the guns, gives the side back the shells fired and lets those in the air
+  // land.
+  async barrage(on, settle = 60) {
     const sim = verdun.sim
     // Field and heavy high explosive, by Shell in packages/sim/src/artillery.ts.
     const kinds = [0, 2]
@@ -377,10 +393,12 @@ window.__perf = {
       for (const plan of plans) sim.pendingCommands.push({ type: "fire-mission", plan })
       // A shell lands in the step taken from its tick, which the page plays out as the tick after.
       let first = Infinity
-      await __perf.until(() => {
+      const landed = await __perf.until(() => {
         for (const shell of sim.artillery.shells) if (ours(shell)) first = Math.min(first, shell.landsAtTick)
         return sim.tick > first
       }, 30000)
+      if (!landed) throw new Error("barrage: no round landed within 30 s")
+      await new Promise((r) => setTimeout(r, settle * 1000))
       return plans
     }
     const was = window.__perfBarrage
@@ -452,7 +470,10 @@ const SCENARIOS = [
       "for (const m of verdun.engine.scenes[0].meshes) if (m.name.startsWith('backdrop-')) m.setEnabled(m.metadata?.perfWas ?? true)"
   },
   // The busy paths a quiet battle never takes. Each sets its own time of day, so it can be run alone with --only.
-  // Every aim the player moves goes to the simulation as a command, with a batch of its own when no steps are owed.
+  // Every aim the player moves goes to the simulation as a face command, which waits for the next step's batch
+  // (sim-host.ts). The worker turns him and keeps his aim's bookkeeping (target.id and aim.since, commands.ts), and the
+  // page turns his figure and works out whom his aim would strike (control/aimed-target.ts), as it does every step
+  // anyway. So it should measure about as the day does: it's here to show that it still does.
   { name: "aiming", setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); __perf.aim(true)", teardown: "__perf.aim(false)" },
   // The map view: 300 m back and some 250 m up, above the height where the sun's shadows stop (atmosphere.ts).
   {
@@ -469,10 +490,17 @@ const SCENARIOS = [
   // Switching snapshot rendering off is for good.
   { name: "day, no snapshot rendering", setup: "verdun.snapshots?.dispose()" },
   // Last of all: a barrage's craters, cut wire and dead are for good too, and its smoke hangs about for a minute.
+  // Looking down at 55° from 60 m, the top of the screen reaches some 45 m ahead and its rounds land past it, so this
+  // measures the work of its craters, wire and smoke but little of drawing them. It keeps firing for the next scenario.
+  { name: "barrage", setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); __perf.barrage(true)" },
+  // The same barrage on screen: 170 m back, the view reaches some 113 m ahead, over the wire the field guns sweep. The
+  // camera is 143 m above the soldier, whose ground stands 32 m up, so some 15 m under the height where the sun's
+  // shadows stop (atmosphere.ts), as in the close view.
   {
-    name: "barrage",
-    setup: "__perf.clock(Date.UTC(1916, 5, 23, 10)); __perf.barrage(true)",
-    teardown: "__perf.barrage(false)"
+    name: "barrage, pulled back",
+    setup:
+      "(async () => { if (!window.__perfBarrage) { __perf.clock(Date.UTC(1916, 5, 23, 10)); await __perf.barrage(true) } window.__perfRadius = verdun.view.camera.radius; await __perf.zoom(170) })()",
+    teardown: "(async () => { await __perf.zoom(window.__perfRadius); await __perf.barrage(false) })()"
   }
 ]
 
