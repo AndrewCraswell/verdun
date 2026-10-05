@@ -141,6 +141,8 @@ export interface SoundCall {
   readonly pan: number
   readonly delay: number
   readonly cutoff: number
+  /** The soldier shouting, for a shout (voice-*): the captions name him. */
+  readonly speaker?: EntityId
 }
 
 /** How the listener's surroundings colour what they hear, each from 0 (not there) to 1: see mixer.ts. */
@@ -559,7 +561,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
     }
     lastShout = now
     lastLine.set(cue, now)
-    calls.push(call)
+    calls.push({ ...call, speaker: id })
     return true
   }
 

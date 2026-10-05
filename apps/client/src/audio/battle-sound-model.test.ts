@@ -160,7 +160,10 @@ describe("createBattleSoundModel", () => {
     const { sim, french, german } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })
     happen(sim, { type: "throw", soldier: french }, { type: "throw", soldier: german })
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["throw", "voice-grenade-fr"])
+    const calls = model.step(LISTENER)
+    expect(calls.map((call) => call.cue)).toEqual(["throw", "voice-grenade-fr"])
+    // The shout says who gave it, for the captions to name him.
+    expect(calls[1]?.speaker).toBe(french)
   })
 
   it("rains earth down after a burst close by, and leaves the controlled soldier's ears ringing", () => {
