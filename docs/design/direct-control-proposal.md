@@ -1,9 +1,44 @@
 # Direct control overhaul: a proposal
 
-**Status:** proposal, 5 October 2026. Nothing here is decided. It answers the playtest verdict that the game is fun but
-moving a soldier feels awkward, aiming is hard, it's hard to tell whether you can see or hit a man, men get stuck, and
-the rain looks cheap. The decisions it asks for are at the [end](#decisions-needed). Part of the
-[game design](overview.md).
+**Status:** built, 5 October 2026, except where [what's left](#whats-left) says otherwise. It answers the playtest
+verdict that the game is fun but moving a soldier feels awkward, aiming is hard, it's hard to tell whether you can see
+or hit a man, men get stuck, and the rain looks cheap. The developer took the proposal as it stands; the
+[decisions](#decisions) record it. Part of the [game design](overview.md).
+
+## Built
+
+| What                                                                                                      | Commit    |
+| --------------------------------------------------------------------------------------------------------- | --------- |
+| Collide-and-slide controller, solid scenery, men easing apart, bots vaulting, follow as a file, 3 s fence | `35d71df` |
+| The player's shot at the man picked out; steadying                                                        | `3d7c7fb` |
+| Tests for the trench lines, the sidestep and the corner stop                                              | `445724c` |
+| Field view at 55° leaning toward the pointer                                                              | `d2fdc89` |
+| WASD held across camera turns                                                                             | `7da47cd` |
+| Aim view on the right button                                                                              | `93c1ee8` |
+| Picking out the man nearest the pointer, the aim drawn from the page, fog of war on                       | `96272b8` |
+| The sight picture: own cover, unseen, too dark, out of range, the ring filling as the aim steadies        | `b453b1f` |
+| The sight picture at the screen's centre in the aim view                                                  | `3cee5d2` |
+| The ring on the man in the sights as wide as the shot's spread                                            | `de853ca` |
+| Climbing a wire fence, keyed on the Synty rig; the Mixamo bone map                                        | `2d641bb` |
+
+Measured after: the sim's step for 520 soldiers took 3.76 ms against 3.70 ms before (four alternating rounds, within
+noise). Balance, three bombardments over 15 seeds: the French attack held 47% before and after; the German attack fell
+from 40% to 20%, all of it from men no longer standing on one spot (without the easing apart it rose to 80%), so the
+stacking was an artefact and Game mechanics is retuning how a stretch counts as held.
+
+## What's left
+
+- **Rain** (section 6): in progress.
+- **Mixamo clips**: the "Mixamo animations" session is bringing in the full set
+  ([Mixamo clips](../assets/mixamo-clips.md)), including a wall climb; the fence climb stays the keyed one unless a
+  Mixamo clip fits its 3 s.
+- **`clearLine` seeing walls** (section 3) and a stuck monitor with memory: not done. Men on orders climb what they head
+  at within 45°, so they rarely box themselves in; when they do they sidestep (`wayOut`).
+- **The soldier's body** still turns when the worker's step comes back, about 100 ms after the pointer; the aim line,
+  rings and cursor lead it.
+- **Real rounds** (stage B) and the trench graph: not started, and only if playtests ask for them.
+- **Pointer lock** in the aim view was only tried with synthetic events, which browsers don't count as a gesture; try it
+  with a real mouse.
 
 ## Summary
 
@@ -337,14 +372,17 @@ Tests to write first, from the measurements above: a man steered 45° into a tre
 along the trench and stays in it; no follower leaves a trench the leader is in; the player's man never stands inside an
 impassable footprint; a bot sent past a ruin arrives.
 
-## Decisions needed
+## Decisions
 
-1. **An aim view behind the shoulder while the right button is held.** It revisits the vision's "not a shoulder camera"
-   for aiming only.
-2. **Walls block.** Pushing never climbs anything over about 1.2 m; Space does. Low ledges are climbed by heading into
-   them.
-3. **Follow is single file in a trench,** along the leader's track.
-4. **Stage A only, or stage B too:** keep the dice and show them honestly, or make shots real rounds.
+Taken by the developer with the proposal, 5 October 2026:
+
+1. **An aim view behind the shoulder while the right button is held** (a setting, on by default). It revisits the
+   vision's "not a shoulder camera" for aiming only.
+2. **Walls block.** Pushing never climbs anything over 1.3 m; Space does. Ledges up to 1.3 m are climbed by heading
+   straight at them.
+3. **Follow is single file in a trench,** along the trench's centre line rather than a remembered track, which would
+   have to go into saves.
+4. **Stage A:** the dice stay, shown honestly and steadied. Stage B waits on playtests.
 5. **Fog of war on by default.**
-6. **Rain that is truer but fainter.** From 40 m up real rain is hard to see; it would read mostly as wet ground,
-   ripples, haze and fine streaks near the lens, not as visible drops everywhere.
+6. **Rain that is truer but fainter:** wet ground, ripples, haze and fine streaks near the lens, not visible drops
+   everywhere.

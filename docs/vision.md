@@ -48,8 +48,10 @@ is in the [architecture](architecture.md); what gets built when is in the [roadm
 
 ## Presentation
 
-- **3D rendering, top-down gameplay**: angled top-down camera (about 55–60° tilt) with zoom, like Company of Heroes. A
-  close over-the-shoulder view may come later but isn't planned around.
+- **3D rendering, top-down gameplay**: angled top-down camera (about 55–60° tilt) with zoom, like Company of Heroes,
+  leaning toward the pointer. Holding the right button swings it behind the soldier's shoulder to aim, as XCOM's
+  targeting camera does; the battlefield, fog and orders stay top-down
+  ([direct control](design/direct-control-proposal.md)).
 - **Stylized low-poly for version 1**: Synty POLYGON packs with a muted WW1 palette. The art is remastered toward muted
   documentary realism after version 1. See [art direction](assets/art-direction.md).
 - **Sound** is half the experience: artillery, whistles, rifles, machine guns.
