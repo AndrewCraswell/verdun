@@ -575,7 +575,24 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
 }
 
 /** A side's front-line fire trench: the one facing the enemy that lies closest to no man's land. */
+/** Each map's front lines, by side: the trenches never change, and the battle asks for them every step. */
+const frontLines = new WeakMap<readonly Trench[], Map<Side, Trench | null>>()
+const frontSpans = new WeakMap<readonly Trench[], Map<Side, LineSpan | null>>()
+
+/** A side's front-line fire trench, worked out once for each map. */
 function frontLine(trenches: readonly Trench[], side: Side): Trench | null {
+  let lines = frontLines.get(trenches)
+  if (!lines) {
+    lines = new Map()
+    frontLines.set(trenches, lines)
+  }
+  if (!lines.has(side)) {
+    lines.set(side, findFrontLine(trenches, side))
+  }
+  return lines.get(side) ?? null
+}
+
+function findFrontLine(trenches: readonly Trench[], side: Side): Trench | null {
   const facing = side === Side.French ? "north" : "south"
   const middle = (trench: Trench) => trench.points.reduce((sum, [, z]) => sum + z, 0) / trench.points.length
   const lines = trenches
@@ -601,6 +618,18 @@ export interface LineSpan {
  * barrage aimed at the average z would miss the bays pushed forward of it.
  */
 export function frontLineSpan(trenches: readonly Trench[], side: Side): LineSpan | null {
+  let spans = frontSpans.get(trenches)
+  if (!spans) {
+    spans = new Map()
+    frontSpans.set(trenches, spans)
+  }
+  if (!spans.has(side)) {
+    spans.set(side, spanOfFrontLine(trenches, side))
+  }
+  return spans.get(side) ?? null
+}
+
+function spanOfFrontLine(trenches: readonly Trench[], side: Side): LineSpan | null {
   const line = frontLine(trenches, side)
   if (!line) {
     return null
@@ -665,7 +694,7 @@ function callDefensiveBarrage(sim: Simulation): void {
     const inNoMansLand = (x: number, z: number) =>
       !isInTrench(sim.map, x, z) &&
       (side === Side.German ? z > enemyLine + 10 && z < ownLine - 5 : z < enemyLine - 10 && z > ownLine + 5)
-    const spotted = Array.from(soldierIds(sim)).some((soldier) => {
+    const spotted = soldierIds(sim).some((soldier) => {
       const target = sim.soldiers.target.id[soldier]
       return (
         sim.soldiers.side.value[soldier] === side &&

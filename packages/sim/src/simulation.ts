@@ -1,5 +1,17 @@
 import { type BattlefieldMap, mapDepth, mapWidth } from "@verdun/map"
-import { addComponent, addEntity, createWorld, type EntityId, Not, query, type QueryResult, type World } from "bitecs"
+import {
+  addComponent,
+  addEntity,
+  createWorld,
+  type EntityId,
+  Not,
+  observe,
+  onAdd,
+  onRemove,
+  query,
+  type QueryResult,
+  type World
+} from "bitecs"
 import {
   type ArtilleryState,
   artillerySystem,
@@ -259,32 +271,72 @@ export function spawnSoldier(
  * time to stay deterministic.
  */
 function inIdOrder(ids: QueryResult): readonly EntityId[] {
-  return Array.from(ids).sort((a, b) => a - b)
+  return Object.freeze(Array.from(Uint32Array.from(ids).sort()))
+}
+
+/**
+ * The lists of soldiers by their state, each made again only once a soldier has been added, has fallen, been taken,
+ * wounded or carried off since: systems and the page ask for them many times a step, and most steps nobody does any of
+ * it. Each made afresh, never changed in place, so a system can go through one while it kills soldiers.
+ */
+interface IdLists {
+  version: number
+  readonly lists: Map<string, { readonly version: number; readonly ids: readonly EntityId[] }>
+}
+
+const idLists = new WeakMap<Simulation, IdLists>()
+
+function listed(sim: Simulation, name: string, make: () => readonly EntityId[]): readonly EntityId[] {
+  let cache = idLists.get(sim)
+  if (!cache) {
+    const made: IdLists = { version: 0, lists: new Map() }
+    const changed = () => {
+      made.version++
+    }
+    const { position, dead, captured, wounded, evacuated } = sim.soldiers
+    for (const component of [position, dead, captured, wounded, evacuated]) {
+      observe(sim.world, onAdd(component), changed)
+      observe(sim.world, onRemove(component), changed)
+    }
+    idLists.set(sim, made)
+    cache = made
+  }
+  const kept = cache.lists.get(name)
+  if (kept && kept.version === cache.version) {
+    return kept.ids
+  }
+  const ids = make()
+  cache.lists.set(name, { version: cache.version, ids })
+  return ids
 }
 
 /** Every soldier still in the fight, alive and free, in id order. */
 export function soldierIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead), Not(sim.soldiers.captured)]))
+  return listed(sim, "fighting", () =>
+    inIdOrder(query(sim.world, [sim.soldiers.position, Not(sim.soldiers.dead), Not(sim.soldiers.captured)]))
+  )
 }
 
 /** Every soldier who has surrendered, on their way to the rear, in id order. */
 export function capturedIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.captured]))
+  return listed(sim, "captured", () => inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.captured])))
 }
 
 /** Every fallen soldier, killed or wounded, still lying where they fell, in id order. */
 export function fallenIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.dead, Not(sim.soldiers.evacuated)]))
+  return listed(sim, "fallen", () =>
+    inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.dead, Not(sim.soldiers.evacuated)]))
+  )
 }
 
 /** Every wounded soldier still lying where he fell, in id order. */
 export function woundedIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.wounded]))
+  return listed(sim, "wounded", () => inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.wounded])))
 }
 
 /** Every wounded soldier carried off the field, in id order. */
 export function evacuatedIds(sim: Simulation): readonly EntityId[] {
-  return inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.evacuated]))
+  return listed(sim, "evacuated", () => inIdOrder(query(sim.world, [sim.soldiers.position, sim.soldiers.evacuated])))
 }
 
 /** Queues a command for the next step. Input, AI and (later) the network all enter the simulation here. */
