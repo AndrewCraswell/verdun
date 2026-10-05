@@ -195,12 +195,15 @@ export async function startBattle(
     sectorOrigin: { x: 1200, z: 1300 }
   }
   menu.progress("Dressing the battlefield", 0.3)
+  // The graphics setting: Low drops the costliest effects, and smooths edges with FXAA rather than multisampling.
+  const quality = graphicsQuality(browserStore(), address)
   const level = await dressLevel(view, map, {
     wind: () => sim.wind,
     files: kitFiles,
     surroundings,
     wire: () => sim.wire,
-    weather: () => sim.environment.weather
+    weather: () => sim.environment.weather,
+    quality
   })
   // Animated Synty soldiers in place of the capsules, when the kit has them.
   menu.progress("Bringing up the battalion", 0.6)
@@ -227,9 +230,8 @@ export async function startBattle(
     view.useSoldierRenderer(soldiers)
   }
   const stepper = createFixedStepper(STEP_SECONDS)
-  // The graphics setting (Low drops the costliest effects), and the low-lying fog, on for now only with ?heightfog
-  // until it's been measured: it replaces Babylon's distance fog on the ground, props, soldiers and smoke together.
-  const quality = graphicsQuality(browserStore(), address)
+  // The low-lying fog, on for now only with ?heightfog until it's been measured: it replaces Babylon's distance fog on
+  // the ground, props, soldiers and smoke together.
   const lowFog = address.has("heightfog")
   const environment = createEnvironmentView(view.scene, sim, view.camera, {
     materials: [view.groundMaterial, ...(level?.materials ?? [])],
