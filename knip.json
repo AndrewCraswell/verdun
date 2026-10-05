@@ -6,6 +6,9 @@
     "apps/client": {
       "ignoreDependencies": ["@verdun/oxlint-config"]
     },
+    "apps/server": {
+      "ignoreDependencies": ["@verdun/oxlint-config"]
+    },
     "packages/map": {
       "ignoreDependencies": ["@verdun/oxlint-config"]
     },

@@ -41,6 +41,7 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | Path                         | Contents                                                 |
 | ---------------------------- | -------------------------------------------------------- |
 | `apps/client`                | Babylon.js game client (Vite)                            |
+| `apps/server`                | Sector server: the battle on the real clock, in SQLite   |
 | `packages/sim`               | Pure, deterministic simulation (bitECS)                  |
 | `packages/map`               | Versioned map format, height sampling, the Fleury sector |
 | `packages/typescript-config` | Shared tsconfig bases                                    |

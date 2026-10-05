@@ -140,6 +140,30 @@ describe("take-command", () => {
   })
 })
 
+describe("squad-controller", () => {
+  it("hands a squad to a player, and back to its own orders when they leave", () => {
+    const { sim, squad, members } = squadOfEight()
+    enqueueCommand(sim, { type: "squad-controller", squad: squad.id, controller: "player" })
+    enqueueCommand(sim, { type: "steer", soldier: members[0]!, x: 1, z: 0 })
+    stepSimulation(sim)
+    expect(squad.controller).toBe("player")
+
+    enqueueCommand(sim, { type: "squad-controller", squad: squad.id, controller: "ai" })
+    stepSimulation(sim)
+    expect(squad.controller).toBe("ai")
+    // The leader stops where the player had them going.
+    expect(hasComponent(sim.world, members[0]!, sim.soldiers.steer)).toBe(false)
+  })
+
+  it("ignores unknown squads", () => {
+    const { sim, squad } = squadOfEight()
+    enqueueCommand(sim, { type: "squad-controller", squad: 7, controller: "player" })
+    stepSimulation(sim)
+
+    expect(squad.controller).toBe("ai")
+  })
+})
+
 describe("death", () => {
   it("leaves the fallen on the battlefield, out of the living and deaf to orders", () => {
     const { sim, members } = squadOfEight()

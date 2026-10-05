@@ -61,6 +61,16 @@ export interface TakeCommandCommand {
 }
 
 /**
+ * A player takes command of a squad, or leaves it. Left to itself, its leader stops where the player had them going and
+ * the squad fights on by its own orders, as every bot squad does.
+ */
+export interface SquadControllerCommand {
+  readonly type: "squad-controller"
+  readonly squad: number
+  readonly controller: "player" | "ai"
+}
+
+/**
  * A wiped-out player's squad takes over the men of a bot squad in the line, instead of waiting for replacements: see
  * `takeOverCandidates` for which squads qualify. Ignored if `from` doesn't.
  */
@@ -203,6 +213,7 @@ export type Command =
   | FaceCommand
   | SquadOrderCommand
   | TakeCommandCommand
+  | SquadControllerCommand
   | TakeOverSquadCommand
   | JoinSquadCommand
   | KillCommand
@@ -285,6 +296,17 @@ export function applyCommand(sim: Simulation, command: Command): void {
       }
       removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
       squad.leader = command.soldier
+      return
+    }
+    case "squad-controller": {
+      const squad = sim.squads[command.squad]
+      if (!squad) {
+        return
+      }
+      if (squad.leader >= 0) {
+        removeComponent(sim.world, squad.leader, sim.soldiers.steer)
+      }
+      squad.controller = command.controller
       return
     }
     case "take-over-squad": {

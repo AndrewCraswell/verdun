@@ -10,6 +10,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "server": "pnpm --filter @verdun/server start",
     "format": "oxfmt",
     "check:format": "oxfmt --check",
     "check:lint": "turbo run lint",

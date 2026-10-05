@@ -67,8 +67,11 @@ export interface Squad {
   /** The soldier the squad forms on; for the player's squad, the one they control. -1 once everyone has fallen. */
   leader: EntityId
   order: SquadOrder
-  /** Who moves the leader: a player steering them, or the squad's own orders (the leader joins an advance). */
-  readonly controller: "player" | "ai"
+  /**
+   * Who moves the leader: a player steering them, or the squad's own orders (the leader joins an advance). Changes as
+   * players join and leave (the `squad-controller` command).
+   */
+  controller: "player" | "ai"
 }
 
 /** Spacing between soldiers in a formation, in metres. Close enough to act together, far enough that one shell doesn't kill everyone. */

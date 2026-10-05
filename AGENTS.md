@@ -34,6 +34,8 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
 ## Commands
 
 - `pnpm dev`: run the client at http://localhost:5173
+- `pnpm server`: run the sector server, which steps the battle on the real clock and saves it every minute to
+  `apps/server/data/verdun.db` (`VERDUN_DB` moves it). No players connect to it yet.
 - `pnpm verify`: format check, lint, types, knip, tests with coverage, build. Must pass before finishing.
 - `pnpm format`: apply oxfmt
 - `pnpm perf`: build HEAD, play it in an off-screen Chrome at 1920×1080 and report fps, the tracer's CPU hot spots and

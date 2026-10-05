@@ -121,6 +121,34 @@ importers:
         specifier: 'catalog:'
         version: 5.0.2(@types/node@24.19.0)(@vitest/coverage-v8@5.0.2)(vite@8.3.1(@types/node@24.19.0)(jiti@2.7.0)(yaml@2.9.1))
 
+  apps/server:
+    dependencies:
+      '@verdun/map':
+        specifier: workspace:*
+        version: link:../../packages/map
+      '@verdun/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.0
+      '@verdun/oxlint-config':
+        specifier: workspace:*
+        version: link:../../packages/oxlint-config
+      '@verdun/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 5.0.2(vitest@5.0.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@types/node@24.19.0)(@vitest/coverage-v8@5.0.2)(vite@8.3.1(@types/node@24.19.0)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/map:
     devDependencies:
       '@verdun/oxlint-config':

@@ -1,0 +1,27 @@
+{
+  "name": "@verdun/server",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "The sector server: runs the battle on its own clock whoever is playing, and keeps it in SQLite across restarts.",
+  "scripts": {
+    "check:types": "tsc --noEmit",
+    "lint": "oxlint --max-warnings=0",
+    "start": "node src/main.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@verdun/map": "workspace:*",
+    "@verdun/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@verdun/oxlint-config": "workspace:*",
+    "@verdun/typescript-config": "workspace:*",
+    "@vitest/coverage-v8": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -131,10 +131,11 @@ war-map server, sector servers and clients all agree on the date without being t
   `?war=1916-02-21` puts today's turn in the week of that date (and keeps it), `?war=reset` forgets the kept schedule,
   and `?standto=0` sets the minutes of stand-to after each cutoff, 0 to play straight through it.
 
-In the client, `packages/sim/src/war-clock.ts` keeps the battle on the calendar: when a turn begins it sends the battle
-to the new week with the `clock` command's `week` (the hour carries on, the weather eases into the new week), and
-through the stand-to, between seasons, and before and after the war, the battle waits: `start-battle.ts` doesn't step
-the simulation while `war.paused`. It only acts when the turn changes, so the dev keys can still move the week.
+In the client and on the sector server, `packages/sim/src/war-clock.ts` keeps the battle on the calendar: when a turn
+begins it sends the battle to the new week with the `clock` command's `week` (the hour carries on, the weather eases
+into the new week), and through the stand-to, between seasons, and before and after the war, the battle waits: neither
+`start-battle.ts` nor the server steps the simulation while `war.paused`. It only acts when the turn changes, so the dev
+keys can still move the week.
 
 ## What players see
 
