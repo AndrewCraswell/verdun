@@ -131,8 +131,8 @@ export function shadowCasters(scene: Scene): AbstractMesh[] {
   const onNewMesh = (mesh: AbstractMesh) => {
     // Babylon tells of a mesh added only once the code adding it has run, but of one removed at once: a mesh made and
     // disposed together, like the parts merged into a grenade, is told of as added after it has gone, and once taken in
-    // stayed among the casters for good.
-    if (mesh.isDisposed()) {
+    // stayed among the casters for good; and one made just before the list, taken in from the scene, would go in twice.
+    if (mesh.isDisposed() || casters.includes(mesh)) {
       return
     }
     mesh.receiveShadows = receivesShadow(mesh)

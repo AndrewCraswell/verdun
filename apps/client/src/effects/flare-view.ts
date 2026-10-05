@@ -319,8 +319,10 @@ export function createFlareView(
     if (throwing === null) {
       const found = scene.meshes.filter(casters)
       throwing = found
+      // Babylon tells of a mesh added only after the code adding it has run (see shadowCasters in atmosphere.ts): one
+      // disposed by then, or already found, isn't taken in again.
       scene.onNewMeshAddedObservable.add((mesh) => {
-        if (casters(mesh)) {
+        if (casters(mesh) && !mesh.isDisposed() && !found.includes(mesh)) {
           found.push(mesh)
         }
       })

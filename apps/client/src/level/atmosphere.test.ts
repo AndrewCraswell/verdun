@@ -103,6 +103,14 @@ describe("shadowCasters", () => {
     tree.dispose()
     expect(casters).toEqual([ruin, grenade])
   })
+
+  it("takes in a mesh made just before it only once, though Babylon tells of it after", async () => {
+    const { scene } = field()
+    const tree = CreateBox("Env_Tree_Dead_04#1", { size: 1 }, scene)
+    const casters = shadowCasters(scene)
+    await told()
+    expect(casters).toEqual([tree])
+  })
 })
 
 describe("receivesShadow", () => {
