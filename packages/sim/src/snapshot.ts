@@ -196,7 +196,10 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       full: { ...sim.reinforcements.full },
       arrivals: sim.reinforcements.arrivals.map((arrival) => ({ ...arrival }))
     },
-    spotting: { sightings: sim.spotting.sightings.map((sighting) => ({ ...sighting })) },
+    spotting: {
+      sightings: sim.spotting.sightings.map((sighting) => ({ ...sighting })),
+      counterFire: sim.spotting.counterFire
+    },
     gunCrews: { pickups: sim.gunCrews.pickups.map((pickup) => ({ ...pickup })) },
     defence: { alarmedAt: { ...sim.defence.alarmedAt } },
     flares: sim.flares.map((flare) => ({ ...flare }))
@@ -309,6 +312,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   Object.assign(sim.reinforcements.full, snapshot.reinforcements.full)
   sim.reinforcements.arrivals.push(...snapshot.reinforcements.arrivals.map((arrival) => ({ ...arrival })))
   sim.spotting.sightings.push(...snapshot.spotting.sightings.map((sighting) => ({ ...sighting })))
+  sim.spotting.counterFire = snapshot.spotting.counterFire
   sim.gunCrews.pickups.push(...snapshot.gunCrews.pickups.map((pickup) => ({ ...pickup })))
   Object.assign(sim.defence.alarmedAt, snapshot.defence.alarmedAt)
   sim.flares.push(...snapshot.flares.map((flare) => ({ ...flare })))

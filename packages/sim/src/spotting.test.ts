@@ -67,6 +67,7 @@ describe("spotting machine guns", () => {
   it("brings a battery down on a gun the enemy can see, once in a while, but not near its own men", async () => {
     const sim = field()
     sim.lineOfSight = await createLineOfSight(sim.map)
+    sim.spotting.counterFire = true
     const gunner = spawnSoldier(sim, { side: Side.French, x: 100, z: 50, weapon: Weapon.MachineGun })
     const german = spawnSoldier(sim, { side: Side.German, x: 100, z: 400 })
     burst(sim, gunner)
@@ -101,5 +102,18 @@ describe("spotting machine guns", () => {
     expect(restored.spotting).toEqual(sim.spotting)
     stepSimulation(restored)
     expect(spottedGuns(restored, Side.German)).toHaveLength(1)
+  })
+
+  it("leaves spotted guns to the players unless counter-fire is switched on", async () => {
+    const sim = field()
+    sim.lineOfSight = await createLineOfSight(sim.map)
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 100, z: 50, weapon: Weapon.MachineGun })
+    spawnSoldier(sim, { side: Side.German, x: 100, z: 400 })
+    burst(sim, gunner)
+    spottingSystem(sim)
+
+    expect(spottedGuns(sim, Side.German)).toHaveLength(1)
+    expect(sim.artillery.missions).toEqual([])
+    sim.lineOfSight.dispose()
   })
 })

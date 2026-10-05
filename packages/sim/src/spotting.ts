@@ -56,6 +56,12 @@ export interface GunSighting {
 /** Machine guns that have fired, and which of them the enemy has spotted. */
 export interface SpottingState {
   readonly sightings: GunSighting[]
+  /**
+   * Whether each side's commander calls a battery down on the enemy guns its men can see. Off by default: knocking out
+   * a gun is the players' job (snipers, rifle grenades, flanks, their own calls for fire), and automatic counter-fire
+   * on every gun in sight silenced the guns too well. For a forward observer to switch on later.
+   */
+  counterFire: boolean
 }
 
 /** A machine gun spotted by the enemy, for the HUD's markers, the battle log and sound. */
@@ -69,8 +75,8 @@ export interface GunSpottedEvent {
   readonly z: number
 }
 
-export function createSpotting(): SpottingState {
-  return { sightings: [] }
+export function createSpotting(counterFire = false): SpottingState {
+  return { sightings: [], counterFire }
 }
 
 const enemyOf = (side: Side): Side => (side === Side.French ? Side.German : Side.French)
@@ -147,7 +153,9 @@ export function spottingSystem(sim: Simulation): void {
       }
     }
   }
-  callCounterFire(sim)
+  if (sim.spotting.counterFire) {
+    callCounterFire(sim)
+  }
   // Guns quiet for a minute are lost track of.
   for (let index = sightings.length - 1; index >= 0; index--) {
     if (sim.tick - sightings[index]!.lastFired > SPOTTED_SECONDS * TICK_RATE) {
