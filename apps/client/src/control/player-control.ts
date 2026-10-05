@@ -10,6 +10,7 @@ import {
   Stance,
   takeOverCandidates
 } from "@verdun/sim"
+import { planFires } from "../hud/operation-state.ts"
 import { cameraRigOf } from "./camera-rig.ts"
 
 /** Ground-plane vector, `x` east and `z` north. */
@@ -172,11 +173,17 @@ export function createPlayerControl(
           enqueueCommand(sim, { type: "fire", soldier: squad.leader })
         }
         return
+      // In an operation the plan blows the whistle and fires the bombardments: early, they'd send the side over before
+      // its barrage, and the plan would fire another at zero hour.
       case "whistle":
-        commands?.whistle()
+        if (!planFires(sim)) {
+          commands?.whistle()
+        }
         return
       case "bombard":
-        commands?.bombard()
+        if (!planFires(sim)) {
+          commands?.bombard()
+        }
         return
       case "call-gas":
         commands?.callGas?.(action.x, action.z)

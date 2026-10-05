@@ -1,4 +1,13 @@
-import { isAlive, isStandTo, MaskState, Side, type SimEvent, type Simulation, type Squad } from "@verdun/sim"
+import {
+  isAlive,
+  isStandTo,
+  MaskState,
+  type OperationResult,
+  Side,
+  type SimEvent,
+  type Simulation,
+  type Squad
+} from "@verdun/sim"
 import type { SquadNames } from "./squad-names.ts"
 
 /**
@@ -23,6 +32,25 @@ export interface Banner {
 export const BANNER_SECONDS = 4.2
 
 const URGENCY: Readonly<Record<BannerTone, number>> = { alarm: 3, attack: 2, won: 1, routine: 0 }
+
+const ZERO_HOUR_DETAIL = "Keep 70 m behind the barrage. Run for the trench when it lifts"
+
+/** How an operation ended, for the attackers and for the defenders. */
+const OVER: Readonly<Record<OperationResult, readonly [readonly [string, BannerTone], readonly [string, BannerTone]]>> =
+  {
+    taken: [
+      ["Their line taken", "won"],
+      ["Our line lost", "alarm"]
+    ],
+    footing: [
+      ["A footing gained", "won"],
+      ["They hold a footing", "alarm"]
+    ],
+    repulsed: [
+      ["Thrown back", "alarm"],
+      ["Their attack thrown back", "won"]
+    ]
+  }
 
 export interface BannerQueue {
   /** Raises the banners one simulation step's events call for. Call after every step. */
@@ -68,6 +96,16 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
           }
         } else if (event.type === "counter-attack" && event.side === enemy) {
           raise("Alarm", "Counter-attack coming", "The enemy is shelling the lost trench", "alarm")
+        } else if (event.type === "zero-hour") {
+          if (event.side === side) {
+            raise("Zero hour", "Over the top!", ZERO_HOUR_DETAIL, "attack")
+          } else {
+            raise("Alarm", "They're coming over", "Every man up on the fire step", "alarm")
+          }
+        } else if (event.type === "operation-over") {
+          const attacking = sim.operation?.plan.side === side
+          const [title, tone] = OVER[event.result][attacking ? 0 : 1]
+          raise("Operation over", title, null, tone)
         } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
           const leader = names && squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
           raise(
@@ -95,7 +133,7 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
         masking || (gasAlarm && squad.members.some((member) => sim.soldiers.mask.state[member] !== MaskState.Off))
       const creep = squad.order.kind === "creep"
       if (creep && !creeping) {
-        raise("Zero hour", "Over the top!", "Keep 70 m behind the barrage. Run for the trench when it lifts", "attack")
+        raise("Zero hour", "Over the top!", ZERO_HOUR_DETAIL, "attack")
       }
       creeping = creep
       const standing = isStandTo(sim)

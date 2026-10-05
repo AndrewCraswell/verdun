@@ -1,10 +1,29 @@
-import { enqueueCommand, MaskState, Side, stepSimulation } from "@verdun/sim"
+import { enqueueCommand, MaskState, PLAYTEST_OPERATION, planOperation, Side, stepSimulation } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { BANNER_SECONDS, createBannerQueue } from "./banners.ts"
 import { createSquadNames } from "./squad-names.ts"
 import { slot, testBattle } from "./test-battle.ts"
 
 describe("banners", () => {
+  it("calls zero hour for an operation, and says how it went", () => {
+    const { sim, squad } = testBattle()
+    planOperation(sim, PLAYTEST_OPERATION)
+    const banners = createBannerQueue(sim, squad)
+    // Not a literal: the event carries its squads too, which the test doesn't need.
+    const zeroHour = { type: "zero-hour" as const, side: Side.French, squads: [] }
+    banners.record([zeroHour])
+    expect(banners.current(1)?.banner).toMatchObject({ kicker: "Zero hour", title: "Over the top!", tone: "attack" })
+    banners.record([{ type: "operation-over", result: "footing" }])
+    expect(banners.current(1 + BANNER_SECONDS + 0.01)?.banner).toMatchObject({
+      kicker: "Operation over",
+      title: "A footing gained",
+      tone: "won"
+    })
+    const defending = createBannerQueue(sim, { ...squad, side: Side.German })
+    defending.record([zeroHour])
+    expect(defending.current(1)?.banner).toMatchObject({ title: "They're coming over", tone: "alarm" })
+  })
+
   it("says which squad the player now commands after taking one over", () => {
     const { sim, squad, members } = testBattle()
     const names = createSquadNames()

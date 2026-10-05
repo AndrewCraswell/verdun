@@ -9,6 +9,7 @@ import { handoverCard } from "./elements/handover-card.ts"
 import { hintLine } from "./elements/hint-line.ts"
 import { logFeed } from "./elements/log-feed.ts"
 import { objectivesPanel } from "./elements/objectives-panel.ts"
+import { operationClock } from "./elements/operation-clock.ts"
 import { orderPlate } from "./elements/order-plate.ts"
 import { rosterStrip } from "./elements/roster-strip.ts"
 import { screenEffects } from "./elements/screen-effects.ts"
@@ -47,6 +48,7 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   objectivesPanel,
   strengthPanel,
   // Top centre: H14.
+  operationClock,
   logFeed,
   // Bottom right: H10.
   firePanel,

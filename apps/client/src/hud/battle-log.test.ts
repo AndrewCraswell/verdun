@@ -1,6 +1,8 @@
 import {
   enqueueCommand,
   MaskState,
+  PLAYTEST_OPERATION,
+  planOperation,
   Shell,
   type SimEvent,
   Side,
@@ -27,6 +29,18 @@ function logged() {
 }
 
 describe("the battle log", () => {
+  it("tells of zero hour and how the operation went", () => {
+    const { sim, log } = logged()
+    planOperation(sim, PLAYTEST_OPERATION)
+    // Not a literal: the event carries its squads too, which the test doesn't need.
+    const zeroHour = { type: "zero-hour" as const, side: Side.French, squads: [] }
+    log.record([zeroHour, { type: "operation-over", result: "taken" }])
+    expect(log.messages.map((message) => message.text)).toEqual([
+      "Zero hour: the first wave goes over",
+      "The operation is over: their line is taken"
+    ])
+  })
+
   it("tells of squads taken over, guns spotted and manned, and the reserves going in", () => {
     const { sim, squad, members, log, who } = logged()
     const gunner = slot(members, 7)

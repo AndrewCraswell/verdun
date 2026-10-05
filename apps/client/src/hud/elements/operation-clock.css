@@ -1,0 +1,73 @@
+/* The operation's countdown: a small plate at the top, the time in the display face, a hairline bar below. */
+.operation-clock {
+  display: grid;
+  justify-items: center;
+  gap: 0.2em;
+  min-width: 9em;
+  padding: 0.45em 1.1em 0.55em;
+  text-align: center;
+}
+
+.operation-clock[hidden] {
+  display: none;
+}
+
+.oc-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.oc-label {
+  color: var(--hud-ink-2);
+}
+
+.oc-time {
+  font-family: var(--hud-font-display);
+  font-size: 1.6em;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.oc-note {
+  font-size: 0.76em;
+  font-style: italic;
+  color: var(--hud-brass-bright);
+}
+
+.oc-note[hidden] {
+  display: none;
+}
+
+.oc-bar {
+  width: 100%;
+  height: 2px;
+  margin-top: 0.15em;
+  background: var(--hud-hairline);
+}
+
+.oc-bar__fill {
+  width: calc(var(--done, 0) * 100%);
+  height: 100%;
+  background: var(--hud-brass);
+  transition: width 400ms linear;
+}
+
+/* The last minute before going over. */
+.operation-clock[data-urgent] .oc-time,
+.operation-clock[data-urgent] .oc-label {
+  color: var(--hud-caution);
+}
+
+.operation-clock[data-urgent] .oc-bar__fill {
+  background: var(--hud-caution);
+}
+
+.operation-clock[data-phase="over"] .oc-note {
+  font-family: var(--hud-font-display);
+  font-size: 1.2em;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--hud-ink);
+}

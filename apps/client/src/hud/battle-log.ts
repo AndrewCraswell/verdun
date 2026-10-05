@@ -5,6 +5,7 @@ import {
   isAlive,
   isStandTo,
   MaskState,
+  type OperationResult,
   Shell,
   Side,
   type SimEvent,
@@ -15,6 +16,13 @@ import {
 import { missionsOf } from "./fire-support.ts"
 import type { SquadNames } from "./squad-names.ts"
 import { direction } from "./squad-order.ts"
+
+/** How an operation ended, for the attackers and for the defenders. */
+const OUTCOMES: Readonly<Record<OperationResult, readonly [string, string]>> = {
+  taken: ["their line is taken", "our line is lost"],
+  footing: ["a footing gained in their line", "they hold a footing in our line"],
+  repulsed: ["the attack was thrown back", "their attack was thrown back"]
+}
 
 /** What a line of the log is about, for its mark: bad news, the squad's own men, the sector, the guns, the sky. */
 export type LogKind = "alarm" | "squad" | "sector" | "fire" | "weather"
@@ -187,6 +195,15 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
           )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
           say(`Replacements up in the rear trench: ${event.men} men`, "squad", false)
+        } else if (event.type === "zero-hour") {
+          say(
+            event.side === side ? "Zero hour: the first wave goes over" : "Zero hour: the enemy is coming over",
+            event.side === side ? "sector" : "alarm",
+            event.side !== side
+          )
+        } else if (event.type === "operation-over") {
+          const attacking = sim.operation?.plan.side === side
+          say(`The operation is over: ${OUTCOMES[event.result][attacking ? 0 : 1]}`, "sector", false)
         } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
           const leader = squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
           say(

@@ -8,6 +8,8 @@ import {
   createSquad,
   CRAWL_FACTOR,
   isAlive,
+  PLAYTEST_OPERATION,
+  planOperation,
   shotEvents,
   Side,
   spawnSoldier,
@@ -270,6 +272,38 @@ describe("createPlayerControl", () => {
     expect(whistles).toEqual([0, -1, -2, -4, -3])
     stepSimulation(sim)
     expect(shotEvents(sim.events).filter((event) => event.shooter === leader)).toHaveLength(1)
+  })
+
+  it("leaves the whistle and the bombardment to an operation's plan until it's over", () => {
+    const calls: string[] = []
+    const engine = new NullEngine()
+    engines.push(engine)
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const squad = createSquad(sim, Side.French, [spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })], "player")
+    const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))
+    const actions: PlayerAction[] = []
+    const control = createPlayerControl(
+      sim,
+      squad,
+      camera,
+      { held: new Set(), pointerGround: () => null, takeActions: () => actions.splice(0) },
+      {
+        commands: {
+          whistle: () => calls.push("whistle"),
+          bombard: () => calls.push("bombard"),
+          callFire: () => calls.push("fire"),
+          callGas: () => calls.push("gas")
+        }
+      }
+    )
+    const operation = planOperation(sim, PLAYTEST_OPERATION)
+    actions.push({ kind: "whistle" }, { kind: "bombard" }, { kind: "call-fire", x: 1, z: 2 })
+    control.update(0.05)
+    expect(calls).toEqual(["fire"])
+    operation.result = "repulsed"
+    actions.push({ kind: "whistle" }, { kind: "bombard" })
+    control.update(0.05)
+    expect(calls).toEqual(["fire", "whistle", "bombard"])
   })
 
   it("passes control on when the controlled soldier dies, and kills only in dev builds", () => {

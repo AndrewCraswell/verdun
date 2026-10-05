@@ -19,6 +19,7 @@ import { type Banner, createBannerQueue } from "./banners.ts"
 import { type BattleLog, createBattleLog, type LogMessage } from "./battle-log.ts"
 import { callsOf, createShellLedger, type FireSupportView, missionsOf } from "./fire-support.ts"
 import { createHints, type Hint, type Hints, type HintStore } from "./hints.ts"
+import { type OperationView, operationView } from "./operation-state.ts"
 import {
   type ClockView,
   clockView,
@@ -70,6 +71,8 @@ export interface HudState {
   readonly wiped: WipedView | null
   /** Machine guns given away by their fire: the enemy's we've spotted, and ours once the enemy has. */
   readonly guns: readonly SpottedGun[]
+  /** The operation the battle is fought in, counted down from now; null without one. */
+  readonly operation: OperationView | null
   readonly hint: Hint | null
   readonly screen: ScreenView
   readonly cursor: CursorView
@@ -316,6 +319,7 @@ export function createHudModel(
         succession: handover,
         wiped: wipedOf(soldier, roster, strength.reserves?.men ?? null),
         guns: spottedGunsView(sim, squad, tickRate),
+        operation: operationView(sim, squad.side, tickRate),
         hint: hints.read(now, view),
         screen: screenOf(soldier, handover),
         cursor: cursorOf(soldier),

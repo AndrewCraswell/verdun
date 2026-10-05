@@ -1,6 +1,7 @@
 import { mapWidth } from "@verdun/map"
 import { type FireMission, Shell, type Side, type Simulation, UNLIMITED } from "@verdun/sim"
 import { keyOf } from "./keys.ts"
+import { planFires } from "./operation-state.ts"
 
 /**
  * The guns, as the HUD's fire-support panel shows them: the calls the player can make, the fire missions of their side
@@ -271,7 +272,7 @@ export function callsOf(sim: Simulation, side: Side, missions: readonly MissionV
     }
     return { id, key, label, detail, available: stocked && !busy, reason, active: busy }
   }
-  return [
+  const calls = [
     call(
       "bombard",
       keyOf("bombard"),
@@ -301,4 +302,11 @@ export function callsOf(sim: Simulation, side: Side, missions: readonly MissionV
       "The attack is going in"
     )
   ]
+  // In an operation, the bombardments and zero hour are the plan's: the player can't fire them early.
+  if (!planFires(sim)) {
+    return calls
+  }
+  return calls.map((one) =>
+    one.id === "bombard" || one.id === "whistle" ? { ...one, available: false, reason: "The plan fires this" } : one
+  )
 }
