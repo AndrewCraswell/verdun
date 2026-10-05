@@ -135,3 +135,9 @@ In order, each verified in the browser and committed on its own:
   kept. With bundles on, `pnpm perf`'s draw count would see only the bundles, not the draws in them. Switching the sun's
   shadows off saves 148 draws and 4.6 ms of GPU a frame by day, the costliest single part after the scene itself.
   `pnpm perf --budget` now holds what each scenario draws to `scripts/perf-budget.json`, recorded on 5 October 2026.
+- **Performance, shadow casters out of sight**: a shadow pass drew everything in its light's view, and the sun's far
+  cascade's view and a flare's light (149 degrees, some 280 m) take in far more than the camera's: ground, trees and
+  sandbags shading ground nobody sees, the ground alone 41 draws in the far cascade and 59 under a flare. The passes now
+  leave out a caster whose shadow, swept from its bounds down to the map's lowest ground, can't reach the camera's view
+  (`render/shadow-reach.ts`), and the crows cast none: 64-67 fewer draws a frame by day, at night and under a barrage,
+  0.5-0.7 ms of GPU, and the picture identical to the bit by day, at dawn, under a flare and in the overview.
