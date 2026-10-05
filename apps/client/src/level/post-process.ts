@@ -9,6 +9,7 @@ import "@babylonjs/core/Rendering/depthRendererSceneComponent"
 import { DepthOfFieldEffectBlurLevel } from "@babylonjs/core/PostProcesses/depthOfFieldEffect"
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline"
 import type { Scene } from "@babylonjs/core/scene"
+import { quietMaterialGrade } from "../render/material-grade.ts"
 import type { GraphicsQuality } from "../settings/graphics.ts"
 
 /**
@@ -138,6 +139,9 @@ export function createPostProcess(
   pipeline.samples = SAMPLES[quality]
   pipeline.fxaaEnabled = SAMPLES[quality] === 1
   pipeline.imageProcessingEnabled = true
+  // The grade is the pipeline's to apply, so its changes, the night's exposure following the flares, needn't reach
+  // every material (see material-grade.ts).
+  const materialGrade = quietMaterialGrade(scene)
 
   pipeline.bloomEnabled = true
   // Only what's brighter than lit chalk: flames, flashes and sparks.
@@ -174,6 +178,7 @@ export function createPostProcess(
     redrawDepth: redraw,
     dispose() {
       stop()
+      materialGrade.dispose()
       pipeline.dispose()
     }
   }
