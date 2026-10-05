@@ -172,6 +172,13 @@ little better (4 of 5, 64%) and the Germans worse (2 of 5, 72%): walking longer 
 men aren't what drives the losses. Whether the losses band should move, or something else is making attacks bloodier
 than before pathfinding (about 50% then), is open; the harness needs casualty causes from the simulation to say which.
 
+**Where it stands now** (`e68f6b1`, ten seeds each way, with the closed wire gaps, the counter-thrust, reserves up on
+the alarm, spotted guns, gun crews, snipers and rifle grenadiers): 13 of 15 checks pass. Barrage-only attacks hold 3 and
+4 in 10; one bombardment 4 and 6 in 10 (German just over the band); three bombardments 8 and 9 in 10 at 55% and 62%
+losses (German just over); own fire 15% and 11%; the two sides within 20 points everywhere. Machine guns cause 27–38% of
+an unsupported attack's losses, a little under the [target](machine-guns.md#balance-targets) now that snipers and rifle
+grenades hunt them.
+
 **Losses by cause** (`5907d94`, the harness now reports them): rifles cause about half of every attack's losses
 (46–68%), enemy shells 16–37%, grenades 5–19%, own shells 2–9% (inside the 5–15% band for prepared attacks), and
 **machine guns only 1–7%**. History had it the other way: machine guns were what broke attacks, and the overnight log
