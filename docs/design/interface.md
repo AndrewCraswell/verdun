@@ -332,7 +332,10 @@ A thin bar under the soldier's status, as [stamina](morale-and-stamina.md#how-th
 - **Grenades**: "3 of 3" today (`grenades.count`, `GRENADES_CARRIED`). Shown as three marks, not a number.
 - **Rounds** (stage 1): by clip or charger, not by round: a Lebel's tube, a Gewehr 98's five-round chargers, a machine
   gun's belts or strips. Low below a quarter, out at none. _Needs data:_
-  [ammunition on the man](logistics.md#ammunition-on-the-man-planned).
+  [ammunition on the man](logistics.md#ammunition-on-the-man-planned). **Built** for the magazine (ammunition itself is
+  unlimited for now): rounds left of what it holds beside the ready ring ("6/8"), amber when low, red when out; while
+  reloading, "Reloading 4 s" in its place, the ring filling over the whole reload (`reloadSeconds`, longer in mud and
+  rain). Bolt work between shots shows on the ring alone.
 - **Machine gun** (stage 1): stoppage and clearing it, ammunition left for the team.
 
 ### H5 Squad roster
@@ -397,7 +400,10 @@ The fast interface the [orders](soldier-and-squad.md#orders) call for: a radial 
 one-key shortcuts (F, H, E).
 
 - **Hold** the orders key (proposed E): the radial opens around the cursor; the battle keeps running. Move the pointer
-  toward a wedge, release to give it. Release in the middle to cancel. Esc cancels.
+  toward a wedge, release to give it. Release in the middle to cancel. Esc cancels. **Built** on the middle mouse button
+  at the developer's asking: a middle click (a press that doesn't drag, so middle-drag still turns the camera) opens it
+  where it was clicked; point at a wedge and click to give it, click in the middle, right-click or Esc to give nothing.
+  The orders key (Y) still works held, for a mouse without a middle button.
 - **Wedges** (eight at most): Follow, Hold, Advance (to the point under the cursor at opening), Run to, Suppress (an
   area), Withdraw, Dig in, Rally. Stage 2 adds Bomb along, Consolidate, Carry wounded, Cut or lay wire, Resupply. Orders
   the squad can't take (no engineers to consolidate, no bombers left) show greyed with the reason.
@@ -823,7 +829,7 @@ the key and mouse bindings. The current list:
 | Group             | Keys and actions                                                                                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; right button held aim over the shoulder; left-click fire (hold on a machine gun); Q grenade; C crouch; Z lie down; Space vault the trench wall or wire fence ahead, or man the gun beside you; R reload |
-| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer; Y (for now) the orders wheel                                                                                                                                            |
+| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer; middle-click (or hold Y) the orders wheel                                                                                                                               |
 | Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                                                                                                                |
 | Camera            | Arrows pan (screen edges too, once off your man); Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Home or L back to your man                                                                 |
 | Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                                                                                                                    |

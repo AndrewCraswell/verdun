@@ -24,6 +24,7 @@ export {
   hitChance,
   type Magazine,
   magazineOf,
+  reloadSeconds,
   PINNED,
   type ReloadEvent,
   type ShotEvent,

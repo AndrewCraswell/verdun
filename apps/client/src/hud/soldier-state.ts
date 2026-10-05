@@ -20,6 +20,8 @@ import {
   type Simulation,
   type Squad,
   Stance,
+  magazineOf,
+  reloadSeconds,
   WEAPONS,
   Weapon,
   weatherPace,
@@ -77,6 +79,11 @@ export interface SoldierView {
     readonly name: string
     /** How far through reloading or working the bolt, from 0 (just fired) to 1 (ready). */
     readonly ready: number
+    /** Rounds left in the magazine, clip, strip or belt, and how many it holds. */
+    readonly rounds: number
+    readonly capacity: number
+    /** Seconds left reloading, or null when he isn't. */
+    readonly reloading: number | null
   }
   readonly spirit: Spirit
   readonly fire: FireState
@@ -209,6 +216,23 @@ function maskProgress(sim: Simulation, soldier: EntityId, tickRate: number): num
   return Math.min(1, Math.max(0, 1 - remaining / 12))
 }
 
+/** His weapon: what it is, the rounds in it, and how far through a reload or working the bolt. */
+function weaponView(sim: Simulation, soldier: EntityId, kind: Weapon): SoldierView["weapon"] {
+  const { weapon } = sim.soldiers
+  const cooldown = weapon.cooldown[soldier]
+  const reloading = weapon.reloading[soldier] === 1
+  // Read against the whole reload while reloading; otherwise against the time between shots.
+  const span = reloading ? reloadSeconds(sim, soldier) : WEAPONS[kind].interval
+  return {
+    kind: WEAPON_VIEWS[kind],
+    name: weaponName(sim, soldier),
+    ready: Math.min(1, Math.max(0, 1 - cooldown / span)),
+    rounds: weapon.rounds[soldier],
+    capacity: magazineOf(sim, soldier).rounds,
+    reloading: reloading ? Math.max(0, cooldown) : null
+  }
+}
+
 /** The man under control, or null when nobody is: the squad is wiped out. */
 export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, tickRate: number): SoldierView | null {
   const soldier = squad.leader
@@ -228,11 +252,7 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
     name: names.nameOf(sim, squad, soldier),
     role,
     roleLabel: roleLabel(role),
-    weapon: {
-      kind: WEAPON_VIEWS[kind],
-      name: weaponName(sim, soldier),
-      ready: Math.min(1, Math.max(0, 1 - soldiers.weapon.cooldown[soldier] / WEAPONS[kind].interval))
-    },
+    weapon: weaponView(sim, soldier, kind),
     spirit: spiritOf(soldiers.morale.value[soldier]),
     fire: fireOf(soldiers.suppression.value[soldier]),
     wounded: soldiers.health.value[soldier] < 1,

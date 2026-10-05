@@ -84,6 +84,11 @@ export function magazineOf(sim: Simulation, soldier: EntityId): Magazine {
   return MAGAZINES[side][weaponKind(sim, soldier)]
 }
 
+/** How long a soldier's reload takes now, in seconds: his weapon's, longer in mud and rain as firing is (climate.ts). */
+export function reloadSeconds(sim: Simulation, soldier: EntityId): number {
+  return magazineOf(sim, soldier).reload * reloadFactor(sim, sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun)
+}
+
 /** A soldier starting to reload, and finishing: for the HUD, the sound and his animation. */
 export interface ReloadEvent {
   readonly type: "reloading" | "reloaded"
@@ -101,7 +106,7 @@ export function startReload(sim: Simulation, soldier: EntityId): boolean {
     return false
   }
   weapon.reloading[soldier] = 1
-  weapon.cooldown[soldier] = magazine.reload * reloadFactor(sim, weapon.kind[soldier] === Weapon.MachineGun)
+  weapon.cooldown[soldier] = reloadSeconds(sim, soldier)
   sim.events.push({ type: "reloading", soldier })
   return true
 }

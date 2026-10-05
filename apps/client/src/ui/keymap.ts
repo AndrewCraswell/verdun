@@ -80,7 +80,11 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "follow", label: "Squad order: follow me", keys: ["KeyF"] },
       { action: "hold", label: "Squad order: hold", keys: ["KeyH"] },
       { action: "advance", label: "Squad order: advance to the point under the pointer", keys: ["KeyE"] },
-      { action: "orders", label: "Hold for the orders wheel: point at an order and let go", keys: ["KeyY"] },
+      {
+        action: "orders",
+        label: "Hold for the orders wheel, as a middle click opens it: point and let go",
+        keys: ["KeyY"]
+      },
       { action: "take-over", label: "Take over the nearest squad, when yours is lost", keys: ["KeyT"] }
     ]
   },

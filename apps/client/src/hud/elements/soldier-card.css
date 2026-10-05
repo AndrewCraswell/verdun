@@ -338,6 +338,27 @@
   transition: stroke-dashoffset 110ms linear;
 }
 
+.sc-rounds {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--hud-ink);
+}
+
+.sc-weapon[data-rounds="low"] .sc-rounds {
+  color: var(--hud-caution);
+}
+
+.sc-weapon[data-rounds="out"] .sc-rounds,
+.sc-weapon[data-reloading] .sc-ready__text {
+  color: var(--hud-danger);
+}
+
+/* While reloading, the time left takes the count's place. */
+.sc-weapon[data-reloading] .sc-rounds {
+  display: none;
+}
+
 .sc-weapon[data-ready] .sc-ready {
   color: var(--hud-ink-2);
 }

@@ -37,15 +37,16 @@ function breathOf(soldier: SoldierView): Breath {
 }
 
 /** What working his weapon looks like between shots: a rifle's bolt, a machine gun's burst. */
-const RELOADING: Readonly<Record<SoldierView["weapon"]["kind"], string>> = {
-  rifle: "Working the bolt",
-  "machine-gun": "Firing",
-  sniper: "Working the bolt",
-  "rifle-grenade": "Working the bolt"
-}
-
 /** Said only while it matters: off, the mask's dim mark is enough. */
 const MASK: Readonly<Record<MaskView, string>> = { off: "", masking: "Masking", on: "Mask on" }
+
+/** How the magazine stands: low below a quarter of what it holds, out at none. */
+function supply(rounds: number, capacity: number): "out" | "low" | "ok" {
+  if (rounds === 0) {
+    return "out"
+  }
+  return rounds <= capacity / 4 ? "low" : "ok"
+}
 
 /** In a trench, a word on whether his head is up over the parapet; nothing out of the trenches. */
 function parapetNote(overParapet: boolean | null): string {
@@ -117,12 +118,14 @@ export const soldierCard: HudElementFactory = () => {
   readyRing.setAttribute("viewBox", "0 0 20 20")
   readyRing.innerHTML =
     '<circle cx="10" cy="10" r="7.5" class="sc-ready__track"/><circle cx="10" cy="10" r="7.5" class="sc-ready__arc" pathLength="1"/>'
+  // Rounds left of what the magazine holds; while reloading, the seconds left instead.
+  const rounds = h("strong", "sc-rounds")
   const readyText = h("span", "sc-ready__text")
   const weapon = h(
     "div",
     "sc-weapon",
     weaponIcon,
-    h("span", "sc-weapon__text", weaponName, h("span", "sc-ready", readyRing, readyText))
+    h("span", "sc-weapon__text", weaponName, h("span", "sc-ready", readyRing, rounds, readyText))
   )
   const pips = h("span", "sc-grenades__pips")
   const grenades = h("div", "sc-grenades", h("span", "hud-label", "Grenades"), pips)
@@ -213,11 +216,15 @@ export const soldierCard: HudElementFactory = () => {
 
       setIcon(weaponIcon, soldier.weapon.kind)
       setText(weaponName, soldier.weapon.name)
-      const ready = soldier.weapon.ready >= 1
+      const { ready: readiness, rounds: left, capacity, reloading } = soldier.weapon
+      const ready = readiness >= 1
       setData(weapon, "ready", ready)
-      setVar(readyRing, "--ready", soldier.weapon.ready)
-      // Ready goes without saying: the ring full says it. Only the reload is named.
-      setText(readyText, ready ? "" : RELOADING[soldier.weapon.kind])
+      setData(weapon, "reloading", reloading !== null)
+      setData(weapon, "rounds", supply(left, capacity))
+      setVar(readyRing, "--ready", readiness)
+      setText(rounds, `${left}/${capacity}`)
+      // Ready goes without saying: the ring full says it. Only a reload is named, with its time left.
+      setText(readyText, reloading === null ? "" : `Reloading ${Math.ceil(reloading)} s`)
 
       if (soldier.grenades.carried !== pipCount) {
         pipCount = soldier.grenades.carried

@@ -1,4 +1,14 @@
-import { casualty, enqueueCommand, MaskState, Stance, stepSimulation, surrender, TICK_RATE, Weapon } from "@verdun/sim"
+import {
+  casualty,
+  enqueueCommand,
+  MaskState,
+  reloadSeconds,
+  Stance,
+  stepSimulation,
+  surrender,
+  TICK_RATE,
+  Weapon
+} from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { actionFor, type Casualties, effectsOn, rosterView, severityOf, soldierView } from "./soldier-state.ts"
 import { createSquadNames } from "./squad-names.ts"
@@ -56,9 +66,21 @@ describe("soldierView", () => {
       posture: "prone",
       mask: "off",
       grenades: { count: 1, carried: 3 },
-      weapon: { kind: "rifle", name: "Lebel M1886", ready: 0.5 }
+      weapon: { kind: "rifle", name: "Lebel M1886", ready: 0.5, rounds: 8, capacity: 8, reloading: null }
     })
     expect(view?.name.rank).toBe("Caporal")
+  })
+
+  it("counts the rounds left, and reads a reload against its whole length", () => {
+    const { sim, squad, members } = testBattle()
+    const leader = slot(members, 0)
+    sim.soldiers.weapon.rounds[leader] = 0
+    sim.soldiers.weapon.reloading[leader] = 1
+    const whole = reloadSeconds(sim, leader)
+    sim.soldiers.weapon.cooldown[leader] = whole / 4
+    const weapon = soldierView(sim, squad, createSquadNames(), TICK_RATE)?.weapon
+    expect(weapon).toMatchObject({ rounds: 0, capacity: 8, reloading: whole / 4 })
+    expect(weapon?.ready).toBeCloseTo(0.75, 5)
   })
 
   it("reads breaking, being under fire, the mask going on and climbing out of a dugout", () => {

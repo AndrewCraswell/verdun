@@ -6,11 +6,12 @@ import { DEAD_ZONE, WEDGES, wedgeAt, wedgeRefusal, type WheelContext } from "../
 import "./order-wheel.css"
 
 /**
- * H7: the orders wheel. Held (R), it opens round the pointer while the battle goes on: Advance, Run to, Suppress, Dig
- * in, Withdraw, Rally, Hold and Follow, the ones with their own keys showing them. Point toward one and let go to give
- * it; let go in the middle, or right-click, to give nothing. The orders on the ground go to the ground that was under
- * the pointer when the wheel opened, marked in its middle. An order the squad can't take now is greyed; pointed at, the
- * line under the wheel says why.
+ * H7: the orders wheel. A middle click opens it where it was clicked, while the battle goes on: Advance, Run to,
+ * Suppress, Dig in, Withdraw, Rally, Hold and Follow, the ones with their own keys showing them. Point toward one and
+ * click to give it; click in the middle, right-click or Esc to give nothing. A middle drag still turns the camera. The
+ * orders key works too, held: point and let go. The orders on the ground go to the ground that was under the pointer
+ * when the wheel opened, marked in its middle. An order the squad can't take now is greyed; pointed at, the line under
+ * the wheel says why.
  */
 
 const SVG = "http://www.w3.org/2000/svg"
@@ -20,6 +21,8 @@ const OUTER = 128
 /** Room under the wheel for the line saying why an order can't be given. */
 const REASON = 30
 const ORDERS_KEY = canonicalCode("orders")
+/** A middle press that moves no further than this, in pixels, is a click for the wheel, not a drag for the camera. */
+const CLICK_SLOP = 5
 
 function svg<K extends keyof SVGElementTagNameMap>(
   tag: K,
@@ -82,11 +85,21 @@ export const orderWheel: HudElementFactory = (context) => {
   root.append(...wedges.map(({ group }) => group), centre, reason)
   root.style.display = "none"
 
-  let open: { readonly x: number; readonly y: number; readonly ground: { x: number; z: number } | null } | null = null
+  /** Opened by holding the key, given when it's let go; or by a middle click, given with the next click. */
+  let open: {
+    readonly x: number
+    readonly y: number
+    readonly ground: { x: number; z: number } | null
+    readonly by: "key" | "click"
+  } | null = null
   let pointer = { x: 0, y: 0 }
   let chosen: number | null = null
   /** Why each wedge's order can't be given, as the wheel opened; null for those that can. */
   let refusals: (string | null)[] = []
+  /** Where the middle button went down on the battlefield, to tell a click from the camera's drag. */
+  let middleDown: { readonly x: number; readonly y: number } | null = null
+  /** A click that gave or put away the wheel: its button's release mustn't open it again. */
+  let swallowUp = false
 
   function choose(): void {
     chosen = open ? wedgeAt(pointer.x - open.x, pointer.y - open.y, WEDGES.length) : null
@@ -103,19 +116,10 @@ export const orderWheel: HudElementFactory = (context) => {
     root.style.display = "none"
   }
 
-  const onMove = (event: PointerEvent) => {
-    pointer = { x: event.clientX, y: event.clientY }
-    if (open) {
-      choose()
-    }
-  }
-  const onDown = (event: KeyboardEvent) => {
-    if (event.repeat || keymap().canonical(event.code) !== ORDERS_KEY) {
-      return
-    }
-    open = { x: pointer.x, y: pointer.y, ground: context.pointerGround() }
-    root.style.left = `${open.x - size / 2}px`
-    root.style.top = `${open.y - size / 2}px`
+  function openAt(x: number, y: number, by: "key" | "click"): void {
+    open = { x, y, ground: context.pointerGround(), by }
+    root.style.left = `${x - size / 2}px`
+    root.style.top = `${y - size / 2}px`
     root.style.display = ""
     if (context.canvas) {
       context.canvas.dataset.orderMode = "wheel"
@@ -131,8 +135,10 @@ export const orderWheel: HudElementFactory = (context) => {
     }
     choose()
   }
-  const onUp = (event: KeyboardEvent) => {
-    if (!open || keymap().canonical(event.code) !== ORDERS_KEY) {
+
+  /** Gives the order pointed at, if the squad can take it, and puts the wheel away. */
+  function give(): void {
+    if (!open) {
       return
     }
     const wedge = chosen === null ? undefined : WEDGES[chosen]
@@ -143,13 +149,61 @@ export const orderWheel: HudElementFactory = (context) => {
     }
     close()
   }
-  const onPointerDown = (event: PointerEvent) => {
-    if (open && event.button === 2) {
+
+  const onMove = (event: PointerEvent) => {
+    pointer = { x: event.clientX, y: event.clientY }
+    if (open) {
+      choose()
+    }
+  }
+  const onDown = (event: KeyboardEvent) => {
+    if (open && event.code === "Escape") {
       close()
+      return
+    }
+    if (event.repeat || open || keymap().canonical(event.code) !== ORDERS_KEY) {
+      return
+    }
+    openAt(pointer.x, pointer.y, "key")
+  }
+  const onUp = (event: KeyboardEvent) => {
+    if (open?.by === "key" && keymap().canonical(event.code) === ORDERS_KEY) {
+      give()
+    }
+  }
+  // Heard first, while capturing: with the wheel open, a click is for the wheel, not for the rifle or the camera.
+  const onPointerDown = (event: PointerEvent) => {
+    if (open) {
+      if (event.button === 2) {
+        close()
+      } else if (open.by === "click" && (event.button === 0 || event.button === 1)) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        swallowUp = true
+        give()
+      }
+      return
+    }
+    middleDown = event.button === 1 && event.target === context.canvas ? { x: event.clientX, y: event.clientY } : null
+  }
+  const onPointerUp = (event: PointerEvent) => {
+    if (swallowUp) {
+      swallowUp = false
+      event.stopImmediatePropagation()
+      return
+    }
+    // A middle click, not a drag that turned the camera: the wheel opens where it was clicked.
+    const start = middleDown
+    middleDown = null
+    if (event.button === 1 && start && !open && context.squad.leader >= 0) {
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= CLICK_SLOP) {
+        openAt(event.clientX, event.clientY, "click")
+      }
     }
   }
   window.addEventListener("pointermove", onMove)
-  window.addEventListener("pointerdown", onPointerDown)
+  window.addEventListener("pointerdown", onPointerDown, { capture: true })
+  window.addEventListener("pointerup", onPointerUp, { capture: true })
   window.addEventListener("keydown", onDown)
   window.addEventListener("keyup", onUp)
   window.addEventListener("blur", close)
@@ -166,7 +220,8 @@ export const orderWheel: HudElementFactory = (context) => {
     },
     dispose() {
       window.removeEventListener("pointermove", onMove)
-      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("pointerdown", onPointerDown, { capture: true })
+      window.removeEventListener("pointerup", onPointerUp, { capture: true })
       window.removeEventListener("keydown", onDown)
       window.removeEventListener("keyup", onUp)
       window.removeEventListener("blur", close)
