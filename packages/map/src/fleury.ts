@@ -553,21 +553,29 @@ interface Placer {
   place(kind: SceneryKind, x: number, z: number, heading: number, options?: { variant?: number; scale?: number }): void
   /** True when nothing placed so far, and no trench or railway track, lies within `radius` of the point. */
   isClear(x: number, z: number, radius: number): boolean
+  /**
+   * Lays field railways through what's been placed: clears away what stands on or beside their track, and keeps what's
+   * placed from then on off it. Laid after the rest, the rest is placed exactly as it would be without them.
+   */
+  layRailways(railways: readonly Railway[]): void
 }
 
-function createPlacer(
-  segments: readonly [GroundPoint, GroundPoint][],
-  random: () => number,
-  railways: readonly Railway[] = []
-): Placer {
+/** Ground a piece of scenery keeps clear of others, in metres. */
+function footprintOf(kind: SceneryKind, scale: number): number {
+  return FOOTPRINTS[kind] ?? (kind === "pool" ? scale : 1.5)
+}
+
+function createPlacer(segments: readonly [GroundPoint, GroundPoint][], random: () => number): Placer {
   const scenery: Scenery[] = []
   const footprints: { x: number; z: number; radius: number }[] = []
-  const courses = railways.map(railwayCourse)
+  let courses: GroundPoint[][] = []
+  const onTrack = (x: number, z: number, radius: number) =>
+    courses.some((course) => nearestOnLine(course, x, z).distance < radius + RAILWAY_CLEARANCE)
   return {
     scenery,
     place(kind, x, z, heading, { variant = Math.floor(random() * 1_000), scale = 1 } = {}) {
       scenery.push({ kind, x, z, heading, variant, scale })
-      footprints.push({ x, z, radius: FOOTPRINTS[kind] ?? (kind === "pool" ? scale : 1.5) })
+      footprints.push({ x, z, radius: footprintOf(kind, scale) })
     },
     isClear(x, z, radius) {
       if (x < 2 || z < 2 || x > WIDTH - 2 || z > DEPTH - 2) {
@@ -576,10 +584,17 @@ function createPlacer(
       if (trenchDistance(segments, x, z) < radius + TRENCH_PROFILE.parapetOuter) {
         return false
       }
-      if (courses.some((course) => nearestOnLine(course, x, z).distance < radius + RAILWAY_CLEARANCE)) {
+      if (onTrack(x, z, radius)) {
         return false
       }
       return footprints.every((footprint) => Math.hypot(footprint.x - x, footprint.z - z) > footprint.radius + radius)
+    },
+    layRailways(railways) {
+      courses = railways.map(railwayCourse)
+      const standing = scenery.filter((item) => !onTrack(item.x, item.z, footprintOf(item.kind, item.scale)))
+      scenery.splice(0, scenery.length, ...standing)
+      const kept = footprints.filter((footprint) => !onTrack(footprint.x, footprint.z, footprint.radius))
+      footprints.splice(0, footprints.length, ...kept)
     }
   }
 }
@@ -1011,11 +1026,12 @@ export function generateFleurySector({
 
   const sceneryRandom = createRandom(seed + SEEDS.scenery)
   const railways = layout?.railways ?? [{ points: FRENCH_RAILWAY }]
-  const placer = createPlacer(segments, sceneryRandom, railways)
+  const placer = createPlacer(segments, sceneryRandom)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)
   const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf(seed)
   if (layout) {
+    placer.layRailways(railways)
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
     const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives, railways }
     sculptForScenery(drawn, drawn.scenery)
@@ -1043,9 +1059,6 @@ export function generateFleurySector({
     ],
     Math.PI
   )
-  for (const [x, z] of RAILWAY_DUMPS) {
-    placeNear(placer, "stores", x, z, 0, 1.5)
-  }
   placeNear(placer, "wrecked-gun", 338, 62, 0.4, 3)
   placeNear(placer, "wrecked-gun", 432, 388, 2.8, 3)
   placeNear(placer, "wrecked-plane", 262, 203, 2.2, 5)
@@ -1080,6 +1093,11 @@ export function generateFleurySector({
   }
   placeRoadsideTrees(seed, placer, sceneryRandom)
   placeWoods(seed, placer, sceneryRandom)
+  // The railway last, so everything else stands where it would without it, then the dumps it serves.
+  placer.layRailways(railways)
+  for (const [x, z] of RAILWAY_DUMPS) {
+    placeNear(placer, "stores", x, z, 0, 1.5)
+  }
 
   const sector = {
     ...map,
