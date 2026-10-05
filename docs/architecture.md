@@ -128,12 +128,16 @@ before, for development and `pnpm perf`.
   player's own squad sees. Every man is looked at five times a second, and counted seen for two seconds after, so one
   bobbing behind a traverse isn't sent whole each time. A man coming into sight is sent whole; one going out of it stays
   where he was last seen, and the page never draws an enemy the server hasn't said its side can see (the fog's `known`).
-  A late joiner isn't told where the unseen enemy are. It defeats wallhacks for men's positions; the global part
-  (events, squads' orders, who has which component) still goes to everyone. The sight lines are cast in a worker thread
-  (`sight-thread.ts`) with its own copy of the ground, reshaped by each message's craters, so they cost the room's
-  thread about 0.3 ms a message; until its first answer, or if it fails, the room works them out itself. A line is kept
-  while neither man moves a metre (most of a trench line holds still), and a parapet within 6 m of either end is found
-  from the heights without a cast.
+  A late joiner isn't told where the unseen enemy are. The rest of what a side is told is its own too (`side-view.ts`):
+  the enemy's squads come without their orders or who leads them, and of the enemy's fire missions, reserves, gun crews,
+  alarms and guns not yet placed, nothing; of what men did or came to (wounded, fallen, reloading, throwing), only its
+  own men's and the enemy in sight's; of a side's news (zero hour, reserves sent up, guns out of shells), only its own;
+  and the enemy out of sight keep the components they had when last seen. Shots, bursts, cut wire and flares go to both,
+  as everyone on the field sees and hears them, and so do the shells in flight, for the sound of the guns and the
+  warning of what's coming in. The sight lines are cast in a worker thread (`sight-thread.ts`) with its own copy of the
+  ground, reshaped by each message's craters, so they cost the room's thread about 0.3 ms a message; until its first
+  answer, or if it fails, the room works them out itself. A line is kept while neither man moves a metre (most of a
+  trench line holds still), and a parapet within 6 m of either end is found from the heights without a cast.
 - **What only a man's own squad uses goes to his squad's player alone** (`OWN_SQUAD_ONLY`): breath, rounds, cooldowns,
   move orders, steering, the gas mask's time. Other men are drawn from the rest (their firing from `weapon.firedAt`,
   which changes once a shot, not the cooldown, which counts down every step). Which soldiers have which components goes
@@ -218,6 +222,8 @@ What it said, and what was done about it:
 - **Encoding in a worker thread** took the room thread's share of a message from 17 to 27 ms to 1.7 ms (taking the sync,
   sight's frame, working out who's near what, posting); the worker takes about 11 ms a message for 100 players. The
   step's worst p95 fell from 45 to 76 ms to 39.
+- **Telling each side only its own** (squads' orders, fire missions, events) costs the encoding's worker about 2.5 ms a
+  message more, 13 ms in all, and sends no fewer bytes: shots, which both sides get, are most of the events.
 - **What players are sent now**, per message: soldiers' arrays about 55% (their anchors, paces and facing 40%), events
   17%, smoke 5%.
 - **Hosting**: at 100 players a sector sends about 2.8 MB/s (23 Mbit/s), which matters for Railway's egress pricing.

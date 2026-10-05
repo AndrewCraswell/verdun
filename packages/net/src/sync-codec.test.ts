@@ -371,6 +371,9 @@ describe("the battle's messages", () => {
     message([])
     expect(mirror.soldiers.position.z[german0]).toBe(lastSeen)
     expect(joined.decoder.seen?.size).toBe(0)
+    // Nor is the side told what the enemy's squads are about.
+    expect(mirror.squads[1]?.order).toEqual({ kind: "hold" })
+    expect(sim.squads[1]?.order.kind).toBe("advance")
     expect(() => encoder.encode(source.take(), new Map()).for("player", to(EVERY_CELL))).toThrow(
       "The battle's sight has no side 0"
     )

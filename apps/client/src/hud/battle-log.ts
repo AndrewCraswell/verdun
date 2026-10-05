@@ -98,7 +98,10 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
   let messages: LogMessage[] = []
   let nextId = 0
   let gasAlarm = false
-  let missionsSeen = sim.artillery.missions.length
+  // The id the next fire mission will have: a server sends a side only its own missions, so ids, not the list's
+  // length, tell which are new.
+  const nextMission = () => (sim.artillery.missions.at(-1)?.id ?? -1) + 1
+  let missionsSeen = nextMission()
   let pattern: WeatherPattern = sim.environment.weather.pattern
   let standTo = isStandTo(sim)
   const counts = new Map<string, { readonly id: number; readonly count: number }>()
@@ -305,7 +308,7 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
         gasAlarm = false
       }
       // Our guns called: each group of missions ordered together, once.
-      if (sim.artillery.missions.length > missionsSeen) {
+      if (nextMission() > missionsSeen) {
         const leader = squad.leader
         const from = leader >= 0 ? { x: sim.soldiers.position.x[leader], z: sim.soldiers.position.z[leader] } : null
         for (const mission of missionsOf(sim, side, tickRate, from)) {
@@ -314,7 +317,7 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
             say(`${mission.label}, ${mission.place}${when}`, "fire", false)
           }
         }
-        missionsSeen = sim.artillery.missions.length
+        missionsSeen = nextMission()
       }
       // The sky, and the stand-to at dawn and dusk.
       if (sim.environment.weather.pattern !== pattern) {

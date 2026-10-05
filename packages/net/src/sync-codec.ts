@@ -1,10 +1,11 @@
 import type { BattlefieldMap } from "@verdun/map"
-import type { SimSync, WarSchedule } from "@verdun/sim"
+import { Side, type SimSync, type WarSchedule } from "@verdun/sim"
 import { deflateSync, inflateSync } from "fflate"
 import { Packr } from "msgpackr"
 import { apply, diff, isPatch, type Patch } from "./delta.ts"
 import { type GroundMovement, groundFromMovement } from "./ground-movement.ts"
 import { createReckoner, nothingShown, RECKONED_FROM, reckonShown, type Shown } from "./reckoning.ts"
+import { sideState, sideSteps } from "./side-view.ts"
 import {
   applyCellPatch,
   type CellGrid,
@@ -332,21 +333,37 @@ function packed(mirrored: Mirrored, layout: ArrayLayout, soldiers: number): Arra
   return bytes.buffer
 }
 
-/** The global view as of `sync`, the smoke's concentration only if `smokeDue`. */
-function globalOf(sync: SimSync, known: GlobalView | null, smokeDue: boolean): GlobalView {
+/**
+ * The global view as of `sync`, the smoke's concentration only if `smokeDue`, for a side that's sent the soldiers
+ * `sent` marks (by soldier, 1 or 0) and the battle's state as `state`: of the soldiers it isn't sent, which components
+ * they have stays as it was last known.
+ */
+function globalOf(
+  sync: SimSync,
+  known: GlobalView | null,
+  smokeDue: boolean,
+  sent: Uint8Array,
+  state: SimSync["state"]
+): GlobalView {
   const members: Record<string, Uint8Array> = {}
   for (const [name, ids] of Object.entries(sync.members)) {
     const flags = new Uint8Array(sync.soldiers)
     for (const soldier of ids) {
       flags[soldier] = 1
     }
+    const before = known?.members[name]
+    sent.forEach((isSent, soldier) => {
+      if (isSent !== 1) {
+        flags[soldier] = before?.[soldier] ?? 0
+      }
+    })
     members[name] = flags
   }
   return {
     tick: sync.tick,
     soldiers: sync.soldiers,
     members,
-    state: sync.state,
+    state,
     wire: sync.wire ?? known?.wire ?? null,
     gas: cloud(sync.gas, known?.gas, GAS_SCALE, true),
     smoke: cloud(sync.smoke, known?.smoke, SMOKE_SCALE, smokeDue)
@@ -471,8 +488,12 @@ function cellsOf(arrays: SoldierArrays, grid: CellGrid, unit: number, soldiers: 
 /** The perspective when sides aren't told apart: everyone is sent every soldier. */
 const EVERYONE = -1
 
-/** A side's share of a message: its men's cells, with the enemies it can see, and who came into or out of its sight. */
+/**
+ * A side's share of a message: what it's told of the battle beyond the soldiers (`side-view.ts`), its men's cells, with
+ * the enemies it can see, and who came into or out of its sight.
+ */
 interface SideParts {
+  readonly global: Uint8Array
   readonly near: Map<number, CellPatch>
   readonly far: Map<number, CellPatch>
   readonly changedCells: ReadonlySet<number>
@@ -543,7 +564,8 @@ export function createSyncEncoder(
   const grid = cellGrid(width, depth, cellSize)
   const unit = positionUnit(Math.max(width, depth))
   const reckoner = createReckoner(unit)
-  let global: GlobalView | null = null
+  // What each side (or EVERYONE) was last told of the battle beyond the soldiers.
+  const globals = new Map<number, GlobalView>()
   // The soldiers' arrays as sent (each man's position and facing reckoned), and as they are.
   let arrays: SoldierArrays | null = null
   let actual: SoldierArrays | null = null
@@ -565,9 +587,7 @@ export function createSyncEncoder(
   return {
     grid,
     encode(sync, sight = null) {
-      const nextGlobal = globalOf(sync, global, messages % SMOKE_EVERY === 0)
-      const globalPart = pack({ v: diff(global, nextGlobal), s: sync.steps, g: sync.ground })
-      global = nextGlobal
+      const smokeDue = messages % SMOKE_EVERY === 0
       const previous = arrays
       const previousActual = actual
       const nextActual = unpacked(sync, layout, unit)
@@ -605,6 +625,23 @@ export function createSyncEncoder(
         for (let soldier = 0; soldier < sync.soldiers; soldier++) {
           sent[soldier] = !enemies || sideOf?.[soldier] === perspective || enemies.has(soldier) ? 1 : 0
         }
+        // Each side is told what it knows of the battle; without sight, everyone everything.
+        const side = perspective === Side.German ? Side.German : Side.French
+        const knows = (soldier: number) => sent[soldier] === 1
+        const was = globals.get(perspective) ?? null
+        const view = globalOf(
+          sync,
+          was,
+          smokeDue,
+          sent,
+          enemies ? sideState(sync.state, side, (soldier) => sideOf?.[soldier]) : sync.state
+        )
+        globals.set(perspective, view)
+        const global = pack({
+          v: diff(was, view),
+          s: enemies ? sideSteps(sync.steps, side, knows) : sync.steps,
+          g: sync.ground
+        })
         // Men the side has just come to see go whole, as men crossing into a cell do.
         const near = cellPatches(
           previous,
@@ -631,6 +668,7 @@ export function createSyncEncoder(
           seenBy.set(perspective, now)
         }
         sides.set(perspective, {
+          global,
           near,
           far,
           changedCells: new Set([...near.keys(), ...far.keys()]),
@@ -681,7 +719,7 @@ export function createSyncEncoder(
           const ownChanged = !had || had.size !== own.length || own.some((soldier) => !had.has(soldier))
           ownFor.set(player, new Set(own))
           return packr.pack({
-            g: globalPart,
+            g: parts.global,
             c: cellParts,
             ...(parts.seen ? { k: parts.seen } : {}),
             ...(mine ? { p: mine } : {}),
@@ -691,6 +729,7 @@ export function createSyncEncoder(
       }
     },
     welcome(playerSquad, side, schedule, ground) {
+      const global = globals.get(side) ?? globals.get(EVERYONE)
       if (!global || !arrays) {
         throw new Error("A player can't be welcomed before the battle's first sync")
       }
