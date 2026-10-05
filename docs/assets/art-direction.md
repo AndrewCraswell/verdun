@@ -55,7 +55,7 @@ density.
 - Megascans photoscans are far more detailed than needed: decimate and cut textures to 512–1K.
 - Don't mix Synty's flat-shaded style with photoscans: the remaster replaces the Synty art rather than mixing with it.
 - AI generation (Meshy, Tripo) is fine for static clutter (crates, carts, field telephones, rubble), not soldiers.
-  Disclose AI content if shipping on Steam. Never feed purchased assets into AI tools.
+  Disclose AI content if shipping on Steam.
 
 ## Commission spec
 

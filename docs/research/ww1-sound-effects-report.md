@@ -148,7 +148,7 @@ Three smaller clauses matter for this project:
 - **Convolution reverb.** BOOM bans embedding content "where it functions as a real-time audio tool ... (e.g., Impulse Responses used in convolution reverbs)" ([BOOM EULA](https://www.boomlibrary.com/?p=480427)). Any WebAudio `ConvolverNode` impulse response should be self-recorded or CC0, not cut from a purchased tail.
 - **Map editor.** A Sound Effect bans "media authoring tools" ([A Sound Effect](https://www.asoundeffect.com/license-agreement/)). A future map editor should reference sounds by ID and never export them.
 
-Every vendor bans AI training, which matches the project rule never to upload purchased assets to AI services. Soundly goes further and bans uploading into "any third party AI tool", which covers AI cleanup services too. BOOM's product page also says its products "are only available for commercial customers" ([BOOM](https://www.boomlibrary.com/sound-effects/world-war-i-firearms/)), so check how it treats a sole trader at checkout. The BOOM EULA quotes came through a summarizing fetch and should be re-read on the live page.
+Every vendor bans AI training. Soundly goes further and bans uploading into "any third party AI tool", which covers AI cleanup services too. BOOM's product page also says its products "are only available for commercial customers" ([BOOM](https://www.boomlibrary.com/sound-effects/world-war-i-firearms/)), so check how it treats a sole trader at checkout. The BOOM EULA quotes came through a summarizing fetch and should be re-read on the live page.
 
 ### Delivery fits the existing pipeline
 

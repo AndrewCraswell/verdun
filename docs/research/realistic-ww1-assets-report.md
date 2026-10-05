@@ -333,7 +333,7 @@ Three rules apply to AI output:
 
 - Raw AI output is not copyrightable in the US.
 - Steam has required disclosure of shipped AI content since January 2026 ([Promise Legal](https://blog.promise.legal/ai-game-assets-copyright-steam-disclosure-2026/)).
-- Never use purchased packs as AI inputs. Synty's license, for example, forbids uploading its source files to 3D-generation services ([Synty](https://syntystore.com/pages/end-user-licence-agreement)).
+- Some licences restrict it: Synty's forbids uploading its source files to 3D-generation services ([Synty](https://syntystore.com/pages/end-user-licence-agreement)).
 
 | Route | Cash (estimate) | Time | Verdict |
 |---|---|---|---|
