@@ -281,6 +281,21 @@ export function createSyncSource(sim: Simulation): SyncSource {
   }
 }
 
+/** The membership each mirror was last given, by component: most batches change none of it. */
+const appliedMembers = new WeakMap<Simulation, Map<string, Int32Array>>()
+
+function sameIds(a: Int32Array | undefined, b: Int32Array): boolean {
+  if (!a || a.length !== b.length) {
+    return false
+  }
+  for (let index = 0; index < b.length; index++) {
+    if (a[index] !== b[index]) {
+      return false
+    }
+  }
+  return true
+}
+
 /**
  * Brings a mirror up to date with a sync from the simulation it follows. The mirror must have been made by
  * `createSimulation` on a copy of the same map, and nothing else may step it or add soldiers to it. Its events are the
@@ -297,8 +312,19 @@ export function applySync(mirror: Simulation, sync: SimSync): void {
     new Uint8Array(array.buffer, array.byteOffset, bytes).set(new Uint8Array(sync.arrays, offset, bytes))
     offset += bytes
   }
+  let applied = appliedMembers.get(mirror)
+  if (!applied) {
+    applied = new Map()
+    appliedMembers.set(mirror, applied)
+  }
   for (const [name, component] of soldierComponents(mirror)) {
-    const wanted = new Set(sync.members[name] ?? [])
+    const ids = sync.members[name] ?? new Int32Array()
+    // Unchanged since the last sync, as nearly every component is from one batch to the next: nothing to do.
+    if (sameIds(applied.get(name), ids)) {
+      continue
+    }
+    applied.set(name, ids.slice())
+    const wanted = new Set(ids)
     for (const id of Array.from(query(mirror.world, [component]))) {
       if (!wanted.has(id)) {
         removeComponent(mirror.world, id, component)
