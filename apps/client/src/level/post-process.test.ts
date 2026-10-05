@@ -141,6 +141,37 @@ describe("createPostProcess", () => {
     expect(draws(3)).toBe(3)
   })
 
+  it("multisamples the scene's target alone, whichever effect came first as the pipeline was put together", () => {
+    const { scene, camera } = setup(40)
+    // The null engine can't multisample: let it, as WebGPU and WebGL 2 do, to see which passes would.
+    const features: unknown = Reflect.get(scene.getEngine(), "_features")
+    if (typeof features === "object" && features !== null) {
+      Reflect.set(features, "supportMSAA", true)
+    }
+    scene.getEngine().getCaps().maxMSAASamples = 4
+    const post = createPostProcess(scene, camera)
+    if (!post) {
+      throw new Error("the pipeline should run on the null engine")
+    }
+    const sampled = () => {
+      const first = camera._getFirstPostProcess()
+      expect(first).toBe(post.pipeline.depthOfField.getPostProcesses()?.[0])
+      expect(first?.samples).toBe(4)
+      const rest = camera._postProcesses.filter((postProcess) => postProcess !== null && postProcess !== first)
+      expect(rest.length).toBeGreaterThan(5)
+      expect(rest.map((postProcess) => [postProcess?.name, postProcess?.samples])).toEqual(
+        rest.map((postProcess) => [postProcess?.name, 1])
+      )
+    }
+
+    sampled()
+    // Switched off and on again, as pnpm perf's probe does, the bloom comes first for a while.
+    post.pipeline.depthOfFieldEnabled = false
+    post.pipeline.depthOfFieldEnabled = true
+    sampled()
+    post.dispose()
+  })
+
   it("draws the depth every frame when it draws everything the camera sees, moving or not", () => {
     const { scene, camera } = setup(40)
     const post = createPostProcess(scene, camera)

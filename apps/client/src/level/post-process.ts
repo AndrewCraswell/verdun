@@ -42,6 +42,21 @@ const DEPTH_MAP_SCALE = 0.5
  */
 const SAMPLES: Readonly<Record<GraphicsQuality, number>> = { high: 4, low: 1 }
 
+/**
+ * Keeps the samples to the scene's own target. Babylon multisamples the first pass of whichever effect comes first each
+ * time the pipeline is put together, and never takes them back off a pass that has since moved down the chain: the
+ * bloom, put in before the depth of field, kept four samples on its first pass, which only copies the depth of field's
+ * picture, at the cost of a second multisampled target of 63 MB at 1080p written and resolved every frame.
+ */
+function sampleOnlyTheScene(camera: Camera): void {
+  const first = camera._getFirstPostProcess()
+  for (const postProcess of camera._postProcesses) {
+    if (postProcess && postProcess !== first && postProcess.samples > 1) {
+      postProcess.samples = 1
+    }
+  }
+}
+
 interface PostProcessOptions {
   /**
    * What the depth map draws, out of what the camera sees. Leave out what lies flat on the ground, such as grass and
@@ -67,7 +82,7 @@ export interface PostProcess {
  * The image after the scene is drawn: multisampled edges, the miniature's depth of field, bloom so flames, flashes and
  * sparks glow, and a little film grain over it all. The low setting smooths edges with FXAA instead, blurs less and
  * leaves out the grain. The scene's colour grade (see atmosphere.ts) runs in the pipeline's image processing pass.
- * Resolves null where the engine can't run it.
+ * Only the scene's own target is multisampled. Resolves null where the engine can't run it.
  */
 export function createPostProcess(
   scene: Scene,
@@ -160,6 +175,9 @@ export function createPostProcess(
     pipeline.grain.intensity = 7
     pipeline.grain.animated = true
   }
+  const sampleOnce = () => sampleOnlyTheScene(camera)
+  sampleOnce()
+  pipeline.onBuildObservable.add(sampleOnce)
 
   const { fStop, distance, focalLengthPerMetre } = MINIATURE
   return {
