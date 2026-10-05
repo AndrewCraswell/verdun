@@ -1,10 +1,12 @@
 /**
  * Reads the encrypted runtime asset pack that scripts/build-asset-pack.mjs writes. The layout is documented there and in
- * docs/level-design.md. Uses only WebCrypto, so it runs in the pack worker and in Node tests alike.
+ * docs/level-design.md. Uses only WebCrypto and the Compression Streams API, so it runs in the pack worker and in Node
+ * tests alike.
  */
 
 const MAGIC = [0x8e, 0x56, 0x44, 0x4e, 0x50, 0x4b, 0x0d, 0x0a]
-const VERSION = 1
+/** Version 2 added the entries' encoding: files gzipped before they were encrypted. Version 1 packs read as before. */
+const VERSIONS = [1, 2]
 const HEADER_BYTES = 32
 const IV_BYTES = 12
 const KEY_BYTES = 32
@@ -21,6 +23,7 @@ interface PackEntry {
   readonly offset: number
   readonly length: number
   readonly iv: Uint8Array<ArrayBuffer>
+  readonly gzipped: boolean
 }
 
 interface RawEntry {
@@ -28,6 +31,7 @@ interface RawEntry {
   offset: number
   length: number
   iv: string
+  encoding?: "gzip"
 }
 
 function isRawEntry(value: unknown): value is RawEntry {
@@ -41,7 +45,8 @@ function isRawEntry(value: unknown): value is RawEntry {
     "length" in value &&
     Number.isSafeInteger(value.length) &&
     "iv" in value &&
-    typeof value.iv === "string"
+    typeof value.iv === "string" &&
+    (!("encoding" in value) || value.encoding === "gzip")
   )
 }
 
@@ -69,6 +74,11 @@ async function decrypt(
   }
 }
 
+/** Inflates a file the pack script gzipped before encrypting it. */
+async function gunzip(data: ArrayBuffer): Promise<ArrayBuffer> {
+  return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()
+}
+
 /**
  * Opens a pack from its bytes and its base64 raw key. Rejects when the bytes aren't a pack of this version, or when the
  * key doesn't match or the header or index was altered.
@@ -80,7 +90,7 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
     throw new Error("asset pack: not an asset pack")
   }
   const version = view.getUint16(8, true)
-  if (version !== VERSION) {
+  if (!VERSIONS.includes(version)) {
     throw new Error(`asset pack: version ${version} is not supported`)
   }
   const indexLength = view.getUint32(12, true)
@@ -107,11 +117,11 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
     throw new Error("asset pack: malformed index")
   }
   const entries = new Map<string, PackEntry>()
-  for (const { path, offset, length, iv } of parsed) {
+  for (const { path, offset, length, iv, encoding } of parsed) {
     if (payloadStart + offset + length > bytes.length) {
       throw new Error(`asset pack: ${path} lies past the end of the pack`)
     }
-    entries.set(path, { offset: payloadStart + offset, length, iv: fromBase64(iv) })
+    entries.set(path, { offset: payloadStart + offset, length, iv: fromBase64(iv), gzipped: encoding === "gzip" })
   }
 
   const encoder = new TextEncoder()
@@ -123,7 +133,8 @@ export async function openAssetPack(pack: ArrayBuffer, base64Key: string): Promi
         throw new Error(`asset pack: no file ${path}`)
       }
       const data = bytes.subarray(entry.offset, entry.offset + entry.length)
-      return decrypt(key, entry.iv, data, encoder.encode(path), path)
+      const plain = await decrypt(key, entry.iv, data, encoder.encode(path), path)
+      return entry.gzipped ? gunzip(plain) : plain
     }
   }
 }

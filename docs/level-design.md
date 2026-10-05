@@ -481,16 +481,24 @@ relative to it (`kit.glb`, `ground/mud.png`, `fx/smoke.png`), into `.asset-cache
 `.asset-cache/pack/level.key.json`. Rerun it after every kit build. Both files are git-ignored; never commit them.
 
 The pack is a custom container: a 32-byte header (magic `8E "VDNPK" 0D 0A`, format version, index length and IV), an
-encrypted index of `{ path, offset, length, iv }` entries, then the files. Everything after the header is AES-256-GCM
-under a key drawn fresh on every run. Each file has its own IV and is bound to its path; the index is bound to the
-header. Tampering with any byte makes decryption fail, and nothing in the pack is readable without the key.
+encrypted index of `{ path, offset, length, iv, encoding }` entries, then the files. Everything after the header is
+AES-256-GCM under a key drawn fresh on every run. Each file has its own IV and is bound to its path; the index is bound
+to the header. Tampering with any byte makes decryption fail, and nothing in the pack is readable without the key.
+
+Encrypted bytes don't compress, so the web server's own compression can't shrink the pack. Instead each file is gzipped
+before it's encrypted, when that saves a tenth or more, and its entry says `encoding: "gzip"`. The two meshes shrink to
+about a third (`kit.glb` 13.1 MiB to 5.1 MiB, `soldier.glb` 4.3 MiB to 1.5 MiB). The sounds and images are compressed
+already and go in as they are. The pack came to 20.6 MiB from 31.4 MiB of files. Format version 2 added the encoding;
+the reader still opens version 1 packs.
 
 `pnpm -F @verdun/client build` picks the pack up if it exists: it emits it as `assets/<content hash>.bin` and bakes its
 URL and the base64 key into the bundle as `import.meta.env.VERDUN_LEVEL_PACK_URL` and `_KEY` (the `assetPack` plugin in
 `apps/client/vite.config.ts`). In the browser, `src/level/kit-files.ts` starts a module worker
-(`src/assets/pack-worker.ts`) that fetches the pack once, decrypts the index with WebCrypto, and decrypts each file on
-request, handing it to the page without a copy. The console logs `Level kit: opened the asset pack` when it opens. With
-no pack the build still succeeds, as in CI, and the game stays greybox.
+(`src/assets/pack-worker.ts`) that fetches the pack once, decrypts the index with WebCrypto, and decrypts (and inflates)
+each file on request, handing it to the page without a copy. The menus open the kit's files as the page loads
+(`src/main.ts`), so the pack, most of what the battle downloads, comes down beside the battle's own code rather than
+after the renderer, the ground and the simulation have started. The console logs `Level kit: opened the asset pack` when
+it opens. With no pack the build still succeeds, as in CI, and the game stays greybox.
 
 The key ships in the bundle, so the pack stops casual extraction, not a determined one. Whether that counts as
 "reasonable measures" is on the licensing doc's legal-review list; signed, short-lived pack URLs come with a server.

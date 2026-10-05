@@ -17,9 +17,16 @@ function noise(length: number, seed: number): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
+/** Bytes that compress well, as a mesh's do: a short run of noise over and over. */
+function pattern(length: number, seed: number): Uint8Array<ArrayBuffer> {
+  const run = noise(64, seed)
+  return Uint8Array.from({ length }, (_, i) => run[i % run.length] ?? 0)
+}
+
 /** A small stand-in for the level kit, with nested directories like the real one. */
 export const TEST_KIT: ReadonlyMap<string, Uint8Array<ArrayBuffer>> = new Map([
   ["kit.glb", noise(5000, 1)],
+  ["soldier.glb", pattern(20_000, 4)],
   ["ground/mud.png", noise(700, 2)],
   ["fx/smoke.png", noise(300, 3)],
   ["fx/deep/empty.bin", new Uint8Array(0)]

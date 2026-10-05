@@ -54,7 +54,7 @@ describe("pack kit files", () => {
       expect(new Uint8Array(await files.read(path))).toEqual(bytes)
     }
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(info).toHaveBeenCalledWith(expect.stringContaining("opened the asset pack, 4 files"))
+    expect(info).toHaveBeenCalledWith(expect.stringContaining(`opened the asset pack, ${TEST_KIT.size} files`))
   })
 
   it("rejects paths the pack doesn't hold", async () => {
@@ -127,6 +127,6 @@ describe("pack worker", () => {
     await import("./pack-worker.ts")
     page.postMessage({ kind: "open", url: "/pack.bin", key: built.key })
     const opened = nextReply(page)
-    await expect(opened).resolves.toEqual({ kind: "opened", files: 4, bytes: built.pack.byteLength })
+    await expect(opened).resolves.toEqual({ kind: "opened", files: TEST_KIT.size, bytes: built.pack.byteLength })
   })
 })

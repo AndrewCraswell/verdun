@@ -36,7 +36,7 @@ import { createHud } from "./hud/hud.ts"
 import { castsShadow } from "./level/atmosphere.ts"
 import { blastRadius } from "./level/battle-damage.ts"
 import { dressLevel } from "./level/dress-battlefield.ts"
-import { openKitFiles } from "./level/kit-files.ts"
+import type { KitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
 import { useHeightFog } from "./level/particle-fog.ts"
 import { selectEnabledMeshes } from "./render/active-meshes.ts"
@@ -99,21 +99,28 @@ const SLOW_SUGGESTED = "verdun.slow-suggested"
 /**
  * Brings up the battle behind the menus: the renderer, the ground, the simulation in its worker, the level, the
  * soldiers and the sound, reporting each step to the loading, then runs it. Loaded on its own after the menus, so the
- * front door is up before Babylon and the battle have downloaded.
+ * front door is up before Babylon and the battle have downloaded. The menus open the level kit's files, so its pack is
+ * already on its way.
  */
-export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoor: boolean }): Promise<void> {
+export async function startBattle(
+  menu: Menu,
+  { frontDoor, kitFiles }: { readonly frontDoor: boolean; readonly kitFiles: KitFiles | null }
+): Promise<void> {
   const canvas = document.querySelector("canvas#battlefield")
   if (!(canvas instanceof HTMLCanvasElement)) {
     throw new Error("Battlefield canvas is missing from the page")
   }
   const address = new URLSearchParams(location.search)
+  // The ground's surveys download while the renderer starts.
+  const download = async (url: string) => (await fetch(url)).arrayBuffer()
+  const surveys = Promise.all([download(elevationUrl), download(surroundingsUrl)])
   menu.progress("Starting the renderer", 0.04)
   const engine = await createEngine(canvas)
   // The battle draws at the player's render scale, changed at once from the options.
   displaySettings().listen(({ renderScale }) => engine.setHardwareScalingLevel(1 / renderScale))
   menu.progress("Surveying the ground", 0.12)
   // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
-  const elevationData = await (await fetch(elevationUrl)).arrayBuffer()
+  const [elevationData, surroundingsData] = await surveys
   const elevation = decodeElevation(elevationData)
   const map = generateFleurySector({ seed: 1916, elevation })
   // History's weather, 1914-1918, in the map's region of the front (scripts/build-historical-weather.mjs), loaded before
@@ -181,11 +188,9 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
     : null
   stats.watchSnapshots(snapshots)
   bucketInstanceCounts(snapshots !== null)
-  // One read of the kit for the level and the soldiers: in production that's one fetch and decryption of the pack.
-  const kitFiles = openKitFiles()
   // The real ground round the sector out to the horizon: a 3 km survey centred on it (scripts/fetch-elevation.mjs).
   const surroundings = {
-    elevation: decodeElevation(await (await fetch(surroundingsUrl)).arrayBuffer()),
+    elevation: decodeElevation(surroundingsData),
     sectorBase: elevation.base,
     sectorOrigin: { x: 1200, z: 1300 }
   }

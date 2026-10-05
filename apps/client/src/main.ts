@@ -1,4 +1,5 @@
 import { startMenuMusic } from "./audio/music.ts"
+import { openKitFiles } from "./level/kit-files.ts"
 import "./style.css"
 import { createMenu } from "./ui/menu.ts"
 
@@ -24,9 +25,11 @@ async function start(): Promise<void> {
     void startMenuMusic().then((theme) => menu.entered.then(() => theme?.stop()))
   }
   menu.progress("Loading the battle", 0.02)
+  // The level kit's asset pack, most of what the battle downloads, sets off at once, beside the battle's own code.
+  const kitFiles = openKitFiles()
   try {
     const { startBattle } = await import("./start-battle.ts")
-    await startBattle(menu, { frontDoor })
+    await startBattle(menu, { frontDoor, kitFiles })
   } catch (error) {
     // Said on the screen, plainly, rather than left as a blank page and a line in the console (S23).
     console.error(error)

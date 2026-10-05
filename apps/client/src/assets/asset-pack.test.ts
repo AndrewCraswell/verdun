@@ -59,6 +59,17 @@ describe("asset pack", () => {
     expect(text).not.toContain(glb)
   })
 
+  it("gzips what compresses before encrypting it, and leaves what doesn't as it is", () => {
+    const noise = [...TEST_KIT].filter(([path]) => path !== "soldier.glb")
+    const noiseBytes = noise.reduce((total, [, bytes]) => total + bytes.length, 0)
+    const soldier = TEST_KIT.get("soldier.glb")!.length
+    // The pattern goes in at a fraction of its size, the noise whole, each with its 16-byte tag.
+    expect(built.pack.byteLength - 32 - indexLength(built.pack)).toBeLessThan(
+      noiseBytes + noise.length * 16 + soldier / 10
+    )
+    expect(built.pack.byteLength - 32 - indexLength(built.pack)).toBeGreaterThanOrEqual(noiseBytes + noise.length * 16)
+  })
+
   it("uses a fresh key each build", () => {
     expect(buildTestPack().key).not.toBe(built.key)
     expect(fromBase64(built.key)).toHaveLength(32)
@@ -81,7 +92,7 @@ describe("asset pack", () => {
     // The reserved header bytes are authenticated along with the rest of the header.
     await expect(openAssetPack(flipped(29), built.key)).rejects.toThrow("the index failed to decrypt")
     await expect(openAssetPack(flipped(20), built.key)).rejects.toThrow("the index failed to decrypt")
-    await expect(openAssetPack(flipped(8), built.key)).rejects.toThrow("version 0 is not supported")
+    await expect(openAssetPack(flipped(8), built.key)).rejects.toThrow("version 3 is not supported")
     await expect(openAssetPack(flipped(1), built.key)).rejects.toThrow("not an asset pack")
   })
 
@@ -103,6 +114,10 @@ describe("asset pack", () => {
     const beyond = '[{"path":"a","offset":0,"length":17,"iv":"AAAAAAAAAAAAAAAA"}]'
     await expect(openAssetPack(await sealed(beyond, new Uint8Array(16)), SEALED_KEY)).rejects.toThrow(
       "a lies past the end"
+    )
+    const unknown = '[{"path":"a","offset":0,"length":16,"iv":"AAAAAAAAAAAAAAAA","encoding":"zstd"}]'
+    await expect(openAssetPack(await sealed(unknown, new Uint8Array(16)), SEALED_KEY)).rejects.toThrow(
+      "malformed index"
     )
     const empty = await openAssetPack(await sealed("[]"), SEALED_KEY)
     expect(empty.paths).toEqual([])
