@@ -55,7 +55,9 @@ Several agents work in this checkout at once, all on `main`.
   hooks run; if a hook then reformats the staged part, the patch can't reapply and the other agent's edits vanish from
   the working tree. Leave such files for their owner, or coordinate.
 - **Don't stash, reset, check out or restore files you didn't change.**
-- Before pushing, `git fetch` and rebase if `main` moved.
+- **Push your verified commits without waiting to be asked**: `git fetch`, rebase if `main` moved, then push. Other
+  sessions' commits under yours are finished work and go out with them, so never amend or rewrite a commit once it's
+  made; fix it with a new one.
 - **Share the machine's CPU and GPU.** Every session's browser pane is a full copy of the game rendering flat out, so
   open the game only to check a change and close the tab straight after. Don't leave test runs or dev servers going in
   the background once you're done with them. Measure frame rates only with every other copy of the game closed, one
