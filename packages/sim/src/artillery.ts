@@ -523,6 +523,8 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   sim.artillery.pendingSightRebuild = mergeAreas(sim.artillery.pendingSightRebuild, crater)
   groundChanged(sim, crater)
   refreshGasGround(sim.gas, sim.map, crater)
+  // The smoke lies on the same ground: a battle taken up from a save reads the cratered ground afresh, so this one keeps up.
+  refreshGasGround(sim.smoke, sim.map, crater)
   if (stats.gasMass > 0) {
     releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
   }
