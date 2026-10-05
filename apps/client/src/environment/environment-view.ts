@@ -183,7 +183,8 @@ export function createEnvironmentView(
     reflectB: 0
   }
   const clouds = createCloudTexture(scene)
-  const marks = createGroundMarks(scene, sim.map)
+  // On the low setting puddles and the fog in the hollows aren't drawn, so the hollows aren't worth finding.
+  const marks = createGroundMarks(scene, sim.map, { basins: !low })
   // The fog lies on the low ground: the height a tenth of the map lies below.
   const heights = Float32Array.from(sim.map.heights).sort()
   const heightFog = createHeightFog(heights[Math.floor(heights.length * 0.1)] ?? 0)
@@ -275,7 +276,8 @@ export function createEnvironmentView(
         )
       }
       untilReshape -= frameSeconds
-      if (reshaped && untilReshape <= 0) {
+      // Craters move the hollows puddles stand in; on the low setting there are no puddles, so nothing to find again.
+      if (reshaped && untilReshape <= 0 && !low) {
         untilReshape = MARKS.reshape
         reshaped = false
         marks.reshape()

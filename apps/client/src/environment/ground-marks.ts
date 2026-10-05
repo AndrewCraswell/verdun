@@ -29,8 +29,43 @@ export interface Basins {
   readonly pool: Float32Array
 }
 
-/** Two box blurs in a row, each `radius` texels each way, along rows then columns: near enough a Gaussian. */
-function blur(values: Float32Array, width: number, height: number, radius: number): Float32Array {
+/**
+ * Buffers to find the ground's basins in, a value a texel. Craters have the basins found again every couple of seconds
+ * while shelling goes on, and fresh buffers each time came to megabytes.
+ */
+interface BasinBuffers {
+  readonly ground: Float32Array
+  /** What a blur holds between its passes. */
+  readonly spare: Float32Array
+  readonly level: Float32Array
+  readonly pool: Float32Array
+}
+
+const basinBuffers = (texels: number): BasinBuffers => ({
+  ground: new Float32Array(texels),
+  spare: new Float32Array(texels),
+  level: new Float32Array(texels),
+  pool: new Float32Array(texels)
+})
+
+/** The ground marks' texels over a map: one every `stride` height samples, `width` by `height` of them. */
+function marksGrid(map: BattlefieldMap, step = STEP) {
+  const stride = Math.max(1, Math.round(step / map.cellSize))
+  return { stride, width: Math.floor(map.columns / stride) + 1, height: Math.floor(map.rows / stride) + 1 }
+}
+
+/**
+ * Two box blurs in a row, each `radius` texels each way, along rows then columns: near enough a Gaussian. Blurs
+ * `values` into `blurred` by way of `spare`, leaving `values` as it was.
+ */
+function blur(
+  values: Float32Array,
+  blurred: Float32Array,
+  spare: Float32Array,
+  width: number,
+  height: number,
+  radius: number
+): void {
   const pass = (from: Float32Array, to: Float32Array, length: number, lines: number, along: number, across: number) => {
     for (let line = 0; line < lines; line++) {
       let sum = 0
@@ -52,13 +87,10 @@ function blur(values: Float32Array, width: number, height: number, radius: numbe
       }
     }
   }
-  const a = new Float32Array(values.length)
-  const b = new Float32Array(values.length)
-  pass(values, a, width, height, 1, width)
-  pass(a, b, height, width, width, 1)
-  pass(b, a, width, height, 1, width)
-  pass(a, b, height, width, width, 1)
-  return b
+  pass(values, spare, width, height, 1, width)
+  pass(spare, blurred, height, width, width, 1)
+  pass(blurred, spare, width, height, 1, width)
+  pass(spare, blurred, height, width, width, 1)
 }
 
 /**
@@ -66,22 +98,21 @@ function blur(values: Float32Array, width: number, height: number, radius: numbe
  * `DEEPEST` above its floor. Shell craters, trench floors and ruts hold water; level ground and slopes don't, since their
  * mean is their own height. The renderer lowers the water by how wet the ground is.
  */
-export function basinsOf(map: BattlefieldMap, step = STEP): Basins {
-  const stride = Math.max(1, Math.round(step / map.cellSize))
-  const width = Math.floor(map.columns / stride) + 1
-  const height = Math.floor(map.rows / stride) + 1
-  const ground = new Float32Array(width * height)
+export function basinsOf(map: BattlefieldMap, step = STEP, buffers?: BasinBuffers): Basins {
+  const { stride, width, height } = marksGrid(map, step)
+  // Given buffers, the basins are found in them, and the level and pool returned are theirs.
+  const { ground, spare, level, pool } = buffers ?? basinBuffers(width * height)
   for (let row = 0; row < height; row++) {
     for (let column = 0; column < width; column++) {
       ground[row * width + column] = map.heights[sampleIndex(map, column * stride, row * stride)] ?? 0
     }
   }
-  const mean = blur(ground, width, height, Math.max(1, Math.round(BASIN_RADIUS / (stride * map.cellSize) / 2)))
-  const level = new Float32Array(width * height)
+  // The level starts as the ground's mean round each point, then is capped a puddle's depth above the ground.
+  blur(ground, level, spare, width, height, Math.max(1, Math.round(BASIN_RADIUS / (stride * map.cellSize) / 2)))
   for (let index = 0; index < level.length; index++) {
-    level[index] = Math.min(mean[index]!, ground[index]! + DEEPEST)
+    level[index] = Math.min(level[index]!, ground[index]! + DEEPEST)
   }
-  const pool = blur(ground, width, height, Math.max(1, Math.round(POOL_RADIUS / (stride * map.cellSize) / 2)))
+  blur(ground, pool, spare, width, height, Math.max(1, Math.round(POOL_RADIUS / (stride * map.cellSize) / 2)))
   return { width, height, step: stride * map.cellSize, level, pool }
 }
 
@@ -93,26 +124,37 @@ export interface GroundMarks {
   readonly basins: RawTexture
   /** How trodden the snow is, from 0 to 1, in a byte red channel. */
   readonly tracks: RawTexture
-  /** Metres added back to the basin texture's values: the lowest water level on the map. */
+  /** Metres added back to the basin texture's values: the lowest water level on the map, or 0 with no basins found. */
   readonly base: number
   /** Texture coordinates from ground metres: u = x × scale.x + offset.x, v = z × scale.y + offset.y. */
   readonly scale: { readonly x: number; readonly y: number }
   readonly offset: { readonly x: number; readonly y: number }
   /** Trodden texels as bytes, row by row: what the tracks texture shows. */
   readonly trodden: Uint8Array
-  /** Craters have reshaped the ground: find its hollows again. */
+  /** Craters have reshaped the ground: find its hollows again, if it finds them at all. */
   reshape(): void
   /** Marks where men stand in lying snow, and lets fresh snow fill old trails. `snowCover` in millimetres of water. */
   tread(points: Iterable<{ readonly x: number; readonly z: number }>, snowCover: number): void
   dispose(): void
 }
 
-export function createGroundMarks(scene: Scene, map: BattlefieldMap): GroundMarks {
-  let basins = basinsOf(map)
-  const { width, height, step } = basins
-  const base = basins.level.reduce((lowest, level) => Math.min(lowest, level), Number.POSITIVE_INFINITY)
+/**
+ * The ground's marks over a map. With `basins` off, as on the low setting, which draws no puddles or fog in the
+ * hollows, the hollows are never found and the basin texture stays flat.
+ */
+export function createGroundMarks(
+  scene: Scene,
+  map: BattlefieldMap,
+  { basins: finding = true }: { readonly basins?: boolean } = {}
+): GroundMarks {
+  const { stride, width, height } = marksGrid(map)
+  const step = stride * map.cellSize
+  const buffers = finding ? basinBuffers(width * height) : null
+  const basins = buffers && basinsOf(map, STEP, buffers)
+  const base = basins ? basins.level.reduce((lowest, level) => Math.min(lowest, level), Number.POSITIVE_INFINITY) : 0
+  // The texture's data, rewritten in place each time the basins are found: the texture copies it when it updates.
+  const half = new Uint16Array(width * height * 2)
   const encode = ({ level, pool }: Basins) => {
-    const half = new Uint16Array(level.length * 2)
     for (let index = 0; index < level.length; index++) {
       half[index * 2] = ToHalfFloat(level[index]! - base)
       half[index * 2 + 1] = ToHalfFloat(pool[index]! - base)
@@ -120,7 +162,7 @@ export function createGroundMarks(scene: Scene, map: BattlefieldMap): GroundMark
     return half
   }
   const basinTexture = new RawTexture(
-    encode(basins),
+    basins ? encode(basins) : half,
     width,
     height,
     Constants.TEXTUREFORMAT_RG,
@@ -170,8 +212,9 @@ export function createGroundMarks(scene: Scene, map: BattlefieldMap): GroundMark
     offset: { x: 0.5 / width, y: 0.5 / height },
     trodden,
     reshape() {
-      basins = basinsOf(map)
-      basinTexture.update(encode(basins))
+      if (buffers) {
+        basinTexture.update(encode(basinsOf(map, STEP, buffers)))
+      }
     },
     tread(points, snowCover) {
       // Gone with the snow: a fresh fall starts clean.
