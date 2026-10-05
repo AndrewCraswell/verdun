@@ -4,10 +4,19 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap, generateRollingTerrain, heightAt, sampleIndex } from "@verdun/map"
+import {
+  beltLayout,
+  createFlatMap,
+  generateRollingTerrain,
+  heightAt,
+  sampleIndex,
+  Surface,
+  type WireBelt
+} from "@verdun/map"
 import {
   createSimulation,
   enqueueCommand,
+  FENCE_CLIMB_SECONDS,
   MaskState,
   Side,
   type Simulation,
@@ -548,6 +557,54 @@ describe("createSoldierCrowd", () => {
     }
     // Still looking east as he walks on north.
     expect(clipNow()).toBe("walk_left")
+  })
+
+  it("climbs over a fence the whole time he's on it, square across it, and walks on beyond", () => {
+    // A belt of wire running east-west across a flat field at z = 40, and a length of its fence no tangle lies by.
+    const belt: WireBelt = {
+      points: [
+        [0, 40],
+        [100, 40]
+      ]
+    }
+    const field = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 160 }, 5, Surface.Grass)
+    const sim = createSimulation({ map: { ...field, wire: [belt] }, seed: 1 })
+    const { fences, tangles } = beltLayout(belt)
+    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 4)) ?? fences[0]
+    // One heads for the wire slantwise, 30 degrees east of north; the other stands in it by the fence, going nowhere.
+    const climber = spawnSoldier(sim, { side: Side.French, x: bare?.x ?? 0, z: 38.6, facing: { x: 0.5, z: 0.866 } })
+    spawnSoldier(sim, { side: Side.French, x: (bare?.x ?? 0) + 2, z: 40.1 })
+    const { crowd, kit, tick, rows, matrices } = harness(sim)
+    crowd.sync()
+    enqueueCommand(sim, { type: "vault", soldier: climber })
+    const climb = clips.get("climb_over")
+    let climbing = 0
+    let lastRow = 0
+    let facing = Vector3.Zero()
+    for (let index = 0; index < 8 / STEP_SECONDS; index++) {
+      step(sim, 1)
+      tick(STEP_SECONDS)
+      crowd.sync()
+      crowd.update()
+      const [row, still] = rows(kit.bodies[Side.French])
+      expect(clipAt(still)).toBe("idle")
+      if (clipAt(row) === "climb_over") {
+        climbing += STEP_SECONDS
+        lastRow = row ?? 0
+        const matrix = matrices(kit.bodies[Side.French])[0]
+        facing = matrix ? Vector3.TransformNormal(Vector3.Forward(), matrix) : Vector3.Zero()
+      }
+    }
+
+    // Slantwise he's longer on the fence than going straight over, and the climb is spread to match, ending on its
+    // last frame as he steps off.
+    expect(climbing).toBeGreaterThan((FENCE_CLIMB_SECONDS / 0.866) * 0.9)
+    expect(climbing).toBeLessThan((FENCE_CLIMB_SECONDS / 0.866) * 1.1)
+    expect(lastRow).toBeGreaterThanOrEqual((climb?.start ?? 0) + CLIP_FRAMES - 2)
+    // Square across the fence, not along his slanting way.
+    expect(facing.z).toBeCloseTo(1, 1)
+    expect(sim.soldiers.position.z[climber]).toBeGreaterThan(41)
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).not.toBe("climb_over")
   })
 
   it("keeps watch with the rifle ready when standing with his head over the parapet", () => {

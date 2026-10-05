@@ -2,12 +2,14 @@ import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
-import { heightAt } from "@verdun/map"
+import { beltLayout, type FenceLength, heightAt } from "@verdun/map"
 import {
+  astrideFence,
   BROKEN_MORALE,
   canRun,
   capturedIds,
   type EntityId,
+  FENCE_CLIMB_SECONDS,
   fallenIds,
   isInTrench,
   MaskState,
@@ -68,6 +70,11 @@ const ON_ORDERS = 0.98
 const SCRAMBLE_GRADE = 1
 /** A scramble lasts this long after the last step that rose like one, so a man on a wall doesn't flicker in and out. */
 const CLIMB_HOLD = 0.3
+/**
+ * A man astride a fence's line is climbing over it once he moves across it, at this share of his pace or more (a
+ * cosine); less, and he's only working along it through the wire. Crossing it slantwise takes him longer.
+ */
+const ACROSS_FENCE = 0.5
 /** A loss of health this large is a wound worth flinching at; gas wears health down more slowly. */
 const WOUND = 0.02
 /** How much of each new speed measurement goes into the smoothed speed. */
@@ -106,9 +113,11 @@ interface Track {
   speed: number
   heading: number
   running: boolean
-  /** Until when the soldier is scrambling up a wall, by the clock, and which way he's going up it. */
+  /** Until when the soldier is scrambling up a wall, by the clock, and which way he's going up it or over a fence. */
   climbUntil: number
   climbYaw: number
+  /** How long getting over the fence he's astride takes him, in seconds, or null when he isn't climbing one. */
+  overFence: number | null
   /** Turns a lying body from level onto the slope beneath it, or null when standing. */
   tilt: Matrix | null
   cooldown: number
@@ -260,6 +269,8 @@ export function createSoldierCrowd(
   }
   const clipOf = (name: ClipName): BakedClip => kit.clips.get(name) ?? idle
 
+  // The staked fences on the map's belts of wire, as the simulation and the art lay them out.
+  const fences = map.wire.flatMap((belt) => beltLayout(belt).fences)
   const tracks: (Track | undefined)[] = []
   const drawn: Track[] = []
   let lastTick = sim.tick
@@ -312,6 +323,7 @@ export function createSoldierCrowd(
       running: false,
       climbUntil: Number.NEGATIVE_INFINITY,
       climbYaw: yaw,
+      overFence: null,
       tilt: null,
       cooldown: soldiers.weapon.cooldown[id],
       grenades: soldiers.grenades.count[id],
@@ -384,6 +396,43 @@ export function createSoldierCrowd(
     return faced
   }
 
+  /** Square across the fence nearest a point, of those running past it: a unit vector, or null where none does. */
+  function fenceAcross(x: number, z: number): { x: number; z: number } | null {
+    let nearest: FenceLength | null = null
+    let nearestAcross = Number.POSITIVE_INFINITY
+    for (const fence of fences) {
+      const ox = x - fence.x
+      const oz = z - fence.z
+      const across = Math.abs(ox * fence.dz - oz * fence.dx)
+      if (Math.abs(ox * fence.dx + oz * fence.dz) <= fence.length / 2 && across < nearestAcross) {
+        nearest = fence
+        nearestAcross = across
+      }
+    }
+    return nearest && { x: nearest.dz, z: -nearest.dx }
+  }
+
+  /**
+   * Starts or ends a man's climb over a fence: he's on it from the first step he takes across its line where the wire
+   * stands until he's past it, a vault on an order and on the action key alike, and he faces square across it. The
+   * simulation keeps no word of a vault on the page, so it's read from where he is and which way he went (dx, dz) in the
+   * last `seconds`.
+   */
+  function climbFence(track: Track, x: number, z: number, dx: number, dz: number, seconds: number): void {
+    if (!astrideFence(sim, x, z)) {
+      track.overFence = null
+      return
+    }
+    const across = track.overFence === null && seconds > 0 ? fenceAcross(x, z) : null
+    const distance = Math.sqrt(dx * dx + dz * dz)
+    const over = across ? dx * across.x + dz * across.z : 0
+    if (across && distance >= MOVING_SPEED * seconds && Math.abs(over) >= distance * ACROSS_FENCE) {
+      track.overFence = (FENCE_CLIMB_SECONDS * distance) / Math.abs(over)
+      const way = Math.sign(over)
+      track.climbYaw = Math.atan2(way * across.x, way * across.z)
+    }
+  }
+
   function visit(
     id: EntityId,
     status: Track["status"],
@@ -399,6 +448,10 @@ export function createSoldierCrowd(
     }
     const x = soldiers.position.x[id]
     const z = soldiers.position.z[id]
+    // How far he went since the last sync, and in how long: nothing if he jumped.
+    let movedX = 0
+    let movedZ = 0
+    let movedSeconds = 0
     if (ticks > 0) {
       const seconds = ticks * STEP_SECONDS
       const dx = x - track.toX
@@ -424,6 +477,11 @@ export function createSoldierCrowd(
         track.climbUntil = now + CLIMB_HOLD
         track.climbYaw = Math.atan2(dx, dz)
       }
+      if (!jumped) {
+        movedX = dx
+        movedZ = dz
+        movedSeconds = seconds
+      }
       track.fromX = jumped ? x : track.x
       track.fromY = jumped ? heightAt(map, x, z) : track.y
       track.fromZ = jumped ? z : track.z
@@ -440,9 +498,10 @@ export function createSoldierCrowd(
     track.weapon = soldiers.weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
     const climbing = status === "fighting" && now < track.climbUntil
     if (status === "fighting") {
-      // A man scrambles up a wall facing it, whichever way he was looking.
+      climbFence(track, x, z, movedX, movedZ, movedSeconds)
+      // A man scrambles up a wall or over a fence facing it, whichever way he was looking.
       const face = faceOf(id, x, z)
-      track.targetYaw = climbing ? track.climbYaw : Math.atan2(face.x, face.z)
+      track.targetYaw = climbing || track.overFence !== null ? track.climbYaw : Math.atan2(face.x, face.z)
       track.stance = drawnStance(stance)
       if (soldiers.grenades.count[id] < track.grenades) {
         startAction(track, "throw", now)
@@ -469,6 +528,7 @@ export function createSoldierCrowd(
     if (status !== track.status) {
       track.status = status
       track.action = null
+      track.overFence = null
     }
 
     const pose = choosePose({
@@ -479,6 +539,7 @@ export function createSoldierCrowd(
       heading: track.heading,
       running: track.running,
       climbing,
+      overFence: track.overFence,
       aiming: soldiers.target.id[id] >= 0,
       // Only a man standing still with no one in his sights needs to know: aiming or moving, he isn't watching.
       overParapet:

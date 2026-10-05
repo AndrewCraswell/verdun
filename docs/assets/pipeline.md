@@ -72,7 +72,40 @@ metal-roughness PBR. Limits and gotchas:
 
 ## Skeleton and animation
 
-- **Version 1 skeleton**: the Synty humanoid rig shared by every Synty character. Retarget Mixamo clips onto it.
+- **Version 1 skeleton**: the Synty humanoid rig shared by every Synty character. `scripts/retarget-animations.py` bakes
+  the polyperfect Low Poly War Pack clips onto it (both of polyperfect's rigs share core bone names), and Mixamo's:
+
+  ```
+  blender -b --factory-startup -P scripts/retarget-animations.py -- \
+    ".asset-cache/unity/POLYGON - War Map WWI - Art by Synty/Synty/PolygonWarMap/Models/Characters_WW1.glb" \
+    .asset-cache/animations/synty-soldier.glb \
+    "<SoldierAnimations>/Locomotion/InPlace" "<SoldierAnimations>/Idles" "<SoldierAnimations>/Deaths" \
+    "<SoldierAnimations>/Hit Reactions" "<SoldierAnimations>/Root Motion/Gun_Animations/Gun_Animations.fbx" \
+    vendor/mixamo
+  ```
+
+  `<SoldierAnimations>` is `vendor/unity/Low Poly War Pack/polyperfect/Low Poly War Pack/- Animations/SoldierAnimations`
+  (`pnpm assets:unpack` from the Unity download). The output holds the British and German soldiers and 60 named clips at
+  24 fps: in-place walk and run in 8 directions, 7 idles, 5 deaths, a hit reaction, aim, fire and reload for five
+  weapons (MG42, Bren, MP40, Sten, bazooka), and `climb_over`, getting over a wire fence in three seconds, which the
+  script keys itself on the Synty rig because polyperfect has no climb. Then
+  `blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level soldier`
+  rebuilds `soldier.glb`; commit it.
+
+  **Mixamo clips** ([which ones](mixamo-clips.md)):
+
+  1. Write the soldier for Mixamo's auto-rigger, the French body and helmet in T-pose with no skeleton, and keep it in
+     the library (`pnpm assets:backup`):
+     `blender -b --factory-startup -P scripts/retarget-animations.py -- --mixamo-upload .asset-cache/level/soldier.glb .asset-cache/animations/French_Soldier_Mixamo.fbx`
+  2. Upload it to Mixamo and let the auto-rigger fit its skeleton. Download each clip as FBX, without skin, 24 fps, **In
+     Place** for walks, runs, crawls and strafes, into `vendor/mixamo/`, saved as its description in the list in kebab
+     case (`male-jumping-over-an-obstacle-with-2-hands-planted.fbx`): Mixamo names every download after the clip's name,
+     and the names repeat.
+  3. Run the retargeting above with the folder last, then rebuild `soldier.glb`. Each clip is named after its file in
+     snake case, or as `MIXAMO_NAMES` in the script renames it (the fence vault becomes `climb_over`), and replaces a
+     polyperfect or made clip of that name. Mixamo clips lose their travel across the ground, since the simulation moves
+     the man, but keep the hips' rise and fall. Add Mixamo to the [register](register.md) when its clips ship.
+
 - **Remaster skeleton**: the Epic/UE4 mannequin. AmeliaTeale, FieriaGold, TalkingDrums and DarkTide packs already use
   it.
 - Retarget Mixamo, Kevin Iglesias and captured clips onto it (UE5 IK Retargeter or Blender). Export **in-place** clips

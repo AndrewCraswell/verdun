@@ -19,6 +19,7 @@ const standing: SoldierState = {
   heading: 0,
   running: false,
   climbing: false,
+  overFence: null,
   aiming: false,
   overParapet: false,
   pinned: false,
@@ -81,6 +82,15 @@ describe("choosePose", () => {
   it("scrambles up a wall, however slowly he crosses the ground", () => {
     expect(pose({ climbing: true, speed: 0.1 })).toEqual({ clip: "run_forward", mode: "loop", rate: 0.8 })
     expect(pose({ climbing: true, stance: Stance.Prone }).clip).toBe("idle_1")
+  })
+
+  it("climbs over a fence the whole time he's on it, the climb spread over however long that takes", () => {
+    expect(pose({ overFence: 3, speed: 0.4 })).toEqual({ clip: "climb_over", mode: "once", rate: 1, seconds: 3 })
+    // Not a walk, a run nor a scramble, whatever his pace or his orders.
+    expect(pose({ overFence: 4.5, speed: 2.8, running: true, climbing: true, aiming: true }).clip).toBe("climb_over")
+    expect(pose({ overFence: 3, stance: Stance.Prone }).clip).toBe("idle_1")
+    expect(pose({ overFence: 3, status: "fallen" }).mode).toBe("once")
+    expect(pose({ overFence: 3, status: "fallen" }).clip).not.toBe("climb_over")
   })
 
   it("gets away bent double when broken, and cowers when broken and still", () => {
@@ -147,5 +157,14 @@ describe("poseFrame", () => {
 
   it("times a pose played once", () => {
     expect(poseSeconds(clip, { clip: "hit_ribs", mode: "once", rate: 2 })).toBeCloseTo(0.5)
+  })
+
+  it("spreads a clip over the seconds its pose takes, whatever its rate", () => {
+    const climb = { clip: "climb_over", mode: "once", rate: 1, seconds: 3 } as const
+    expect(poseSeconds(clip, climb)).toBeCloseTo(3)
+    // A second-long clip over three seconds: a third of the way through after one.
+    expect(poseFrame(clip, climb, 1, 0)).toBe(108)
+    expect(poseFrame(clip, climb, 2.9, 0)).toBe(123)
+    expect(poseFrame(clip, { ...climb, rate: 4, seconds: 1.5 }, 0.75, 0)).toBe(112)
   })
 })

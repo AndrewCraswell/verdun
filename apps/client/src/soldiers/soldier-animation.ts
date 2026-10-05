@@ -49,6 +49,9 @@ export const CROUCH_LAYER = { from: "idle", to: "idle_5" } as const
  * - `brengun_fire` is the rifle's recoil, `stengun_reload` a grenade being primed and thrown.
  * - `run_forward`, played slowly, is a man scrambling up a trench wall.
  * - The first frame of `death_crouch_back`, crouched with an arm over the head, is a broken man cowering.
+ *
+ * `climb_over`, getting over a staked fence, is no one's: the retargeting script keys it on the Synty rig, until a
+ * Mixamo climb of that name takes its place.
  */
 export const CLIPS = [
   "idle",
@@ -66,7 +69,8 @@ export const CLIPS = [
   "death_standing_left",
   "death_crouch_back",
   "death_crouch_right",
-  "death_prone"
+  "death_prone",
+  "climb_over"
 ] as const
 
 /** A clip as the kit has it. */
@@ -124,6 +128,8 @@ export interface SoldierState {
   readonly running: boolean
   /** Scrambling up ground too steep to walk: a trench wall, a crater's lip. */
   readonly climbing: boolean
+  /** Climbing over a staked fence: how many seconds getting over it takes him, or null when he isn't on one. */
+  readonly overFence: number | null
   /** Has an enemy in their sights. */
   readonly aiming: boolean
   /** In a trench with his head over the parapet, up on the fire step: he watches over it, rifle ready. */
@@ -146,6 +152,8 @@ export interface Pose {
   readonly mode: PlayMode
   /** Playback speed, 1 as made. */
   readonly rate: number
+  /** How long the clip takes played once, whatever its own length, in seconds: in place of `rate`, when set. */
+  readonly seconds?: number
 }
 
 const loop = (clip: ClipName, rate = 1): Pose => ({ clip, mode: "loop", rate })
@@ -197,6 +205,10 @@ export function choosePose(state: SoldierState): Pose {
     // No crawl among the clips: a lying aim, carried along the ground.
     return loop(state.aiming || state.action === "fire" ? "idle_2" : "idle_1")
   }
+  // Over a fence the whole time he's on it, from a hand on the top wire to his feet on the ground beyond.
+  if (state.overFence !== null) {
+    return { clip: "climb_over", mode: "once", rate: 1, seconds: state.overFence }
+  }
   // A scramble is slow across the ground, but it's no standing still.
   if (state.climbing) {
     return loop("run_forward", CLIMB_RATE)
@@ -238,6 +250,11 @@ export interface BakedClip {
   readonly turn: number
 }
 
+/** How fast a pose plays its clip: at its rate, or as fast as fits the clip into its seconds. */
+function playbackRate(clip: BakedClip, pose: Pose): number {
+  return pose.seconds === undefined ? pose.rate : clip.frames / clip.fps / pose.seconds
+}
+
 /**
  * The texture row to show for a pose `elapsed` seconds after it began. Loops start `phase` (0 to 1) of the way through
  * so a crowd doesn't move in step; a pose played once holds its last frame.
@@ -246,7 +263,7 @@ export function poseFrame(clip: BakedClip, pose: Pose, elapsed: number, phase: n
   if (pose.mode === "still") {
     return clip.start
   }
-  const advanced = Math.floor(Math.max(0, elapsed) * clip.fps * pose.rate)
+  const advanced = Math.floor(Math.max(0, elapsed) * clip.fps * playbackRate(clip, pose))
   if (pose.mode === "once") {
     return clip.start + Math.min(advanced, clip.frames - 1)
   }
@@ -255,5 +272,5 @@ export function poseFrame(clip: BakedClip, pose: Pose, elapsed: number, phase: n
 
 /** How long a pose played once takes, in seconds. */
 export function poseSeconds(clip: BakedClip, pose: Pose): number {
-  return clip.frames / clip.fps / pose.rate
+  return clip.frames / clip.fps / playbackRate(clip, pose)
 }
