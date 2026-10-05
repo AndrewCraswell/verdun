@@ -62,8 +62,13 @@ export interface SoldierComponents {
    * flash gives the shooter away for a moment.
    */
   readonly weapon: { readonly kind: Uint8Array; readonly cooldown: Float32Array; readonly firedAt: Int32Array }
-  /** The enemy the soldier is shooting at, or -1. */
+  /** The enemy the soldier is shooting at, or -1. For a player's man, the one the player aims at. */
   readonly target: { readonly id: Int32Array }
+  /**
+   * The step a player's man settled on his aim: since then he hasn't switched target, swung his aim, moved or changed
+   * stance. His shots steady from it (combat.ts `steadiness`).
+   */
+  readonly aim: { readonly since: Int32Array }
   /** How pinned down the soldier is by incoming fire, from 0 to 1. */
   readonly suppression: { readonly value: Float32Array }
   /** Fighting spirit, from 1 (steady) to 0 (broken). */
@@ -115,6 +120,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
       firedAt: new Int32Array(capacity).fill(NEVER)
     },
     target: { id: new Int32Array(capacity).fill(-1) },
+    aim: { since: new Int32Array(capacity) },
     suppression: { value: new Float32Array(capacity) },
     morale: { value: new Float32Array(capacity) },
     stance: { value: new Uint8Array(capacity) },

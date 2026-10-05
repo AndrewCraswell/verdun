@@ -1,7 +1,18 @@
 import { carveTrenches, createFlatMap, stampCrater, TRENCH_PROFILE, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { afterEach, describe, expect, it } from "vitest"
-import { BROKEN_MORALE, fireAt, hitChance, shotEvents, Weapon, WEAPONS } from "./combat.ts"
+import {
+  aimedTarget,
+  BROKEN_MORALE,
+  fireAt,
+  hitChance,
+  SETTLE_SECONDS,
+  shotEvents,
+  shotSteadiness,
+  steadiness,
+  Weapon,
+  WEAPONS
+} from "./combat.ts"
 import { Side, Stance } from "./components.ts"
 import { type LineOfSight } from "./line-of-sight.ts"
 import { createLineOfSight } from "./physics-sight.ts"
@@ -316,5 +327,60 @@ describe("cover in a shell hole", () => {
     expect(seen(inHole)).toBe(true)
     // Standing, his head shows over the lip but his body doesn't: he's as hard to hit as a man behind a parapet.
     expect(hitChance(sim, german, inHole)).toBeLessThan(hitChance(sim, german, inOpen) * 0.5)
+  })
+})
+
+describe("steadying a player's aim", () => {
+  it("steadies over a second and a half standing, faster lying or resting on a parapet", () => {
+    expect(steadiness(0, Stance.Standing, false)).toBe(0)
+    expect(steadiness(SETTLE_SECONDS / 2, Stance.Standing, false)).toBeCloseTo(0.5)
+    expect(steadiness(SETTLE_SECONDS, Stance.Standing, false)).toBe(1)
+    expect(steadiness(SETTLE_SECONDS / 2, Stance.Prone, false)).toBe(1)
+    expect(steadiness(SETTLE_SECONDS / 2, Stance.Standing, true)).toBeGreaterThan(0.8)
+  })
+
+  it("shoots the man the player picked out, and steadies on him until he switches target or moves", async () => {
+    const sim = await field()
+    const shooter = spawnSoldier(sim, { side: Side.French, x: 100, z: 100 })
+    const squad = createSquad(sim, Side.French, [shooter], "player")
+    // A nearer German almost in line, and the one the player picks out beyond him.
+    const near = spawnSoldier(sim, { side: Side.German, x: 101, z: 130 })
+    const picked = spawnSoldier(sim, { side: Side.German, x: 103, z: 160 })
+    stepFor(sim, 0.1)
+    expect(squad.leader).toBe(shooter)
+    enqueueCommand(sim, { type: "face", soldier: shooter, x: 3, z: 60, target: picked })
+    stepFor(sim, 0.05)
+    expect(aimedTarget(sim, shooter)).toBe(picked)
+    expect(shotSteadiness(sim, shooter)).toBeCloseTo(0.5, 1)
+
+    // Following him as he goes doesn't unsettle the aim.
+    stepFor(sim, 1)
+    enqueueCommand(sim, { type: "face", soldier: shooter, x: 3.1, z: 60, target: picked })
+    stepFor(sim, 1)
+    expect(shotSteadiness(sim, shooter)).toBe(1)
+
+    // Switching to the other man does; so does walking.
+    enqueueCommand(sim, { type: "face", soldier: shooter, x: 1, z: 30, target: near })
+    stepFor(sim, 0.05)
+    expect(aimedTarget(sim, shooter)).toBe(near)
+    expect(shotSteadiness(sim, shooter)).toBeLessThan(0.6)
+    stepFor(sim, 2)
+    enqueueCommand(sim, { type: "steer", soldier: shooter, x: 1, z: 0 })
+    stepFor(sim, 0.5)
+    expect(shotSteadiness(sim, shooter)).toBe(0.5)
+  })
+
+  it("forgets the man a soldier had in his sights when the player takes him over", async () => {
+    const sim = await field()
+    const first = spawnSoldier(sim, { side: Side.French, x: 100, z: 100 })
+    const second = spawnSoldier(sim, { side: Side.French, x: 104, z: 100 })
+    const squad = createSquad(sim, Side.French, [first, second], "player")
+    spawnSoldier(sim, { side: Side.German, x: 104, z: 150 })
+    // Left to himself, the second man picks a target.
+    stepFor(sim, 3)
+    expect(sim.soldiers.target.id[second]).toBeGreaterThanOrEqual(0)
+    enqueueCommand(sim, { type: "take-command", squad: squad.id, soldier: second })
+    stepFor(sim, 0.05)
+    expect(sim.soldiers.target.id[second]).toBe(-1)
   })
 })

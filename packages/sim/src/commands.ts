@@ -11,6 +11,9 @@ import { startVault } from "./vault.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
 import { cutLane } from "./wire.ts"
 
+/** A turn of the aim wider than this (its cosine: 2 degrees), with nobody picked out, unsettles it. */
+const AIM_SWING = 0.9994
+
 /** Half the width of the lane cut through a squad's own wire before it goes over, in metres. */
 const LANE_HALF_WIDTH = 3
 
@@ -48,12 +51,16 @@ export interface SteerCommand {
   readonly run?: boolean
 }
 
-/** Turns a soldier to face, and aim, along a direction on the ground plane. */
+/**
+ * Turns a soldier to face, and aim, along a direction on the ground plane: at `target`, the enemy a player has picked
+ * out with the pointer, when there is one.
+ */
 export interface FaceCommand {
   readonly type: "face"
   readonly soldier: EntityId
   readonly x: number
   readonly z: number
+  readonly target?: EntityId
 }
 
 /** Gives a squad a standing order for every member except its leader. */
@@ -286,6 +293,10 @@ export function applyCommand(sim: Simulation, command: Command): void {
       }
       const length = Math.sqrt(command.x * command.x + command.z * command.z)
       if (!(length > 0)) {
+        if (hasComponent(sim.world, command.soldier, sim.soldiers.steer)) {
+          // Stopped: his aim steadies from now.
+          sim.soldiers.aim.since[command.soldier] = sim.tick
+        }
         removeComponent(sim.world, command.soldier, sim.soldiers.steer)
         return
       }
@@ -302,8 +313,25 @@ export function applyCommand(sim: Simulation, command: Command): void {
       if (!isSoldier(sim, command.soldier) || !(length > 0)) {
         return
       }
-      sim.soldiers.facing.x[command.soldier] = command.x / length
-      sim.soldiers.facing.z[command.soldier] = command.z / length
+      const { facing, target, aim, side } = sim.soldiers
+      const x = command.x / length
+      const z = command.z / length
+      const picked =
+        command.target !== undefined &&
+        isSoldier(sim, command.target) &&
+        !hasComponent(sim.world, command.target, sim.soldiers.dead) &&
+        !hasComponent(sim.world, command.target, sim.soldiers.captured) &&
+        side.value[command.target] !== side.value[command.soldier]
+          ? command.target
+          : -1
+      // Switching target unsettles his aim; following the same man doesn't, nor do small corrections with nobody picked.
+      const swung = x * facing.x[command.soldier] + z * facing.z[command.soldier] < AIM_SWING
+      if (picked !== target.id[command.soldier] || (picked < 0 && swung)) {
+        aim.since[command.soldier] = sim.tick
+      }
+      target.id[command.soldier] = picked
+      facing.x[command.soldier] = x
+      facing.z[command.soldier] = z
       return
     }
     case "squad-order": {
@@ -322,6 +350,9 @@ export function applyCommand(sim: Simulation, command: Command): void {
         removeComponent(sim.world, squad.leader, sim.soldiers.steer)
       }
       removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
+      // He takes up the player's aim, not whoever he had in his sights left to himself.
+      sim.soldiers.target.id[command.soldier] = -1
+      sim.soldiers.aim.since[command.soldier] = sim.tick
       squad.leader = command.soldier
       return
     }
@@ -383,6 +414,9 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "stance": {
       if (isSoldier(sim, command.soldier)) {
+        if (sim.soldiers.stance.value[command.soldier] !== STANCES[command.stance]) {
+          sim.soldiers.aim.since[command.soldier] = sim.tick
+        }
         sim.soldiers.stance.value[command.soldier] = STANCES[command.stance]
       }
       return

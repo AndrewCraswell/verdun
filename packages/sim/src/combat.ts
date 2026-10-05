@@ -12,7 +12,7 @@ import { smokeBetween } from "./smoke.ts"
 import { nearestSoldiers, soldiersNear } from "./spatial.ts"
 import { spottedGuns } from "./spotting.ts"
 import { isAlive, type Squad } from "./squads.ts"
-import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
+import { isInTrench, isSheltering, seesOverParapet, soldierEye } from "./stance.ts"
 import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
 /**
@@ -395,11 +395,14 @@ function inBeatenZone(sim: Simulation, shooter: EntityId, target: EntityId): Ent
   return nearest
 }
 
-/** Fires one shot at a target, rolling to hit; hits wound or kill, and every shot suppresses the target. */
-export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): void {
+/**
+ * Fires one shot at a target, rolling to hit; hits wound or kill, and every shot suppresses the target. `steady` scales
+ * the chance for a player's shot (see `steadiness`); a bot's aim is always as steady as `hitChance` has it.
+ */
+export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId, steady = 1): void {
   const kind = weaponKind(sim, shooter)
   const stats = WEAPONS[kind]
-  const hit = sim.rng.next() < hitChance(sim, shooter, target)
+  const hit = sim.rng.next() < hitChance(sim, shooter, target) * steady
   const { suppression } = sim.soldiers
   suppression.value[target] = Math.min(1, suppression.value[target] + stats.suppression * (hit ? 2 : 1))
   if (hit) {
@@ -438,7 +441,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   }
   const best = aimedTarget(sim, shooter)
   if (best >= 0) {
-    fireAt(sim, shooter, best)
+    fireAt(sim, shooter, best, shotSteadiness(sim, shooter))
     return true
   }
   const x = sim.soldiers.position.x[shooter]
@@ -461,8 +464,9 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
 }
 
 /**
- * Who a soldier's aimed shot would strike now: the nearest enemy within about 4 degrees of where they face that they
- * can see and reach, or -1. The player's sight picture, and what `fireAimed` shoots at.
+ * Who a soldier's aimed shot would strike now: the enemy the player picked out (`target`), if he can see and reach him
+ * and still faces him; otherwise the nearest enemy within about 4 degrees of where he faces that he can see and reach;
+ * or -1. The player's sight picture, and what `fireAimed` shoots at.
  */
 export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
   if (!isAlive(sim, shooter)) {
@@ -472,6 +476,19 @@ export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
   const z = sim.soldiers.position.z[shooter]
   const facingX = sim.soldiers.facing.x[shooter]
   const facingZ = sim.soldiers.facing.z[shooter]
+  const picked = sim.soldiers.target.id[shooter]
+  if (
+    picked >= 0 &&
+    !firesOnTheirOwn(sim, shooter) &&
+    sim.soldiers.side.value[picked] !== sim.soldiers.side.value[shooter]
+  ) {
+    const dx = sim.soldiers.position.x[picked] - x
+    const dz = sim.soldiers.position.z[picked] - z
+    const distance = Math.sqrt(dx * dx + dz * dz)
+    if (distance > 0 && (dx * facingX + dz * facingZ) / distance > PICKED_CONE && canEngage(sim, shooter, picked)) {
+      return picked
+    }
+  }
   const side = sim.soldiers.side.value[shooter]
   // The enemies within about 4 degrees of the aim, nearest first (and by id between equals), then a sight line to each
   // in turn until one is clear: what's behind the nearest visible man is never looked at.
@@ -489,6 +506,43 @@ export function aimedTarget(sim: Simulation, shooter: EntityId): EntityId {
   }
   inLine.sort((a, b) => a.distance - b.distance || a.soldier - b.soldier)
   return inLine.find(({ soldier }) => canEngage(sim, shooter, soldier))?.soldier ?? -1
+}
+
+/** A man the player picked out stays the target while he faces within this of him (its cosine: about 10 degrees). */
+const PICKED_CONE = 0.985
+/**
+ * Seconds a standing man takes to steady his aim on a man: a snap shot gets `SNAP_SHARE` of the chance `hitChance`
+ * gives, rising to all of it. Lying down or kneeling he steadies faster, and faster again resting his rifle on a
+ * parapet. A bolt takes three seconds to work, so a man who stays on his target between shots always fires steadied.
+ */
+export const SETTLE_SECONDS = 1.5
+const SNAP_SHARE = 0.5
+/** How much faster each stance steadies, as a share of the standing time. */
+const SETTLE_STANCE: Readonly<Record<number, number>> = { [Stance.Prone]: 0.5, [Stance.Crouching]: 0.75 }
+/** Resting on a parapet takes this share of the time again. */
+const SETTLE_RESTING = 0.6
+
+/**
+ * How steady a man's aim is, from 0 (a snap shot) to 1, after `settled` seconds on it at a stance, resting his rifle on
+ * a parapet or not. Shared by the simulation's shot and the page's sight picture, so the two agree.
+ */
+export function steadiness(settled: number, stance: number, resting: boolean): number {
+  const time = SETTLE_SECONDS * (SETTLE_STANCE[stance] ?? 1) * (resting ? SETTLE_RESTING : 1)
+  return Math.min(1, Math.max(0, settled / time))
+}
+
+/** How steady a soldier's aim is now: nothing on the move; otherwise from when he settled on his aim. */
+export function aimSteadiness(sim: Simulation, soldier: EntityId): number {
+  if (isMoving(sim, soldier)) {
+    return 0
+  }
+  const settled = (sim.tick - sim.soldiers.aim.since[soldier]) * STEP_SECONDS
+  return steadiness(settled, sim.soldiers.stance.value[soldier], seesOverParapet(sim, soldier))
+}
+
+/** The share of `hitChance` a player's aimed shot gets now, from a snap shot's to all of it. */
+export function shotSteadiness(sim: Simulation, soldier: EntityId): number {
+  return SNAP_SHARE + (1 - SNAP_SHARE) * aimSteadiness(sim, soldier)
 }
 
 /** Lowers the morale of a fallen soldier's squadmates. Call when a soldier dies. */

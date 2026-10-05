@@ -50,6 +50,8 @@ export interface SoldierState {
   readonly weapon: Weapon
   readonly cooldown: number
   readonly target: number
+  /** The step a player's man settled on his aim (`aim.since`); absent in snapshots from before steadying. */
+  readonly aimSince?: number
   readonly suppression: number
   readonly morale: number
   readonly stance: Stance
@@ -161,6 +163,7 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       weapon: toWeapon(weapon.kind[id]),
       cooldown: weapon.cooldown[id],
       target: target.id[id],
+      aimSince: sim.soldiers.aim.since[id],
       suppression: suppression.value[id],
       morale: morale.value[id],
       stance: toStance(sim.soldiers.stance.value[id]),
@@ -263,6 +266,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.soldiers.health.value[id] = soldier.health
     sim.soldiers.weapon.cooldown[id] = soldier.cooldown
     sim.soldiers.target.id[id] = soldier.target
+    sim.soldiers.aim.since[id] = soldier.aimSince ?? 0
     sim.soldiers.suppression.value[id] = soldier.suppression
     sim.soldiers.morale.value[id] = soldier.morale
     sim.soldiers.stance.value[id] = soldier.stance

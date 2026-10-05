@@ -25,6 +25,7 @@ export {
   PINNED,
   type ShotEvent,
   shotEvents,
+  shotSteadiness,
   throwError,
   type ThrowEvent,
   type ThrownGrenade,
