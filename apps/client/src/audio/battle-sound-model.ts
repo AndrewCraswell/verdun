@@ -143,6 +143,8 @@ export interface SoundCall {
   readonly cutoff: number
   /** The soldier shouting, for a shout (voice-*): the captions name him. */
   readonly speaker?: EntityId
+  /** For a shout as played, the line it says: its id in scripts/voice-lines.json, for the captions. */
+  readonly line?: string
 }
 
 /** How the listener's surroundings colour what they hear, each from 0 (not there) to 1: see mixer.ts. */

@@ -21,7 +21,19 @@ import { type Bed, getMixer } from "./mixer.ts"
 import { playerVolume, volumeGain } from "./volume.ts"
 
 /** The encoded variations of each cue, as read from the kit. */
-export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly ArrayBuffer[]>
+export type BattleSoundFiles = ReadonlyMap<SoundCue, readonly SoundFile[]>
+
+/** One variation of a cue, encoded, and for a shout the line it says (its id in scripts/voice-lines.json). */
+export interface SoundFile {
+  readonly data: ArrayBuffer
+  readonly line?: string
+}
+
+/** One variation, decoded. */
+interface Variation {
+  readonly buffer: AudioBuffer
+  readonly line?: string
+}
 
 /** Random detune per play, in cents either way, so repeats don't sound identical. */
 const DETUNE = 80
@@ -60,7 +72,7 @@ function busFor(cue: SoundCue): "ears" | "ambience" | "battle" {
   return cue === "thunder" ? "ambience" : "battle"
 }
 
-function isManifest(value: unknown): value is Record<string, { variations: number }> {
+function isManifest(value: unknown): value is Record<string, { variations: number; lines?: unknown }> {
   return typeof value === "object" && value !== null
 }
 
@@ -74,10 +86,15 @@ export async function loadBattleSoundFiles(files: KitFiles): Promise<BattleSound
     const entries = await Promise.all(
       SOUND_CUES.map(async (cue) => {
         const count = manifest[cue]?.variations ?? 0
-        const buffers = await Promise.all(
-          Array.from({ length: count }, (_, index) => files.read(`sfx/${cue}-${index}.ogg`))
+        const lines = manifest[cue]?.lines
+        const variations = await Promise.all(
+          Array.from({ length: count }, async (_, index): Promise<SoundFile> => {
+            const data = await files.read(`sfx/${cue}-${index}.ogg`)
+            const line: unknown = Array.isArray(lines) ? lines[index] : undefined
+            return typeof line === "string" ? { data, line } : { data }
+          })
         )
-        return [cue, buffers] as const
+        return [cue, variations] as const
       })
     )
     return new Map(entries)
@@ -105,16 +122,17 @@ export interface BattleSounds {
  * Decodes every variation, leaving out any the browser can't decode (a file cut short while the sound build was
  * writing it, say) with a warning: a missing sound must never stop the game.
  */
-async function decodeAll(context: BaseAudioContext, files: BattleSoundFiles): Promise<Map<SoundCue, AudioBuffer[]>> {
-  const decoded = new Map<SoundCue, AudioBuffer[]>()
+async function decodeAll(context: BaseAudioContext, files: BattleSoundFiles): Promise<Map<SoundCue, Variation[]>> {
+  const decoded = new Map<SoundCue, Variation[]>()
   const failed: string[] = []
   await Promise.all(
     [...files].map(async ([cue, variations]) => {
       const buffers = await Promise.all(
-        variations.map(async (data, index) => {
+        variations.map(async ({ data, line }, index): Promise<Variation | null> => {
           try {
             // decodeAudioData detaches the buffer it's given, so decode copies and keep the kit's files intact.
-            return await context.decodeAudioData(data.slice(0))
+            const buffer = await context.decodeAudioData(data.slice(0))
+            return line === undefined ? { buffer } : { buffer, line }
           } catch {
             failed.push(`${cue}-${index}`)
             return null
@@ -123,7 +141,7 @@ async function decodeAll(context: BaseAudioContext, files: BattleSoundFiles): Pr
       )
       decoded.set(
         cue,
-        buffers.filter((buffer): buffer is AudioBuffer => buffer !== null)
+        buffers.filter((variation): variation is Variation => variation !== null)
       )
     })
   )
@@ -201,7 +219,7 @@ async function startBattleSounds(
   const decoded = await decodeAll(mixer.context, files)
   const atmosphere = createAtmosphereModel(sim, { ownThunder: !options.lightning })
   const bed = (cue: keyof typeof BED_VOLUMES): Bed | null => {
-    const buffer = decoded.get(cue)?.[0]
+    const buffer = decoded.get(cue)?.[0]?.buffer
     return buffer ? mixer.bed(buffer) : null
   }
   const beds = {
@@ -224,8 +242,9 @@ async function startBattleSounds(
 
   function play(call: SoundCall): void {
     const variations = decoded.get(call.cue)
-    const buffer = variations?.[Math.floor(Math.random() * variations.length)]
-    if (buffer) {
+    const variation = variations?.[Math.floor(Math.random() * variations.length)]
+    if (variation) {
+      const { buffer, line } = variation
       const bus = busFor(call.cue)
       mixer.play({
         name: call.cue,
@@ -243,7 +262,7 @@ async function startBattleSounds(
           : (Math.random() * 2 - 1) * (call.cue.startsWith("voice-") ? VOICE_DETUNE : DETUNE),
         bus
       })
-      options.heard?.(call)
+      options.heard?.(line === undefined ? call : { ...call, line })
     }
   }
   options.lightning?.add((distance) => {
@@ -289,7 +308,7 @@ async function startBattleSounds(
     },
     update() {
       const pinned = model.breathingPinned()
-      const pant = decoded.get("pinned-breath")?.[0]
+      const pant = decoded.get("pinned-breath")?.[0]?.buffer
       if (pinned && !panting && pant) {
         panting = mixer.play({
           name: "pinned-breath",
@@ -308,7 +327,7 @@ async function startBattleSounds(
         panting = null
       }
       const masked = model.breathingInMask()
-      const buffer = decoded.get("mask-breath")?.[0]
+      const buffer = decoded.get("mask-breath")?.[0]?.buffer
       if (masked && !breathing && buffer) {
         breathing = mixer.play({
           buffer,

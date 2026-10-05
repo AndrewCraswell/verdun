@@ -668,18 +668,21 @@ def voice_takes(vendor):
 
 
 def voice_cues(vendor):
-    """Each voice cue's takes, as chosen by ear, every shout matched to the same loudness: one man's cry for help is as
-    loud as another's alarm, in either language."""
+    """Each voice cue's takes, as chosen by ear, with the line each says (its id in VOICE_LINES), every shout matched to
+    the same loudness: one man's cry for help is as loud as another's alarm, in either language."""
     takes = voice_takes(vendor)
     chosen = []
     for name in json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []):
         if name not in takes:
             print(f"[sound-effects] kept take {name} isn't in {VOICES}; generate it first", flush=True)
             continue
-        chosen.append((takes[name]["cue"], trimmed(load(vendor / VOICES / f"{name}.mp3"))))
+        take = takes[name]
+        chosen.append((take["cue"], take["line"], trimmed(load(vendor / VOICES / f"{name}.mp3"))))
     cues = {}
-    for (cue, _), clip in zip(chosen, match_loudness([clip for _, clip in chosen])):
-        cues.setdefault(cue, []).append(clip)
+    for (cue, line, _), clip in zip(chosen, match_loudness([clip for _, _, clip in chosen])):
+        clips, lines = cues.setdefault(cue, ([], []))
+        clips.append(clip)
+        lines.append(line)
     return cues
 
 
@@ -740,10 +743,11 @@ def build(vendor, output):
         manifest[name] = {"variations": len(clips), "loop": cue.get("loop", False) or "bed" in cue}
         lengths = ", ".join(f"{len(clip) / RATE:.1f}" for clip in clips)
         print(f"[sound-effects] {name}: {len(clips)} variations ({lengths} s)", flush=True)
-    for name, clips in voice_cues(vendor).items():
+    for name, (clips, lines) in voice_cues(vendor).items():
         for index, clip in enumerate(clips):
             write(sfx / f"{name}-{index}.ogg", clip)
-        manifest[name] = {"variations": len(clips), "loop": False}
+        # Which line each variation says, for the captions.
+        manifest[name] = {"variations": len(clips), "loop": False, "lines": lines}
         print(f"[sound-effects] {name}: {len(clips)} takes", flush=True)
     write(sfx / "ear-ring-0.ogg", ear_ring())
     manifest["ear-ring"] = {"variations": 1, "loop": False}
