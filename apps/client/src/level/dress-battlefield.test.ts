@@ -234,6 +234,8 @@ describe("dressLevel", () => {
     const update = vi.spyOn(scenery, "update")
     scene.render()
     expect(update).toHaveBeenCalledWith(battlefield.camera.globalPosition)
+    // Particle systems with nothing to draw are paused: the smoke shells leave, before any has burst.
+    expect(dressing?.aftermath.smoke.paused).toBe(true)
     // The depth of field blurs by the ground's depth alone, props and all.
     const depth = scene.enableDepthRenderer(battlefield.camera).getDepthMap()
     const ground = scene.meshes.filter((mesh) => mesh.name.startsWith("terrain-"))

@@ -16,6 +16,7 @@ import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
 import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage, DEBRIS } from "./battle-damage.ts"
+import { pauseIdleParticles } from "./idle-particles.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
 import { airLight, lightParticles, litByAir, setInFog } from "./particle-light.ts"
@@ -486,6 +487,9 @@ export async function dressLevel(
       { depthMap: view.scene.enableDepthRenderer(view.camera).getDepthMap(), camera: view.camera }
     )
   }
+  // Each of the scene's particle systems, the rain's, the flares' and the tracers' made after the level too, is paused
+  // while it has nothing to draw, rather than uploaded empty every frame (see idle-particles.ts).
+  pauseIdleParticles(view.scene)
   const light = new Color3()
   // Detail, far copy or nothing for each batch, by the drawing camera's distance, before the scene culls them.
   view.scene.onBeforeActiveMeshesEvaluationObservable.add(() => {
