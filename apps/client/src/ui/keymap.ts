@@ -240,7 +240,21 @@ export interface Keymap {
   listen(listener: () => void): () => void
 }
 
-/** The bindings from what was stored: each action's keys if they're a list of key codes, its defaults otherwise. */
+/**
+ * Keys that were an action's defaults once and aren't now. Until a keymap kept only what the player changed, it kept
+ * every action's keys, so a player who'd changed any key had an old default stored as if he'd chosen it: Space stayed
+ * on recentring the camera after it became the action key, and the action never got it.
+ */
+const PAST_DEFAULTS: Partial<Record<KeyAction, readonly (readonly string[])[]>> = { recentre: [["Space"]] }
+
+function sameKeys(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((code, index) => code === b[index])
+}
+
+/**
+ * The bindings from what was stored: each action's keys if they're a list of key codes, its defaults otherwise, and its
+ * defaults too where what's stored is one of its old defaults.
+ */
 function readBindings(stored: unknown): Map<KeyAction, readonly string[]> {
   const bindings = new Map<KeyAction, readonly string[]>()
   const record: Record<string, unknown> = typeof stored === "object" && stored !== null ? { ...stored } : {}
@@ -250,7 +264,8 @@ function readBindings(stored: unknown): Map<KeyAction, readonly string[]> {
       Array.isArray(kept) &&
       kept.length > 0 &&
       kept.every((code): code is string => typeof code === "string" && code.length > 0 && !RESERVED.has(code))
-    bindings.set(info.action, valid ? kept : info.keys)
+    const outdated = valid && (PAST_DEFAULTS[info.action] ?? []).some((old) => sameKeys(old, kept))
+    bindings.set(info.action, valid && !outdated ? kept : info.keys)
   }
   return bindings
 }
@@ -272,7 +287,8 @@ export function createKeymap(store: KeyStore): Keymap {
 
   function changed(): void {
     index()
-    store.save(Object.fromEntries(bindings))
+    // Only what the player changed, so a later change to a default reaches him.
+    store.save(Object.fromEntries([...bindings].filter(([action, codes]) => !sameKeys(codes, infoOf(action).keys))))
     for (const listener of listeners) {
       listener()
     }

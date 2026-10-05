@@ -91,6 +91,20 @@ describe("the keymap", () => {
     expect(createKeymap(memoryStore("not bindings")).codesFor("forward")).toEqual(["KeyW"])
   })
 
+  it("keeps only the keys the player changed, so a change to a default reaches him", () => {
+    const store = memoryStore()
+    createKeymap(store).rebind("whistle", "KeyJ")
+    expect(store.load()).toEqual({ whistle: ["KeyJ"] })
+  })
+
+  it("moves an old default stored as a choice onto the new default: Space from recentring to the action key", () => {
+    // Saved before the keymap kept only changes: every action's keys, recentring on Space as it then was.
+    const keymap = createKeymap(memoryStore({ recentre: ["Space"], whistle: ["KeyJ"] }))
+    expect(keymap.codesFor("recentre")).toEqual(["Home", "KeyL"])
+    expect(keymap.actionOf("Space")).toBe("act")
+    expect(keymap.codesFor("whistle")).toEqual(["KeyJ"])
+  })
+
   it("resets one action or all of them, and tells its listeners each time", () => {
     const keys = createKeymap(memoryStore())
     let heard = 0
