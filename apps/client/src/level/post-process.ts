@@ -124,6 +124,10 @@ export function createPostProcess(
   const stop = () => {
     resized.remove()
     viewed?.remove()
+    if (viewed) {
+      // With nothing left to say when it's out of date, the scene's depth map goes back to being drawn every frame.
+      depthMap.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONEVERYFRAME
+    }
   }
   const pipeline = new DefaultRenderingPipeline("miniature", true, scene, [camera])
   if (!pipeline.isSupported) {

@@ -93,6 +93,7 @@ describe("createPostProcess", () => {
     const ground = CreateGround("terrain-0-0", { width: 200, height: 200 }, scene)
     ground.position.set(100, 0, 100)
     ground.material = new StandardMaterial("ground", scene)
+    const watching = scene.onBeforeCameraRenderObservable.observers.length
     const post = createPostProcess(scene, camera, { inDepth: (mesh) => mesh.name.startsWith("terrain-") })
     if (!post) {
       throw new Error("the pipeline should run on the null engine")
@@ -134,7 +135,10 @@ describe("createPostProcess", () => {
     scene.activeCamera = camera
     expect(draws(1)).toBe(1)
     expect(draws(5)).toBe(0)
+    // Gone, it stops watching the camera, and the depth map is drawn every frame again for whatever else reads it.
     post.dispose()
+    expect(scene.onBeforeCameraRenderObservable.observers).toHaveLength(watching)
+    expect(draws(3)).toBe(3)
   })
 
   it("draws the depth every frame when it draws everything the camera sees, moving or not", () => {
