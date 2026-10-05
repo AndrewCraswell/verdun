@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { SoundCue } from "../audio/battle-sound-model.ts"
 import type { CaptionMode } from "../settings/play.ts"
-import { captionOf, createCaptions } from "./captions.ts"
+import { captionOf, createCaptions, type HeardSound } from "./captions.ts"
 
 describe("captions", () => {
   it("captions a shout with who and where, its meaning, and the words as shouted", () => {
@@ -13,6 +13,16 @@ describe("captions", () => {
       kind: "voice"
     })
     expect(captionOf("voices", { cue: "voice-follow-fr", volume: 0.5, pan: 0 }, "fr")?.who).toBe("Ours, ahead")
+  })
+
+  it("names a man of the player's squad, and leaves the rest to their side", () => {
+    const nameOf = (soldier: number) => (soldier === 7 ? "Caporal Vincent" : null)
+    const call: HeardSound = { cue: "voice-follow-fr", volume: 0.5, pan: 0 }
+    expect(captionOf("voices", { ...call, speaker: 7 }, "fr", nameOf)).toMatchObject({
+      who: "Caporal Vincent, ahead",
+      key: "voice-follow-fr:7"
+    })
+    expect(captionOf("voices", { ...call, speaker: 9 }, "fr", nameOf)?.who).toBe("Ours, ahead")
   })
 
   it("captions warning sounds only when asked, and nothing too faint or switched off", () => {

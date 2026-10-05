@@ -1,3 +1,4 @@
+import type { EntityId } from "@verdun/sim"
 import type { SoundCue } from "../audio/battle-sound-model.ts"
 import type { CaptionMode } from "../settings/play.ts"
 
@@ -9,7 +10,7 @@ import type { CaptionMode } from "../settings/play.ts"
 
 export interface Caption {
   readonly key: string
-  /** "French, to the left". */
+  /** "Caporal Vincent, ahead", "The enemy, to the left". */
   readonly who: string
   /** "Gas! Masks on!" */
   readonly text: string
@@ -60,11 +61,23 @@ function direction(pan: number): string {
   return pan > 0.35 ? "to the right" : "ahead"
 }
 
-/** What a sound says as a caption, or null for one that isn't captioned in this mode. */
+/** A sound as the captions hear it: its cue, how loud and from where, and the man who shouted, for a shout. */
+export interface HeardSound {
+  readonly cue: SoundCue
+  readonly volume: number
+  readonly pan: number
+  readonly speaker?: EntityId
+}
+
+/**
+ * What a sound says as a caption, or null for one that isn't captioned in this mode. `nameOf` names a man the player
+ * knows ("Caporal Vincent"), or gives null for one they don't, who goes by his side.
+ */
 export function captionOf(
   mode: CaptionMode,
-  call: { readonly cue: SoundCue; readonly volume: number; readonly pan: number },
-  ourLanguage: "fr" | "de"
+  call: HeardSound,
+  ourLanguage: "fr" | "de",
+  nameOf: (soldier: EntityId) => string | null = () => null
 ): Omit<Caption, "count" | "left"> | null {
   if (mode === "off" || call.volume < AUDIBLE) {
     return null
@@ -76,10 +89,11 @@ export function captionOf(
     if (!shout) {
       return null
     }
+    const name = call.speaker === undefined ? null : nameOf(call.speaker)
     const side = language === ourLanguage ? "Ours" : "The enemy"
     return {
-      key: call.cue,
-      who: `${side}, ${direction(call.pan)}`,
+      key: name ? `${call.cue}:${call.speaker}` : call.cue,
+      who: `${name ?? side}, ${direction(call.pan)}`,
       text: shout.text,
       words: shout[language],
       kind: "voice"
@@ -91,17 +105,21 @@ export function captionOf(
 
 export interface Captions {
   /** Hears a sound the battle plays. */
-  hear(call: { readonly cue: SoundCue; readonly volume: number; readonly pan: number }): void
+  hear(call: HeardSound): void
   /** Moves the captions on by `seconds`; returns those showing, newest last. */
   update(seconds: number): readonly Caption[]
 }
 
 /** Captions as they come and go: the same one heard again while it shows counts up rather than repeating. */
-export function createCaptions(mode: () => CaptionMode, ourLanguage: "fr" | "de"): Captions {
+export function createCaptions(
+  mode: () => CaptionMode,
+  ourLanguage: "fr" | "de",
+  nameOf?: (soldier: EntityId) => string | null
+): Captions {
   let showing: Caption[] = []
   return {
     hear(call) {
-      const caption = captionOf(mode(), call, ourLanguage)
+      const caption = captionOf(mode(), call, ourLanguage, nameOf)
       if (!caption) {
         return
       }

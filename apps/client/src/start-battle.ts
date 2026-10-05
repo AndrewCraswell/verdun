@@ -255,7 +255,15 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
   // The notes over the battle: captions of what's heard, the question before sector-wide fire, and the suggestion of a
   // lower setting when the battle has run slowly, made once.
   const confirm = createFireConfirm(() => playSettings().current.confirmSectorFire)
-  const captions = createCaptions(() => playSettings().current.captions, playerSquad.side === Side.German ? "de" : "fr")
+  // Shouts from the player's own squad are captioned with the man's name, as the roster gives it; the rest by side.
+  const captions = createCaptions(
+    () => playSettings().current.captions,
+    playerSquad.side === Side.German ? "de" : "fr",
+    (soldier) => {
+      const man = hud.state?.roster.find((slot) => slot.id === soldier)
+      return man ? `${man.name.rank} ${man.name.surname}` : null
+    }
+  )
   const notes = createBattleNotes(document.body, { captions, confirm })
   const storage = browserStorage()
   let suggested = false
