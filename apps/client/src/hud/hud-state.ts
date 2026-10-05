@@ -38,6 +38,7 @@ import {
   soldierView,
   STEADY_MORALE
 } from "./soldier-state.ts"
+import { type SpottedGun, spottedGunsView } from "./spotted-guns.ts"
 import { createSquadNames, type SoldierName, type SquadNames } from "./squad-names.ts"
 import { createOrderWatch, type OrderView } from "./squad-order.ts"
 import { createSuccessionWatch, type Succession } from "./succession.ts"
@@ -67,6 +68,8 @@ export interface HudState {
   readonly banner: { readonly banner: Banner; readonly progress: number } | null
   readonly succession: Succession | null
   readonly wiped: WipedView | null
+  /** Machine guns given away by their fire: the enemy's we've spotted, and ours once the enemy has. */
+  readonly guns: readonly SpottedGun[]
   readonly hint: Hint | null
   readonly screen: ScreenView
   readonly cursor: CursorView
@@ -309,6 +312,7 @@ export function createHudModel(
         banner: banners.current(now),
         succession: handover,
         wiped: wipedOf(soldier, roster, strength.reserves?.men ?? null),
+        guns: spottedGunsView(sim, squad, tickRate),
         hint: hints.read(now, view),
         screen: screenOf(soldier, handover),
         cursor: cursorOf(soldier),

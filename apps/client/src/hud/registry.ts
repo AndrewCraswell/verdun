@@ -4,6 +4,7 @@ import { bannerStrip } from "./elements/banner-strip.ts"
 import { clockPanel } from "./elements/clock-panel.ts"
 import { effectsList } from "./elements/effects-list.ts"
 import { firePanel } from "./elements/fire-panel.ts"
+import { gunMarks } from "./elements/gun-marks.ts"
 import { handoverCard } from "./elements/handover-card.ts"
 import { hintLine } from "./elements/hint-line.ts"
 import { logFeed } from "./elements/log-feed.ts"
@@ -35,6 +36,7 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   // H9 and W7: the grenade's arc, reach and blast while the throw key is held, over every other mark.
   throwPreviewMarks,
   takeOverMarks,
+  gunMarks,
   // Bottom left, from the bottom: H1, H3 and H4; H5; H6; H2 beside them.
   soldierCard,
   rosterStrip,

@@ -1,0 +1,61 @@
+/* Spotted machine guns: red rings on the enemy's, amber on our own once the enemy has placed it. */
+.gun-marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  font-size: calc(1em * var(--hud-marker, 1));
+}
+
+.gm-mark {
+  --gun: var(--hud-theirs);
+  color: var(--gun);
+  transition: opacity var(--hud-slow) linear;
+}
+
+.gm-mark[data-side="ours"] {
+  --gun: var(--hud-caution);
+}
+
+.gm-icon {
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+}
+
+.gm-ring {
+  fill: rgb(12 11 8 / 62%);
+  stroke: var(--gun);
+  stroke-width: 2;
+}
+
+/* Only heard, not seen: a broken ring, placed by ear. */
+.gm-mark[data-seen="false"] .gm-ring {
+  stroke-dasharray: 4 3;
+}
+
+.gm-mark[data-side="ours"] .gm-ring {
+  animation: gm-pulse 1.4s var(--hud-ease) infinite;
+}
+
+@keyframes gm-pulse {
+  50% {
+    stroke-width: 3.6;
+  }
+}
+
+.gm-label {
+  font-family: var(--hud-font-ui);
+  font-size: 0.64em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+  text-transform: uppercase;
+  fill: var(--gun);
+  stroke: rgb(6 5 4 / 80%);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
