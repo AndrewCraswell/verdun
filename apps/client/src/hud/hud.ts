@@ -123,7 +123,7 @@ export function createHud(
   const hub = interfaceSettings()
   let settings = hub.current
   const seconds = () => performance.now() / 1000
-  const model: HudModel = createHudModel(sim, squad, tickRate, war ? { war } : {})
+  const model: HudModel = createHudModel(sim, squad, tickRate, { ...(war ? { war } : {}), ...(seen ? { seen } : {}) })
   const canvas = view?.scene.getEngine().getRenderingCanvas() ?? document.querySelector("canvas")
 
   const project: HudContext["project"] = (x, y, z) => {

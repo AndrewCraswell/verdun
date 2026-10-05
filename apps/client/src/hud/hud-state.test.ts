@@ -30,7 +30,7 @@ describe("the HUD's state", () => {
     expect(state.banner?.banner.title).toBe("Crossroads")
     expect(state.wiped).toBeNull()
     expect(state.war).toBeNull()
-    expect(state.cursor).toEqual({ state: "aim", ready: 1, shaken: false, chance: null })
+    expect(state.cursor).toEqual({ state: "aim", ready: 1, shaken: false, chance: null, steadiness: 0 })
     expect(state.screen).toEqual({ suppression: 0, wounded: 0, gas: 0, mask: 0, shaken: 0, burst: 0, fallen: 0 })
     expect(model.names.nameOf(sim, squad, slot(members, 0)).rank).toBe("Caporal")
   })
@@ -49,7 +49,7 @@ describe("the HUD's state", () => {
     expect(state.screen.wounded).toBeCloseTo(0.75, 5)
     expect(state.screen.mask).toBe(1)
     expect(state.screen.shaken).toBeCloseTo(0.5, 5)
-    expect(state.cursor).toEqual({ state: "reload", ready: 0.5, shaken: true, chance: null })
+    expect(state.cursor).toEqual({ state: "reload", ready: 0.5, shaken: true, chance: null, steadiness: 0 })
   })
 
   it("jolts the screen when a shell bursts close, and lets it fade", () => {

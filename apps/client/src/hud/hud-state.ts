@@ -1,5 +1,4 @@
 import {
-  hitChance,
   WEAPONS,
   arrivalOf,
   capturedIds,
@@ -15,7 +14,6 @@ import {
   type WarDay,
   woundedIds
 } from "@verdun/sim"
-import { aimedTargetNow } from "../control/aimed-target.ts"
 import { type Attention, createAttentionWatch } from "./attention.ts"
 import { type Banner, createBannerQueue } from "./banners.ts"
 import { type BattleLog, createBattleLog, type LogMessage } from "./battle-log.ts"
@@ -30,6 +28,7 @@ import {
   type StrengthView,
   strengthView
 } from "./sector-state.ts"
+import { type SightState, sightPicture } from "./sight-picture.ts"
 import {
   type Casualties,
   type EffectView,
@@ -127,15 +126,20 @@ export interface ScreenView {
   readonly fallen: number
 }
 
-/** What the pointer should look like over the battlefield (H8). */
+/**
+ * What the pointer should look like over the battlefield (H8): aiming at nobody, at a man in his sights, or at a man he
+ * can't shoot and why (see `SightState`), or working the bolt.
+ */
 export interface CursorView {
-  readonly state: "aim" | "target" | "reload" | "none"
+  readonly state: "aim" | SightState | "reload" | "none"
   /** How far through reloading, from 0 to 1. */
   readonly ready: number
   /** Aim spoiled by fire. */
   readonly shaken: boolean
   /** How good a shot at the man in the sights is, in words, never a number (H8); null with nobody in them. */
   readonly chance: ShotChance | null
+  /** How steady his aim is on the man in his sights, from 0 (a snap shot) to 1; 0 with nobody in them. */
+  readonly steadiness: number
 }
 
 export type ShotChance = "good" | "fair" | "poor"
@@ -166,6 +170,8 @@ export interface HudModel {
 export interface HudModelOptions {
   /** The war's calendar, when the battle runs on it. */
   readonly war?: { readonly day: WarDay; readonly paused: boolean }
+  /** Whether the player's side can see a soldier now, by the fog of war's rule; everyone, without fog. */
+  readonly seen?: (soldier: EntityId) => boolean
 }
 
 /** A close burst within this many metres of the man under control shakes the screen. */
@@ -182,7 +188,7 @@ export function createHudModel(
   sim: Simulation,
   squad: Squad,
   tickRate: number,
-  { war }: HudModelOptions = {}
+  { war, seen = () => true }: HudModelOptions = {}
 ): HudModel {
   const names = createSquadNames()
   const log: BattleLog = createBattleLog(sim, squad, tickRate, names)
@@ -229,18 +235,27 @@ export function createHudModel(
 
   function cursorOf(soldier: SoldierView | null): CursorView {
     if (!soldier) {
-      return { state: "none", ready: 0, shaken: false, chance: null }
+      return { state: "none", ready: 0, shaken: false, chance: null, steadiness: 0 }
     }
     const shaken = soldier.fire === "pinned" || soldier.spirit !== "steady"
     if (soldier.weapon.ready < 1) {
-      return { state: "reload", ready: soldier.weapon.ready, shaken, chance: null }
+      return { state: "reload", ready: soldier.weapon.ready, shaken, chance: null, steadiness: 0 }
     }
-    const target = aimedTargetNow(sim, soldier.id)
-    if (target < 0) {
-      return { state: "aim", ready: 1, shaken, chance: null }
+    const picture = sightPicture(sim, soldier.id, seen)
+    if (!picture) {
+      return { state: "aim", ready: 1, shaken, chance: null, steadiness: 0 }
+    }
+    if (picture.state !== "target") {
+      return { state: picture.state, ready: 1, shaken, chance: null, steadiness: 0 }
     }
     const best = WEAPONS[weaponOf(sim, soldier.id)].accuracy
-    return { state: "target", ready: 1, shaken, chance: shotChance(hitChance(sim, soldier.id, target), best) }
+    return {
+      state: "target",
+      ready: 1,
+      shaken,
+      chance: shotChance(picture.chance, best),
+      steadiness: picture.steadiness
+    }
   }
 
   // The order squads were first offered in, kept while the list is up, so none moves under the player's pointer.
