@@ -595,6 +595,10 @@ up in the rear trench: 8 men" in the log.
 
 **Stage** P. **Kind** Overlay. **Zone** bottom centre.
 
+**Removed** (October 2026): the developer took the prompt card out. It was mostly teaching the controls, and the
+contextual prompts that matter now show where they apply (the action key over the soldier, the keys on the order plate
+and on each order's wedge). The spec below is kept for if first-session teaching comes back.
+
 Teaching by doing, with no tutorial level ([first session](progression-and-community.md#first-session)): short prompts
 with key caps, one at a time, in order, each cleared when the player does it.
 

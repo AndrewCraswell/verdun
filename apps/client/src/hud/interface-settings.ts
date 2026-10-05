@@ -6,7 +6,7 @@
 export type ColourVision = "default" | "deuteranopia" | "protanopia" | "tritanopia"
 
 /** The parts of the HUD the player can set to show always, only when something changes, or never. */
-export const HUD_ZONES = ["soldier", "roster", "sector", "log", "fire", "hints"] as const
+export const HUD_ZONES = ["soldier", "roster", "sector", "log", "fire"] as const
 export type HudZoneSetting = (typeof HUD_ZONES)[number]
 /** Always, in full as in the overview; when something there changes (and in the overview); or never. */
 export type ZoneShowing = "always" | "changes" | "hidden"
@@ -27,8 +27,6 @@ export interface InterfaceSettings {
   readonly backing: number
   readonly vision: ColourVision
   readonly highContrast: boolean
-  /** Whether the first-session prompts show. */
-  readonly hints: boolean
   /** How each part of the HUD shows. */
   readonly zones: Readonly<Record<HudZoneSetting, ZoneShowing>>
   /** The hour by the 24-hour clock, as the army kept it, or the 12-hour. */
@@ -47,14 +45,12 @@ export const DEFAULT_SETTINGS: InterfaceSettings = {
   backing: 1,
   vision: "default",
   highContrast: false,
-  hints: true,
   zones: {
     soldier: "changes",
     roster: "changes",
     sector: "changes",
     log: "changes",
-    fire: "changes",
-    hints: "changes"
+    fire: "changes"
   },
   clock: "24",
   markers: 1,
@@ -96,7 +92,6 @@ export function readSettings(stored: unknown): InterfaceSettings {
     backing: number(record.backing, DEFAULT_SETTINGS.backing, 0.5, 1.5),
     vision,
     highContrast: typeof record.highContrast === "boolean" ? record.highContrast : DEFAULT_SETTINGS.highContrast,
-    hints: typeof record.hints === "boolean" ? record.hints : DEFAULT_SETTINGS.hints,
     zones: choices(record.zones, HUD_ZONES, SHOWINGS, DEFAULT_SETTINGS.zones),
     clock: record.clock === "12" ? "12" : "24",
     markers: number(record.markers, DEFAULT_SETTINGS.markers, 0.75, 2),

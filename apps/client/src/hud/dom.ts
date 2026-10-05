@@ -70,16 +70,3 @@ export function replay(element: Element, className: string): void {
 export function keyCap(key: string): HTMLElement {
   return h("kbd", "hud-key", key)
 }
-
-/** Text with keys in square brackets drawn as key caps: "[Tab] or [1]–[8] takes another man". */
-export function withKeys(text: string): DocumentFragment {
-  const fragment = document.createDocumentFragment()
-  for (const part of text.split(/(\[[^\]]+\])/)) {
-    if (part.startsWith("[") && part.endsWith("]")) {
-      fragment.append(keyCap(part.slice(1, -1)))
-    } else if (part) {
-      fragment.append(part)
-    }
-  }
-  return fragment
-}

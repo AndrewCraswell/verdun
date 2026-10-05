@@ -8,7 +8,6 @@ import { effectsList } from "./elements/effects-list.ts"
 import { firePanel } from "./elements/fire-panel.ts"
 import { gunMarks } from "./elements/gun-marks.ts"
 import { handoverCard } from "./elements/handover-card.ts"
-import { hintLine } from "./elements/hint-line.ts"
 import { logFeed } from "./elements/log-feed.ts"
 import { objectivesPanel } from "./elements/objectives-panel.ts"
 import { operationClock } from "./elements/operation-clock.ts"
@@ -61,7 +60,6 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   // Bottom right: H10.
   firePanel,
   // Bottom centre: H18.
-  hintLine,
   // The middle of the screen: H15, H16, H17.
   bannerStrip,
   handoverCard,

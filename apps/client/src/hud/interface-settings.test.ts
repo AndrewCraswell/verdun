@@ -11,8 +11,7 @@ describe("interface settings", () => {
         effects: -1,
         backing: Number.NaN,
         vision: "tritanopia",
-        highContrast: true,
-        hints: "no"
+        highContrast: true
       })
     ).toEqual({
       ...DEFAULT_SETTINGS,
@@ -20,8 +19,7 @@ describe("interface settings", () => {
       effects: 0,
       backing: 1,
       vision: "tritanopia",
-      highContrast: true,
-      hints: true
+      highContrast: true
     })
     expect(readSettings({ vision: "sepia" }).vision).toBe("default")
   })

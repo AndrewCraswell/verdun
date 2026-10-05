@@ -20,7 +20,6 @@ import { type Attention, createAttentionWatch } from "./attention.ts"
 import { type Banner, createBannerQueue } from "./banners.ts"
 import { type BattleLog, createBattleLog, type LogMessage } from "./battle-log.ts"
 import { callsOf, createShellLedger, type FireSupportView, missionsOf } from "./fire-support.ts"
-import { createHints, type Hint, type Hints, type HintStore } from "./hints.ts"
 import { type OperationView, operationView } from "./operation-state.ts"
 import {
   type ClockView,
@@ -78,7 +77,6 @@ export interface HudState {
   readonly threats: readonly Threat[]
   /** The operation the battle is fought in, counted down from now; null without one. */
   readonly operation: OperationView | null
-  readonly hint: Hint | null
   readonly screen: ScreenView
   readonly cursor: CursorView
   /** The war's calendar, when the battle runs on it. */
@@ -163,16 +161,11 @@ export interface HudModel {
    */
   read(now: number, clock?: number, view?: HudView): HudState
   readonly names: SquadNames
-  readonly hints: Hints
 }
 
 export interface HudModelOptions {
   /** The war's calendar, when the battle runs on it. */
   readonly war?: { readonly day: WarDay; readonly paused: boolean }
-  /** Where the prompts already done are kept. */
-  readonly hintStore?: HintStore
-  /** The real moment the HUD starts, in seconds. */
-  readonly started?: number
 }
 
 /** A close burst within this many metres of the man under control shakes the screen. */
@@ -185,13 +178,11 @@ const BURST_FORCE = new Map<Shell, number>([[Shell.HeavyHighExplosive, 1.4]])
 /** Gas this thick, in mg/m³, fills the screen's tint. */
 const GAS_FULL = 200
 
-const NO_HINTS: HintStore = { load: () => [], save: () => undefined }
-
 export function createHudModel(
   sim: Simulation,
   squad: Squad,
   tickRate: number,
-  { war, hintStore = NO_HINTS, started = 0 }: HudModelOptions = {}
+  { war }: HudModelOptions = {}
 ): HudModel {
   const names = createSquadNames()
   const log: BattleLog = createBattleLog(sim, squad, tickRate, names)
@@ -201,7 +192,6 @@ export function createHudModel(
   const orders = createOrderWatch(sim, squad)
   const ledger = createShellLedger()
   const light = createLightReader()
-  const hints = createHints(sim, squad, hintStore, started)
   const attention = createAttentionWatch()
   const returned = new Set<EntityId>()
   let burst: { readonly tick: number; readonly strength: number } | null = null
@@ -287,7 +277,6 @@ export function createHudModel(
 
   return {
     names,
-    hints,
     record(events) {
       log.record(events)
       banners.record(events)
@@ -347,7 +336,6 @@ export function createHudModel(
         guns: spottedGunsView(sim, squad, tickRate),
         threats: threats.read(),
         operation: operationView(sim, squad.side, tickRate),
-        hint: hints.read(now, view),
         screen: screenOf(soldier, handover),
         cursor: cursorOf(soldier),
         war: war ? warStatus(war.day, war.paused, clock) : null,

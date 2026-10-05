@@ -62,8 +62,7 @@ const ZONE_LABELS: Readonly<Record<HudZoneSetting, { readonly label: string; rea
   roster: { label: "Squad roster", note: "The eight men in a row" },
   sector: { label: "Sector panels", note: "The clock, the objectives and the strength" },
   log: { label: "Battle log", note: "What has just happened" },
-  fire: { label: "Artillery board", note: "The calls and missions in progress" },
-  hints: { label: "Prompts", note: "The first-session lines along the bottom" }
+  fire: { label: "Artillery board", note: "The calls and missions in progress" }
 }
 
 const ZONE_CHOICES: readonly { readonly value: ZoneShowing; readonly label: string }[] = [
@@ -320,13 +319,6 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
   const backing = slider({ min: 0.5, max: 1.5, step: 0.05 }, hub.current.backing, percent, (value) =>
     hub.change({ backing: value })
   )
-  const hints = toggle(hub.current.hints, (on) => hub.change({ hints: on }))
-  const again = button("Show the prompts again", () => {
-    // The prompts' module needs the battle's; it's loaded by the time anyone asks for them again.
-    void import("../hud/hints.ts").then(({ resetHints }) => resetHints())
-    hub.change({ hints: true })
-    again.textContent = "Prompts start over"
-  })
   return {
     root: h(
       "div",
@@ -342,12 +334,7 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
         settingRow("Marks and pointer", "The size of the marks on the ground and of the aim pointer.", markers.root),
         settingRow("Clock", "The army kept the 24-hour clock.", clock.root)
       ),
-      section("Each part of the screen", ...zones.map((each) => each.row)),
-      section(
-        "Prompts",
-        settingRow("First-session prompts", "Short lines that teach the controls as you play.", hints.root),
-        settingRow("Start them over", "From the first prompt, as on your first visit.", again)
-      )
+      section("Each part of the screen", ...zones.map((each) => each.row))
     ),
     sync() {
       scale.set(hub.current.scale)
@@ -357,8 +344,6 @@ function interfaceTab(): { root: HTMLElement; sync(): void } {
       for (const { zone, choice } of zones) {
         choice.set(hub.current.zones[zone])
       }
-      hints.set(hub.current.hints)
-      again.textContent = "Show the prompts again"
     }
   }
 }

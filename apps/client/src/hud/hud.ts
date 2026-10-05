@@ -13,7 +13,6 @@ import {
 import { cameraRigOf } from "../control/camera-rig.ts"
 import { groundUnderPointer } from "../control/ground-pick.ts"
 import type { HudContext, HudElement, HudElementFactory, HudZone } from "./element.ts"
-import { browserHintStore } from "./hints.ts"
 import { createHudModel, type HudModel, type HudState, type HudView } from "./hud-state.ts"
 import { installIcons } from "./icons.ts"
 import { type HudZoneSetting, type InterfaceSettings, interfaceSettings } from "./interface-settings.ts"
@@ -72,8 +71,7 @@ const ZONE_OF: Readonly<Record<string, HudZoneSetting>> = {
   "objectives-panel": "sector",
   "strength-panel": "sector",
   "log-feed": "log",
-  "fire-panel": "fire",
-  "hint-line": "hints"
+  "fire-panel": "fire"
 }
 
 function smoothstep(from: number, to: number, value: number): number {
@@ -125,11 +123,7 @@ export function createHud(
   const hub = interfaceSettings()
   let settings = hub.current
   const seconds = () => performance.now() / 1000
-  const model: HudModel = createHudModel(sim, squad, tickRate, {
-    ...(war ? { war } : {}),
-    hintStore: browserHintStore(),
-    started: seconds()
-  })
+  const model: HudModel = createHudModel(sim, squad, tickRate, war ? { war } : {})
   const canvas = view?.scene.getEngine().getRenderingCanvas() ?? document.querySelector("canvas")
 
   const project: HudContext["project"] = (x, y, z) => {
@@ -305,7 +299,6 @@ export function createHud(
     } else {
       delete root.dataset.contrast
     }
-    model.hints.enabled = next.hints
     // Shown at once, not at the next redraw.
     if (state) {
       redraw()
