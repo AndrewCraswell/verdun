@@ -1,3 +1,4 @@
+import type { BattlefieldMap } from "@verdun/map"
 import { type EntityId, hasComponent } from "bitecs"
 import { barrageLine } from "./artillery.ts"
 import { clearOfScenery, Climbing, Obstacle, wayAhead } from "./body.ts"
@@ -155,6 +156,34 @@ export function nextLivingMember(sim: Simulation, squad: Squad, from: EntityId):
     }
   }
   return -1
+}
+
+/**
+ * Where a man boxed into a corner steps to, `SIDESTEP` metres off: the free way round that heads most nearly `toward`
+ * (a unit vector) where he's going, or, failing that, the freest way back. Null where every way is walled in.
+ */
+export function wayOut(
+  map: BattlefieldMap,
+  x: number,
+  z: number,
+  toward: { readonly x: number; readonly z: number }
+): Place | null {
+  let best: Place | null = null
+  let bestScore = 0
+  for (let index = 0; index < SIDESTEP_WAYS; index++) {
+    const angle = (index * 2 * Math.PI) / SIDESTEP_WAYS
+    const ax = Math.cos(angle)
+    const az = Math.sin(angle)
+    const free = wayAhead(map, x, z, ax, az, WALKING_STRIDE, Climbing.Ordered)
+    const freeShare = Math.sqrt(free.x * free.x + free.z * free.z)
+    // Heading on counts most, but backing off a little beats standing boxed in.
+    const score = freeShare * (1.5 + ax * toward.x + az * toward.z)
+    if (freeShare > 0.5 && score > bestScore) {
+      bestScore = score
+      best = clearOfScenery(map, x + ax * SIDESTEP, z + az * SIDESTEP)
+    }
+  }
+  return best
 }
 
 /** Men file along a trench this far apart, in metres: the way trench traffic went, one behind another. */
@@ -380,21 +409,7 @@ function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Pl
   if (kept >= BLOCKED) {
     return false
   }
-  let best: Place | null = null
-  let bestScore = 0
-  for (let index = 0; index < SIDESTEP_WAYS; index++) {
-    const angle = (index * 2 * Math.PI) / SIDESTEP_WAYS
-    const ax = Math.cos(angle)
-    const az = Math.sin(angle)
-    const free = wayAhead(sim.map, x, z, ax, az, WALKING_STRIDE, Climbing.Ordered)
-    const freeShare = Math.sqrt(free.x * free.x + free.z * free.z)
-    // Heading on counts most, but backing off a little beats standing boxed in.
-    const score = freeShare * (1.5 + ax * toward.x + az * toward.z)
-    if (freeShare > 0.5 && score > bestScore) {
-      bestScore = score
-      best = clearOfScenery(sim.map, x + ax * SIDESTEP, z + az * SIDESTEP)
-    }
-  }
+  const best = wayOut(sim.map, x, z, toward)
   if (!best) {
     return false
   }

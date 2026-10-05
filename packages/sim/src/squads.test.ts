@@ -1,4 +1,13 @@
-import { beltLayout, carveTrenches, createFlatMap, heightAt, type Scenery, Surface, type Trench } from "@verdun/map"
+import {
+  beltLayout,
+  carveTrenches,
+  createFlatMap,
+  heightAt,
+  sampleIndex,
+  type Scenery,
+  Surface,
+  type Trench
+} from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -13,7 +22,7 @@ import {
   TICK_RATE
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { createSquad, isAlive, nextLivingMember } from "./squads.ts"
+import { createSquad, isAlive, nextLivingMember, wayOut } from "./squads.ts"
 
 // Firm ground, so soldiers walk at their full pace.
 const map = createFlatMap({ name: "test", cellSize: 1, columns: 200, rows: 200 }, 0, Surface.Grass)
@@ -360,5 +369,27 @@ describe("moving like men in a trench", () => {
     for (const member of members) {
       expect(sim.soldiers.position.z[member]).toBeGreaterThan(97)
     }
+  })
+
+  it("sidesteps out of a dead end the free way that heads most nearly where he wants to go", () => {
+    // Ground 3 m up, with a slot 2 m wide dug 2 m deep running north to a dead end at z = 50.
+    const ground = createFlatMap({ name: "slot", cellSize: 0.5, columns: 200, rows: 200 }, 3, Surface.Grass)
+    for (let row = 0; row <= ground.rows; row++) {
+      for (let column = 0; column <= ground.columns; column++) {
+        const x = column * ground.cellSize
+        const z = row * ground.cellSize
+        if (Math.abs(x - 50) <= 1 && z >= 30 && z <= 50) {
+          ground.heights[sampleIndex(ground, column, row)] = 1
+        }
+      }
+    }
+    // Pressed into the dead end: on to the north-east he can climb out, the way he wants to go.
+    const on = wayOut(ground, 50, 49.6, { x: Math.SQRT1_2, z: Math.SQRT1_2 })
+    expect(on).not.toBeNull()
+    expect((on?.x ?? 0) - 50 + (on?.z ?? 0) - 49.6).toBeGreaterThan(1)
+    // Wanting to go back the way he came, he steps back down the slot on its floor.
+    const back = wayOut(ground, 50, 49.6, { x: 0, z: -1 })
+    expect(back?.z ?? 99).toBeLessThan(48)
+    expect(heightAt(ground, back?.x ?? 0, back?.z ?? 0)).toBe(1)
   })
 })

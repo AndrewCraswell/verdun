@@ -1,4 +1,4 @@
-import { carveTrenches, createFlatMap, heightAt, type Scenery, Surface, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, heightAt, sampleIndex, type Scenery, Surface, type Trench } from "@verdun/map"
 import { describe, expect, it } from "vitest"
 import { BODY_RADIUS, canBeShoved, clearOfScenery, Climbing, insideScenery, Obstacle, wayAhead } from "./body.ts"
 
@@ -101,6 +101,26 @@ describe("walking into a trench's walls", () => {
   })
 })
 
+describe("a corner", () => {
+  it("stops a man pressed into the point of a V between two walls he won't climb", () => {
+    // A cliff 3 m high with a V cut into it, its point at (50, 50), each side 25 degrees off due north.
+    const map = createFlatMap({ name: "notch", cellSize: 0.5, columns: 200, rows: 200 }, 0, Surface.Grass)
+    for (let row = 0; row <= map.rows; row++) {
+      for (let column = 0; column <= map.columns; column++) {
+        const x = column * map.cellSize
+        const z = row * map.cellSize
+        if (z >= 30 && !(z < 50 && Math.abs(x - 50) < (50 - z) * Math.tan((25 * Math.PI) / 180))) {
+          map.heights[sampleIndex(map, column, row)] = 3
+        }
+      }
+    }
+    // Wide of the point, a wall turns him along it; at the point, every turn runs into the other wall.
+    const wide = wayAhead(map, 50.8, 46, 0, 1, 0.07, Climbing.Steered)
+    expect(Math.sqrt(wide.x ** 2 + wide.z ** 2)).toBeGreaterThan(0.25)
+    expect(wayAhead(map, 50, 49.3, 0, 1, 0.07, Climbing.Steered)).toMatchObject({ x: 0, z: 0, climbing: false })
+  })
+})
+
 describe("scenery", () => {
   const ruin: Scenery = { kind: "ruin", x: 50, z: 60, heading: 0, variant: 0, scale: 1 }
   const rubble: Scenery = { kind: "rubble", x: 20, z: 20, heading: 0, variant: 0, scale: 1 }
@@ -130,6 +150,12 @@ describe("scenery", () => {
       expect(insideScenery(map, x, z)).toBe(false)
     }
     expect(z).toBeGreaterThan(64)
+  })
+
+  it("pushes a man standing dead in a footprint's middle out the same way every time", () => {
+    const out = clearOfScenery(map, 50, 60)
+    expect(out.x).toBeCloseTo(50 + 4 + BODY_RADIUS, 4)
+    expect(out.z).toBe(60)
   })
 
   it("won't shove a man up a wall or into a ruin", () => {

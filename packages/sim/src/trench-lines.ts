@@ -16,46 +16,63 @@ export interface TrenchPlace {
 /** A trench's centre line is looked for no further than this from a point, in metres: a trench's own width and lips. */
 const REACH = 3
 
-/** Each trench's distance along its centre line at each of its points. */
-const lengthsOf = new WeakMap<Trench, Float64Array>()
+/** One straight stretch of a trench's centre line, and how far along the line it starts. */
+interface Stretch {
+  readonly ax: number
+  readonly az: number
+  readonly dx: number
+  readonly dz: number
+  readonly length: number
+  readonly from: number
+}
 
-function cumulative(trench: Trench): Float64Array {
-  let lengths = lengthsOf.get(trench)
-  if (!lengths) {
-    lengths = new Float64Array(trench.points.length)
-    for (let index = 1; index < trench.points.length; index++) {
-      const [ax, az] = trench.points[index - 1] ?? [0, 0]
-      const [bx, bz] = trench.points[index] ?? [0, 0]
-      lengths[index] = (lengths[index - 1] ?? 0) + Math.sqrt((bx - ax) ** 2 + (bz - az) ** 2)
-    }
-    lengthsOf.set(trench, lengths)
+const stretchesOf = new WeakMap<Trench, readonly Stretch[]>()
+
+/** A trench's centre line as its stretches of some length, worked out once. */
+function stretches(trench: Trench): readonly Stretch[] {
+  let cached = stretchesOf.get(trench)
+  if (!cached) {
+    const made: Stretch[] = []
+    let from = 0
+    trench.points.forEach(([bx, bz], index) => {
+      const previous = index > 0 ? trench.points[index - 1] : undefined
+      if (!previous) {
+        return
+      }
+      const [ax, az] = previous
+      const length = Math.sqrt((bx - ax) ** 2 + (bz - az) ** 2)
+      if (length > 0) {
+        made.push({ ax, az, dx: (bx - ax) / length, dz: (bz - az) / length, length, from })
+        from += length
+      }
+    })
+    cached = made
+    stretchesOf.set(trench, cached)
   }
-  return lengths
+  return cached
+}
+
+/** A trench's centre line's whole length, in metres. */
+function lengthOf(all: readonly Stretch[]): number {
+  const last = all[all.length - 1]
+  return last ? last.from + last.length : 0
 }
 
 /** Where a point lies against one trench, or null for a trench with no length. */
 export function placeOn(trench: Trench, x: number, z: number): TrenchPlace | null {
-  const lengths = cumulative(trench)
+  const all = stretches(trench)
   const facingZ = trench.facing === "north" ? 1 : -1
   let best: TrenchPlace | null = null
-  for (let index = 1; index < trench.points.length; index++) {
-    const [ax, az] = trench.points[index - 1] ?? [0, 0]
-    const [bx, bz] = trench.points[index] ?? [0, 0]
-    const dx = bx - ax
-    const dz = bz - az
-    const lengthSquared = dx * dx + dz * dz
-    if (lengthSquared === 0) {
-      continue
-    }
-    const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / lengthSquared))
-    const cx = ax + dx * t
-    const cz = az + dz * t
+  for (const stretch of all) {
+    const t = Math.min(stretch.length, Math.max(0, (x - stretch.ax) * stretch.dx + (z - stretch.az) * stretch.dz))
+    const cx = stretch.ax + stretch.dx * t
+    const cz = stretch.az + stretch.dz * t
     const distance = Math.sqrt((x - cx) ** 2 + (z - cz) ** 2)
     if (!best || distance < best.distance) {
       best = {
         trench,
-        along: (lengths[index - 1] ?? 0) + Math.sqrt(lengthSquared) * t,
-        length: lengths[lengths.length - 1] ?? 0,
+        along: stretch.from + t,
+        length: lengthOf(all),
         distance,
         // As the trench was dug (trenches.ts): in front where the point lies further the way it faces.
         inFront: trench.kind === "fire" && (z - cz) * facingZ > 0
@@ -80,33 +97,25 @@ export function nearestTrench(map: BattlefieldMap, x: number, z: number): Trench
 /**
  * The point `along` metres down a trench's centre line (clamped to its ends), and the way across it toward the side a
  * fire trench faces (a unit vector, or zero for a communication trench, or a stretch running straight toward the enemy).
+ * A trench with no length gives its first point.
  */
 export function pointAlong(trench: Trench, along: number): { x: number; z: number; frontX: number; frontZ: number } {
-  const lengths = cumulative(trench)
-  const total = lengths[lengths.length - 1] ?? 0
-  const wanted = Math.min(total, Math.max(0, along))
-  let index = 1
-  while (index < trench.points.length - 1 && (lengths[index] ?? 0) < wanted) {
-    index++
+  const all = stretches(trench)
+  const wanted = Math.min(lengthOf(all), Math.max(0, along))
+  const stretch = all.find((each) => wanted <= each.from + each.length) ?? all[all.length - 1]
+  if (!stretch) {
+    const [x, z] = trench.points[0] ?? [0, 0]
+    return { x, z, frontX: 0, frontZ: 0 }
   }
-  const [ax, az] = trench.points[index - 1] ?? [0, 0]
-  const [bx, bz] = trench.points[index] ?? [0, 0]
-  const from = lengths[index - 1] ?? 0
-  const span = (lengths[index] ?? 0) - from
-  const t = span > 0 ? (wanted - from) / span : 0
-  const dx = bx - ax
-  const dz = bz - az
-  const length = Math.sqrt(dx * dx + dz * dz)
-  let frontX = 0
-  let frontZ = 0
-  if (trench.kind === "fire" && length > 0) {
-    const facingZ = trench.facing === "north" ? 1 : -1
-    // Across the stretch, turned to the side it faces.
-    const across = dx / length
-    frontX = (-dz / length) * Math.sign(across * facingZ)
-    frontZ = across * Math.sign(across * facingZ)
+  const t = Math.min(stretch.length, wanted - stretch.from)
+  // Across the stretch, turned to the side a fire trench faces.
+  const toward = trench.kind === "fire" ? Math.sign(stretch.dx * (trench.facing === "north" ? 1 : -1)) : 0
+  return {
+    x: stretch.ax + stretch.dx * t,
+    z: stretch.az + stretch.dz * t,
+    frontX: -stretch.dz * toward,
+    frontZ: stretch.dx * toward
   }
-  return { x: ax + dx * t, z: az + dz * t, frontX, frontZ }
 }
 
 /** The middle of a fire trench's fire step, in metres in front of its centre line. */
