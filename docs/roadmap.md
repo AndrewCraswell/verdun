@@ -96,9 +96,10 @@ Version 1 is the full game on Synty art. Once it is finished, the art is redone 
 See [architecture](architecture.md#networking-stage-2-and-later) for networking, persistence and services. Real
 elevation data (IGN RGE ALTI for the actual Verdun terrain), accounts and the war map come in stages 2–3.
 
-Stage 2 has begun with the sector server, so the war carries on between visits: it runs the battle on the real clock and
-keeps it in SQLite across restarts (see [the sector server](architecture.md#the-sector-server) for what comes next:
-joining and leaving squads, the client playing over the network, client-side prediction, hosting). Then its first
+Stage 2 has begun with the sector server, so the war carries on between visits: it runs the battle on the real clock,
+keeps it in SQLite across restarts, and takes players into it over Colyseus, each leading a squad the bots take back
+when they leave; the client plays its battle under `?server` (see
+[the sector server](architecture.md#the-sector-server)). Next are client-side prediction and hosting. Then its first
 performance milestone: a load test with **100 bot clients, each controlling a squad, fighting over one objective** with
 real navigation, line of sight, physics and replication (about 1,000 soldiers). An ECS movement benchmark alone doesn't
 count. The results set the snapshot rate, quantization and sector size.

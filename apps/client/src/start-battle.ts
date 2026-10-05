@@ -50,7 +50,9 @@ import { graphicsQuality } from "./settings/graphics.ts"
 import { playSettings } from "./settings/play.ts"
 import { sideSettings } from "./settings/side.ts"
 import { browserStorage } from "./settings/store.ts"
+import { connectToSector, serverHost } from "./sim/server-host.ts"
 import { createSimHost } from "./sim/sim-host.ts"
+import type { BattleSetup } from "./sim/sim-protocol.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
 import { createBattleNotes } from "./ui/battle-notes.ts"
@@ -133,34 +135,45 @@ export async function startBattle(
   const region = WEATHER_REGIONS.find((name) => name === map.weatherRegion) ?? "fleury"
   menu.progress("Reading the war's weather", 0.2)
   await loadWeatherRegion(region)
+  // ?free plays the battle as it stands, without the playtest's operation: free play, for development.
+  // The side the player chose at the front door: French unless Germany was chosen.
+  const setup: BattleSetup = {
+    elevation: elevationData,
+    mapSeed: 1916,
+    simSeed: 1916,
+    region,
+    weatherSeed,
+    free: address.has("free"),
+    side: sideSettings().current.side === "german" ? Side.German : Side.French
+  }
   // The simulation runs in a Web Worker, stepping off the page's thread; `sim` here is its mirror, brought up to date
-  // as each batch of steps comes back. ?inline steps it on the page instead, as before.
-  const host = await createSimHost(
-    map,
-    // ?free plays the battle as it stands, without the playtest's operation: free play, for development.
-    // The side the player chose at the front door: French unless Germany was chosen.
-    {
-      elevation: elevationData,
-      mapSeed: 1916,
-      simSeed: 1916,
-      region,
-      weatherSeed,
-      free: address.has("free"),
-      side: sideSettings().current.side === "german" ? Side.German : Side.French
-    },
-    address.has("inline")
-  )
+  // as each batch of steps comes back. ?inline steps it on the page instead, as before. ?server joins the battle on a
+  // sector server instead (`pnpm server`), where the war goes on whoever is playing: ws://<this host>:2567 unless given,
+  // as in ?server=wss://example.org.
+  const server = address.get("server")
+  const remote =
+    server === null
+      ? null
+      : await serverHost(
+          map,
+          setup,
+          await connectToSector(server || `ws://${location.hostname}:2567`, setup.side ?? Side.French)
+        )
+  const host = remote ?? (await createSimHost(map, setup, address.has("inline")))
   const { sim, playerSquad } = host
-  // The war's calendar, until the war map runs it: kept between visits, so the war goes on a week each real day from the
-  // battle's week; each daily cutoff moves the battle on a week and stands it to. Dev: ?war=1916-02-21, ?standto=0.
+  // The war's calendar: on a server, the sector's own. Played locally, it's kept between visits, so the war goes on a
+  // week each real day from the battle's week; each daily cutoff moves the battle on a week and stands it to. Dev:
+  // ?war=1916-02-21, ?standto=0.
   const war = createWarClock(
     sim,
-    localSchedule({
-      week: sim.environment.clock.week,
-      now: Date.now(),
-      store: browserStore(),
-      ...(import.meta.env.DEV ? { search: new URLSearchParams(location.search) } : {})
-    })
+    remote
+      ? remote.schedule
+      : localSchedule({
+          week: sim.environment.clock.week,
+          now: Date.now(),
+          store: browserStore(),
+          ...(import.meta.env.DEV ? { search: new URLSearchParams(location.search) } : {})
+        })
   )
 
   menu.attach({ war, renderer: engine.isWebGPU ? "WebGPU" : "WebGL" })
@@ -344,7 +357,7 @@ export async function startBattle(
   menu.progress("Plotting what each man can see", 0.9)
   // In a worker the host answers the page's questions of sight from the ground, without physics; inline, the
   // simulation's own sight lines serve both.
-  if (!host.inWorker) {
+  if (!host.remote) {
     // Only the simulation inline needs the physics: in a worker the page never loads it.
     const { createLineOfSight } = await import("@verdun/sim/physics")
     host.attachLineOfSight(await createLineOfSight(map))

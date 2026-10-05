@@ -2,6 +2,7 @@ import { gunzipSync, gzipSync } from "node:zlib"
 import type { BattlefieldMap } from "@verdun/map"
 import {
   createFixedStepper,
+  type GroundPatch,
   createWarClock,
   scheduleForWeek,
   SIM_STATE_VERSION,
@@ -14,7 +15,7 @@ import {
   type WarClock
 } from "@verdun/sim"
 import { newBattle, resumeBattle } from "./battle.ts"
-import { groundOf, restoreGround, saveGround } from "./ground.ts"
+import { groundOf, reshapedGround, restoreGround, saveGround } from "./ground.ts"
 import type { SavedBattle, SectorStore } from "./store.ts"
 
 /** A sector's battle, running on the server whether anyone is playing it or not. */
@@ -25,6 +26,10 @@ export interface Sector {
   readonly war: WarClock
   /** Brings the battle up to the real moment `now`, in fixed steps, unless the war has it wait. Returns the steps. */
   advance(now: number): number
+  /** Calls `listener` after every step the battle takes. */
+  onStep(listener: () => void): void
+  /** The ground shells have reshaped, for a player joining late: see `reshapedGround`. */
+  reshapedGround(): GroundPatch | null
   /** The battle as it stands, ready to keep. */
   save(now: number): SavedBattle
 }
@@ -96,6 +101,7 @@ export async function openSector({ store, name, map, now, log }: SectorOptions):
   }
   const war = createWarClock(sim, schedule, now)
   const stepper = createFixedStepper(STEP_SECONDS, MOST_STEPS)
+  const listeners: (() => void)[] = []
   let last = now
 
   return {
@@ -110,8 +116,17 @@ export async function openSector({ store, name, map, now, log }: SectorOptions):
       const steps = war.paused ? 0 : due
       for (let step = 0; step < steps; step++) {
         stepSimulation(sim)
+        for (const listener of listeners) {
+          listener()
+        }
       }
       return steps
+    },
+    onStep(listener) {
+      listeners.push(listener)
+    },
+    reshapedGround() {
+      return reshapedGround(map, generated)
     },
     save(at) {
       return {

@@ -31,8 +31,8 @@ export interface StepTaken {
 export interface SimHost {
   readonly sim: Simulation
   readonly playerSquad: Squad
-  /** Whether the simulation runs in a worker. */
-  readonly inWorker: boolean
+  /** Whether the simulation runs elsewhere, in a worker or on a server, rather than on the page. */
+  readonly remote: boolean
   /** What the player's squad can see, worked out in the worker beside the simulation; null when it runs inline. */
   readonly sight: SightFeed | null
   /**
@@ -78,7 +78,7 @@ function inlineHost(map: BattlefieldMap, setup: BattleSetup): SimHost {
     get sightLines() {
       return sightLines
     },
-    inWorker: false,
+    remote: false,
     sight: null,
     update(steps) {
       const taken: StepTaken[] = []
@@ -139,7 +139,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   return {
     sim: mirror,
     playerSquad,
-    inWorker: true,
+    remote: true,
     sight: {
       take() {
         const look = latestSight

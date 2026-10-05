@@ -34,8 +34,11 @@ describe("a sector", () => {
 
   it("keeps step with the real clock, and waits through the stand-to", async () => {
     const { sector } = await open()
+    let stepped = 0
+    sector.onStep(() => stepped++)
 
     expect(sector.advance(NOW + 1000)).toBe(20)
+    expect(stepped).toBe(20)
     expect(sector.advance(NOW + 1000 + 2.5 * STEP_MS)).toBe(2)
     // A long stall catches up a second, and lets the rest go.
     expect(sector.advance(NOW + 60_000)).toBe(20)
@@ -59,6 +62,7 @@ describe("a sector", () => {
     // A shell's crater, so there's ground to put back.
     const crater = sector.sim.map.heights.length >> 1
     sector.sim.map.heights[crater] = (sector.sim.map.heights[crater] ?? 0) - 1.5
+    expect(sector.reshapedGround()?.heights.length).toBeGreaterThan(0)
     store.save("fleury", sector.save(NOW + 30_000))
 
     const later = NOW + 90_000

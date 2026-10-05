@@ -1,5 +1,6 @@
 import { gunzipSync, gzipSync } from "node:zlib"
-import type { BattlefieldMap } from "@verdun/map"
+import { type BattlefieldMap, sampleIndex } from "@verdun/map"
+import type { GroundPatch } from "@verdun/sim"
 
 /** The map's ground at one moment: every height sample and every surface. */
 export interface Ground {
@@ -57,4 +58,42 @@ export function restoreGround(map: BattlefieldMap, saved: SavedGround): boolean 
     }
   }
   return true
+}
+
+/**
+ * The ground shells have reshaped since the map was generated, as one rectangle of samples round all of it, for a player
+ * joining a battle under way; null while no shell has fallen.
+ */
+export function reshapedGround(map: BattlefieldMap, generated: Ground): GroundPatch | null {
+  let minColumn = map.columns
+  let maxColumn = -1
+  let minRow = map.rows
+  let maxRow = -1
+  for (let row = 0; row <= map.rows; row++) {
+    for (let column = 0; column <= map.columns; column++) {
+      const sample = sampleIndex(map, column, row)
+      if (map.heights[sample] !== generated.heights[sample] || map.surfaces[sample] !== generated.surfaces[sample]) {
+        minColumn = Math.min(minColumn, column)
+        maxColumn = Math.max(maxColumn, column)
+        minRow = Math.min(minRow, row)
+        maxRow = Math.max(maxRow, row)
+      }
+    }
+  }
+  if (maxRow < 0) {
+    return null
+  }
+  const size = (maxColumn - minColumn + 1) * (maxRow - minRow + 1)
+  const heights = new Float32Array(size)
+  const surfaces = new Uint8Array(size)
+  let at = 0
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let column = minColumn; column <= maxColumn; column++) {
+      const sample = sampleIndex(map, column, row)
+      heights[at] = map.heights[sample]
+      surfaces[at] = map.surfaces[sample]
+      at++
+    }
+  }
+  return { minColumn, maxColumn, minRow, maxRow, heights, surfaces }
 }

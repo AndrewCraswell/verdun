@@ -8,12 +8,16 @@
   "scripts": {
     "check:types": "tsc --noEmit",
     "lint": "oxlint --max-warnings=0",
+    "local": "node src/main.ts --dev",
     "start": "node src/main.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@colyseus/core": "catalog:",
+    "@colyseus/ws-transport": "catalog:",
     "@verdun/map": "workspace:*",
+    "@verdun/net": "workspace:*",
     "@verdun/sim": "workspace:*"
   },
   "devDependencies": {

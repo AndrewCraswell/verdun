@@ -1,0 +1,4 @@
+{
+  "extends": "@verdun/typescript-config/pure.json",
+  "include": ["src/**/*.ts", "vitest.config.ts"]
+}

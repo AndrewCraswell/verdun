@@ -1,0 +1,122 @@
+import type { BattlefieldMap } from "@verdun/map"
+import { decodeJoined, decodeSync, type JoinOptions, MESSAGE, SECTOR_ROOM } from "@verdun/net"
+import { applySync, type Command, createSimulation, type Side, type WarSchedule } from "@verdun/sim"
+import { createTerrainSight } from "../fog/terrain-sight.ts"
+import type { SimHost, StepTaken } from "./sim-host.ts"
+import type { BattleSetup } from "./sim-protocol.ts"
+
+/** The little of a Colyseus room the host uses, so a test can stand in for the server. */
+export interface SectorConnection {
+  send(type: string, message?: unknown): void
+  onMessage(type: string, callback: (payload: unknown) => void): void
+  /** Calls `callback` if the server closes the connection, or it drops. */
+  onLeave(callback: (code: number) => void): void
+  leave(): void
+}
+
+/** The battle on a sector server: the host also carries the war's calendar the server keeps. */
+export interface ServerHost extends SimHost {
+  readonly schedule: WarSchedule
+}
+
+/**
+ * Joins the sector's battle on a server (`pnpm server`) at `address`, such as ws://localhost:2567, for `side`: the
+ * server gives the player a squad of it.
+ */
+export async function connectToSector(address: string, side: Side): Promise<SectorConnection> {
+  const { Client } = await import("@colyseus/sdk")
+  const options: JoinOptions = { side }
+  const room = await new Client(address).join(SECTOR_ROOM, options)
+  return {
+    send: (type, message) => room.send(type, message),
+    onMessage: (type, callback) => {
+      room.onMessage(type, callback)
+    },
+    onLeave: (callback) => {
+      room.onLeave(callback)
+    },
+    leave: () => {
+      void room.leave()
+    }
+  }
+}
+
+const bytesOf = (payload: unknown): Uint8Array => {
+  if (!(payload instanceof Uint8Array)) {
+    throw new TypeError("The server sent the battle as something other than bytes")
+  }
+  return payload
+}
+
+/**
+ * The battle as the page sees it when a server runs it: `sim` is a mirror of the server's simulation, brought up to date
+ * ten times a second whatever the page asks, and commands queued on it go to the server, which keeps them to what the
+ * player's squad may do. The battle doesn't wait for the menu: the war goes on. What the squad can see is worked out on
+ * the page, from the ground (see terrain-sight.ts).
+ */
+export async function serverHost(
+  map: BattlefieldMap,
+  setup: BattleSetup,
+  connection: SectorConnection
+): Promise<ServerHost> {
+  const mirror = createSimulation({
+    map,
+    seed: setup.simSeed,
+    environment: { forecast: { kind: "records", seed: setup.weatherSeed, region: setup.region } }
+  })
+  const sightLines = createTerrainSight(map)
+  mirror.lineOfSight = sightLines
+  let arrived: StepTaken[] = []
+  let left: number | null = null
+
+  const joined = new Promise<{ playerSquad: number; schedule: WarSchedule }>((resolve, reject) => {
+    connection.onMessage(MESSAGE.joined, (payload) => {
+      const { playerSquad, schedule, sync } = decodeJoined(bytesOf(payload))
+      applySync(mirror, sync)
+      // Steps sent before the battle came were played out on a mirror that wasn't there yet.
+      arrived = []
+      resolve({ playerSquad, schedule })
+    })
+    connection.onLeave((code) => {
+      left = code
+      reject(new Error(`The server closed the battle (${code})`))
+    })
+  })
+  connection.onMessage(MESSAGE.sync, (payload) => {
+    const sync = decodeSync(bytesOf(payload))
+    applySync(mirror, sync)
+    arrived.push(...sync.steps)
+  })
+  // Listening now: the battle can come.
+  connection.send(MESSAGE.ready)
+  const { playerSquad: squadId, schedule } = await joined
+  const playerSquad = mirror.squads[squadId]
+  if (!playerSquad) {
+    throw new Error("The server gave the player no squad")
+  }
+
+  return {
+    sim: mirror,
+    playerSquad,
+    schedule,
+    remote: true,
+    sight: null,
+    update() {
+      // The server keeps its own time: the page takes the steps that have come, and sends what it has commanded.
+      const commands: Command[] = mirror.pendingCommands.splice(0)
+      if (commands.length > 0 && left === null) {
+        connection.send(MESSAGE.commands, commands)
+      }
+      const taken = arrived
+      arrived = []
+      return taken
+    },
+    sightLines,
+    attachLineOfSight() {
+      // The server has the physics; the page answers its own questions from the ground.
+    },
+    dispose() {
+      connection.leave()
+    }
+  }
+}

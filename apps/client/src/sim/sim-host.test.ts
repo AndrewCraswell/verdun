@@ -72,7 +72,7 @@ describe("the simulation's host", () => {
     enqueueCommand(host.sim, { type: "squad-order", squad: host.playerSquad.id, order: { kind: "hold" } })
     const taken = host.update(3)
 
-    expect(host.inWorker).toBe(false)
+    expect(host.remote).toBe(false)
     expect(host.sight).toBeNull()
     expect(taken.map((step) => step.tick)).toEqual([1, 2, 3])
     expect(host.sim.tick).toBe(3)
@@ -84,7 +84,7 @@ describe("the simulation's host", () => {
     const host = await createSimHost(map(), setup)
     hosts.push(host)
 
-    expect(host.inWorker).toBe(true)
+    expect(host.remote).toBe(true)
     expect(host.playerSquad).toBe(host.sim.squads[host.playerSquad.id])
     // Asked for now, the steps come back a turn later.
     expect(host.update(3)).toEqual([])

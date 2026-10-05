@@ -18,24 +18,24 @@ How the game is built. What it plays like is in the [vision](vision.md); what ge
 
 ## Stack
 
-| Layer                         | Choice                                                                                                                                               |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rendering                     | Babylon.js 9 (WebGPU first, WebGL2 fallback)                                                                                                         |
-| ECS                           | bitECS 0.4 (see [ECS decision](#ecs-decision))                                                                                                       |
-| Physics                       | Rapier (`@dimforge/rapier3d-compat`), static colliders for line of sight and fire (see [physics](#physics))                                          |
-| Random numbers                | In-house Mulberry32 (`packages/sim/src/rng.ts`); its whole state is one integer that saves with the world                                            |
-| Validation                    | Zod for orders, loadouts, map and weapon config; small hand-written checks for per-tick input                                                        |
-| Build                         | Vite                                                                                                                                                 |
-| Tests                         | Vitest                                                                                                                                               |
-| Monorepo                      | pnpm workspaces + Turborepo                                                                                                                          |
-| Lint, format                  | oxlint, oxfmt                                                                                                                                        |
-| UI overlay                    | React for menus, HUD and war map (library to decide; no Fluent UI); Tweakpane for dev tools                                                          |
-| Server                        | Node 24 (see [the sector server](#the-sector-server)); Colyseus 0.18 on uWebSockets.js for players (see [networking](#networking-stage-2-and-later)) |
-| Sector saves                  | SQLite through Node's own `node:sqlite`; Postgres once the war map needs one database (see [persistence](#persistence))                              |
-| Hosting                       | Railway                                                                                                                                              |
-| Auth (later)                  | Clerk or Better Auth                                                                                                                                 |
-| War map (stage 3)             | Web service + Postgres, through Drizzle                                                                                                              |
-| Sector coordination (stage 3) | Colyseus Redis presence and driver, once sectors run in separate processes                                                                           |
+| Layer                         | Choice                                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rendering                     | Babylon.js 9 (WebGPU first, WebGL2 fallback)                                                                                                        |
+| ECS                           | bitECS 0.4 (see [ECS decision](#ecs-decision))                                                                                                      |
+| Physics                       | Rapier (`@dimforge/rapier3d-compat`), static colliders for line of sight and fire (see [physics](#physics))                                         |
+| Random numbers                | In-house Mulberry32 (`packages/sim/src/rng.ts`); its whole state is one integer that saves with the world                                           |
+| Validation                    | Zod for orders, loadouts, map and weapon config; small hand-written checks for per-tick input                                                       |
+| Build                         | Vite                                                                                                                                                |
+| Tests                         | Vitest                                                                                                                                              |
+| Monorepo                      | pnpm workspaces + Turborepo                                                                                                                         |
+| Lint, format                  | oxlint, oxfmt                                                                                                                                       |
+| UI overlay                    | React for menus, HUD and war map (library to decide; no Fluent UI); Tweakpane for dev tools                                                         |
+| Server                        | Node 24 (see [the sector server](#the-sector-server)); Colyseus 0.18 for players, on `ws` for now (see [networking](#networking-stage-2-and-later)) |
+| Sector saves                  | SQLite through Node's own `node:sqlite`; Postgres once the war map needs one database (see [persistence](#persistence))                             |
+| Hosting                       | Railway                                                                                                                                             |
+| Auth (later)                  | Clerk or Better Auth                                                                                                                                |
+| War map (stage 3)             | Web service + Postgres, through Drizzle                                                                                                             |
+| Sector coordination (stage 3) | Colyseus Redis presence and driver, once sectors run in separate processes                                                                          |
 
 Dependencies are installed when code first uses them, not when they are chosen: Rapier arrives with line of sight (M2),
 Zod with the first validated config or order.
@@ -51,7 +51,8 @@ apps/
 packages/
   sim/                 game rules: ECS, commands, fixed step, snapshots; later physics, line of sight, flow fields, gas, combat, AI
   map/                 versioned map format, height sampling, trench tracing, the Fleury sector; later Tiled import
-  net/                 (stage 2) binary snapshot protocol, relevance filtering, Schema mirror of the controlled soldier
+  net/                 the messages between the sector server and its players, their encoding, and what a player may
+                       command; later relevance filtering and the Schema mirror of the controlled soldier
   typescript-config/   shared tsconfig bases: `pure` (no DOM, no Node) for sim and map, `vite` for the client
   oxlint-config/       shared lint rules
 ```
@@ -73,13 +74,34 @@ runs on a server (`apps/server`, `pnpm server`), ahead of the rest of stage 2. I
 through the stand-to after each daily cutoff, the battle waits. It runs with Rapier's sight lines, at about 3 ms a step
 for 400 men.
 
-It doesn't take players yet. In order, what comes next:
+Players join over Colyseus (`apps/server/src/room.ts`) and the client plays under `?server` (`?server&play` against
+`pnpm server`; `?server=wss://…` for another address); without it the client runs its own battle in the worker as
+before, for development and `pnpm perf`.
 
-1. Players join a squad of their side and leave it, the bots taking over (`squad-controller`).
-2. The client plays over the network: a third `SimHost` beside the worker and inline ones, sending commands and taking
-   the server's `SimSync` as the worker's is taken now. The worker stays for development (`?offline`) and `pnpm perf`.
-3. Client-side prediction for the soldier the player controls (see [known risks](#known-risks)).
-4. Hosting on Railway, with the database on a volume.
+- **Joining**: a player gets the free squad of their side nearest the middle of its line, as the local game picks, and
+  leads it until they leave; then the bots take it back (`squad-controller`). The join screen's choice of squad
+  (`join-squad`) swaps men with a squad of bots, never with another player's.
+- **The battle on the page**: the client's third `SimHost` (`sim/server-host.ts`) mirrors the server's simulation as the
+  worker's is mirrored: the server sends `SimSync` ten times a second (every second step), and a player joining late is
+  sent the whole battle, with the ground the shells have reshaped as one patch. The war's calendar is the server's. The
+  menu doesn't pause the battle. What the squad sees is worked out on the page, from the ground.
+- **Encoding** (`packages/net`): the sync goes as MessagePack bytes that keep typed arrays (msgpackr's `moreTypes`);
+  commands go in Colyseus's own encoding.
+- **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
+  their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
+  keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
+  aren't checked yet (a call for fire could ask for any number of rounds a minute; the side's ammunition still caps it).
+- **Bandwidth**: about 140 KB a sync, 1.4 MB/s a player, with the whole battle sent to everyone; a late joiner's welcome
+  is 1 to 2 MB. Fine on one machine, too much over the internet: relevance filtering and quantization are the stage 2
+  load test's work.
+- **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
+  pnpm's supply-chain policy (`blockExoticSubdeps`) refuses; swapping it in is one line in `main.ts` once that's
+  settled.
+
+In order, what comes next:
+
+1. Client-side prediction for the soldier the player controls (see [known risks](#known-risks)).
+2. Hosting on Railway, with the database on a volume.
 
 ### ECS decision
 
@@ -233,7 +255,8 @@ first candidate for Rust/WebAssembly if profiling demands it.
 
 - **Server-authoritative.** Lockstep breaks when hundreds of players join and leave mid-battle.
 - **Colyseus 0.18, one room per sector.** Sector rooms are created at boot and never auto-dispose. Transport is
-  uWebSockets.js through `@colyseus/uwebsockets-transport`; WebTransport only if packet loss becomes a measured problem.
+  uWebSockets.js through `@colyseus/uwebsockets-transport` (for now `ws`: see [the sector server](#the-sector-server));
+  WebTransport only if packet loss becomes a measured problem.
 - **The room wraps the simulation**: it feeds commands into `sim` and reads snapshots out. `sim` never imports Colyseus.
 - **Three kinds of entities**:
 
