@@ -23,7 +23,20 @@ import {
   WINDED,
   wireAt
 } from "@verdun/sim"
-import { type Role, roleLabel, roleOf, type SoldierName, type SquadNames, weaponName } from "./squad-names.ts"
+import { type Role, roleLabel, roleOf, type SoldierName, type SquadNames, weaponName, weaponOf } from "./squad-names.ts"
+
+/** The VB rifle grenades a grenadier goes into action with, as the simulation issues them (rifle-grenades.ts). */
+const RIFLE_GRENADES_CARRIED = 8
+
+/** The weapon a man carries, as the HUD draws it. */
+export type WeaponView = "rifle" | "machine-gun" | "sniper" | "rifle-grenade"
+
+const WEAPON_VIEWS: Readonly<Record<Weapon, WeaponView>> = {
+  [Weapon.Rifle]: "rifle",
+  [Weapon.MachineGun]: "machine-gun",
+  [Weapon.Sniper]: "sniper",
+  [Weapon.RifleGrenadier]: "rifle-grenade"
+}
 
 /**
  * One soldier's state as the HUD shows it, in the shared vocabulary of docs/design/interface.md: words and kinds, never
@@ -60,7 +73,7 @@ export interface SoldierView {
   readonly role: Role
   readonly roleLabel: string
   readonly weapon: {
-    readonly kind: "rifle" | "machine-gun"
+    readonly kind: WeaponView
     readonly name: string
     /** How far through reloading or working the bolt, from 0 (just fired) to 1 (ready). */
     readonly ready: number
@@ -83,6 +96,8 @@ export interface SoldierView {
     readonly spent: boolean
   }
   readonly grenades: { readonly count: number; readonly carried: number }
+  /** A rifle grenadier's VB grenades, fired from the cup on his rifle; null for anyone else. */
+  readonly rifleGrenades: { readonly count: number; readonly carried: number } | null
   readonly position: { readonly x: number; readonly z: number }
 }
 
@@ -185,7 +200,7 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
   const { soldiers } = sim
   const x = soldiers.position.x[soldier]
   const z = soldiers.position.z[soldier]
-  const kind = soldiers.weapon.kind[soldier] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+  const kind = weaponOf(sim, soldier)
   const role = roleOf(sim, squad, soldier)
   const posture = postureOf(sim, soldier)
   const trench = isInTrench(sim.map, x, z) && posture !== "sheltering" && posture !== "climbing-out"
@@ -196,7 +211,7 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
     role,
     roleLabel: roleLabel(role),
     weapon: {
-      kind: kind === Weapon.MachineGun ? "machine-gun" : "rifle",
+      kind: WEAPON_VIEWS[kind],
       name: weaponName(sim, soldier),
       ready: Math.min(1, Math.max(0, 1 - soldiers.weapon.cooldown[soldier] / WEAPONS[kind].interval))
     },
@@ -214,6 +229,10 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
       spent: soldiers.stamina.spent[soldier] === 1
     },
     grenades: { count: soldiers.grenades.count[soldier], carried: GRENADES_CARRIED },
+    rifleGrenades:
+      kind === Weapon.RifleGrenadier
+        ? { count: soldiers.rifleGrenades.count[soldier], carried: RIFLE_GRENADES_CARRIED }
+        : null,
     position: { x, z }
   }
 }

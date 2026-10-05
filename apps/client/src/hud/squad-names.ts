@@ -15,14 +15,32 @@ export interface SoldierName {
   readonly surname: string
 }
 
-/** The jobs in today's squads: its NCO in slot 1, a machine gunner where it has a gun, riflemen. */
-export type Role = "leader" | "rifleman" | "gunner"
+/** The jobs in today's squads: its NCO in slot 1, a machine gunner where it has a gun, a sniper, a rifle grenadier, riflemen. */
+export type Role = "leader" | "rifleman" | "gunner" | "sniper" | "grenadier"
 
 const ROLE_LABELS: Readonly<Record<Role, string>> = {
   leader: "Squad leader",
   rifleman: "Rifleman",
-  gunner: "Machine gunner"
+  gunner: "Machine gunner",
+  sniper: "Sniper",
+  grenadier: "Rifle grenadier"
 }
+
+/** The job each weapon makes of the man carrying it, below the leader. */
+const WEAPON_ROLES: Readonly<Record<Weapon, Role>> = {
+  [Weapon.Rifle]: "rifleman",
+  [Weapon.MachineGun]: "gunner",
+  [Weapon.Sniper]: "sniper",
+  [Weapon.RifleGrenadier]: "grenadier"
+}
+
+/** A soldier's weapon, as one of the simulation's kinds. */
+export function weaponOf(sim: Simulation, soldier: EntityId): Weapon {
+  const kind = sim.soldiers.weapon.kind[soldier]
+  return WEAPONS_BY_KIND.find((weapon) => weapon === kind) ?? Weapon.Rifle
+}
+
+const WEAPONS_BY_KIND: readonly Weapon[] = [Weapon.Rifle, Weapon.MachineGun, Weapon.Sniper, Weapon.RifleGrenadier]
 
 /** Splits a list written as words separated by spaces and line breaks. */
 function words(list: string): readonly string[] {
@@ -150,12 +168,12 @@ export function createSquadNames(): SquadNames {
   }
 }
 
-/** A soldier's job: slot 1 leads, a machine gun makes a gunner, everyone else carries a rifle. */
+/** A soldier's job: slot 1 leads; below him, his weapon makes him a gunner, a sniper, a grenadier or a rifleman. */
 export function roleOf(sim: Simulation, squad: Squad, soldier: EntityId): Role {
   if (squad.members.indexOf(soldier) === 0) {
     return "leader"
   }
-  return sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? "gunner" : "rifleman"
+  return WEAPON_ROLES[weaponOf(sim, soldier)]
 }
 
 export function roleLabel(role: Role): string {
@@ -164,6 +182,5 @@ export function roleLabel(role: Role): string {
 
 /** The weapon a soldier carries, by its period name: "Lebel M1886", "MG 08". */
 export function weaponName(sim: Simulation, soldier: EntityId): string {
-  const kind = sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
-  return WEAPON_NAMES[sideOf(sim, soldier)][kind]
+  return WEAPON_NAMES[sideOf(sim, soldier)][weaponOf(sim, soldier)]
 }

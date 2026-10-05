@@ -371,6 +371,44 @@
   filter: none;
 }
 
+/* The grenadier's rifle grenades, between his rifle and his hand grenades. */
+.soldier-card[data-rifle-grenades] .sc-kit {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.sc-rifle-grenades {
+  display: grid;
+  justify-items: center;
+  gap: 0.2em;
+}
+
+.sc-rifle-grenades[hidden] {
+  display: none;
+}
+
+.sc-rifle-grenades__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.sc-rifle-grenades__icon {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--hud-brass-bright);
+}
+
+.sc-rifle-grenades__count {
+  font-size: 0.9em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.sc-rifle-grenades[data-empty] .hud-label,
+.sc-rifle-grenades[data-empty] .sc-rifle-grenades__count {
+  color: var(--hud-caution);
+}
+
 .sc-grenades[data-empty] .hud-label {
   color: var(--hud-caution);
 }

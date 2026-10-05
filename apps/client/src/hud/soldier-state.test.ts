@@ -1,4 +1,4 @@
-import { casualty, MaskState, Stance, surrender, TICK_RATE } from "@verdun/sim"
+import { casualty, enqueueCommand, MaskState, Stance, stepSimulation, surrender, TICK_RATE, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { type Casualties, effectsOn, rosterView, severityOf, soldierView } from "./soldier-state.ts"
 import { createSquadNames } from "./squad-names.ts"
@@ -7,6 +7,23 @@ import { slot, testBattle } from "./test-battle.ts"
 const NONE: Casualties = { lying: new Set(), evacuated: new Set(), captured: new Set(), returned: new Set() }
 
 describe("soldierView", () => {
+  it("names a sniper and a rifle grenadier by their job, and counts the grenadier's rifle grenades", () => {
+    const { sim, squad, members } = testBattle()
+    const names = createSquadNames()
+    const grenadier = slot(members, 2)
+    sim.soldiers.weapon.kind[slot(members, 1)] = Weapon.Sniper
+    sim.soldiers.weapon.kind[grenadier] = Weapon.RifleGrenadier
+    sim.soldiers.rifleGrenades.count[grenadier] = 5
+    const roster = rosterView(sim, squad, names, NONE)
+    expect(roster.slice(0, 4).map((man) => man.role)).toEqual(["leader", "sniper", "grenadier", "rifleman"])
+    expect(soldierView(sim, squad, names, TICK_RATE)?.rifleGrenades).toBeNull()
+    enqueueCommand(sim, { type: "take-command", squad: squad.id, soldier: grenadier })
+    stepSimulation(sim)
+    const view = soldierView(sim, squad, names, TICK_RATE)
+    expect(view?.weapon).toMatchObject({ kind: "rifle-grenade", name: "Lebel with VB discharger" })
+    expect(view?.rifleGrenades).toEqual({ count: 5, carried: 8 })
+  })
+
   it("describes the man under control in words, never hit points", () => {
     const { sim, squad, members } = testBattle()
     const leader = slot(members, 0)

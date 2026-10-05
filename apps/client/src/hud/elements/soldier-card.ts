@@ -39,7 +39,9 @@ function breathOf(soldier: SoldierView): Breath {
 /** What working his weapon looks like between shots: a rifle's bolt, a machine gun's burst. */
 const RELOADING: Readonly<Record<SoldierView["weapon"]["kind"], string>> = {
   rifle: "Working the bolt",
-  "machine-gun": "Firing"
+  "machine-gun": "Firing",
+  sniper: "Working the bolt",
+  "rifle-grenade": "Working the bolt"
 }
 
 const MASK: Readonly<Record<MaskView, string>> = { off: "Mask off", masking: "Masking", on: "Mask on" }
@@ -126,7 +128,16 @@ export const soldierCard: HudElementFactory = () => {
   const maskIcon = icon("mask", "sc-mask__icon")
   const maskText = h("span", "sc-mask__text")
   const mask = h("div", "sc-mask", maskIcon, maskText)
-  const kit = h("footer", "sc-kit", weapon, grenades, mask)
+  // A rifle grenadier's VB grenades, by count: eight are too many to show as pips.
+  const rifleCount = h("strong", "sc-rifle-grenades__count")
+  const rifleGrenades = h(
+    "div",
+    "sc-rifle-grenades",
+    h("span", "hud-label", "Rifle gr."),
+    h("span", "sc-rifle-grenades__row", icon("rifle-grenade", "sc-rifle-grenades__icon"), rifleCount)
+  )
+  rifleGrenades.title = "Rifle grenades left"
+  const kit = h("footer", "sc-kit", weapon, rifleGrenades, grenades, mask)
 
   const root = h("section", "soldier-card hud-plate", head, alert, cells, breath, kit)
   root.setAttribute("aria-label", "Your soldier")
@@ -199,7 +210,7 @@ export const soldierCard: HudElementFactory = () => {
       setVar(breathBar, "--share", soldier.stamina.share)
       setVar(breathTick, "--at", soldier.stamina.runs)
 
-      setIcon(weaponIcon, soldier.weapon.kind === "machine-gun" ? "machine-gun" : "rifle")
+      setIcon(weaponIcon, soldier.weapon.kind)
       setText(weaponName, soldier.weapon.name)
       const ready = soldier.weapon.ready >= 1
       setData(weapon, "ready", ready)
@@ -214,6 +225,13 @@ export const soldierCard: HudElementFactory = () => {
         pip.classList.toggle("is-spent", index >= soldier.grenades.count)
       })
       setData(grenades, "empty", soldier.grenades.count === 0)
+      const rifle = soldier.rifleGrenades
+      show(rifleGrenades, rifle !== null)
+      setData(root, "rifleGrenades", rifle !== null)
+      if (rifle) {
+        setText(rifleCount, `${rifle.count}/${rifle.carried}`)
+        setData(rifleGrenades, "empty", rifle.count === 0)
+      }
 
       setData(mask, "state", soldier.mask)
       setText(maskText, MASK[soldier.mask])

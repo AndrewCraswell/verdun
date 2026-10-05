@@ -14,13 +14,19 @@ import { type InstanceBuffer, instanceBuffer } from "./instance-buffer.ts"
 /**
  * Grenades on their way: out of the thrower's hand, tumbling along their arc, rolling back off what they struck, and
  * lying there until they burst. The French throw the F1, the cast-iron "citron"; the Germans the M1916 stick grenade,
- * a tin can of explosive on a wooden handle.
+ * a tin can of explosive on a wooden handle. Rifle grenades go up from the grenadier's cup in a high lob and burst
+ * where they come down.
  */
 
 /** Grenades on their way at once, at most. */
 const MAX_GRENADES = 64
 /** A grenade is drawn no smaller than this many pixels long, so a throw can be followed from the usual view. */
 const LEAST_PIXELS = 10
+/** A rifle grenade leaves the cup this high above the ground the grenadier stands on, in metres. */
+const MUZZLE = 1.5
+/** Its speed along the ground, in metres a second, when the simulation's own landing can't be found. */
+const RIFLE_GRENADE_SPEED = 40
+const GRAVITY = 9.81
 
 interface Model {
   readonly mesh: Mesh
@@ -34,6 +40,15 @@ interface Model {
 interface Live {
   readonly way: GrenadeWay
   readonly thrown: number
+  readonly model: Model
+}
+
+/** A rifle grenade in the air: up from the cup and down where it bursts, nose first. */
+interface Lob {
+  readonly from: { readonly x: number; readonly y: number; readonly z: number }
+  readonly to: { readonly x: number; readonly y: number; readonly z: number }
+  readonly fired: number
+  readonly seconds: number
   readonly model: Model
 }
 
@@ -114,6 +129,7 @@ export function createGrenadeView(
   const french = citron(scene)
   const german = stickGrenade(scene)
   let live: Live[] = []
+  let lobs: Lob[] = []
   const scale = new Vector3()
   const rotation = new Quaternion()
   const place = new Vector3()
@@ -135,6 +151,26 @@ export function createGrenadeView(
   return {
     add(events) {
       for (const event of events) {
+        if (event.type === "rifle-grenade") {
+          const { x, z } = sim.soldiers.position
+          const from = {
+            x: x[event.soldier],
+            y: ground(x[event.soldier], z[event.soldier]) + MUZZLE,
+            z: z[event.soldier]
+          }
+          const to = { x: event.x, y: ground(event.x, event.z), z: event.z }
+          // It bursts when the simulation's shell lands: found by where it lands, else by its speed.
+          const shell = sim.artillery.shells.find((landing) => landing.x === event.x && landing.z === event.z)
+          const range = Math.hypot(to.x - from.x, to.z - from.z)
+          lobs.push({
+            from,
+            to,
+            fired: sim.tick,
+            seconds: shell ? (shell.landsAtTick - sim.tick) * STEP_SECONDS : range / RIFLE_GRENADE_SPEED,
+            model: sim.soldiers.side.value[event.soldier] === Side.German ? german : french
+          })
+          continue
+        }
         if (event.type !== "throw" || !event.grenade) {
           continue
         }
@@ -166,6 +202,33 @@ export function createGrenadeView(
         Quaternion.RotationYawPitchRollToRef(grenade.way.heading, at.tumble, 0, rotation)
         // Down, it lies on its side on the ground, however much it's drawn larger than life.
         place.set(at.x, at.phase === "air" ? at.y : at.y + model.lying * enlarge, at.z)
+        Matrix.ComposeToRef(scale, rotation, place, matrix)
+        model.instances.reserve(index + 1)
+        matrix.copyToArray(model.instances.data, index * 16)
+        drawn.set(model, index + 1)
+      }
+      lobs = lobs.filter((lob) => (now - lob.fired) * STEP_SECONDS < lob.seconds)
+      for (const lob of lobs) {
+        const { from, to, model } = lob
+        const seconds = Math.max(0, (now - lob.fired) * STEP_SECONDS)
+        const share = seconds / Math.max(lob.seconds, 1e-6)
+        // A ballistic arc: the straight line between, lifted by what gravity hasn't yet taken back.
+        const y = from.y + (to.y - from.y) * share + 0.5 * GRAVITY * seconds * (lob.seconds - seconds)
+        const x = from.x + (to.x - from.x) * share
+        const z = from.z + (to.z - from.z) * share
+        const along = Math.hypot(to.x - from.x, to.z - from.z) / Math.max(lob.seconds, 1e-6)
+        const rising = (to.y - from.y) / Math.max(lob.seconds, 1e-6) + GRAVITY * (lob.seconds / 2 - seconds)
+        const index = drawn.get(model) ?? 0
+        const enlarge = Math.max(1, (LEAST_PIXELS * metresPerPixel(x, y, z)) / model.length)
+        scale.setAll(enlarge)
+        // Nose first along its flight: up on the way out, down on the way in.
+        Quaternion.RotationYawPitchRollToRef(
+          Math.atan2(to.x - from.x, to.z - from.z),
+          -Math.atan2(rising, along),
+          0,
+          rotation
+        )
+        place.set(x, y, z)
         Matrix.ComposeToRef(scale, rotation, place, matrix)
         model.instances.reserve(index + 1)
         matrix.copyToArray(model.instances.data, index * 16)

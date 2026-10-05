@@ -42,7 +42,9 @@ const MARKS: Readonly<Record<SlotMark, readonly [IconName, string]>> = {
 const ROLE_WORDS: Readonly<Record<Role, string>> = {
   leader: "Squad leader",
   rifleman: "Rifleman",
-  gunner: "Machine gunner"
+  gunner: "Machine gunner",
+  sniper: "Sniper",
+  grenadier: "Rifle grenadier"
 }
 
 /** What clicking a man's tile would do. */
@@ -62,6 +64,12 @@ function roleIcon(role: Role, side: Side): IconName {
   }
   if (role === "gunner") {
     return "machine-gun"
+  }
+  if (role === "sniper") {
+    return "sniper"
+  }
+  if (role === "grenadier") {
+    return "rifle-grenade"
   }
   return side === Side.German ? "helmet-german" : "helmet-french"
 }
