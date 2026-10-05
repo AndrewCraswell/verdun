@@ -30,6 +30,8 @@ export interface SoldierComponents {
   readonly moveOrder: { readonly x: Float32Array; readonly z: Float32Array; readonly run: Uint8Array }
   /** Unit vector the soldier faces and aims along. */
   readonly facing: { readonly x: Float32Array; readonly z: Float32Array }
+  /** Present while the soldier climbs over a wire fence (vault.ts): where he comes down. It overrides steering and orders. */
+  readonly vault: { readonly x: Float32Array; readonly z: Float32Array }
   /**
    * Present while a player steers the soldier directly: a direction with length up to 1, as a fraction of walking speed.
    * Steering overrides any move order. `run` is 1 while the player holds the run key.
@@ -98,6 +100,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     speed: { value: new Float32Array(capacity) },
     moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    vault: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     steer: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     squad: { id: new Int32Array(capacity).fill(-1) },
     health: { value: new Float32Array(capacity) },

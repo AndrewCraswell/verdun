@@ -14,7 +14,8 @@ import {
   Side,
   spawnSoldier,
   Stance,
-  stepSimulation
+  stepSimulation,
+  Weapon
 } from "@verdun/sim"
 import { createLineOfSight } from "@verdun/sim/physics"
 import { afterEach, describe, expect, it } from "vitest"
@@ -467,5 +468,68 @@ describe("createSquadMarkers", () => {
     const line = markers.leader.getChildMeshes().find((mesh) => mesh.name === "squad-leader-aim")
     expect(line?.scaling.z).toBeGreaterThan(25)
     lineOfSight.dispose()
+  })
+})
+
+describe("the action key and the trigger", () => {
+  /** The player's leader beside a comrade's machine gun, both of a squad facing a field. */
+  function atTheGun() {
+    const engine = new NullEngine()
+    engines.push(engine)
+    const scene = new Scene(engine)
+    const sim = createSimulation({
+      map: createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3, Surface.Grass),
+      seed: 1
+    })
+    const leader = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 51.5, z: 50, weapon: Weapon.MachineGun })
+    const squad = createSquad(sim, Side.French, [leader, gunner], "player")
+    const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), scene)
+    const actions: PlayerAction[] = []
+    const input = {
+      held: new Set<string>(),
+      firing: false,
+      pointerGround: () => null,
+      takeActions: () => actions.splice(0)
+    }
+    const control = createPlayerControl(sim, squad, camera, input)
+    const frame = () => {
+      control.update(0.05)
+      stepSimulation(sim)
+    }
+    return { sim, leader, gunner, actions, input, frame }
+  }
+
+  it("mans the gun beside him, fires it for as long as the trigger's held, and hands it back", () => {
+    const { sim, leader, gunner, actions, input, frame } = atTheGun()
+    actions.push({ kind: "act" })
+    frame()
+    expect(sim.soldiers.weapon.kind[leader]).toBe(Weapon.MachineGun)
+    expect(sim.soldiers.weapon.kind[gunner]).toBe(Weapon.Rifle)
+
+    input.firing = true
+    let shots = 0
+    for (let step = 0; step < 20; step++) {
+      frame()
+      shots += shotEvents(sim.events).length
+    }
+    input.firing = false
+    // A second at 0.1 s a round, by the trigger alone: no clicks after the first.
+    expect(shots).toBeGreaterThan(5)
+
+    actions.push({ kind: "act" })
+    frame()
+    expect(sim.soldiers.weapon.kind[leader]).toBe(Weapon.Rifle)
+    expect(sim.soldiers.weapon.kind[gunner]).toBe(Weapon.MachineGun)
+  })
+
+  it("climbs instead where there's no gun to man", () => {
+    const { sim, leader, gunner, actions, frame } = atTheGun()
+    sim.soldiers.position.x[gunner] = 80
+    actions.push({ kind: "act" })
+    frame()
+    // No wire ahead on this field, so there's nothing to climb either: he stays a rifleman where he is.
+    expect(sim.soldiers.weapon.kind[leader]).toBe(Weapon.Rifle)
+    expect(sim.soldiers.position.x[leader]).toBeCloseTo(50)
   })
 })

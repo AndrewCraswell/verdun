@@ -35,6 +35,8 @@ export interface SoldierState {
   readonly moveOrder: { readonly x: number; readonly z: number; readonly run: boolean } | null
   readonly facing: { readonly x: number; readonly z: number }
   readonly steer: { readonly x: number; readonly z: number; readonly run: boolean } | null
+  /** Where he comes down from a fence he's climbing; absent when he isn't, and in snapshots from before vaulting. */
+  readonly vault?: { readonly x: number; readonly z: number }
   readonly health: number
   readonly dead: boolean
   readonly captured: boolean
@@ -144,6 +146,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
         : null,
       facing: { x: facing.x[id], z: facing.z[id] },
       steer: hasComponent(sim.world, id, steer) ? { x: steer.x[id], z: steer.z[id], run: steer.run[id] === 1 } : null,
+      ...(hasComponent(sim.world, id, sim.soldiers.vault)
+        ? { vault: { x: sim.soldiers.vault.x[id], z: sim.soldiers.vault.z[id] } }
+        : {}),
       health: health.value[id],
       dead: hasComponent(sim.world, id, dead),
       captured: hasComponent(sim.world, id, sim.soldiers.captured),
@@ -249,6 +254,11 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       sim.soldiers.steer.x[id] = soldier.steer.x
       sim.soldiers.steer.z[id] = soldier.steer.z
       sim.soldiers.steer.run[id] = soldier.steer.run ? 1 : 0
+    }
+    if (soldier.vault) {
+      addComponent(sim.world, id, sim.soldiers.vault)
+      sim.soldiers.vault.x[id] = soldier.vault.x
+      sim.soldiers.vault.z[id] = soldier.vault.z
     }
     sim.soldiers.health.value[id] = soldier.health
     sim.soldiers.weapon.cooldown[id] = soldier.cooldown

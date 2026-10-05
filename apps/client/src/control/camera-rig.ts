@@ -32,7 +32,7 @@ const LINES_PER_NOTCH = 3
 const MAX_NOTCHES = 3
 
 /**
- * The camera's keys, by their default `KeyboardEvent.code`: the arrows pan (or with Shift, turn), Space recentres. The
+ * The camera's keys, by their default `KeyboardEvent.code`: the arrows pan (or with Shift, turn), Home recentres. The
  * player can move them (ui/keymap.ts); keys are read through the keymap.
  */
 const ARROWS: ReadonlySet<string> = new Set(

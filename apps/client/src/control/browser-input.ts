@@ -82,6 +82,9 @@ export function actionForKey(code: string): PlayerAction | null {
   if (code === "KeyC") {
     return { kind: "toggle-crouch" }
   }
+  if (code === "Space") {
+    return { kind: "act" }
+  }
   const digit = /^Digit([1-8])$/.exec(code)?.[1]
   return digit ? { kind: "switch-slot", slot: Number(digit) - 1 } : null
 }
@@ -98,6 +101,8 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
   // moves with it, and is never left stuck down.
   const down = new Set<string>()
   let actions: PlayerAction[] = []
+  // The left button held down: a machine gun keeps firing while it is.
+  let firing = false
   // Aiming since its key went down: the grenade is thrown when the key comes up, or on the next press.
   let aimingThrow = false
   // Running, by a press of the run key set to toggle.
@@ -219,6 +224,7 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     held.clear()
     runOn = false
     stancesHeld.clear()
+    firing = false
     // Losing the window mid-aim puts the grenade away rather than throwing it blind, and the call too.
     aimingThrow = false
     aimingCall = null
@@ -226,6 +232,7 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
   const canvas = scene.getEngine().getRenderingCanvas()
   canvas?.addEventListener("pointerdown", (event) => {
     if (event.button === 0) {
+      firing = true
       actions.push({ kind: "fire" })
     } else if (event.button === 2) {
       // The right button puts away a call being aimed.
@@ -233,8 +240,17 @@ export function createBrowserInput(scene: Scene, map: BattlefieldMap, keys: Keym
     }
   })
 
+  window.addEventListener("pointerup", (event) => {
+    if (event.button === 0) {
+      firing = false
+    }
+  })
+
   return {
     held,
+    get firing() {
+      return firing
+    },
     pointerGround,
     takeActions() {
       const taken = actions

@@ -49,6 +49,11 @@ export function lookAhead(distance: number): number {
   const fade = clamp((LOOK_AHEAD.none - distance) / (LOOK_AHEAD.none - LOOK_AHEAD.full), 0, 1)
   return LOOK_AHEAD.share * distance * fade
 }
+/**
+ * Manning a machine gun, the view rises and looks down along the ground the gun sweeps: at least this far back, in
+ * metres, and this far down from overhead, so the gunner sees men coming across the open well before they're on him.
+ */
+const GUN_VIEW = { distance: 45, pitch: 0.8 } as const
 /** How quickly the lead swings round, per second: aiming answers faster than walking. */
 const LEAD_RATE = { walk: 2.5, aim: 4 } as const
 
@@ -99,6 +104,8 @@ export interface CameraRigModel {
   zoom(notches: number, toward?: { readonly x: number; readonly z: number }): void
   /** Jumps the zoom to a distance, as if the player had zoomed there. */
   setDistance(distance: number): void
+  /** Rises to the gun's view while the soldier mans a machine gun, and comes back down to the zoom when he leaves it. */
+  setGunView(on: boolean): void
   /** Moves the view on by a frame. `ground` gives the terrain height at a point. */
   step(seconds: number, ground: (x: number, z: number) => number): RigView
 }
@@ -154,6 +161,7 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
   let panMultiple = 1
   let velocity = { x: 0, z: 0 }
   let turn = 0
+  let gunView = false
 
   /** The ground directions to the view's right and straight ahead, for a bearing. */
   function axes(bearing: number) {
@@ -224,6 +232,9 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
     setDistance(next) {
       distance = clamp(next, ZOOM_RANGE.min, ZOOM_RANGE.max)
     },
+    setGunView(on) {
+      gunView = on
+    },
     step(seconds, ground) {
       yaw += turn * TURN_SPEED * seconds
       // Held pans ease in and out rather than starting and stopping dead.
@@ -274,10 +285,15 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
           ground(focusX, focusZ - reach)) /
         6
       const focusY = approach(view.focusY, groundHere + FOCUS_HEIGHT, ease(RATES.height, seconds))
-      const nextDistance = approach(view.distance, distance, ease(RATES.distance, seconds))
+      const wantedDistance = gunView ? Math.max(distance, GUN_VIEW.distance) : distance
+      const nextDistance = approach(view.distance, wantedDistance, ease(RATES.distance, seconds))
       const nextYaw = approach(view.yaw, yaw, ease(RATES.yaw, seconds))
       let pitch = clamp(
-        approach(view.pitch, pitchForDistance(nextDistance) + tilt, ease(RATES.pitch, seconds)),
+        approach(
+          view.pitch,
+          (gunView ? GUN_VIEW.pitch : pitchForDistance(nextDistance)) + tilt,
+          ease(RATES.pitch, seconds)
+        ),
         PITCH_LIMITS.min,
         PITCH_LIMITS.max
       )

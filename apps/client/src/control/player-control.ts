@@ -3,12 +3,14 @@ import { heightAt } from "@verdun/map"
 import {
   enqueueCommand,
   type EntityId,
+  gunPartner,
   isAlive,
   nextLivingMember,
   type Simulation,
   type Squad,
   Stance,
-  takeOverCandidates
+  takeOverCandidates,
+  Weapon
 } from "@verdun/sim"
 import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
 import { planFires } from "../hud/operation-state.ts"
@@ -32,6 +34,8 @@ export type PlayerAction =
   | { readonly kind: "order-advance"; readonly x: number; readonly z: number }
   /** Pull the trigger: the controlled soldier fires where they aim. */
   | { readonly kind: "fire" }
+  /** Climb the wire fence ahead, or man (or leave) the machine gun beside the controlled soldier. */
+  | { readonly kind: "act" }
   /** Blow the whistle: the whole side goes over the top. */
   | { readonly kind: "whistle" }
   /** Order a preparatory bombardment of the enemy line. */
@@ -60,6 +64,8 @@ export type PlayerAction =
 export interface PlayerInput {
   /** Movement and run keys held: `KeyW`, `KeyA`, `KeyS`, `KeyD`, `ShiftLeft` as `KeyboardEvent.code` values. */
   readonly held: ReadonlySet<string>
+  /** Whether the trigger is held down: a machine gun keeps firing while it is. */
+  readonly firing?: boolean
   /** Ground point under the pointer, or null when it isn't over the battlefield. */
   pointerGround(): GroundVector | null
   /** One-off actions since the last call, oldest first. */
@@ -193,6 +199,13 @@ export function createPlayerControl(
           enqueueCommand(sim, { type: "fire", soldier: squad.leader })
         }
         return
+      case "act":
+        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire.
+        if (squad.leader >= 0) {
+          const type = gunPartner(sim, squad.leader) >= 0 ? "man-gun" : "vault"
+          enqueueCommand(sim, { type, soldier: squad.leader })
+        }
+        return
       // In an operation the plan blows the whistle and fires the bombardments: early, they'd send the side over before
       // its barrage, and the plan would fire another at zero hour.
       case "whistle":
@@ -294,8 +307,15 @@ export function createPlayerControl(
         lastAim = aim
       }
 
+      const manning = sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun
+      if (manning && input.firing) {
+        // A machine gun fires as long as the trigger's held; the gun's own rate sets how often it hits.
+        enqueueCommand(sim, { type: "fire", soldier })
+      }
+
       const rig = cameraRigOf(camera)
       if (rig) {
+        rig.model.setGunView(manning)
         // Moving the soldier brings the camera back to them, as does switching to another.
         if (steer.x !== 0 || steer.z !== 0 || soldier !== followedSoldier) {
           rig.recenter()

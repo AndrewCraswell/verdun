@@ -1,4 +1,4 @@
-import { type EntityId, query, removeComponent } from "bitecs"
+import { type EntityId, hasComponent, query, removeComponent } from "bitecs"
 import { recoveryFactor } from "../climate.ts"
 import { BROKEN_MORALE, PINNED } from "../combat.ts"
 import { MaskState, Stance } from "../components.ts"
@@ -6,6 +6,7 @@ import { weatherPace } from "../ground.ts"
 import { clampToMap, FULL_STAMINA, type Simulation, soldierIds } from "../simulation.ts"
 import { CRAWL_FACTOR, CROUCH_FACTOR, isInTrench } from "../stance.ts"
 import { climbLimit, groundPace } from "../terrain.ts"
+import { VAULT_PACE } from "../vault.ts"
 import { wirePace } from "../wire.ts"
 
 /** Walking pace in a gas mask, as a fraction of normal: every breath is drawn through the filter. */
@@ -61,7 +62,7 @@ const STANCE_PACE: Readonly<Record<number, number>> = {
  * so does breathing through a gas mask. Running costs stamina; a man run out walks slowly until he gets his breath.
  */
 export function movementSystem(sim: Simulation, stepSeconds: number): void {
-  const { position, speed, moveOrder, facing, steer, stance, suppression, mask, morale, stamina } = sim.soldiers
+  const { position, speed, moveOrder, facing, steer, stance, suppression, mask, morale, stamina, vault } = sim.soldiers
   const activity = new Map<EntityId, Activity>()
   const strideFor = (soldier: EntityId, dx: number, dz: number, run: boolean): number => {
     const x = position.x[soldier]
@@ -96,8 +97,31 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
     }
   }
   const arrived: EntityId[] = []
+  const landed: EntityId[] = []
+
+  // Climbing a fence: straight over at the climb's pace, whatever the wire, the steering or his orders.
+  for (const soldier of query(sim.world, [position, vault])) {
+    const dx = vault.x[soldier] - position.x[soldier]
+    const dz = vault.z[soldier] - position.z[soldier]
+    const distance = Math.sqrt(dx * dx + dz * dz)
+    const stride = VAULT_PACE * stepSeconds
+    activity.set(soldier, Activity.Walking)
+    if (distance <= stride) {
+      position.x[soldier] = vault.x[soldier]
+      position.z[soldier] = vault.z[soldier]
+      landed.push(soldier)
+      continue
+    }
+    position.x[soldier] += (dx / distance) * stride
+    position.z[soldier] += (dz / distance) * stride
+    facing.x[soldier] = dx / distance
+    facing.z[soldier] = dz / distance
+  }
 
   for (const soldier of query(sim.world, [position, steer])) {
+    if (hasComponent(sim.world, soldier, vault)) {
+      continue
+    }
     const length = Math.sqrt(steer.x[soldier] ** 2 + steer.z[soldier] ** 2)
     if (!(length > 0)) {
       continue
@@ -115,7 +139,11 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
   }
 
   for (const soldier of query(sim.world, [position, moveOrder])) {
-    if (suppression.value[soldier] >= PINNED || stance.value[soldier] === Stance.Sheltering) {
+    if (
+      suppression.value[soldier] >= PINNED ||
+      stance.value[soldier] === Stance.Sheltering ||
+      hasComponent(sim.world, soldier, vault)
+    ) {
       continue
     }
     const dx = moveOrder.x[soldier] - position.x[soldier]
@@ -143,6 +171,9 @@ export function movementSystem(sim: Simulation, stepSeconds: number): void {
   // Removing components while iterating a query would skip entities, so orders are cleared afterwards.
   for (const soldier of arrived) {
     removeComponent(sim.world, soldier, moveOrder)
+  }
+  for (const soldier of landed) {
+    removeComponent(sim.world, soldier, vault)
   }
 
   const recovery = recoveryFactor(sim)

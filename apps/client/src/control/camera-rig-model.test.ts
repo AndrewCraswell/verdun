@@ -224,4 +224,18 @@ describe("camera rig", () => {
     expect(lookAhead(120)).toBe(0)
     expect(lookAhead(ZOOM_RANGE.max)).toBe(0)
   })
+
+  it("rises to look down along the gun's arc while manning a machine gun, and comes back down after", () => {
+    const model = createCameraRigModel(bounds, { ...start, distance: 20, pitch: pitchForDistance(20) })
+    model.follow(300, 200)
+    model.setGunView(true)
+    const manning = settle(model, 3)
+    expect(manning.distance).toBeCloseTo(45, 0)
+    expect(manning.pitch).toBeLessThan(pitchForDistance(20) - 0.2)
+
+    model.setGunView(false)
+    const left = settle(model, 3)
+    expect(left.distance).toBeCloseTo(20, 0)
+    expect(left.pitch).toBeCloseTo(pitchForDistance(20), 2)
+  })
 })

@@ -3,9 +3,11 @@ import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
+import { manGun } from "./man-gun.ts"
 import { joinSquad, takeOverSquad } from "./reinforcements.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
+import { startVault } from "./vault.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
 import { cutLane } from "./wire.ts"
 
@@ -117,6 +119,18 @@ export interface StanceCommand {
 }
 
 /** A player throws a grenade toward a ground point, as far as a throw reaches. */
+/** Climbs the wire fence ahead of the soldier, the way he's going, where no tangle of coils lies in his way. */
+export interface VaultCommand {
+  readonly type: "vault"
+  readonly soldier: EntityId
+}
+
+/** Takes over the machine gun of the comrade beside the soldier, or hands the soldier's own gun to the nearest rifleman. */
+export interface ManGunCommand {
+  readonly type: "man-gun"
+  readonly soldier: EntityId
+}
+
 export interface ThrowGrenadeCommand {
   readonly type: "throw-grenade"
   readonly soldier: EntityId
@@ -220,6 +234,8 @@ export type Command =
   | FireCommand
   | StanceCommand
   | ThrowGrenadeCommand
+  | VaultCommand
+  | ManGunCommand
   | AmmunitionCommand
   | WindCommand
   | ClockCommand
@@ -339,6 +355,18 @@ export function applyCommand(sim: Simulation, command: Command): void {
     case "fire": {
       if (isSoldier(sim, command.soldier)) {
         fireAimed(sim, command.soldier)
+      }
+      return
+    }
+    case "vault": {
+      if (isSoldier(sim, command.soldier)) {
+        startVault(sim, command.soldier)
+      }
+      return
+    }
+    case "man-gun": {
+      if (isSoldier(sim, command.soldier)) {
+        manGun(sim, command.soldier)
       }
       return
     }

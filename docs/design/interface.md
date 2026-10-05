@@ -81,8 +81,12 @@ each season, the theatres each season opens, Verdun's sectors, Fleury playable),
 their rebinding, S2, as a tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on
 their own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
 
-Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), and the rest of
-stage 2-3's screens.
+The orders wheel (H7: hold R, point at Advance, Hold or Follow, let go), the shot's chance on the cursor (H8: three pips
+for good, two for fair, one for poor, never a number; the hitChance setting) and the call previews (H10: hold V or X for
+the footprint, the margin a burst kills in and the delay, a second call needed when our men are under it) are built too,
+and the attackers see their stretch of the enemy's front line bracketed in brass on the war map and in the overview.
+
+Still to come: operations, tasks and chat (H19-H21), and the rest of stage 2-3's screens.
 
 ## Principles
 
@@ -253,7 +257,7 @@ Shows:
 Behaviour:
 
 - Updates live. A state that changes for the worse pulses once (a short motion, no flashing).
-- Clicking the card centres the camera on the soldier (same as Space). Hover shows H2's reasons in full.
+- Clicking the card centres the camera on the soldier (same as Home). Hover shows H2's reasons in full.
 - When the soldier falls, the card hands over through [H16](#h16-succession-card).
 
 ### H2 Active effects
@@ -781,14 +785,14 @@ groups (`apps/client/src/ui/bindings.ts`, the single registry of keys). Keys are
 Add **rebinding**: click an action, press a key; conflicts shown and resolved; reset per group and for all. Show both
 the key and mouse bindings. The current list:
 
-| Group             | Keys and actions                                                                                                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; left-click fire; Q grenade at the pointer; C crouch; Z lie down                                               |
-| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer                                                                                |
-| Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                      |
-| Camera            | Arrows or screen edges pan; Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Space back to your man |
-| Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                          |
-| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; F7 sound mixer                                                                   |
+| Group             | Keys and actions                                                                                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Your soldier      | W A S D move (camera-relative); Shift run; mouse aim; left-click fire (hold on a machine gun); Q grenade; C crouch; Z lie down; Space climb a wire fence, or man the gun beside you |
+| Your squad        | Tab next man; 1–8 a slot; F follow; H hold; E advance to the point under the pointer                                                                                                |
+| Artillery, attack | B bombard the enemy line for 2 min; V artillery on the pointer; X gas on the pointer; G whistle: every squad attacks behind a creeping barrage                                      |
+| Camera            | Arrows or screen edges pan; Shift + middle-drag grab the ground; middle-drag or Shift + Left/Right turn and tilt; wheel zoom to the pointer; Home or L back to your man             |
+| Screen            | Esc menu; P pause (offline); O fog of war; F3 debug; F4 save frame timings                                                                                                          |
+| Dev builds only   | K kill your man; \` Inspector; [ ] hour; Shift + [ ] week; N weather; J death map; F7 sound mixer                                                                                   |
 
 Proposed new keys, for the developer to confirm (E, I, L, R, T, U and Y are free today): **E** orders radial (H7), **M**
 sector map (S4; the dev sound mixer moves elsewhere), **R** rally (when built; or reload, if ammunition needs one),

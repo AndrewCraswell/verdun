@@ -27,6 +27,7 @@ export { type ChangedArea, type Crater, mergeAreas, slumpGround, stampCrater } f
 export { decodeElevation, type Elevation, elevationAt } from "./elevation.ts"
 export { generateFleurySector } from "./fleury.ts"
 export { railwayCourse } from "./railways.ts"
+export { beltLayout, type FenceLength, positionHash, type WireTangle } from "./wire-layout.ts"
 export {
   footprintRadius,
   SCENERY_FOOTPRINTS,

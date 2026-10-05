@@ -1,5 +1,6 @@
 import {
   type BattlefieldMap,
+  beltLayout,
   type GroundPoint,
   heightAt,
   sampleIndex,
@@ -497,52 +498,39 @@ function sceneryPlacements(map: BattlefieldMap, item: Scenery, battering = 0): P
 }
 
 const FENCES = ["Prop_Wire_Fence_01", "Prop_Wire_Fence_02"]
+/** The kit's fence piece is this long; each length of a belt's fence stretches one to fit. */
 const FENCE_LENGTH = 10.06
 const TANGLES = ["Prop_Wire_Fence_Tangled_01", "Prop_Wire_Fence_Tangled_02", "Prop_Wire_Fence_Tangled_03"]
 
 /**
- * A belt of wire: a staked fence along the line, with tangled coils thrown in front of and behind it. Fence pieces
- * run along their x axis and lean with the ground between their ends.
+ * A belt of wire as the map lays it out (`beltLayout`): a staked fence along the line, with tangled coils thrown in front
+ * of and behind it. Fence pieces run along their x axis and lean with the ground between their ends. The simulation
+ * reads the same layout: a man can climb the fence where no tangle lies in his way.
  */
 function wirePlacements(map: BattlefieldMap, belt: WireBelt): Placement[] {
-  const placements: Placement[] = []
-  for (let index = 1; index < belt.points.length; index++) {
-    const [ax, az] = belt.points[index - 1]
-    const [bx, bz] = belt.points[index]
-    const length = Math.hypot(bx - ax, bz - az)
-    const dx = (bx - ax) / length
-    const dz = (bz - az) / length
-    const count = Math.max(1, Math.round(length / FENCE_LENGTH))
-    for (let piece = 0; piece < count; piece++) {
-      const from = (piece * length) / count
-      const to = ((piece + 1) * length) / count
-      const x = ax + dx * ((from + to) / 2)
-      const z = az + dz * ((from + to) / 2)
-      const start = heightAt(map, ax + dx * from, az + dz * from)
-      const end = heightAt(map, ax + dx * to, az + dz * to)
-      placements.push({
-        piece: pick(FENCES, x, z, 0),
-        x,
-        y: (start + end) / 2 - 0.05,
-        z,
-        yaw: yawAlong(dx, dz) - Math.PI / 2,
-        up: upForSlope(dx, dz, (end - start) / (to - from)),
-        scale: [(to - from) / FENCE_LENGTH, 1, 1]
-      })
-      if (hashOf(x, z, 3) < 0.7) {
-        const side = hashOf(x, z, 4) < 0.5 ? -1 : 1
-        const tx = x - dz * side * 1.6
-        const tz = z + dx * side * 1.6
-        placements.push({
-          piece: pick(TANGLES, tx, tz, 5),
-          x: tx,
-          y: heightAt(map, tx, tz) - 0.1,
-          z: tz,
-          yaw: yawAlong(dx, dz) - Math.PI / 2 + (hashOf(tx, tz, 6) - 0.5) * 0.8,
-          up: groundNormal(map, tx, tz)
-        })
-      }
+  const { fences, tangles } = beltLayout(belt)
+  const placements: Placement[] = fences.map(({ x, z, dx, dz, length }) => {
+    const start = heightAt(map, x - (dx * length) / 2, z - (dz * length) / 2)
+    const end = heightAt(map, x + (dx * length) / 2, z + (dz * length) / 2)
+    return {
+      piece: pick(FENCES, x, z, 0),
+      x,
+      y: (start + end) / 2 - 0.05,
+      z,
+      yaw: yawAlong(dx, dz) - Math.PI / 2,
+      up: upForSlope(dx, dz, (end - start) / length),
+      scale: [length / FENCE_LENGTH, 1, 1]
     }
+  })
+  for (const { x, z, dx, dz } of tangles) {
+    placements.push({
+      piece: pick(TANGLES, x, z, 5),
+      x,
+      y: heightAt(map, x, z) - 0.1,
+      z,
+      yaw: yawAlong(dx, dz) - Math.PI / 2 + (hashOf(x, z, 6) - 0.5) * 0.8,
+      up: groundNormal(map, x, z)
+    })
   }
   return placements
 }

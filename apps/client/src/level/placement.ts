@@ -1,3 +1,5 @@
+import { positionHash } from "@verdun/map"
+
 /** One kit piece placed on the battlefield. */
 export interface Placement {
   /** The kit piece's name. */
@@ -24,10 +26,8 @@ export function upForSlope(dx: number, dz: number, slope: number): [number, numb
   return [(-slope * dx) / length, 1 / length, (-slope * dz) / length]
 }
 
-/** A small, stable hash of a position, for picking variants without a random sequence: same input, same piece. */
-export function hashOf(x: number, z: number, salt = 0): number {
-  let hash = Math.imul(Math.round(x * 16) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(Math.round(z * 16) + salt, 0xc2b2ae35)
-  hash = Math.imul(hash ^ (hash >>> 15), 0x2c1b3c6d)
-  hash ^= hash >>> 12
-  return (hash >>> 0) / 4_294_967_296
-}
+/**
+ * A small, stable hash of a position, for picking variants without a random sequence: same input, same piece. The
+ * map's, so the art and the simulation agree where it decides something both see (a belt's tangles, say).
+ */
+export const hashOf = positionHash

@@ -119,6 +119,8 @@ export {
 } from "./reinforcements.ts"
 export { type GunSighting, type GunSpottedEvent, SPOTTED_SECONDS, spottedGuns } from "./spotting.ts"
 export type { GunMannedEvent } from "./gun-crews.ts"
+export { gunPartner } from "./man-gun.ts"
+export { vaultLanding } from "./vault.ts"
 export type { CounterThrustEvent, StandToEvent } from "./defence.ts"
 export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
 export {
