@@ -38,6 +38,7 @@ import { dressLevel } from "./level/dress-battlefield.ts"
 import { openKitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
 import { useHeightFog } from "./level/particle-fog.ts"
+import { selectEnabledMeshes } from "./render/active-meshes.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
@@ -118,6 +119,8 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
 
   menu.attach({ war, renderer: engine.isWebGPU ? "WebGPU" : "WebGL" })
   const view = createBattlefieldScene(engine, sim, { attachControl: true })
+  // Babylon chooses what to draw from the enabled meshes only, not the kit's switched-off sources too.
+  selectEnabledMeshes(view.scene)
   // The war map's view shows the enemy only where the fog of war does: the men our side can see.
   const hud = createHud(document.body, sim, playerSquad, TICK_RATE, {
     war,
