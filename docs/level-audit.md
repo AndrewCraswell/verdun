@@ -99,6 +99,21 @@ In order, each verified in the browser and committed on its own:
   graphics setting saves about 5 ms more by drawing one sample with FXAA. What's left in the 24–26 ms GPU frame, by
   switching each part off: the ground about 8 ms, shadow receiving about 4 ms (not its filtering: low or no PCF saves
   nothing), the depth of field 3 ms, bloom 2 ms, grain 1 ms, the soldiers 1.5 ms; the far woods, the trench kit and
-  particles are lost in the noise. A 0.75 render scale saves about 5.5 ms. The ground's textures are still uncompressed
-  PNG; KTX2 would cut what they cost in bandwidth. Babylon's own work on the page (drawing, render targets, choosing
-  meshes: about 16 ms) is next once the GPU drops much further.
+  particles are lost in the noise. A 0.75 render scale saves about 5.5 ms; the game keeps 1.0. KTX2 ground textures (BC7
+  on the GPU) were tried and measured no faster, the ground's fetches mostly hitting the cache: they're kept on the
+  branch `perf/ktx2-ground` in case GPU memory, 33 MB of it, becomes the limit. Babylon's own work on the page (drawing,
+  render targets, choosing meshes: about 16 ms) is next once the GPU drops much further.
+- **Performance, an audit**: eight agents read the client and the simulation for waste, two reviewers tried to refute
+  each of their 94 findings, and the 27 left became work packages (the rendering ones landed together on 5 October
+  2026). On WebGPU Babylon passes every shadow-receiving pixel four cascades' positions for the sun's two (fixed in
+  `render/cascade-varyings.ts`, about 2-3 ms). Measured in one page, each against the battle as it was
+  (`pnpm perf --ab`, the median of paired 20th percentiles of GPU time): the squad's markers no longer clearing depth
+  mid-frame, which split the multisampled pass, 1.3 ms; the soldiers left out of the shadow cascade nearest the camera
+  when their shadows can't reach it, 0.8 ms; idle particle systems paused, 0.6 ms; the depth of field's depth map drawn
+  only when the view or the ground changes, up to 0.4 ms. The low setting's lighter depth of field, without grain, with
+  the rest measured 3.4 ms faster on Low. Others remove hitches or bugs a quiet battle doesn't show: craters rebuilt a
+  chunk a frame nearest the camera, in place; puddle basins in kept buffers, and not at all on Low; idle effect meshes
+  no longer drawn at the sector's corner; the sun's shadows off in the overview; soldiers skinned from only the bones
+  they use. With the machine quiet, the close view then ran at 51 fps, 17.6 ms of GPU a frame. Hand-offs to the
+  simulation and the HUD (worker round trips, cached soldier lists, the aimed target worked out once a step) went to
+  their owners.
