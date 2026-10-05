@@ -13,10 +13,13 @@
 // scenarios were written for, so runs compare across builds; --operation plays the playtest's operation instead, which
 // opens on its briefing in the overview.
 // Without --url it builds the client as committed at --ref (HEAD by default, in a worktree of its own, so others'
-// half-made changes stay out) and serves the build itself. Close other copies of the game first.
+// half-made changes stay out) and serves the build itself. Close other copies of the game first. Several runs at once
+// each take a slot of their own (build tree, build folder, port), so they never swap files under each other; --no-build
+// serves the build last made in the slot this run gets.
 
 import { execFileSync, spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
@@ -28,7 +31,10 @@ const flag = (name) => process.argv.includes(name)
 const WIDTH = Number(option("--width", 1920))
 const HEIGHT = Number(option("--height", 1080))
 const SECONDS = Number(option("--seconds", 6))
-const PREVIEW_PORT = 4199
+/** Runs at once on the machine, each with its own build tree, build folder and port (see `takeSlot`). */
+const SLOTS = 8
+/** A page-side evaluation gives up after this long: a setting that recompiles shaders can hang the page for good. */
+const EVALUATE_TIMEOUT_MS = 120_000
 // Semicolons between names: the names have commas in them.
 const ONLY = option("--only", "")
   .split(";")
@@ -313,8 +319,9 @@ const SCENARIOS = [
  * once, and a build of it can catch someone's change half made. The encrypted asset pack isn't committed, so it's
  * copied in from this checkout's cache.
  */
-async function buildCommit(ref, outDir) {
-  const tree = join(tmpdir(), "verdun-perf-tree")
+async function buildCommit(ref, outDir, slot) {
+  // Slot 0 keeps the tree earlier runs installed in, so its dependencies are already there.
+  const tree = join(tmpdir(), slot === 0 ? "verdun-perf-tree" : `verdun-perf-tree-${slot}`)
   // Resolved here: in the build tree, HEAD would name the commit that tree last checked out.
   const commit = execFileSync("git", ["rev-parse", ref], { encoding: "utf8" }).trim()
   if (existsSync(join(tree, ".git"))) {
@@ -347,24 +354,84 @@ function costliest(profile, count) {
     .join("\n")
 }
 
+/**
+ * Takes the first free slot of `SLOTS`, by a lock file holding this run's process id, so runs from several sessions at
+ * once never build into or serve each other's folders; a lock whose process has gone is taken over. Returns the slot and
+ * a function that frees it.
+ */
+function takeSlot() {
+  for (let slot = 0; slot < SLOTS; slot++) {
+    const lock = join(tmpdir(), `verdun-perf-slot-${slot}.lock`)
+    try {
+      writeFileSync(lock, String(process.pid), { flag: "wx" })
+    } catch {
+      const holder = Number(readFileSync(lock, "utf8"))
+      let alive = false
+      try {
+        process.kill(holder, 0)
+        alive = true
+      } catch {
+        // No such process: its run ended without freeing the slot.
+      }
+      if (alive) {
+        continue
+      }
+      writeFileSync(lock, String(process.pid))
+    }
+    return { slot, free: () => rmSync(lock, { force: true }) }
+  }
+  throw new Error(`all ${SLOTS} perf slots are in use: other runs are measuring, so numbers now would be noise anyway`)
+}
+
+/**
+ * Clears Chrome profiles earlier runs left in the temp folder, an hour old or more: Chrome can hold one past the clean-up
+ * at the end of a run, and they piled up by the dozen.
+ */
+function sweepOldProfiles() {
+  const hourAgo = Date.now() - 3_600_000
+  for (const name of readdirSync(tmpdir())) {
+    if (!/^verdun-perf-[A-Za-z0-9]{6}$/.test(name)) {
+      continue
+    }
+    const folder = join(tmpdir(), name)
+    try {
+      if (statSync(folder).mtimeMs < hourAgo) {
+        rmSync(folder, { recursive: true, force: true })
+      }
+    } catch {
+      // In use or already gone: the next run tries again.
+    }
+  }
+}
+
+/** A port nobody's listening on now. */
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.on("error", reject)
+    server.listen(0, () => {
+      const address = server.address()
+      server.close(() =>
+        typeof address === "object" && address ? resolve(address.port) : reject(new Error("no port"))
+      )
+    })
+  })
+}
+
 async function main() {
   let preview = null
   let url = option("--url", "")
+  const { slot, free } = takeSlot()
+  process.on("exit", free)
+  sweepOldProfiles()
   if (!url) {
     // Its own build folder: other sessions build into apps/client/dist, and would swap files out under a running game.
-    const outDir = join(tmpdir(), "verdun-perf-dist")
+    const outDir = join(tmpdir(), `verdun-perf-dist-${slot}`)
     if (!flag("--no-build")) {
-      await buildCommit(option("--ref", "HEAD"), outDir)
+      await buildCommit(option("--ref", "HEAD"), outDir, slot)
     }
-    url = `http://localhost:${PREVIEW_PORT}`
-    // Something already answering there would be served instead of this build: an earlier run's server, say.
-    const taken = await fetch(url).then(
-      () => true,
-      () => false
-    )
-    if (taken) {
-      throw new Error(`port ${PREVIEW_PORT} is already in use: stop whatever is serving there first`)
-    }
+    const port = await freePort()
+    url = `http://localhost:${port}`
     preview = spawn(
       "pnpm",
       [
@@ -376,12 +443,11 @@ async function main() {
         "--outDir",
         outDir,
         "--port",
-        String(PREVIEW_PORT),
+        String(port),
         "--strictPort"
       ],
       { stdio: "ignore", shell: process.platform === "win32" }
     )
-    url = `http://localhost:${PREVIEW_PORT}`
     await waitForServer(url, 30)
   }
   let chrome = null
@@ -399,11 +465,20 @@ async function main() {
     const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank" })
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true })
     const evaluate = async (expression) => {
-      const { result, exceptionDetails } = await cdp.send(
-        "Runtime.evaluate",
-        { expression, awaitPromise: true, returnByValue: true },
-        sessionId
-      )
+      let timer
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(`the page didn't answer within ${EVALUATE_TIMEOUT_MS / 1000} s: ${expression.slice(0, 80)}`)
+            ),
+          EVALUATE_TIMEOUT_MS
+        )
+      })
+      const { result, exceptionDetails } = await Promise.race([
+        cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId),
+        timeout
+      ]).finally(() => clearTimeout(timer))
       if (exceptionDetails) {
         throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text)
       }
