@@ -176,13 +176,16 @@ function isBurst(event: SimEvent): event is BurstEvent {
   return event.type === "burst"
 }
 
-/** The map's samples a changed area covers, row by row. */
-function patchOf(sim: Simulation, area: ChangedArea): GroundPatch {
+/** The map's samples a changed area covers, row by row; null when it's off the map, as a shell's that fell beyond it. */
+function patchOf(sim: Simulation, area: ChangedArea): GroundPatch | null {
   const { map } = sim
   const minColumn = Math.max(0, Math.floor(area.minX / map.cellSize))
   const maxColumn = Math.min(map.columns, Math.ceil(area.maxX / map.cellSize))
   const minRow = Math.max(0, Math.floor(area.minZ / map.cellSize))
   const maxRow = Math.min(map.rows, Math.ceil(area.maxZ / map.cellSize))
+  if (maxColumn < minColumn || maxRow < minRow) {
+    return null
+  }
   const size = (maxColumn - minColumn + 1) * (maxRow - minRow + 1)
   const heights = new Float32Array(size)
   const surfaces = new Uint8Array(size)
@@ -232,8 +235,9 @@ export function createSyncSource(sim: Simulation): SyncSource {
       // Events are plain data already; copied, since the next step clears the array.
       steps.push({ tick: sim.tick, events: [...sim.events] })
       for (const event of sim.events) {
-        if (isBurst(event) && event.crater) {
-          ground.push(patchOf(sim, event.crater))
+        const patch = isBurst(event) && event.crater ? patchOf(sim, event.crater) : null
+        if (patch) {
+          ground.push(patch)
         }
       }
     },

@@ -133,3 +133,21 @@ describe("the layout of the packed soldier arrays", () => {
     )
   })
 })
+
+describe("craters off the map", () => {
+  it("send no ground, as a shell that fell beyond the map's edge changed none of it", () => {
+    const sim = fight()
+    const source = createSyncSource(sim)
+    source.take()
+    stepSimulation(sim)
+    sim.events.push({
+      type: "burst",
+      shell: Shell.FieldHighExplosive,
+      at: { x: -40, y: 0, z: 20 },
+      crater: { minX: -46, maxX: -34, minZ: 14, maxZ: 26 }
+    })
+    source.stepped()
+
+    expect(source.take().ground).toEqual([])
+  })
+})
