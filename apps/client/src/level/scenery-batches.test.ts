@@ -43,12 +43,12 @@ function kit() {
 const at = (x: number, z: number, y = 0) => Matrix.Translation(x, y, z)
 
 describe("batchScenery", () => {
-  it("draws a piece placed often as thin instances, one batch per 128 m cell, and a rare one in one batch", () => {
+  it("draws a piece placed often as thin instances, one batch per 256 m cell, and a rare one in one batch", () => {
     const { scene, pieces } = kit()
-    // Sixty crates either side of x = 128, and two ruins far apart.
+    // Sixty crates either side of x = 256, and two ruins far apart.
     const crates = Array.from({ length: 60 }, (_, index) => ({
       piece: "crate",
-      world: at(index < 30 ? 10 + index : 140 + index, 20)
+      world: at(index < 30 ? 10 + index : 270 + index, 20)
     }))
     const ruins = [
       { piece: "ruin", world: at(5, 5) },
