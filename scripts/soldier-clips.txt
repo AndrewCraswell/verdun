@@ -1,0 +1,97 @@
+# The Mixamo clips the soldiers play (apps/client/src/soldiers/soldier-animation.ts), for retarget-animations.py: one
+# file per line under vendor/mixamo, each clip named after its file in snake case. See docs/assets/mixamo-clips.md.
+
+# Standing: at ease, watching or aiming, firing, hit, throwing, turning on the spot
+rifle-standing-idle.fbx
+two-hand-lowered-gun-rifle-idle.fbx
+rifle-idle-looking-around.fbx
+rifle-standing-aiming-idle.fbx
+firing-a-rifle-while-standing.fbx
+hit-reaction-while-holding-a-rifle.fbx
+left-reaction-to-front-hit-holding-a-rifle.fbx
+throwing-something-holding-rifle-aimed.fbx
+rifle-turn-45-degree-left-turn.fbx
+rifle-turn-45-degree-right-turn.fbx
+rifle-turn-90-degree-left-turn.fbx
+rifle-turn-90-degree-right-turn.fbx
+rifle-turn-135-degree-right-turn.fbx
+rifle-turn-180-degree-left-turn.fbx
+rifle-turn-180-degree-right-turn.fbx
+
+# Walking and running in eight directions, and the aimed walk whose arms the bake lays over the walks
+rifle-walk-forward.fbx
+rifle-walk-forward-right.fbx
+rifle-walk-right.fbx
+rifle-walk-backward-right.fbx
+rifle-walk-backward.fbx
+rifle-walk-backward-left.fbx
+rifle-walk-left.fbx
+rifle-walk-forward-left.fbx
+rifle-run-forward.fbx
+rifle-run-forward-right.fbx
+rifle-run-right.fbx
+rifle-run-backward-right.fbx
+rifle-run-backward.fbx
+rifle-run-backward-left.fbx
+rifle-run-left.fbx
+rifle-run-forward-left.fbx
+walking-while-aiming-rifle.fbx
+throwing-a-grenade-while-walking.fbx
+throw-grenade-while-running.fbx
+hit-reaction-when-walking-while-aiming-rifle.fbx
+hit-reaction-when-running-with-rifle.fbx
+
+# Crouching: still, aiming, firing, hit, throwing, turning, walking in eight directions and aiming as he walks
+rifle-crouched-idle.fbx
+rifle-crouched-idle-aiming.fbx
+fire-rifle-while-crouched.fbx
+hit-reaction-from-rifle-crouched.fbx
+throwing-a-grenade-while-kneeling-pulling-pin-with-teeth.fbx
+rifle-crouch-turn-45-degree-left-turn.fbx
+rifle-crouch-turn-90-degree-left-turn.fbx
+rifle-crouch-turn-90-degree-right-turn.fbx
+rifle-crouch-turn-135-degree-left-turn.fbx
+rifle-crouch-turn-180-degree-left-turn.fbx
+rifle-crouch-turn-180-degree-right-turn.fbx
+rifle-crouched-walk-forward.fbx
+rifle-crouched-walk-forward-right.fbx
+rifle-crouched-walk-right.fbx
+rifle-crouched-walk-backward-right.fbx
+rifle-crouched-walk-backward.fbx
+rifle-crouched-walk-backward-left.fbx
+rifle-crouched-walk-left.fbx
+rifle-crouched-walk-forward-left.fbx
+crouched-walking-while-aiming-rifle.fbx
+rifle-kneeling-idle.fbx
+
+# Prone: lying, aiming and firing, crawling, hit, throwing
+lying-down-prone-with-rifle.fbx
+firing-a-rifle-while-prone.fbx
+moving-forward-while-in-prone-position.fbx
+moving-backward-in-prone-position-with-rifle.fbx
+rifle-prone-hit-reaction.fbx
+throw-grenade-while-in-prone-position.fbx
+
+# Changing stance
+rifle-standing-to-kneeling.fbx
+rifle-kneeling-to-standing.fbx
+rifle-kneeling-to-prone.fbx
+rifle-prone-to-kneeling.fbx
+
+# Broken, scrambling up a bank (the climb over a fence, climb_over, the script keys itself: see CLIMB)
+being-terrified-while-standing.fbx
+climbing-up-a-slope.fbx
+
+# Deaths: standing, crouching, prone
+rifle-death-from-the-front.fbx
+rifle-death-from-the-back.fbx
+rifle-death-from-right-side.fbx
+rifle-death-from-front-headshot.fbx
+rifle-death-from-back-headshot.fbx
+dying-reaction-while-standing-holding-a-rifle.fbx
+dying-shot-to-the-chest-falling-on-two-knees.fbx
+death-hit-from-the-back-falling-on-one-knee.fbx
+rifle-death-crouched-from-headshot-front.fbx
+dying-from-a-crouched-position.fbx
+rifle-kneeling-getting-hit-to-back.fbx
+dying-from-a-prone-position.fbx

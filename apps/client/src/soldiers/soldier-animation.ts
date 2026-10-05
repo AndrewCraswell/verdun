@@ -1,96 +1,180 @@
 import { Stance, Weapon } from "@verdun/sim"
 
-/** Walks and runs clockwise from straight ahead, eighth turns apart, as `headingClip` picks them. */
-export const WALKS = [
-  "walk_forward",
-  "walk_forward_right",
-  "walk_right",
-  "walk_back_right",
-  "walk_back",
-  "walk_back_left",
-  "walk_left",
-  "walk_forward_left"
-] as const
-const RUNS = [
-  "run_forward",
-  "run_forward_right",
-  "run_right",
-  "run_back_right",
-  "run_back",
-  "run_back_left",
-  "run_left",
-  "run_forward_left"
-] as const
 /**
- * The walks with the knees bent and the body low, in the same order. The kit has no crouched walk: the bake makes these
- * by layering the hunched aim's crouch onto each walk, every bone turned on from the stand by as much as the crouch
- * turns it (see `CROUCH_LAYER`).
+ * The soldiers' clips are Mixamo's, retargeted onto the Synty rig by scripts/retarget-animations.py from the files
+ * scripts/soldier-clips.txt lists, each named after its file in snake case (docs/assets/mixamo-clips.md has them all).
+ * `climb_over` is Mixamo's jump over an obstacle with both hands planted, renamed by the script.
  */
-export const CROUCH_WALKS = [
-  "crouch_walk_forward",
-  "crouch_walk_forward_right",
-  "crouch_walk_right",
-  "crouch_walk_back_right",
-  "crouch_walk_back",
-  "crouch_walk_back_left",
-  "crouch_walk_left",
-  "crouch_walk_forward_left"
-] as const
-/** The clips whose difference is the crouch layered onto the walks: from standing at ease to the hunched aim. */
-export const CROUCH_LAYER = { from: "idle", to: "idle_5" } as const
 
+/** Walks clockwise from straight ahead, eighth turns apart, as `headingClip` picks them: Mixamo's Pro Rifle Pack. */
+export const WALKS = [
+  "rifle_walk_forward",
+  "rifle_walk_forward_right",
+  "rifle_walk_right",
+  "rifle_walk_backward_right",
+  "rifle_walk_backward",
+  "rifle_walk_backward_left",
+  "rifle_walk_left",
+  "rifle_walk_forward_left"
+] as const
+/** Runs, in the same order. Mixamo has the run backward left only in its packs: this one is the backward right mirrored. */
+const RUNS = [
+  "rifle_run_forward",
+  "rifle_run_forward_right",
+  "rifle_run_right",
+  "rifle_run_backward_right",
+  "rifle_run_backward",
+  "rifle_run_backward_left",
+  "rifle_run_left",
+  "rifle_run_forward_left"
+] as const
+/** Walks bent low, in the same order. */
+export const CROUCH_WALKS = [
+  "rifle_crouched_walk_forward",
+  "rifle_crouched_walk_forward_right",
+  "rifle_crouched_walk_right",
+  "rifle_crouched_walk_backward_right",
+  "rifle_crouched_walk_backward",
+  "rifle_crouched_walk_backward_left",
+  "rifle_crouched_walk_left",
+  "rifle_crouched_walk_forward_left"
+] as const
+/** Walks with the rifle at the shoulder, aimed, in the same order: made in the bake (see `AIM_LAYERS`). */
+export const AIM_WALKS = [
+  "aim_walk_forward",
+  "aim_walk_forward_right",
+  "aim_walk_right",
+  "aim_walk_backward_right",
+  "aim_walk_backward",
+  "aim_walk_backward_left",
+  "aim_walk_left",
+  "aim_walk_forward_left"
+] as const
+/** Crouched walks aimed, in the same order: made in the bake too. */
+export const CROUCH_AIM_WALKS = [
+  "crouch_aim_walk_forward",
+  "crouch_aim_walk_forward_right",
+  "crouch_aim_walk_right",
+  "crouch_aim_walk_backward_right",
+  "crouch_aim_walk_backward",
+  "crouch_aim_walk_backward_left",
+  "crouch_aim_walk_left",
+  "crouch_aim_walk_forward_left"
+] as const
 /**
- * The clips the crowd plays from the soldier kit, by their names there (scripts/retarget-animations.py names them).
- * The polyperfect set has no rifle clips of its own, no crouch, crawl, climb or throw and no hands up, so some stand in:
- *
- * - `idle_6` is a standing aim; `idle_4`, squatting over the rifle, is the crouch, still or aiming, and pinned down.
- * - `idle_3` kneels low over a rifle, which puts a machine gunner's hands near his gun's grips.
- * - `idle_1` and `idle_2` are lying aims: prone, still and crawling alike.
- * - `brengun_fire` is the rifle's recoil, `stengun_reload` a grenade being primed and thrown.
- * - `run_forward`, played slowly, is a man scrambling up a trench wall.
- * - The first frame of `death_crouch_back`, crouched with an arm over the head, is a broken man cowering.
- *
- * `climb_over`, getting over a staked fence, is no one's: the retargeting script keys it on the Synty rig, until a
- * Mixamo climb of that name takes its place.
+ * Mixamo aims as it walks only ahead, back and to either side, so the bake makes all eight: each walk's legs and hips,
+ * with the arms, spine and head of a walk made aiming (`upper`), turned to face the way the walk's hips do.
  */
+export const AIM_LAYERS = [
+  { walks: WALKS, made: AIM_WALKS, upper: "walking_while_aiming_rifle" },
+  { walks: CROUCH_WALKS, made: CROUCH_AIM_WALKS, upper: "crouched_walking_while_aiming_rifle" }
+] as const
+
+/** Standing at ease, rifle in both hands. The kit has no soldier without it. */
+export const IDLE = "rifle_standing_idle"
+/** At ease, by who he is: not every man stands the same way. */
+const IDLES = [IDLE, "two_hand_lowered_gun_rifle_idle", "rifle_idle_looking_around"] as const
+/** Turning on the spot, standing then crouched: the crowd plays the one that turns nearest what's wanted. */
+export const TURNS = {
+  standing: [
+    "rifle_turn_45_degree_left_turn",
+    "rifle_turn_45_degree_right_turn",
+    "rifle_turn_90_degree_left_turn",
+    "rifle_turn_90_degree_right_turn",
+    "rifle_turn_135_degree_right_turn",
+    "rifle_turn_180_degree_left_turn",
+    "rifle_turn_180_degree_right_turn"
+  ],
+  crouching: [
+    "rifle_crouch_turn_45_degree_left_turn",
+    "rifle_crouch_turn_90_degree_left_turn",
+    "rifle_crouch_turn_90_degree_right_turn",
+    "rifle_crouch_turn_135_degree_left_turn",
+    "rifle_crouch_turn_180_degree_left_turn",
+    "rifle_crouch_turn_180_degree_right_turn"
+  ]
+} as const
+const DEATHS_STANDING = [
+  "rifle_death_from_the_front",
+  "rifle_death_from_the_back",
+  "rifle_death_from_right_side",
+  "rifle_death_from_front_headshot",
+  "rifle_death_from_back_headshot",
+  "dying_reaction_while_standing_holding_a_rifle",
+  "dying_shot_to_the_chest_falling_on_two_knees",
+  "death_hit_from_the_back_falling_on_one_knee"
+] as const
+const DEATHS_CROUCHING = [
+  "rifle_death_crouched_from_headshot_front",
+  "dying_from_a_crouched_position",
+  "rifle_kneeling_getting_hit_to_back"
+] as const
+const DEATH_PRONE = "dying_from_a_prone_position"
+/** The clips a man dies in: he lets his rifle go partway through. */
+export const DEATHS: ReadonlySet<ClipName> = new Set([...DEATHS_STANDING, ...DEATHS_CROUCHING, DEATH_PRONE])
+
+/** The clips the crowd plays from the soldier kit, by their names there. */
 export const CLIPS = [
-  "idle",
-  "idle_1",
-  "idle_2",
-  "idle_3",
-  "idle_4",
-  "idle_6",
+  ...IDLES,
+  "rifle_standing_aiming_idle",
+  "firing_a_rifle_while_standing",
+  "hit_reaction_while_holding_a_rifle",
+  "left_reaction_to_front_hit_holding_a_rifle",
+  "throwing_something_holding_rifle_aimed",
+  ...TURNS.standing,
   ...WALKS,
   ...RUNS,
-  "brengun_fire",
-  "stengun_reload",
-  "hit_ribs",
-  "death_standing_back",
-  "death_standing_left",
-  "death_crouch_back",
-  "death_crouch_right",
-  "death_prone",
-  "climb_over"
+  "walking_while_aiming_rifle",
+  "throwing_a_grenade_while_walking",
+  "throw_grenade_while_running",
+  "hit_reaction_when_walking_while_aiming_rifle",
+  "hit_reaction_when_running_with_rifle",
+  "rifle_crouched_idle",
+  "rifle_crouched_idle_aiming",
+  "fire_rifle_while_crouched",
+  "hit_reaction_from_rifle_crouched",
+  "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
+  ...TURNS.crouching,
+  ...CROUCH_WALKS,
+  "crouched_walking_while_aiming_rifle",
+  "rifle_kneeling_idle",
+  "lying_down_prone_with_rifle",
+  "firing_a_rifle_while_prone",
+  "moving_forward_while_in_prone_position",
+  "moving_backward_in_prone_position_with_rifle",
+  "rifle_prone_hit_reaction",
+  "throw_grenade_while_in_prone_position",
+  "rifle_standing_to_kneeling",
+  "rifle_kneeling_to_standing",
+  "rifle_kneeling_to_prone",
+  "rifle_prone_to_kneeling",
+  "being_terrified_while_standing",
+  "climbing_up_a_slope",
+  "climb_over",
+  ...DEATHS_STANDING,
+  ...DEATHS_CROUCHING,
+  DEATH_PRONE
 ] as const
 
 /** A clip as the kit has it. */
 export type KitClip = (typeof CLIPS)[number]
 /** A clip the crowd plays: from the kit, or made in the bake. */
-export type ClipName = KitClip | (typeof CROUCH_WALKS)[number]
+export type ClipName = KitClip | (typeof AIM_WALKS)[number] | (typeof CROUCH_AIM_WALKS)[number]
 
 /**
- * The clips that aim along the rifle. Their soldiers stand bladed, shoulders turned, so the rifle points well left of
- * where their feet face; the crowd turns them by each clip's `BakedClip.turn` to put the rifle on the target.
+ * The clips that aim along the rifle, standing, crouched, lying and walking. Their soldiers stand bladed, shoulders
+ * turned, so the rifle points some 20 degrees off where their feet face; the crowd turns them by each clip's
+ * `BakedClip.turn` to put the rifle on the target.
  */
-export const AIMING: ReadonlySet<ClipName> = new Set(["idle_1", "idle_2", "idle_3", "idle_4", "idle_6", "brengun_fire"])
-
-const DEATHS_STANDING = [
-  "death_standing_back",
-  "death_standing_left",
-  "death_crouch_back",
-  "death_crouch_right"
-] as const
-const DEATHS_CROUCHING = ["death_crouch_back", "death_crouch_right"] as const
+export const AIMING: ReadonlySet<ClipName> = new Set<ClipName>([
+  ...AIM_WALKS,
+  ...CROUCH_AIM_WALKS,
+  "rifle_standing_aiming_idle",
+  "firing_a_rifle_while_standing",
+  "rifle_crouched_idle_aiming",
+  "fire_rifle_while_crouched",
+  "firing_a_rifle_while_prone"
+])
 
 /** Below this ground speed, in metres per second, a soldier is standing still. A crawl is 0.35. */
 export const MOVING_SPEED = 0.15
@@ -99,21 +183,19 @@ export const MOVING_SPEED = 0.15
  * or wire can be no faster than a walk, so `SoldierState.running` counts too.
  */
 export const RUNNING_SPEED = 2.1
-/**
- * The ground speeds the clips were made for: playback scales from these within `RATE_LIMITS`. A crouched walk keeps the
- * walk's stride, so at the crouch's 0.84 it plays at 0.6, or would but for the floor.
- */
-const CLIP_SPEED = { walk: 1.4, run: 2.8, crouch: 1.4 } as const
+/** The ground speeds the clips were made for: playback scales from these within `RATE_LIMITS`. */
+const CLIP_SPEED = { walk: 1.4, run: 3.2, crouch: 1.1, crawl: 0.45 } as const
 /**
  * Never slower than this, nor faster: across a crater field a man makes perhaps two-thirds of a clip's pace, and legs
  * slowed to match look like slow motion. A stride a little long for the ground reads as hard going instead.
  */
 const RATE_LIMITS = { min: 0.75, max: 1.5 } as const
-/** A scramble up a wall plays the run this slowly: laboured steps, about two seconds to the fire step. */
-const CLIMB_RATE = 0.8
 
 /** A one-off movement in progress, which plays out before the soldier goes back to what they were doing. */
 export type Action = "fire" | "throw" | "hit"
+
+/** How a soldier is getting about: as an action plays, it plays the clip made for it. */
+export type Movement = "still" | "walking" | "running"
 
 export interface SoldierState {
   readonly status: "fighting" | "captured" | "fallen"
@@ -130,13 +212,15 @@ export interface SoldierState {
   readonly climbing: boolean
   /** Climbing over a staked fence: how many seconds getting over it takes him, or null when he isn't on one. */
   readonly overFence: number | null
-  /** Has an enemy in their sights. */
+  /** Has an enemy in their sights, or the player has him aim. */
   readonly aiming: boolean
   /** In a trench with his head over the parapet, up on the fire step: he watches over it, rifle ready. */
   readonly overParapet: boolean
   readonly pinned: boolean
   readonly broken: boolean
   readonly action: Action | null
+  /** Turning on the spot or changing stance: a clip the crowd started, played through once while he keeps still. */
+  readonly shift: ClipName | null
   /** The entity id, for variety: not every man falls the same way. */
   readonly id: number
 }
@@ -162,48 +246,140 @@ const once = (clip: ClipName): Pose => ({ clip, mode: "once", rate: 1 })
 /** The one of eight clips (clockwise from ahead) closest to a heading in radians clockwise from ahead. */
 export function headingClip(clips: readonly ClipName[], heading: number): ClipName {
   const eighth = Math.round(heading / (Math.PI / 4))
-  return clips[((eighth % 8) + 8) % 8] ?? clips[0] ?? "idle"
+  return clips[((eighth % 8) + 8) % 8] ?? clips[0] ?? IDLE
 }
 
-function moving(state: SoldierState): Pose {
-  if (state.running || state.speed > RUNNING_SPEED) {
+/** Whether a soldier is standing still, walking or running. */
+export function movementOf(state: Pick<SoldierState, "speed" | "running">): Movement {
+  if (state.speed < MOVING_SPEED) {
+    return "still"
+  }
+  return state.running || state.speed > RUNNING_SPEED ? "running" : "walking"
+}
+
+const STANDING_ACTIONS: Readonly<Record<Action, ClipName>> = {
+  fire: "firing_a_rifle_while_standing",
+  throw: "throwing_something_holding_rifle_aimed",
+  hit: "hit_reaction_while_holding_a_rifle"
+}
+const CROUCHING_ACTIONS: Readonly<Record<Action, ClipName>> = {
+  fire: "fire_rifle_while_crouched",
+  throw: "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
+  hit: "hit_reaction_from_rifle_crouched"
+}
+const PRONE_ACTIONS: Readonly<Record<Action, ClipName>> = {
+  fire: "firing_a_rifle_while_prone",
+  throw: "throw_grenade_while_in_prone_position",
+  hit: "rifle_prone_hit_reaction"
+}
+/** On the move there's no firing clip: the walk goes on (see `actionClip`). */
+const WALKING_ACTIONS: Readonly<Record<Exclude<Action, "fire">, ClipName>> = {
+  throw: "throwing_a_grenade_while_walking",
+  hit: "hit_reaction_when_walking_while_aiming_rifle"
+}
+const RUNNING_ACTIONS: Readonly<Record<Exclude<Action, "fire">, ClipName>> = {
+  throw: "throw_grenade_while_running",
+  hit: "hit_reaction_when_running_with_rifle"
+}
+
+/**
+ * The clip an action plays, by how the man is placed: firing, a throw and a flinch for standing, crouching and lying,
+ * and a throw and a flinch on the move. A machine gunner kneels to his gun. Firing on the move has no clip of its own:
+ * null, and the walk goes on.
+ */
+export function actionClip(
+  action: Action,
+  stance: Stance,
+  weapon: Weapon,
+  movement: Movement,
+  id: number
+): ClipName | null {
+  if (stance === Stance.Prone) {
+    return PRONE_ACTIONS[action]
+  }
+  if (movement !== "still") {
+    return action === "fire" ? null : (movement === "running" ? RUNNING_ACTIONS : WALKING_ACTIONS)[action]
+  }
+  if (stance === Stance.Crouching || weapon === Weapon.MachineGun) {
+    return CROUCHING_ACTIONS[action]
+  }
+  if (action === "hit" && id % 2 === 1) {
+    // Not every man flinches the same way.
+    return "left_reaction_to_front_hit_holding_a_rifle"
+  }
+  return STANDING_ACTIONS[action]
+}
+
+/** The clip carrying a man from one stance to another, or null for none: standing, crouching and lying by a kneel. */
+export function stanceClip(from: Stance, to: Stance): ClipName | null {
+  if (from === to) {
+    return null
+  }
+  if (to === Stance.Prone) {
+    return "rifle_kneeling_to_prone"
+  }
+  if (from === Stance.Prone) {
+    return "rifle_prone_to_kneeling"
+  }
+  return to === Stance.Crouching ? "rifle_standing_to_kneeling" : "rifle_kneeling_to_standing"
+}
+
+function moving(state: SoldierState, movement: Movement): Pose {
+  if (movement === "running" && !state.aiming) {
     return loop(headingClip(RUNS, state.heading), rateFor(state.speed, CLIP_SPEED.run))
   }
   // A broken man can't run: he gets away bent double.
   if (state.stance === Stance.Crouching || state.broken) {
-    return loop(headingClip(CROUCH_WALKS, state.heading), rateFor(state.speed, CLIP_SPEED.crouch))
+    const walks = state.aiming && !state.broken ? CROUCH_AIM_WALKS : CROUCH_WALKS
+    return loop(headingClip(walks, state.heading), rateFor(state.speed, CLIP_SPEED.crouch))
   }
-  return loop(headingClip(WALKS, state.heading), rateFor(state.speed, CLIP_SPEED.walk))
+  return loop(headingClip(state.aiming ? AIM_WALKS : WALKS, state.heading), rateFor(state.speed, CLIP_SPEED.walk))
 }
 
 function rateFor(speed: number, clipSpeed: number): number {
   return Math.min(RATE_LIMITS.max, Math.max(RATE_LIMITS.min, speed / clipSpeed))
 }
 
-/**
- * The clip a man falls with: forward onto his face from prone, from a crouch from crouching, otherwise one of four
- * ways, by who he is.
- */
+/** The clip a man falls with: forward onto his face from prone, from a crouch when crouching, else by who he is. */
 export function deathClip(stance: Stance, id: number): ClipName {
   if (stance === Stance.Prone) {
-    return "death_prone"
+    return DEATH_PRONE
   }
   const deaths = stance === Stance.Crouching ? DEATHS_CROUCHING : DEATHS_STANDING
-  return deaths[id % deaths.length] ?? "death_prone"
+  return deaths[id % deaths.length] ?? DEATH_PRONE
+}
+
+/** Lying down: crawling ahead or back, aiming along the ground, or still. */
+function prone(state: SoldierState, movement: Movement): Pose {
+  const clip = state.action ? actionClip(state.action, Stance.Prone, state.weapon, movement, state.id) : null
+  if (clip) {
+    return once(clip)
+  }
+  if (state.shift) {
+    return once(state.shift)
+  }
+  if (movement !== "still") {
+    const back = Math.abs(state.heading) > Math.PI / 2
+    const crawl = back ? "moving_backward_in_prone_position_with_rifle" : "moving_forward_while_in_prone_position"
+    return loop(crawl, rateFor(state.speed, CLIP_SPEED.crawl))
+  }
+  // The prone fire's first frame is his aim, held.
+  return state.aiming
+    ? { clip: "firing_a_rifle_while_prone", mode: "still", rate: 1 }
+    : loop("lying_down_prone_with_rifle")
 }
 
 /** What a soldier's body is doing, from their state. */
 export function choosePose(state: SoldierState): Pose {
-  const isMoving = state.speed >= MOVING_SPEED
+  const movement = movementOf(state)
   if (state.status === "fallen") {
     return once(deathClip(state.stance, state.id))
   }
   if (state.status === "captured") {
-    return isMoving ? loop("walk_forward", rateFor(state.speed, CLIP_SPEED.walk)) : loop("idle")
+    return movement === "still" ? loop(IDLE) : loop("rifle_walk_forward", rateFor(state.speed, CLIP_SPEED.walk))
   }
   if (state.stance === Stance.Prone) {
-    // No crawl among the clips: a lying aim, carried along the ground.
-    return loop(state.aiming || state.action === "fire" ? "idle_2" : "idle_1")
+    return prone(state, movement)
   }
   // Over a fence the whole time he's on it, from a hand on the top wire to his feet on the ground beyond.
   if (state.overFence !== null) {
@@ -211,31 +387,32 @@ export function choosePose(state: SoldierState): Pose {
   }
   // A scramble is slow across the ground, but it's no standing still.
   if (state.climbing) {
-    return loop("run_forward", CLIMB_RATE)
+    return loop("climbing_up_a_slope")
   }
-  if (isMoving) {
-    return moving(state)
+  const action = state.action ? actionClip(state.action, state.stance, state.weapon, movement, state.id) : null
+  if (movement !== "still") {
+    return action ? once(action) : moving(state, movement)
   }
-  if (state.action === "hit") {
-    return once("hit_ribs")
+  if (action) {
+    return once(action)
   }
-  if (state.action === "throw") {
-    return once("stengun_reload")
+  if (state.shift) {
+    return once(state.shift)
   }
   if (state.broken) {
-    return { clip: "death_crouch_back", mode: "still", rate: 1 }
+    return loop("being_terrified_while_standing")
   }
   if (state.weapon === Weapon.MachineGun) {
-    return loop("idle_3")
+    return loop("rifle_kneeling_idle")
   }
-  // Pinned men keep as low as crouching men; neither has a crouched recoil, so they fire from the crouch.
+  // Pinned men keep as low as crouching men, rifle ready.
   if (state.pinned || state.stance === Stance.Crouching) {
-    return loop("idle_4")
+    return loop(state.aiming || state.pinned ? "rifle_crouched_idle_aiming" : "rifle_crouched_idle")
   }
-  if (state.action === "fire") {
-    return once("brengun_fire")
+  if (state.aiming || state.overParapet) {
+    return loop("rifle_standing_aiming_idle")
   }
-  return loop(state.aiming || state.overParapet ? "idle_6" : "idle")
+  return loop(IDLES[state.id % IDLES.length] ?? IDLE)
 }
 
 /** A clip's place in the baked animation texture: its first row, how many frames it has, and at what rate. */
@@ -248,6 +425,8 @@ export interface BakedClip {
    * faces: nonzero for `AIMING` clips only.
    */
   readonly turn: number
+  /** How far the clip turns him round from its first frame to its last, in radians clockwise seen from above. */
+  readonly spin: number
 }
 
 /** How fast a pose plays its clip: at its rate, or as fast as fits the clip into its seconds. */

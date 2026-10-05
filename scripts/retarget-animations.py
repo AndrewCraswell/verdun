@@ -22,6 +22,9 @@ simulation moves the man. It replaces a polyperfect or made clip of the same nam
 Usage (headless Blender):
   blender -b --factory-startup -P scripts/retarget-animations.py -- <characters.glb> <output.glb> <fbx or dir> [...]
 
+A list (a .txt file of file names, one a line, # for comments) narrows the files and folders given to the files it
+names: scripts/soldier-clips.txt is the clips the game plays, of all those in vendor/mixamo.
+
 To get Mixamo's skeleton fitted to our soldier, write the French soldier as soldier.glb has him (body and helmet,
 T-pose, no skeleton) for Mixamo's auto-rigger:
   blender -b --factory-startup -P scripts/retarget-animations.py -- --mixamo-upload <soldier.glb> <output.fbx>
@@ -140,9 +143,19 @@ def parse_args():
     if len(args) < 3:
         sys.exit(__doc__)
     sources = []
+    listed = set()
     for arg in args[2:]:
         path = Path(arg)
-        sources += sorted(path.rglob("*.fbx")) if path.is_dir() else [path]
+        if path.suffix == ".txt":
+            lines = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
+            listed |= {line for line in lines if line and not line.startswith("#")}
+        else:
+            sources += sorted(path.rglob("*.fbx")) if path.is_dir() else [path]
+    if listed:
+        missing = listed - {source.name for source in sources}
+        if missing:
+            sys.exit(f"[retarget] listed but not found: {', '.join(sorted(missing))}")
+        sources = [source for source in sources if source.name in listed]
     return Path(args[0]), Path(args[1]), sources
 
 
@@ -357,23 +370,23 @@ def resampled(start, end, rate):
     return [start + index * rate / FPS for index in range(count)]
 
 
-# The climb over a staked fence, made here until a Mixamo clip of that name (see MIXAMO_NAMES) replaces it. None of
-# polyperfect's clips climbs over anything: its Spitfire_Entry hauls up onto a wing and sits in the cockpit, the car
-# entry steps up and sits, the running jump is a crouched hop. This one starts and ends in the first frame of `idle`,
-# standing with the rifle across the chest, and takes the simulation's three seconds to cross a fence (vault.ts):
+# The climb over a staked fence, made here. None of polyperfect's clips climbs over anything, and Mixamo's vault with
+# both hands planted (MIXAMO_NAMES) is over in 1.25 s: spread over the simulation's three seconds on a fence it plays
+# in slow motion, so the soldiers leave it out (scripts/soldier-clips.txt). This one starts and ends in the first frame
+# of `rifle_standing_idle`, standing at ease with the rifle, and takes the simulation's three seconds to cross a fence (vault.ts):
 # a step in and both hands on the top wire, the left foot up onto a low strand, the right leg swung over and down, the
 # left after it, the hands back to the rifle. The simulation carries him across at a steady pace the whole time, so
 # hands and feet are keyed where they stand on the ground and the wire, and the clip takes his carrying back out.
 CLIMB = {
     "name": "climb_over",
-    "from": "idle",
+    "from": "rifle_standing_idle",
     "seconds": 3.0,
     # Metres a second the simulation carries him: across the 1.2 m either side of the fence's line in three seconds.
     "carry": 0.4,
 }
 # Keys as (seconds, value), passing smoothly through each and still at any held twice running. Places are (left, ahead,
 # up) in metres from the ground under him at the start: the fence's line is 0.6 m ahead, its top wire a metre up.
-# "hips" moves the hips from where `idle` has them; "lean" tips the body forward from the hips and "bend" curls the
+# "hips" moves the hips from where `rifle_standing_idle` has them; "lean" tips the body forward from the hips and "bend" curls the
 # spine over it, in radians; "turn" swings the body left, side-on to the fence while the right leg goes over. Hands and
 # feet are where the wrists and ankles go, from where the body carries them (0) to their keyed place (1) as "reach"
 # says. A foot keyed "idle" stands where it stood at the start, "idle+" where it stands at the end.

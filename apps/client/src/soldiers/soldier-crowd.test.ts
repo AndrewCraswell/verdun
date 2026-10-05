@@ -29,8 +29,17 @@ import {
 } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { bucketInstanceCounts } from "../effects/instance-buffer.ts"
-import { type BakedClip, CLIPS, type ClipName, CROUCH_WALKS, deathClip } from "./soldier-animation.ts"
-import { createSoldierCrowd, type SoldierCrowd } from "./soldier-crowd.ts"
+import {
+  AIM_WALKS,
+  type BakedClip,
+  CLIPS,
+  type ClipName,
+  CROUCH_AIM_WALKS,
+  DEATHS,
+  deathClip,
+  IDLE
+} from "./soldier-animation.ts"
+import { createSoldierCrowd, type SoldierCrowd, type SoldierCrowdOptions } from "./soldier-crowd.ts"
 import type { SoldierKit } from "./soldier-kit.ts"
 
 const map = generateRollingTerrain({
@@ -68,9 +77,18 @@ afterEach(() => {
 /** How far the aiming clips turn a soldier to put his rifle ahead: the real ones, about 39 degrees. */
 const AIM_TURN = 0.7
 
-/** Every clip ten frames long at ten a second, one after another; the standing and kneeling aims turn their men. */
+/** How far a turn on the spot turns a man, by its name: so many degrees, clockwise for a right turn. */
+function spinOf(name: ClipName): number {
+  const turn = /(\d+)_degree_(left|right)_turn$/.exec(name)
+  return turn ? (Number(turn[1]) * Math.PI * (turn[2] === "right" ? 1 : -1)) / 180 : 0
+}
+
+/**
+ * Every clip ten frames long at ten a second, one after another; the standing aim and the kneel turn their men, and
+ * the turns on the spot turn them round as far as their names say.
+ */
 const CLIP_FRAMES = 10
-const ALL_CLIPS: readonly ClipName[] = [...CLIPS, ...CROUCH_WALKS]
+const ALL_CLIPS: readonly ClipName[] = [...CLIPS, ...AIM_WALKS, ...CROUCH_AIM_WALKS]
 const clips = new Map<ClipName, BakedClip>(
   ALL_CLIPS.map((name, index) => [
     name,
@@ -78,15 +96,22 @@ const clips = new Map<ClipName, BakedClip>(
       start: index * CLIP_FRAMES,
       frames: CLIP_FRAMES,
       fps: 10,
-      turn: name === "idle_6" || name === "idle_3" ? AIM_TURN : 0
+      turn: name === "rifle_standing_aiming_idle" || name === "rifle_kneeling_idle" ? AIM_TURN : 0,
+      spin: spinOf(name)
     }
   ])
 )
+/** The clips a man stands at ease in, by who he is. */
+const AT_EASE: ReadonlySet<ClipName | undefined> = new Set([
+  IDLE,
+  "two_hand_lowered_gun_rifle_idle",
+  "rifle_idle_looking_around"
+])
 
 /** Every death carries the hips half a metre further along +x each frame; nothing else drifts. */
 const drift = new Float32Array(ALL_CLIPS.length * CLIP_FRAMES * 2)
 for (const [index, name] of ALL_CLIPS.entries()) {
-  if (name.startsWith("death_")) {
+  if (DEATHS.has(name)) {
     for (let frame = 0; frame < CLIP_FRAMES; frame++) {
       drift[(index * CLIP_FRAMES + frame) * 2] = frame * 0.5
     }
@@ -112,7 +137,7 @@ interface Harness {
   drawn(mesh: Mesh): number
 }
 
-function harness(sim: Simulation): Harness {
+function harness(sim: Simulation, options: Omit<SoldierCrowdOptions, "clock"> = {}): Harness {
   const engine = new NullEngine()
   engines.push(engine)
   const scene = new Scene(engine)
@@ -148,7 +173,7 @@ function harness(sim: Simulation): Harness {
     )
   }
   let now = 0
-  const crowd = createSoldierCrowd(scene, sim, kit, { clock: () => now })
+  const crowd = createSoldierCrowd(scene, sim, kit, { ...options, clock: () => now })
   return {
     sim,
     scene,
@@ -270,7 +295,7 @@ describe("createSoldierCrowd", () => {
 
     const [matrix] = matrices(kit.bodies[Side.French])
     expect(matrix?.getTranslation().z).toBeCloseTo((before + after) / 2, 4)
-    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("walk_forward")
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("rifle_walk_forward")
 
     tick(STEP_SECONDS)
     crowd.update()
@@ -291,13 +316,38 @@ describe("createSoldierCrowd", () => {
     expect(matrices(kit.bodies[Side.French])[0]?.getTranslation().x).toBeCloseTo(60)
   })
 
-  it("turns smoothly toward a new facing", () => {
+  it("turns on the spot with a clip that turns him round, facing the way he began until it's done", () => {
     const sim = createSimulation({ map, seed: 1 })
     const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
-    const { crowd, kit, tick, matrices } = harness(sim)
+    const { crowd, kit, tick, rows, matrices } = harness(sim)
+    const heading = () => {
+      const matrix = matrices(kit.bodies[Side.French])[0]
+      const forward = matrix ? Vector3.TransformNormal(Vector3.Forward(), matrix) : Vector3.Zero()
+      return Math.atan2(forward.x, forward.z)
+    }
     crowd.sync()
+    // A quarter turn to the right, to face east.
     sim.soldiers.facing.x[soldier] = 1
     sim.soldiers.facing.z[soldier] = 0
+    crowd.sync()
+    tick(0.5)
+    crowd.update()
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("rifle_turn_90_degree_right_turn")
+    expect(heading()).toBeCloseTo(0)
+    // Done: facing east, at ease.
+    tick(0.6)
+    crowd.sync()
+    crowd.update()
+    expect(AT_EASE.has(clipAt(rows(kit.bodies[Side.French])[0]))).toBe(true)
+    expect(heading()).toBeCloseTo(Math.PI / 2)
+  })
+
+  it("turns smoothly while he aims, keeping his sights on the man he follows", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const enemy = spawnSoldier(sim, { side: Side.German, x: 40, z: 10 })
+    sim.soldiers.target.id[soldier] = enemy
+    const { crowd, kit, tick, matrices } = harness(sim)
     crowd.sync()
     tick(0.05)
     crowd.update()
@@ -308,10 +358,10 @@ describe("createSoldierCrowd", () => {
     }
 
     expect(heading()).toBeGreaterThan(0.1)
-    expect(heading()).toBeLessThan(Math.PI / 2 - 0.1)
+    expect(heading()).toBeLessThan(Math.PI / 2 + AIM_TURN - 0.1)
     tick(2)
     crowd.update()
-    expect(heading()).toBeCloseTo(Math.PI / 2, 2)
+    expect(heading()).toBeCloseTo(Math.PI / 2 + AIM_TURN, 2)
   })
 
   it("plays a death through once, then holds it; the long dead lie still from the start", () => {
@@ -357,7 +407,7 @@ describe("createSoldierCrowd", () => {
     const slope = heightAt(map, 30.5, 30) - heightAt(map, 29.5, 30)
     expect(Math.sign(up.x)).toBe(-Math.sign(slope))
     expect(up.length()).toBeCloseTo(1)
-    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("idle_1")
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("lying_down_prone_with_rifle")
   })
 
   it("recoils on firing, flinches when hit, throws, and pulls on a gas mask", () => {
@@ -369,24 +419,24 @@ describe("createSoldierCrowd", () => {
       return clipAt(rows(kit.bodies[Side.French])[0])
     }
     crowd.sync()
-    expect(clipNow()).toBe("idle")
+    expect(AT_EASE.has(clipNow())).toBe(true)
 
     sim.soldiers.weapon.cooldown[soldier] = 3
     crowd.sync()
-    expect(clipNow()).toBe("brengun_fire")
+    expect(clipNow()).toBe("firing_a_rifle_while_standing")
     tick(1.1)
     crowd.sync()
-    expect(clipNow()).toBe("idle")
+    expect(AT_EASE.has(clipNow())).toBe(true)
 
     sim.soldiers.health.value[soldier] = 0.5
     crowd.sync()
-    expect(clipNow()).toBe("hit_ribs")
+    expect(clipNow()).toMatch(/^(hit_reaction_while_holding_a_rifle|left_reaction_to_front_hit_holding_a_rifle)$/)
     tick(1.1)
 
     sim.soldiers.grenades.count[soldier] -= 1
     sim.soldiers.mask.state[soldier] = MaskState.On
     crowd.sync()
-    expect(clipNow()).toBe("stengun_reload")
+    expect(clipNow()).toBe("throwing_something_holding_rifle_aimed")
     expect(drawn(kit.mask)).toBe(1)
   })
 
@@ -469,7 +519,7 @@ describe("createSoldierCrowd", () => {
     }
     crowd.update()
 
-    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["run_forward", "walk_forward"])
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["rifle_run_forward", "rifle_walk_forward"])
   })
 
   it("crouches: squatting over the rifle when still, walking bent when he moves", () => {
@@ -488,7 +538,7 @@ describe("createSoldierCrowd", () => {
     }
     crowd.update()
 
-    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["idle_4", "crouch_walk_forward"])
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["rifle_crouched_idle", "rifle_crouched_walk_forward"])
   })
 
   it("runs on the run key while he has the breath, and walks once he's spent", () => {
@@ -513,10 +563,10 @@ describe("createSoldierCrowd", () => {
     }
     crowd.update()
 
-    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["run_forward", "walk_forward"])
+    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["rifle_run_forward", "rifle_walk_forward"])
   })
 
-  it("scrambles up a wall, slowly as he crosses the ground, and walks on at the top", () => {
+  it("scrambles up a bank, slowly as he crosses the ground, and walks on at the top", () => {
     // Flat ground with a two-metre wall rising across it at 20 m north, a metre from foot to top.
     const walled = createFlatMap({ name: "wall", cellSize: 0.5, columns: 80, rows: 80 })
     for (let row = 0; row <= walled.rows; row++) {
@@ -546,7 +596,7 @@ describe("createSoldierCrowd", () => {
       stepNorth(0.02)
     }
     tick(2)
-    expect(clipNow()).toBe("run_forward")
+    expect(clipNow()).toBe("climbing_up_a_slope")
     const [climbing] = matrices(kit.bodies[Side.French])
     const forward = climbing ? Vector3.TransformNormal(Vector3.Forward(), climbing) : Vector3.Zero()
     expect(forward.z).toBeCloseTo(1)
@@ -556,7 +606,7 @@ describe("createSoldierCrowd", () => {
       stepNorth(0.07)
     }
     // Still looking east as he walks on north.
-    expect(clipNow()).toBe("walk_left")
+    expect(clipNow()).toBe("rifle_walk_left")
   })
 
   it("climbs over a fence the whole time he's on it, square across it, and walks on beyond", () => {
@@ -587,7 +637,7 @@ describe("createSoldierCrowd", () => {
       crowd.sync()
       crowd.update()
       const [row, still] = rows(kit.bodies[Side.French])
-      expect(clipAt(still)).toBe("idle")
+      expect(AT_EASE.has(clipAt(still))).toBe(true)
       if (clipAt(row) === "climb_over") {
         climbing += STEP_SECONDS
         lastRow = row ?? 0
@@ -616,7 +666,9 @@ describe("createSoldierCrowd", () => {
     crowd.sync()
     crowd.update()
 
-    expect(rows(kit.bodies[Side.French]).map(clipAt)).toEqual(["idle_6", "idle"])
+    const [watching, resting] = rows(kit.bodies[Side.French]).map(clipAt)
+    expect(watching).toBe("rifle_standing_aiming_idle")
+    expect(AT_EASE.has(resting)).toBe(true)
   })
 
   it("reads each soldier's weapon afresh", () => {
@@ -643,6 +695,44 @@ describe("createSoldierCrowd", () => {
 
     expect(drawn(kit.bodies[Side.German])).toBe(100)
     expect(drawn(kit.rifle)).toBe(100)
-    expect(rows(kit.bodies[Side.German]).every((row) => clipAt(row) === "idle")).toBe(true)
+    expect(rows(kit.bodies[Side.German]).every((row) => AT_EASE.has(clipAt(row)))).toBe(true)
+  })
+
+  it("draws the man the player aims with aiming, still and as he walks, enemy in his sights or not", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const aimer = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    spawnSoldier(sim, { side: Side.French, x: 30, z: 10 })
+    const { crowd, kit, tick, rows } = harness(sim, { aimingSoldier: () => aimer })
+    crowd.sync()
+    crowd.update()
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("rifle_standing_aiming_idle")
+    expect(AT_EASE.has(clipAt(rows(kit.bodies[Side.French])[1]))).toBe(true)
+
+    // Stepping off to his right as he aims.
+    for (let step = 0; step < 5; step++) {
+      sim.soldiers.position.x[aimer] += 1.2 * STEP_SECONDS
+      sim.tick += 1
+      tick(STEP_SECONDS)
+      crowd.sync()
+    }
+    crowd.update()
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("aim_walk_right")
+  })
+
+  it("goes down to a crouch with a clip when still, and is crouched after it", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const { crowd, kit, tick, rows } = harness(sim)
+    const clipNow = () => {
+      crowd.update()
+      return clipAt(rows(kit.bodies[Side.French])[0])
+    }
+    crowd.sync()
+    sim.soldiers.stance.value[soldier] = Stance.Crouching
+    crowd.sync()
+    expect(clipNow()).toBe("rifle_standing_to_kneeling")
+    tick(1.1)
+    crowd.sync()
+    expect(clipNow()).toBe("rifle_crouched_idle")
   })
 })

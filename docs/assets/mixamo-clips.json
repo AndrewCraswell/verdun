@@ -859,6 +859,15 @@
       "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Rubbing%20Debris%20From%20Eyes&type=Motion"
     },
     {
+      "file": "rifle-run-backward-left.fbx",
+      "name": "Run Backward Right",
+      "description": "Rifle Run Backward Right, mirrored (Mixamo has Run Backward Left only inside its rifle packs)",
+      "mixamoId": "c9ce8ffa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "mirrored": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Backward%20Right&type=Motion"
+    },
+    {
       "file": "rifle-run-backward-right.fbx",
       "name": "Run Backward Right",
       "description": "Rifle Run Backward Right",

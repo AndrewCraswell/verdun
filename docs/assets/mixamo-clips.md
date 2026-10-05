@@ -11,7 +11,8 @@ description Mixamo shows under it. Search for the description to find the right 
 its skeleton. **Download** FBX, without skin (one with skin for reference), 24 fps (the rate the game bakes at), and
 tick **In Place** on every walk, run, crawl and strafe.
 
-**Downloaded** on 5 October 2026: all 169 clips below, from the uploaded soldier, into `vendor/mixamo/` (61 MB, in the
+**Downloaded** on 5 October 2026: all 169 clips below and Run Backward Right mirrored for the run backward left that
+Mixamo keeps only in its packs, from the uploaded soldier, into `vendor/mixamo/` (61 MB, in the
 [asset library](backup.md)), each named after its description in kebab case (`rifle-walk-forward.fbx`).
 [mixamo-clips.json](mixamo-clips.json) lists every file with its Mixamo name, description, id, whether it came in place,
 and a link that finds it on Mixamo again. Mixamo has no In Place for four of the clips asked for in place: the crouched
@@ -205,15 +206,18 @@ The crowd can't blend, so a change of stance snaps unless a clip carries it.
 
 ## What the game needs besides the clips
 
-**With the animation work**, as the new clips go in:
+**Done with the animation work** (5 October 2026): the soldiers play the clips `scripts/soldier-clips.txt` lists, the
+Mixamo bone map retargets them, and
 
-- **Aiming with the right click.** The crowd draws a man aiming only when he has an enemy in his sights
-  (`soldiers.target`), so the soldier the player aims with never looks it. He needs an aiming flag that reaches the
-  crowd, for his aimed idles and aimed walks to show standing, crouched and prone.
-- **Turning on the spot.** The crowd turns a body smoothly today. The turn clips need a rule for when they play: a man
-  standing still whose facing swings further than some angle, by the nearest of 45, 90, 135 and 180 degrees.
-- **A bone map for Mixamo.** The retargeting script maps polyperfect's bone names onto Synty's; Mixamo's
-  (`mixamorig:Hips` and so on) need a map of their own.
+- **Aiming with the right click**: the man the player aims with in the aim view is drawn aiming, standing, crouched and
+  prone, and in an aimed walk on the move, whether or not an enemy is in his sights (`aimingSoldier` in
+  soldiers/soldier-crowd.ts).
+- **Turning on the spot**: a man still and at ease whose facing swings 36 degrees or more plays the turn that comes
+  nearest, his drawn facing held until it's done; a man aiming turns smoothly to keep his sights on.
+- **Changing stance**: standing, crouching and lying go up and down by a kneel.
+
+Left for the clips that need more: the wall climb (the Character controller session has Mixamo's pull up onto a ledge in
+hand), the walking wounded and the wounded lying out, stretcher-bearers and officers' signals.
 
 **Later**, once the simulation has them; their clips can wait until then:
 

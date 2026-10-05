@@ -109,8 +109,8 @@ function loadedContainer(
   container.materials.push(palette, plain, matte)
   container.skeletons.push(skeleton)
   container.animationGroups.push(
-    clip(target, "idle", hipsNode, "position"),
-    clip(target, "walk_forward", hipsNode, "rotationQuaternion"),
+    clip(target, "rifle_standing_idle", hipsNode, "position"),
+    clip(target, "rifle_walk_forward", hipsNode, "rotationQuaternion"),
     clip(target, "bazooka_fire", hipsNode, "position")
   )
   return container
@@ -194,8 +194,20 @@ describe("bakeClips", () => {
     const { data, drift, clips, width } = bakeClips(skeleton, container.animationGroups, world)
 
     // One second at 24 frames a second, both ends included; the bazooka isn't among the crowd's clips.
-    expect(clips.get("idle")).toEqual({ start: 0, frames: BAKE_FPS + 1, fps: BAKE_FPS, turn: 0 })
-    expect(clips.get("walk_forward")).toEqual({ start: BAKE_FPS + 1, frames: BAKE_FPS + 1, fps: BAKE_FPS, turn: 0 })
+    expect(clips.get("rifle_standing_idle")).toEqual({
+      start: 0,
+      frames: BAKE_FPS + 1,
+      fps: BAKE_FPS,
+      turn: 0,
+      spin: 0
+    })
+    expect(clips.get("rifle_walk_forward")).toEqual({
+      start: BAKE_FPS + 1,
+      frames: BAKE_FPS + 1,
+      fps: BAKE_FPS,
+      turn: 0,
+      spin: 0
+    })
     expect(clips.size).toBe(2)
     // Three matrices a frame: the bone's, the identity Babylon appends, and the rifle's.
     const floatsPerFrame = 3 * 16
@@ -218,7 +230,7 @@ describe("bakeClips", () => {
     const target = scene()
     const { skeleton, left } = hands(target)
     // The left hand reaches further out and lower, still a rifle's length from the right.
-    const idle = moves(target, "idle", [[left, new Vector3(0.5, 0.9, 0.4)]])
+    const idle = moves(target, "rifle_standing_idle", [[left, new Vector3(0.5, 0.9, 0.4)]])
     const { data } = bakeClips(skeleton, [idle], Matrix.Identity())
 
     const first = rifleAt(data, 0)
@@ -238,7 +250,7 @@ describe("bakeClips", () => {
     const target = scene()
     const { skeleton, left } = hands(target)
     // The left hand flung out, as a man is hit: two metres off, nowhere near a rifle's length.
-    const hit = moves(target, "hit_ribs", [[left, new Vector3(1.5, 0.2, 1.4)]])
+    const hit = moves(target, "hit_reaction_while_holding_a_rifle", [[left, new Vector3(1.5, 0.2, 1.4)]])
     const { data } = bakeClips(skeleton, [hit], Matrix.Identity())
 
     // Three quarters of the way, the hand is long gone from the rifle: it no longer swings after it.
@@ -252,17 +264,21 @@ describe("bakeClips", () => {
     const target = scene()
     const { skeleton, left } = hands(target)
     const still = (name: string) => moves(target, name, [[left, left.position.clone()]])
-    const { clips } = bakeClips(skeleton, [still("idle"), still("idle_6")], Matrix.Identity())
+    const { clips } = bakeClips(
+      skeleton,
+      [still("rifle_standing_idle"), still("rifle_standing_aiming_idle")],
+      Matrix.Identity()
+    )
 
     // The rifle points from the right palm through the left: 0.3 m left for every 0.4 m ahead. Turn right that much.
-    expect(clips.get("idle_6")?.turn).toBeCloseTo(Math.atan2(0.3, 0.4))
-    expect(clips.get("idle")?.turn).toBe(0)
+    expect(clips.get("rifle_standing_aiming_idle")?.turn).toBeCloseTo(Math.atan2(0.3, 0.4))
+    expect(clips.get("rifle_standing_idle")?.turn).toBe(0)
   })
 
   it("leaves the rifle in the right hand alone as a man falls, then lets it fall to the ground", () => {
     const target = scene()
     const { skeleton, right, left } = hands(target)
-    const death = moves(target, "death_prone", [
+    const death = moves(target, "dying_from_a_prone_position", [
       [right, new Vector3(0.2, 0.2, 0.5)],
       [left, new Vector3(-1, 0, -1)]
     ])
@@ -304,19 +320,19 @@ describe("restingRifle", () => {
   })
 })
 
-describe("crouched walks", () => {
-  /** A one-second clip setting nodes' positions and turns about x, in degrees, from the first value to the second. */
+describe("aimed walks and turns", () => {
+  /** A one-second clip setting nodes' positions, and turns about an axis in degrees, from the first value to the second. */
   function keyed(
     target: Scene,
     name: string,
-    keys: readonly [TransformNode, "position" | "rotationQuaternion", Vector3 | number, Vector3 | number][]
+    keys: readonly [TransformNode, "position" | "rotationQuaternion", Vector3 | number, Vector3 | number, Vector3?][]
   ): AnimationGroup {
     const group = new AnimationGroup(name, target)
-    for (const [node, property, from, to] of keys) {
+    for (const [node, property, from, to, axis = Vector3.Right()] of keys) {
       const type = property === "position" ? Animation.ANIMATIONTYPE_VECTOR3 : Animation.ANIMATIONTYPE_QUATERNION
       const animation = new Animation(`${name}-${node.name}-${property}`, property, 60, type)
       const value = (key: Vector3 | number) =>
-        key instanceof Vector3 ? key : Quaternion.RotationAxis(Vector3.Right(), (key * Math.PI) / 180)
+        key instanceof Vector3 ? key : Quaternion.RotationAxis(axis, (key * Math.PI) / 180)
       animation.setKeys([
         { frame: 0, value: value(from) },
         { frame: 60, value: value(to) }
@@ -327,49 +343,66 @@ describe("crouched walks", () => {
     return group
   }
 
-  it("lays the crouch over each walk: lower, bent further, and nothing the walk leaves alone piling up", () => {
-    const target = scene()
-    const skeleton = new Skeleton("crouch", "crouch0", target)
-    const hipsNode = new TransformNode("Hips", target)
-    const spineNode = new TransformNode("Spine", target)
-    const hips = new Bone("Hips", skeleton, null, Matrix.Identity())
-    hips.linkTransformNode(hipsNode)
-    new Bone("Spine", skeleton, hips, Matrix.Identity()).linkTransformNode(spineNode)
-    const up = new Vector3(0, 1, 0)
-    // At ease the hips are a metre up; crouched, 0.7 and bent 30 degrees, the spine bent 20 more.
-    const idle = keyed(target, "idle", [
-      [hipsNode, "position", up, up],
-      [hipsNode, "rotationQuaternion", 0, 0],
-      [spineNode, "rotationQuaternion", 0, 0]
-    ])
-    const hunched = keyed(target, "idle_5", [
-      [hipsNode, "position", new Vector3(0, 0.7, 0), new Vector3(0, 0.7, 0)],
-      [hipsNode, "rotationQuaternion", 30, 30],
-      [spineNode, "rotationQuaternion", 20, 20]
-    ])
-    // The walk bobs the hips and swings them 10 degrees; it never moves the spine.
-    const walk = keyed(target, "walk_forward", [
-      [hipsNode, "position", up, new Vector3(0, 1.1, 0)],
-      [hipsNode, "rotationQuaternion", 0, 10]
-    ])
-    const { data, clips } = bakeClips(skeleton, [idle, hunched, walk], Matrix.Identity())
+  /** Hips with the spine's first bone and the thighs on them, a tenth of a metre to either side. */
+  function body(target: Scene) {
+    const skeleton = new Skeleton("body", "body0", target)
+    const joint = (name: string, parent: { node: TransformNode; bone: Bone } | null, at: Vector3) => {
+      const node = new TransformNode(name, target)
+      node.position.copyFrom(at)
+      node.rotationQuaternion = Quaternion.Identity()
+      node.parent = parent?.node ?? null
+      const bone = new Bone(name, skeleton, parent?.bone ?? null, Matrix.Identity())
+      bone.linkTransformNode(node)
+      return { node, bone }
+    }
+    const hips = joint("Hips", null, new Vector3(0, 1, 0))
+    const spine = joint("Spine_01", hips, new Vector3(0, 0.1, 0))
+    joint("UpperLeg_L", hips, new Vector3(-0.1, 0, 0))
+    joint("UpperLeg_R", hips, new Vector3(0.1, 0, 0))
+    return { skeleton, hips: hips.node, spine: spine.node }
+  }
 
-    const crouched = clips.get("crouch_walk_forward")
-    expect(crouched?.frames).toBe(BAKE_FPS + 1)
-    expect(clips.has("crouch_walk_back")).toBe(false)
-    const floatsPerFrame = (2 + 2) * 16
+  it("lays an aimed walk's upper body over each walk, facing the way the walk's hips do", () => {
+    const target = scene()
+    const { skeleton, hips, spine } = body(target)
+    const up = new Vector3(0, 1, 0)
+    // The walk bobs the hips and swings them 10 degrees about the vertical; it bends the spine forward 5.
+    const walk = keyed(target, "rifle_walk_forward", [
+      [hips, "position", up, new Vector3(0, 1.1, 0)],
+      [hips, "rotationQuaternion", 0, 10, Vector3.Up()],
+      [spine, "rotationQuaternion", 5, 5]
+    ])
+    // The aimed walk stands bladed, hips turned 40 degrees, its spine turned back 40 and bent forward 20 to aim.
+    const aimed = keyed(target, "walking_while_aiming_rifle", [
+      [hips, "rotationQuaternion", 40, 40, Vector3.Up()],
+      [spine, "rotationQuaternion", 20, 20]
+    ])
+    const { data, clips } = bakeClips(skeleton, [walk, aimed], Matrix.Identity())
+
+    const made = clips.get("aim_walk_forward")
+    expect(made?.frames).toBe(BAKE_FPS + 1)
+    expect(clips.has("aim_walk_backward")).toBe(false)
+    const floatsPerFrame = (4 + 2) * 16
     const hipsAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame)
     const spineAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame + 16)
-    const start = crouched?.start ?? 0
-    // Halfway through, the walk has the hips 1.05 up and swung 5 degrees: crouched, 0.3 lower and 30 degrees more.
-    const halfway = hipsAt(start + BAKE_FPS / 2)
-    expect(halfway.getTranslation().y).toBeCloseTo(0.75, 4)
-    const forward = Vector3.TransformNormal(Vector3.Forward(), halfway)
-    expect(Math.atan2(-forward.y, forward.z)).toBeCloseTo((35 * Math.PI) / 180, 3)
-    // The spine isn't the walk's to move, so the crouch doesn't build up on it frame after frame: it keeps its turn on
-    // the hips.
-    const spineOnHips = (row: number) => spineAt(row).multiply(Matrix.Invert(hipsAt(row)))
-    expect(spineOnHips(start + BAKE_FPS).equalsWithEpsilon(spineOnHips(start + 1), 1e-5)).toBe(true)
+    const halfway = (made?.start ?? 0) + BAKE_FPS / 2
+    // The legs are the walk's: halfway the hips are 1.05 up and swung 5 degrees.
+    expect(hipsAt(halfway).getTranslation().y).toBeCloseTo(1.05, 4)
+    // The spine faces as it faced on its own hips, 40 degrees round, and bends 20, whatever the walk's hips do.
+    const spineForward = Vector3.TransformNormal(Vector3.Forward(), spineAt(halfway))
+    expect(Math.atan2(spineForward.x, spineForward.z)).toBeCloseTo((40 * Math.PI) / 180, 3)
+    expect(Math.asin(-spineForward.y)).toBeCloseTo((20 * Math.PI) / 180, 3)
+  })
+
+  it("measures how far a clip turns a man round, clockwise seen from above", () => {
+    const target = scene()
+    const { skeleton, hips } = body(target)
+    const right = keyed(target, "rifle_turn_90_degree_right_turn", [[hips, "rotationQuaternion", 0, 90, Vector3.Up()]])
+    const left = keyed(target, "rifle_turn_45_degree_left_turn", [[hips, "rotationQuaternion", 0, -45, Vector3.Up()]])
+    const { clips } = bakeClips(skeleton, [right, left], Matrix.Identity())
+
+    expect(clips.get("rifle_turn_90_degree_right_turn")?.spin).toBeCloseTo(Math.PI / 2)
+    expect(clips.get("rifle_turn_45_degree_left_turn")?.spin).toBeCloseTo(-Math.PI / 4)
   })
 })
 
@@ -389,7 +422,7 @@ describe("prepareSoldierKit", () => {
     expect(kit.bodies[Side.German].material?.name).toBe("Soldier_German")
     expect(kit.mask.material).toBe(kit.rifle.material)
     expect(kit.materials.every((material) => material instanceof StandardMaterial)).toBe(true)
-    expect([...kit.clips.keys()]).toEqual(["idle", "walk_forward"])
+    expect([...kit.clips.keys()]).toEqual(["rifle_standing_idle", "rifle_walk_forward"])
     expect(target.animationGroups).toHaveLength(0)
   })
 

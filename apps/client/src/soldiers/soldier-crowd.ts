@@ -26,14 +26,19 @@ import type { SoldierRenderer } from "../battlefield-scene.ts"
 import { drawnCount } from "../effects/instance-buffer.ts"
 import {
   type Action,
+  actionClip,
   type BakedClip,
   choosePose,
   type ClipName,
+  IDLE,
   MOVING_SPEED,
+  movementOf,
   type Pose,
   poseFrame,
   poseSeconds,
-  type SoldierState
+  type SoldierState,
+  stanceClip,
+  TURNS
 } from "./soldier-animation.ts"
 import type { SoldierKit } from "./soldier-kit.ts"
 
@@ -49,14 +54,15 @@ export interface SoldierCrowd extends SoldierRenderer {
 export interface SoldierCrowdOptions {
   /** Seconds on a steady clock: performance.now by default. */
   readonly clock?: () => number
+  /**
+   * The soldier the player aims with right now (in the aim view), or -1: he's drawn aiming, standing, crouched, lying
+   * and on the move, whether or not an enemy is in his sights.
+   */
+  readonly aimingSoldier?: () => EntityId
 }
 
-/** The clip each action plays, which sets how long it lasts. */
-const ACTION_CLIPS: Readonly<Record<Action, ClipName>> = {
-  fire: "brengun_fire",
-  throw: "stengun_reload",
-  hit: "hit_ribs"
-}
+/** A man still and not aiming turns on the spot, with a clip, when he's to face round by this much or more, in radians. */
+const TURN_FROM = Math.PI / 5
 /** Faster than this between syncs is a jump, not a walk: snap there. */
 const SNAP_SPEED = 15
 /** How quickly the drawn heading turns toward the simulation's, per second, and into or out of an aiming stance. */
@@ -132,6 +138,11 @@ interface Track {
   masked: boolean
   /** How much higher the ground is under a gunner's gun than under him. */
   gunLift: number
+  /**
+   * A turn on the spot or a change of stance in progress: its clip, when it ends, and for a turn, the way he faced when
+   * it began and how far the clip turns him. The clip turns the body itself, so his drawn facing holds until it ends.
+   */
+  shift: { clip: ClipName; until: number; startYaw: number; spin: number } | null
   /**
    * Whether, standing where he was last asked about, he sees over the parapet: dozens of height samples round him, so
    * worked out again only once he has moved.
@@ -240,7 +251,7 @@ export function createSoldierCrowd(
   scene: Scene,
   sim: Simulation,
   kit: SoldierKit,
-  { clock = () => performance.now() / 1000 }: SoldierCrowdOptions = {}
+  { clock = () => performance.now() / 1000, aimingSoldier = () => -1 }: SoldierCrowdOptions = {}
 ): SoldierCrowd {
   const { soldiers, map } = sim
   const layers = {
@@ -263,7 +274,7 @@ export function createSoldierCrowd(
     layers.guns[Side.French],
     layers.guns[Side.German]
   ]
-  const idle = kit.clips.get("idle")
+  const idle = kit.clips.get(IDLE)
   if (!idle) {
     throw new Error("soldier kit: no idle clip")
   }
@@ -330,11 +341,12 @@ export function createSoldierCrowd(
       health: soldiers.health.value[id],
       action: null,
       actionUntil: 0,
-      pose: { clip: "idle", mode: "loop", rate: 1 },
+      pose: { clip: IDLE, mode: "loop", rate: 1 },
       poseStart: now,
       phase: idFraction(id),
       masked: false,
       gunLift: 0,
+      shift: null,
       parapet: null
     }
   }
@@ -361,10 +373,79 @@ export function createSoldierCrowd(
     track.z = track.fromZ + (track.toZ - track.fromZ) * t
   }
 
-  function startAction(track: Track, action: Action, now: number): void {
-    track.action = action
-    track.actionUntil =
-      now + poseSeconds(clipOf(ACTION_CLIPS[action]), { clip: ACTION_CLIPS[action], mode: "once", rate: 1 })
+  /** How long a clip takes played through once, in seconds. */
+  function onceSeconds(clip: ClipName): number {
+    return poseSeconds(clipOf(clip), { clip, mode: "once", rate: 1 })
+  }
+
+  /** Starts an action, for as long as its clip runs as he's placed now: none if he has no clip for it, firing on the move. */
+  function startAction(track: Track, id: EntityId, action: Action, now: number): void {
+    const clip = actionClip(action, track.stance, track.weapon, movementOf(track), id)
+    if (clip) {
+      track.action = action
+      track.actionUntil = now + onceSeconds(clip)
+    }
+  }
+
+  /** Starts a turn on the spot or a change of stance: `spin` is how far the clip turns him, for a turn. */
+  function startShift(track: Track, clip: ClipName, now: number, spin = 0): void {
+    track.shift = { clip, until: now + onceSeconds(clip), startYaw: track.yaw, spin }
+  }
+
+  /** Ends a turn or a change of stance `share` of the way through: he faces as far round as the clip took him. */
+  function endShift(track: Track, share: number): void {
+    if (track.shift) {
+      track.yaw = track.shift.startYaw + track.shift.spin * Math.min(1, Math.max(0, share))
+      track.shift = null
+    }
+  }
+
+  /** The turn on the spot that comes nearest facing round by `wanted` radians clockwise, if one comes nearer than none. */
+  function turnClip(stance: Stance, wanted: number): { clip: ClipName; spin: number } | null {
+    const turns = stance === Stance.Crouching ? TURNS.crouching : TURNS.standing
+    let best: { clip: ClipName; spin: number } | null = null
+    let bestMiss = Math.abs(wanted)
+    for (const clip of turns) {
+      const spin = kit.clips.get(clip)?.spin
+      if (spin !== undefined && Math.abs(spin - wanted) < bestMiss) {
+        best = { clip, spin }
+        bestMiss = Math.abs(spin - wanted)
+      }
+    }
+    return best
+  }
+
+  /**
+   * Starts, ends or cuts short a fighting man's turn on the spot or change of stance. He changes stance with a clip when
+   * he's still; turns on the spot with one when he's still, at ease (not aiming, pinned or broken) and to face round far
+   * enough; and moving off, acting or aiming cuts a turn short.
+   */
+  function shift(track: Track, id: EntityId, was: Stance, still: boolean, busy: boolean, now: number): void {
+    if (track.shift && now >= track.shift.until) {
+      endShift(track, 1)
+    } else if (track.shift && (!still || busy)) {
+      endShift(track, 1 - (track.shift.until - now) / onceSeconds(track.shift.clip))
+    }
+    const change = stanceClip(was, track.stance)
+    if (change) {
+      endShift(track, 1)
+      if (still && !track.action) {
+        startShift(track, change, now)
+      }
+      return
+    }
+    const wanted = turn(track.yaw, track.targetYaw)
+    const atEase =
+      soldiers.suppression.value[id] < PINNED &&
+      soldiers.morale.value[id] >= BROKEN_MORALE &&
+      track.weapon === Weapon.Rifle &&
+      track.stance !== Stance.Prone
+    if (!track.shift && still && !busy && atEase && Math.abs(wanted) >= TURN_FROM) {
+      const chosen = turnClip(track.stance, wanted)
+      if (chosen) {
+        startShift(track, chosen.clip, now, chosen.spin)
+      }
+    }
   }
 
   function overParapet(track: Track, id: EntityId, x: number, z: number): boolean {
@@ -497,19 +578,23 @@ export function createSoldierCrowd(
     track.side = soldiers.side.value[id] === Side.German ? Side.German : Side.French
     track.weapon = soldiers.weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
     const climbing = status === "fighting" && now < track.climbUntil
+    const aiming = soldiers.target.id[id] >= 0 || id === aimingSoldier()
+    const still = track.speed < MOVING_SPEED
     if (status === "fighting") {
       climbFence(track, x, z, movedX, movedZ, movedSeconds)
       // A man scrambles up a wall or over a fence facing it, whichever way he was looking.
       const face = faceOf(id, x, z)
       track.targetYaw = climbing || track.overFence !== null ? track.climbYaw : Math.atan2(face.x, face.z)
+      const was = track.stance
       track.stance = drawnStance(stance)
       if (soldiers.grenades.count[id] < track.grenades) {
-        startAction(track, "throw", now)
+        startAction(track, id, "throw", now)
       } else if (soldiers.weapon.cooldown[id] > track.cooldown + 1e-3) {
-        startAction(track, "fire", now)
+        startAction(track, id, "fire", now)
       } else if (soldiers.health.value[id] < track.health - WOUND) {
-        startAction(track, "hit", now)
+        startAction(track, id, "hit", now)
       }
+      shift(track, id, was, still, track.action !== null || aiming || climbing || track.overFence !== null, now)
     } else if (status === "captured") {
       track.targetYaw = Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
     }
@@ -529,6 +614,7 @@ export function createSoldierCrowd(
       track.status = status
       track.action = null
       track.overFence = null
+      endShift(track, 0)
     }
 
     const pose = choosePose({
@@ -540,17 +626,14 @@ export function createSoldierCrowd(
       running: track.running,
       climbing,
       overFence: track.overFence,
-      aiming: soldiers.target.id[id] >= 0,
-      // Only a man standing still with no one in his sights needs to know: aiming or moving, he isn't watching.
+      aiming,
+      // Only a man standing still and not aiming needs to know: aiming or moving, he isn't watching.
       overParapet:
-        status === "fighting" &&
-        track.stance === Stance.Standing &&
-        track.speed < MOVING_SPEED &&
-        soldiers.target.id[id] < 0 &&
-        overParapet(track, id, x, z),
+        status === "fighting" && track.stance === Stance.Standing && still && !aiming && overParapet(track, id, x, z),
       pinned: soldiers.suppression.value[id] >= PINNED,
       broken: soldiers.morale.value[id] < BROKEN_MORALE,
       action: track.action,
+      shift: track.shift?.clip ?? null,
       id
     })
     if (pose.clip !== track.pose.clip || pose.mode !== track.pose.mode) {
@@ -672,7 +755,10 @@ export function createSoldierCrowd(
     for (const track of drawn) {
       place(track, now)
       const clip = clipOf(track.pose.clip)
-      if (track.status !== "fallen") {
+      if (track.shift?.spin && track.pose.clip === track.shift.clip) {
+        // The turn's clip turns the body: his facing holds where it began until the clip is done.
+        track.yaw = track.shift.startYaw
+      } else if (track.status !== "fallen") {
         track.yaw += turn(track.yaw, track.targetYaw) * turning
       }
       track.turn += (clip.turn - track.turn) * turning

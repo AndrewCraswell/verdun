@@ -12,6 +12,7 @@ import {
   callGasOn,
   createFixedStepper,
   createWarClock,
+  type EntityId,
   loadWeatherRegion,
   shotEvents,
   Side,
@@ -237,7 +238,12 @@ export async function startBattle(
   const soldierKit = level ? await loadSoldierKit(view.scene, kitFiles) : null
   // The kit's files close once the last of them, the sounds, have been read.
   void Promise.resolve(level?.sfx).finally(() => kitFiles?.close?.())
-  const soldiers = soldierKit ? createSoldierCrowd(view.scene, sim, soldierKit) : null
+  // The soldier the player aims with, in the aim view: drawn aiming whether or not an enemy is in his sights. The
+  // player's control is made further on.
+  let aimingSoldier = (): EntityId => -1
+  const soldiers = soldierKit
+    ? createSoldierCrowd(view.scene, sim, soldierKit, { aimingSoldier: () => aimingSoldier() })
+    : null
   // After dark: braziers, fires and rifle flashes light the ground around them; flares come when the sim fires them.
   const night = level
     ? createNightLight(
@@ -337,6 +343,7 @@ export async function startBattle(
     // Only the enemy the player can see is picked out under the pointer. The fog is made further down.
     shown: (soldier) => fog.isShown(soldier)
   })
+  aimingSoldier = () => (cameraRigOf(view.camera)?.aiming ? control.soldier : -1)
   // The facing ring, the aim line and the ring on the man in his sights follow the page's aim, not the worker's.
   const markers = createSquadMarkers(view.scene, sim, playerSquad, control)
   // The battle's sound effects, heard from the camera, when the kit has them: last in the asset pack, so they may only
