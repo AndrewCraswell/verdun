@@ -1,7 +1,7 @@
-import { createFlatMap, Surface } from "@verdun/map"
+import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { Shell } from "./artillery.ts"
-import { shotEvents, Weapon } from "./combat.ts"
+import { shotEvents, toWeapon, Weapon } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
 import { createLineOfSight, type LineOfSight } from "./line-of-sight.ts"
 import { RIFLE_GRENADES_CARRIED } from "./rifle-grenades.ts"
@@ -127,5 +127,62 @@ describe("snipers", () => {
 
     expect(shots.length).toBeGreaterThan(0)
     expect(shots[0]?.target).toBe(leader)
+  })
+})
+
+describe("rifle grenadiers and snipers at the edges", () => {
+  it("lob into a trench where they can see men a rifle can't reach, on either side", async () => {
+    const flat = createFlatMap({ name: "lines", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
+    const trench: Trench = {
+      kind: "fire",
+      points: [
+        [20, 50],
+        [180, 50]
+      ],
+      facing: "north"
+    }
+    carveTrenches(flat, [trench])
+    const sim = createSimulation({ map: { ...flat, trenches: [trench] }, seed: 1 })
+    sim.lineOfSight = await createLineOfSight(sim.map)
+    opened.push(sim.lineOfSight)
+    const grenadier = spawnSoldier(sim, { side: Side.German, x: 100, z: 160, weapon: Weapon.RifleGrenadier })
+    spawnSoldier(sim, { side: Side.French, x: 100, z: 50.8 })
+    const events = stepFor(sim, 0.5)
+
+    expect(events.filter((event) => event.type === "rifle-grenade")).toHaveLength(1)
+    expect(sim.artillery.shells.find((inFlight) => inFlight.shell === Shell.Grenade)?.side).toBe(Side.German)
+    expect(sim.soldiers.rifleGrenades.count[grenadier]).toBe(RIFLE_GRENADES_CARRIED - 1)
+  })
+
+  it("hold their grenades without sight lines, and when the player has the grenadier", async () => {
+    const blind = createSimulation({
+      map: createFlatMap({ name: "field", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass),
+      seed: 1
+    })
+    spawnSoldier(blind, { side: Side.French, x: 100, z: 50, weapon: Weapon.RifleGrenadier })
+    spawnSoldier(blind, { side: Side.German, x: 100, z: 150 })
+    expect(stepFor(blind, 2).some((event) => event.type === "rifle-grenade")).toBe(false)
+
+    const sim = await field()
+    const grenadier = spawnSoldier(sim, { side: Side.French, x: 100, z: 50, weapon: Weapon.RifleGrenadier })
+    createSquad(sim, Side.French, [grenadier], "player")
+    const gunner = spawnSoldier(sim, { side: Side.German, x: 100, z: 150, weapon: Weapon.MachineGun })
+    spotted(sim, gunner)
+    expect(stepFor(sim, 2).some((event) => event.type === "rifle-grenade")).toBe(false)
+  })
+
+  it("read an unknown stored weapon as a rifle", () => {
+    expect(toWeapon(99)).toBe(Weapon.Rifle)
+    expect(toWeapon(Weapon.Sniper)).toBe(Weapon.Sniper)
+  })
+
+  it("let a German sniper with no gunner or leader in sight shoot like any rifleman", async () => {
+    const sim = await field()
+    const sniper = spawnSoldier(sim, { side: Side.German, x: 100, z: 300, weapon: Weapon.Sniper })
+    sim.soldiers.stance.value[sniper] = Stance.Prone
+    const target = spawnSoldier(sim, { side: Side.French, x: 100, z: 220 })
+    const first = shotEvents(stepFor(sim, 3)).find((shot) => shot.shooter === sniper)
+
+    expect(first?.target).toBe(target)
   })
 })

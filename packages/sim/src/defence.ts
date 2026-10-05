@@ -141,7 +141,14 @@ export function defenceSystem(sim: Simulation): void {
         return
       }
       const x = (stretch + 0.5) * STRETCH
-      let needed = Math.ceil(intruders * ODDS) - holding
+      // Men already sent to this stretch and on their way count, or every look would send more after them.
+      const onTheirWay = sim.squads
+        .filter(
+          (squad) =>
+            squad.side === side && squad.order.kind === "advance" && squad.order.x === x && squad.order.z === lineZ
+        )
+        .reduce((men, squad) => men + squad.members.filter((member) => isAlive(sim, member)).length, 0)
+      let needed = Math.ceil(intruders * ODDS) - holding - onTheirWay
       let sent = 0
       for (const squad of reservesNear(sim, side, x)) {
         if (needed <= 0 || sent >= SQUADS_PER_LOOK) {

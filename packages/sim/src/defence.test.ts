@@ -107,4 +107,23 @@ describe("counter-thrusts", () => {
     expect(near.order).toEqual({ kind: "reserve" })
     expect(far.order).toEqual({ kind: "reserve" })
   })
+
+  it("send only as many squads as the odds need, and send nothing up on the alarm with no reserves", () => {
+    const sim = sector()
+    const { near, far } = reserves(sim)
+    for (const x of [62, 66, 70]) {
+      spawnSoldier(sim, { side: Side.French, x, z: 150 })
+    }
+    spawnSoldier(sim, { side: Side.German, x: 100, z: 150.5 })
+    stepFor(sim, 2.1)
+    // Three intruders against one: the nearer squad of five is enough.
+    expect(near.order.kind).toBe("advance")
+    expect(far.order).toEqual({ kind: "reserve" })
+
+    const empty = sector()
+    empty.artillery.sosCalledAt[Side.German] = 0
+    const events = stepFor(empty, 2.1)
+    expect(events.some((event) => event.type === "reserves-up")).toBe(false)
+    expect(empty.defence.alarmedAt[Side.German]).toBe(0)
+  })
 })

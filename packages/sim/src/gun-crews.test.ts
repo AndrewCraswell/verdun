@@ -68,3 +68,25 @@ describe("gun crews", () => {
     expect(sim.soldiers.weapon.kind[far]).toBe(Weapon.Rifle)
   })
 })
+
+describe("gun crews at the edges", () => {
+  it("leave a gun with no squad, pass over a second gunner, and give up if the crewman falls on the way", () => {
+    const sim = field()
+    const loner = spawnSoldier(sim, { side: Side.French, x: 20, z: 20, weapon: Weapon.MachineGun })
+    casualty(sim, loner, 1)
+    gunCrewSystem(sim)
+    expect(sim.gunCrews.pickups).toEqual([])
+
+    const gunner = spawnSoldier(sim, { side: Side.French, x: 50, z: 50, weapon: Weapon.MachineGun })
+    const second = spawnSoldier(sim, { side: Side.French, x: 51, z: 50, weapon: Weapon.MachineGun })
+    const rifleman = spawnSoldier(sim, { side: Side.French, x: 58, z: 50 })
+    createSquad(sim, Side.French, [gunner, second, rifleman])
+    casualty(sim, gunner, 1)
+    gunCrewSystem(sim)
+    expect(sim.gunCrews.pickups.map((pickup) => pickup.by)).toEqual([rifleman])
+
+    sim.pendingCommands.push({ type: "kill", soldier: rifleman })
+    stepFor(sim, 1)
+    expect(sim.gunCrews.pickups).toEqual([])
+  })
+})
