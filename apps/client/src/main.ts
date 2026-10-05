@@ -7,8 +7,8 @@ import { createMenu } from "./ui/menu.ts"
  * The game's entry: the menus first, small and quick to load, then the battle in a module of its own, loaded behind the
  * front door while the player looks round it (./start-battle.ts).
  *
- * The front door the game opens on; ?play goes straight into the line, behind the loading screen, and ?debug past both,
- * for measuring straight away (scripts/perf.mjs).
+ * The front door the game opens on; ?play and ?debug go straight into the line (?debug for measuring, scripts/perf.mjs),
+ * behind the loading screen: nothing of the battle shows until it's drawing.
  */
 async function start(): Promise<void> {
   const address = new URLSearchParams(location.search)
@@ -17,7 +17,6 @@ async function start(): Promise<void> {
   const menu = createMenu(document.body, {
     development: import.meta.env.DEV,
     frontDoor,
-    loadingScreen: !address.has("debug"),
     build: typeof build === "string" ? build : "dev"
   })
   // The theme plays at the front door, and fades as the player goes into the line.
