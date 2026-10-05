@@ -144,6 +144,19 @@ tools but is still pre-1.0 (1.0.0-rc.1 as of October 2026), and its task runner 
 - Phases in order: commands, AI, navigation, movement, physics queries, combat, damage, cleanup, snapshots.
 - Reloads and other deadlines are counted in ticks.
 
+### Where it runs
+
+- The simulation runs in a **Web Worker** ([sim-worker.ts](../apps/client/src/sim/sim-worker.ts)), so a slow step (sight
+  lines rebuilt after craters, a burst of route searches when big orders land) delays the battle a moment instead of
+  dropping frames. `?inline` steps it on the page instead, for debugging.
+- The page keeps a **mirror**: a `Simulation` made the same way and never stepped
+  ([sync.ts](../packages/sim/src/sync.ts)). After each batch of steps the worker sends what changed (the soldier arrays
+  up to the highest soldier, component membership, the rest of the state as plain data, each step's events, the wire
+  when cut, the ground craters reshaped) and the mirror takes it in place. Everything on the page reads the mirror as it
+  would the simulation, and queues commands on it; the host ([sim-host.ts](../apps/client/src/sim/sim-host.ts)) forwards
+  them with the next batch.
+- This is the shape networking takes later: a server stepping the simulation, clients mirroring it.
+
 ### Time of day and weather
 
 The simulation owns the clock and the weather (`environment.ts`, `sky.ts`, `weather.ts`), because they decide who can

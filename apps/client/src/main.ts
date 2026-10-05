@@ -9,12 +9,10 @@ import {
   createFixedStepper,
   createLineOfSight,
   shotEvents,
-  createSimulation,
   loadWeatherRegion,
   WEATHER_REGIONS,
   STEP_SECONDS,
-  TICK_RATE,
-  stepSimulation
+  TICK_RATE
 } from "@verdun/sim"
 import { createBattleSounds } from "./audio/battle-sounds.ts"
 import { type Music, startMenuMusic, startMusic } from "./audio/music.ts"
@@ -43,7 +41,8 @@ import { useHeightFog } from "./level/particle-fog.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
-import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn, setupSkirmish } from "./skirmish.ts"
+import { createSimHost } from "./sim/sim-host.ts"
+import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import "./style.css"
 import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
@@ -97,7 +96,8 @@ async function start(): Promise<void> {
   displaySettings().listen(({ renderScale }) => engine.setHardwareScalingLevel(1 / renderScale))
   menu.progress("Surveying the ground", 0.12)
   // The Fleury sector: 600 m x 400 m at the simulation's 0.5 m resolution, on the real ground surveyed by IGN's LiDAR.
-  const elevation = decodeElevation(await (await fetch(elevationUrl)).arrayBuffer())
+  const elevationData = await (await fetch(elevationUrl)).arrayBuffer()
+  const elevation = decodeElevation(elevationData)
   const map = generateFleurySector({ seed: 1916, elevation })
   // History's weather, 1914-1918, in the map's region of the front (scripts/build-historical-weather.mjs), loaded before
   // the battle needs it; the seed drives gusts and showers.
@@ -105,12 +105,14 @@ async function start(): Promise<void> {
   const region = WEATHER_REGIONS.find((name) => name === map.weatherRegion) ?? "fleury"
   menu.progress("Reading the war's weather", 0.2)
   await loadWeatherRegion(region)
-  const sim = createSimulation({
+  // The simulation runs in a Web Worker, stepping off the page's thread; `sim` here is its mirror, brought up to date
+  // as each batch of steps comes back. ?inline steps it on the page instead, as before.
+  const host = await createSimHost(
     map,
-    seed: 1916,
-    environment: { forecast: { kind: "records", seed: weatherSeed, region } }
-  })
-  const { playerSquad } = setupSkirmish(sim)
+    { elevation: elevationData, mapSeed: 1916, simSeed: 1916, region, weatherSeed },
+    address.has("inline")
+  )
+  const { sim, playerSquad } = host
   // The war's calendar, until the war map runs it: kept between visits, so the war goes on a week each real day from the
   // battle's week; each daily cutoff moves the battle on a week and stands it to. Dev: ?war=1916-02-21, ?standto=0.
   const war = createWarClock(
@@ -244,7 +246,7 @@ async function start(): Promise<void> {
   })
   menu.progress("Plotting what each man can see", 0.9)
   const lineOfSight = await createLineOfSight(map)
-  sim.lineOfSight = lineOfSight
+  host.attachLineOfSight(lineOfSight)
   const tracers = createTracers(view.scene, {
     sim,
     camera: view.camera,
@@ -311,9 +313,12 @@ async function start(): Promise<void> {
     // battle doesn't.
     war.update(Date.now())
     const steps = menu.paused || war.paused ? 0 : stepper.advance(frameSeconds)
-    stats.time("simulation", () => {
-      for (let step = 0; step < steps; step++) {
-        stepSimulation(sim)
+    const taken = stats.time("simulation", () => host.update(steps))
+    stats.time("simulation: events", () => {
+      for (const step of taken) {
+        // Each step's events, played out in order: what reads `sim.events` sees the step's own.
+        sim.events.length = 0
+        sim.events.push(...step.events)
         trace("hud: log", () => hud.record(sim.events))
         trace("sound: step", () => sounds?.step())
         const shots = shotEvents(sim.events)
@@ -350,7 +355,7 @@ async function start(): Promise<void> {
     })
     trace("hud", () => hud.update(frameSeconds))
     const sightChanged = trace("fog", () => fog.update(frameSeconds))
-    if (steps > 0 || sightChanged) {
+    if (taken.length > 0 || sightChanged) {
       trace("soldiers: sync", () => view.syncSoldiers(fog.isShown))
     }
     trace("markers", () => markers.update())

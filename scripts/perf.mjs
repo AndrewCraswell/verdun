@@ -5,7 +5,7 @@
 //
 // Usage: node scripts/perf.mjs [--headed] [--ref HEAD] [--url http://localhost:5173] [--no-build] [--width 1920]
 //                              [--height 1080] [--seconds 6] [--only "day;night"] [--out perf.json] [--shots dir]
-//                              [--eval "page-side expression"] [--chrome path/to/chrome.exe]
+//                              [--eval "page-side expression"] [--query "inline"] [--chrome path/to/chrome.exe]
 // --headed runs a real Chrome window off-screen: headless Chrome here aborts some module fetches. --shots saves what
 // each scenario looked like, to check a faster setting still draws the picture. --eval prints a page-side expression
 // once the game is up, such as counts of what's drawn.
@@ -411,7 +411,13 @@ async function main() {
       { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false },
       sessionId
     )
-    await cdp.send("Page.navigate", { url: `${url}${url.includes("?") ? "&" : "?"}debug&gputime` }, sessionId)
+    // --query: more of the game's own options for the address, such as inline or snapshot.
+    const query = option("--query", "")
+    await cdp.send(
+      "Page.navigate",
+      { url: `${url}${url.includes("?") ? "&" : "?"}debug&gputime${query ? `&${query}` : ""}` },
+      sessionId
+    )
     // Wait for the game, then for the level to be dressed (a few hundred meshes); without the level kit it stays greybox.
     let state = { game: false, meshes: 0 }
     let reloads = 0
