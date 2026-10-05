@@ -285,6 +285,29 @@ describe("createPlayerControl", () => {
     expect(control.soldier).toBe(members[1])
   })
 
+  it("takes over the nearest bot squad once the whole squad has fallen", () => {
+    const { sim, squad, members, actions, control, frame } = setup()
+    const bots = createSquad(
+      sim,
+      Side.French,
+      [70, 73, 76, 79].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))
+    )
+    actions.push({ kind: "take-over" })
+    frame()
+    expect(squad.members).toEqual(members)
+
+    for (const member of members) {
+      sim.pendingCommands.push({ type: "kill", soldier: member })
+    }
+    stepSimulation(sim)
+    const theirs = [...bots.members]
+    actions.push({ kind: "take-over" })
+    frame()
+    frame()
+    expect(squad.members).toEqual(theirs)
+    expect(control.soldier).toBe(theirs[0])
+  })
+
   it("does nothing once the whole squad has fallen", () => {
     const { sim, members, held, control } = setup()
     for (const member of members) {

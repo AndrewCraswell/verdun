@@ -7,7 +7,8 @@ import {
   nextLivingMember,
   type Simulation,
   type Squad,
-  Stance
+  Stance,
+  takeOverCandidates
 } from "@verdun/sim"
 import { cameraRigOf } from "./camera-rig.ts"
 
@@ -47,6 +48,8 @@ export type PlayerAction =
   | { readonly kind: "grenade"; readonly x: number; readonly z: number }
   /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
+  /** With the squad wiped out, take over the men of the nearest bot squad that can be handed over. */
+  | { readonly kind: "take-over" }
 
 /** What the player is doing right now, independent of where it comes from (keyboard, gamepad, a test). */
 export interface PlayerInput {
@@ -203,6 +206,13 @@ export function createPlayerControl(
           enqueueCommand(sim, { type: "kill", soldier: squad.leader })
         }
         return
+      case "take-over": {
+        const [nearest] = takeOverCandidates(sim, squad)
+        if (nearest) {
+          enqueueCommand(sim, { type: "take-over-squad", squad: squad.id, from: nearest.id })
+        }
+        return
+      }
     }
   }
 

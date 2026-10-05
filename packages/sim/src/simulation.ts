@@ -12,9 +12,17 @@ import { combatSystem, type ShotEvent, type ThrowEvent, Weapon } from "./combat.
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
+import {
+  type CounterThrustEvent,
+  createDefence,
+  type DefenceState,
+  defenceSystem,
+  type StandToEvent
+} from "./defence.ts"
 import { createEnvironment, type Environment, environmentSystem, type EnvironmentOptions } from "./environment.ts"
 import { type Flare, type FlareEvent, flareSystem } from "./flares.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
+import { createGunCrews, type GunCrewState, type GunMannedEvent, gunCrewSystem } from "./gun-crews.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
 import { navigationSystem } from "./navigation.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
@@ -22,9 +30,11 @@ import {
   createReinforcements,
   type ReinforcementEvent,
   reinforcementSystem,
-  type ReinforcementState
+  type ReinforcementState,
+  type SquadTakenOverEvent
 } from "./reinforcements.ts"
 import { createRng, type Rng } from "./rng.ts"
+import { createSpotting, type GunSpottedEvent, spottingSystem, type SpottingState } from "./spotting.ts"
 import { type Squad, squadSystem } from "./squads.ts"
 import { stanceSystem } from "./stance.ts"
 import { movementSystem } from "./systems/movement.ts"
@@ -76,6 +86,12 @@ export interface Simulation {
   readonly objectives: ObjectiveState[]
   /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
   readonly reinforcements: ReinforcementState
+  /** Machine guns that have given themselves away by firing, and which the enemy has spotted. */
+  readonly spotting: SpottingState
+  /** Squadmates on their way to take up fallen gunners' guns. */
+  readonly gunCrews: GunCrewState
+  /** When each side sent reserves up to its front line on the alarm. */
+  readonly defence: DefenceState
   /** Very lights in the air over no man's land at night, lighting the ground beneath them. */
   readonly flares: Flare[]
   /** What happened during the last step, for renderers: shots fired and shells landing. Replaced every step. */
@@ -98,6 +114,11 @@ export type SimEvent =
   | WireCutEvent
   | ObjectiveTakenEvent
   | ReinforcementEvent
+  | SquadTakenOverEvent
+  | GunSpottedEvent
+  | GunMannedEvent
+  | CounterThrustEvent
+  | StandToEvent
   | FlareEvent
   | OutOfShellsEvent
   | WoundedEvent
@@ -148,6 +169,9 @@ export function createSimulation({
     objectives: createObjectives(map),
     flares: [],
     reinforcements: createReinforcements(reinforcements),
+    spotting: createSpotting(),
+    gunCrews: createGunCrews(),
+    defence: createDefence(),
     events: [],
     tick: 0
   }
@@ -280,6 +304,7 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ],
   ["sim: environment", (sim) => environmentSystem(sim, STEP_SECONDS)],
   ["sim: commanders", commanderSystem],
+  ["sim: defence", defenceSystem],
   ["sim: squads", squadSystem],
   ["sim: navigation", navigationSystem],
   ["sim: reinforcements", reinforcementSystem],
@@ -290,6 +315,8 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: artillery", artillerySystem],
   ["sim: gas", gasSystem],
   ["sim: wounds", woundSystem],
+  ["sim: spotting", spottingSystem],
+  ["sim: gun crews", gunCrewSystem],
   ["sim: movement", (sim) => movementSystem(sim, STEP_SECONDS)],
   ["sim: objectives", objectiveSystem]
 ]

@@ -4,8 +4,10 @@ import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
+import type { DefenceState } from "./defence.ts"
 import { environmentOptions, type EnvironmentState, resumeEnvironment, saveEnvironment } from "./environment.ts"
 import type { Flare } from "./flares.ts"
+import type { GunCrewState } from "./gun-crews.ts"
 import type { ReinforcementState } from "./reinforcements.ts"
 import {
   capturedIds,
@@ -16,11 +18,12 @@ import {
   soldierIds,
   spawnSoldier
 } from "./simulation.ts"
+import type { SpottingState } from "./spotting.ts"
 import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 19
+export const SIM_STATE_VERSION = 20
 
 export interface SoldierState {
   readonly id: number
@@ -91,6 +94,12 @@ export interface SimulationSnapshot {
   readonly environment: EnvironmentState
   /** Each side's men held back to replace wiped-out squads, and replacements on their way up. */
   readonly reinforcements: ReinforcementState
+  /** Machine guns that have fired lately, and which the enemy has spotted. */
+  readonly spotting: SpottingState
+  /** Squadmates on their way to take up fallen gunners' guns. */
+  readonly gunCrews: GunCrewState
+  /** When each side sent reserves up to its front line on the alarm. */
+  readonly defence: DefenceState
   /** Very lights in the air. */
   readonly flares: readonly Flare[]
 }
@@ -183,6 +192,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       full: { ...sim.reinforcements.full },
       arrivals: sim.reinforcements.arrivals.map((arrival) => ({ ...arrival }))
     },
+    spotting: { sightings: sim.spotting.sightings.map((sighting) => ({ ...sighting })) },
+    gunCrews: { pickups: sim.gunCrews.pickups.map((pickup) => ({ ...pickup })) },
+    defence: { alarmedAt: { ...sim.defence.alarmedAt } },
     flares: sim.flares.map((flare) => ({ ...flare }))
   }
 }
@@ -290,6 +302,9 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
   Object.assign(sim.reinforcements.pool, snapshot.reinforcements.pool)
   Object.assign(sim.reinforcements.full, snapshot.reinforcements.full)
   sim.reinforcements.arrivals.push(...snapshot.reinforcements.arrivals.map((arrival) => ({ ...arrival })))
+  sim.spotting.sightings.push(...snapshot.spotting.sightings.map((sighting) => ({ ...sighting })))
+  sim.gunCrews.pickups.push(...snapshot.gunCrews.pickups.map((pickup) => ({ ...pickup })))
+  Object.assign(sim.defence.alarmedAt, snapshot.defence.alarmedAt)
   sim.flares.push(...snapshot.flares.map((flare) => ({ ...flare })))
   snapshot.objectives.forEach((saved, index) => {
     const objective = sim.objectives[index]

@@ -47,7 +47,8 @@ export type {
   WindCommand,
   ClockCommand,
   ForecastCommand,
-  TakeCommandCommand
+  TakeCommandCommand,
+  TakeOverSquadCommand
 } from "./commands.ts"
 export { MaskState, Side, Stance } from "./components.ts"
 export { type CaptureEvent, surrender } from "./capture.ts"
@@ -85,7 +86,19 @@ export {
   KILLED_OUTRIGHT,
   type WoundedEvent
 } from "./wounds.ts"
-export { allotReinforcements, arrivalOf, type ReinforcementEvent, type ReinforcementState } from "./reinforcements.ts"
+export {
+  allotReinforcements,
+  arrivalOf,
+  type ReinforcementEvent,
+  type ReinforcementState,
+  type SquadTakenOverEvent,
+  TAKE_OVER_MIN_MEN,
+  takeOverCandidates,
+  takeOverSquad
+} from "./reinforcements.ts"
+export { type GunSighting, type GunSpottedEvent, SPOTTED_SECONDS, spottedGuns } from "./spotting.ts"
+export type { GunMannedEvent } from "./gun-crews.ts"
+export type { CounterThrustEvent, StandToEvent } from "./defence.ts"
 export { createSquad, isAlive, nextLivingMember, type Squad, type SquadOrder, SQUAD_THINK_INTERVAL } from "./squads.ts"
 export {
   restoreSimulation,

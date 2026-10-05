@@ -9,7 +9,9 @@ import {
   redeploySeconds,
   REDEPLOY_SECONDS,
   returnToPool,
-  SCRAPED_SQUAD
+  SCRAPED_SQUAD,
+  takeOverCandidates,
+  takeOverSquad
 } from "./reinforcements.ts"
 import {
   createSimulation,
@@ -213,5 +215,77 @@ describe("reinforcements", () => {
     stepFor(restored, REDEPLOY_SECONDS)
     expect(restored.squads[squad.id]?.members).toEqual(squad.members)
     expect(takeSnapshot(restored)).toEqual(takeSnapshot(sim))
+  })
+})
+
+describe("taking over a squad", () => {
+  /** A wiped-out player squad on the front line and a bot squad of eight holding further along it. */
+  function wipedWithNeighbour(sim: Simulation) {
+    const player = frontSquad(sim, "player")
+    const members = Array.from({ length: 8 }, (_, slot) =>
+      spawnSoldier(sim, { side: Side.French, x: 140 + slot * 3, z: 100 })
+    )
+    const bots = createSquad(sim, Side.French, members, "ai")
+    bots.order = { kind: "hold" }
+    wipeOut(sim, player)
+    stepFor(sim, 1)
+    return { player, bots, members }
+  }
+
+  it("hands a wiped-out player the men of a bot squad at once, and sends the bot squad's replacements to where it held", () => {
+    const sim = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
+    const { player, bots, members } = wipedWithNeighbour(sim)
+    expect(arrivalOf(sim, player)).toBeGreaterThan(sim.tick)
+    const poolBefore = sim.reinforcements.pool[Side.French]
+
+    expect(takeOverCandidates(sim, player)).toEqual([bots])
+    expect(takeOverSquad(sim, player, bots)).toBe(true)
+
+    expect(player.members).toEqual(members)
+    expect(player.leader).toBe(members[0])
+    expect(player.order).toEqual({ kind: "hold" })
+    expect(members.every((member) => sim.soldiers.squad.id[member] === player.id)).toBe(true)
+    expect(sim.events).toContainEqual({
+      type: "squad-taken-over",
+      side: Side.French,
+      squad: player.id,
+      from: bots.id,
+      men: 8
+    })
+    // The player's replacements go back to the pool; the empty bot squad's come up behind where it stood.
+    expect(arrivalOf(sim, player)).toBe(-1)
+    expect(bots.members).toEqual([])
+    expect(sim.reinforcements.pool[Side.French]).toBe(poolBefore)
+    const events = stepFor(sim, redeploySeconds(sim.reinforcements, Side.French) + 1)
+    expect(events).toContainEqual({ type: "reinforcement", side: Side.French, squad: bots.id, men: FULL_SQUAD })
+    expect(Math.abs(sim.soldiers.position.x[bots.members[0] ?? -1] - 150.5)).toBeLessThan(15)
+  })
+
+  it("takes over through a command, as input and the network will send it", () => {
+    const sim = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
+    const { player, bots, members } = wipedWithNeighbour(sim)
+    enqueueCommand(sim, { type: "take-over-squad", squad: player.id, from: bots.id })
+    stepFor(sim, 0.05)
+
+    expect(player.members).toEqual(members)
+  })
+
+  it("won't hand over a squad in contact, an understrength one, or any squad while the player's still has men", () => {
+    const sim = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
+    const { player, bots, members } = wipedWithNeighbour(sim)
+    const german = spawnSoldier(sim, { side: Side.German, x: 150, z: 120 })
+    expect(takeOverCandidates(sim, player)).toEqual([])
+    expect(takeOverSquad(sim, player, bots)).toBe(false)
+
+    enqueueCommand(sim, { type: "kill", soldier: german })
+    for (const soldier of members.slice(0, 5)) {
+      enqueueCommand(sim, { type: "kill", soldier })
+    }
+    stepFor(sim, 0.1)
+    expect(takeOverCandidates(sim, player)).toEqual([])
+
+    const alive = createSimulation({ map: sector(), seed: 1, reinforcements: { [Side.French]: 100 } })
+    const standing = frontSquad(alive, "player")
+    expect(takeOverCandidates(alive, standing)).toEqual([])
   })
 })

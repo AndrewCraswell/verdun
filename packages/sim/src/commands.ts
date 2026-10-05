@@ -3,6 +3,7 @@ import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
 import { type Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
+import { takeOverSquad } from "./reinforcements.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import type { SquadOrder } from "./squads.ts"
 import { createForecast, type ForecastSpec } from "./weather.ts"
@@ -57,6 +58,16 @@ export interface TakeCommandCommand {
   readonly type: "take-command"
   readonly squad: number
   readonly soldier: EntityId
+}
+
+/**
+ * A wiped-out player's squad takes over the men of a bot squad in the line, instead of waiting for replacements: see
+ * `takeOverCandidates` for which squads qualify. Ignored if `from` doesn't.
+ */
+export interface TakeOverSquadCommand {
+  readonly type: "take-over-squad"
+  readonly squad: number
+  readonly from: number
 }
 
 /** Kills a soldier outright. A stand-in for weapons until combat lands, and handy for tests and debugging. */
@@ -182,6 +193,7 @@ export type Command =
   | FaceCommand
   | SquadOrderCommand
   | TakeCommandCommand
+  | TakeOverSquadCommand
   | KillCommand
   | FireCommand
   | StanceCommand
@@ -262,6 +274,14 @@ export function applyCommand(sim: Simulation, command: Command): void {
       }
       removeComponent(sim.world, command.soldier, sim.soldiers.moveOrder)
       squad.leader = command.soldier
+      return
+    }
+    case "take-over-squad": {
+      const squad = sim.squads[command.squad]
+      const from = sim.squads[command.from]
+      if (squad && from) {
+        takeOverSquad(sim, squad, from)
+      }
       return
     }
     case "kill": {

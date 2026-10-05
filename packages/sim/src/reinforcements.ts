@@ -3,6 +3,7 @@ import type { EntityId } from "bitecs"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { clampToMap, type Simulation, spawnSoldier, TICK_RATE } from "./simulation.ts"
+import { soldiersNear } from "./spatial.ts"
 import { isAlive, type Squad } from "./squads.ts"
 
 /** Men in a full squad. A wiped squad comes back at this strength while the pool can spare them. */
@@ -34,6 +35,8 @@ export interface Arrival {
   readonly at: number
   /** Men coming up, already taken from the pool. */
   readonly men: number
+  /** Where along the front they come up to, when the squad has no men left to say: one taken over by a player. */
+  readonly x?: number
 }
 
 /** Each side's reinforcements for the sector: men held back to replace losses, and squads on their way up. */
@@ -47,6 +50,17 @@ export interface ReinforcementState {
   readonly full: Record<Side, number>
   /** Replacements on their way up, in the order squads were wiped out. */
   readonly arrivals: Arrival[]
+}
+
+/** A wiped-out player's squad taking over a bot squad's men, for the HUD and the battle log. */
+export interface SquadTakenOverEvent {
+  readonly type: "squad-taken-over"
+  readonly side: Side
+  /** The player's squad, which now has the men. */
+  readonly squad: number
+  /** The bot squad they came from, now empty and waiting for replacements. */
+  readonly from: number
+  readonly men: number
 }
 
 /** Replacements reaching the rear trench, for the battle log and for sound. */
@@ -158,9 +172,9 @@ function arrivalPositions(sim: Simulation, side: Side, x: number, count: number)
 }
 
 /** Refills a wiped squad with `men` fresh men in its side's rear trench, keeping each slot's weapon. */
-function bringUp(sim: Simulation, squad: Squad, men: number): void {
+function bringUp(sim: Simulation, squad: Squad, men: number, x = squadX(sim, squad)): void {
   const weapons = squad.members.map((member) => sim.soldiers.weapon.kind[member])
-  const recruits: EntityId[] = arrivalPositions(sim, squad.side, squadX(sim, squad), men).map(({ x, z }, slot) =>
+  const recruits: EntityId[] = arrivalPositions(sim, squad.side, x, men).map(({ x, z }, slot) =>
     spawnSoldier(sim, {
       side: squad.side,
       x,
@@ -206,7 +220,99 @@ export function reinforcementSystem(sim: Simulation): void {
     }
     state.arrivals.splice(index, 1)
     if (squad && isWipedOut(sim, squad)) {
-      bringUp(sim, squad, arrival.men)
+      bringUp(sim, squad, arrival.men, arrival.x)
     }
   }
+}
+
+/** A squad a player can take over must have at least this many men standing... */
+export const TAKE_OVER_MIN_MEN = 4
+/** ...and no enemy within this many metres of any of them: nobody takes over a fight in progress. */
+export const TAKE_OVER_CLEAR = 30
+
+/** Where a squad is: the middle of its men, standing or fallen. */
+function squadMiddle(sim: Simulation, squad: Squad): { x: number; z: number } {
+  const { x, z } = sim.soldiers.position
+  const count = Math.max(1, squad.members.length)
+  return {
+    x: squad.members.reduce((sum, member) => sum + x[member], 0) / count,
+    z: squad.members.reduce((sum, member) => sum + z[member], 0) / count
+  }
+}
+
+/** Whether any enemy of a squad's side stands within `TAKE_OVER_CLEAR` of its living men. */
+function inContact(sim: Simulation, squad: Squad, living: readonly EntityId[]): boolean {
+  const { position, side } = sim.soldiers
+  return living.some((member) =>
+    soldiersNear(sim, position.x[member], position.z[member], TAKE_OVER_CLEAR).some((other) => {
+      const dx = position.x[other] - position.x[member]
+      const dz = position.z[other] - position.z[member]
+      return (
+        side.value[other] !== squad.side &&
+        isAlive(sim, other) &&
+        dx * dx + dz * dz <= TAKE_OVER_CLEAR * TAKE_OVER_CLEAR
+      )
+    })
+  )
+}
+
+/**
+ * The bot squads a wiped-out player's squad can take over, nearest first: its own side's, with at least four men
+ * standing and none of them in contact. Taking one over is instant, so a player is back in the fight in seconds, not
+ * after the walk up from the rear.
+ */
+export function takeOverCandidates(sim: Simulation, squad: Squad): Squad[] {
+  if (squad.controller !== "player" || !isWipedOut(sim, squad)) {
+    return []
+  }
+  const from = squadMiddle(sim, squad)
+  const distance = (other: Squad) => {
+    const middle = squadMiddle(sim, other)
+    return (middle.x - from.x) ** 2 + (middle.z - from.z) ** 2
+  }
+  return sim.squads
+    .filter((other) => {
+      if (other === squad || other.side !== squad.side || other.controller !== "ai") {
+        return false
+      }
+      const living = other.members.filter((member) => isAlive(sim, member))
+      return living.length >= TAKE_OVER_MIN_MEN && !inContact(sim, other, living)
+    })
+    .sort((a, b) => distance(a) - distance(b) || a.id - b.id)
+}
+
+/**
+ * Moves a bot squad's living men into a wiped-out player's squad: the player commands them from now on, under the
+ * order they already had. The bot squad is left empty and is replaced from the pool like any wiped-out bot squad. Any
+ * replacements already on their way to the player's squad go back to the pool. Returns whether it happened.
+ */
+export function takeOverSquad(sim: Simulation, squad: Squad, from: Squad): boolean {
+  if (!takeOverCandidates(sim, squad).includes(from)) {
+    return false
+  }
+  const state = sim.reinforcements
+  const arrival = state.arrivals.findIndex((candidate) => candidate.squad === squad.id)
+  if (arrival >= 0) {
+    state.pool[squad.side] += state.arrivals[arrival]!.men
+    state.arrivals.splice(arrival, 1)
+  }
+  const living = from.members.filter((member) => isAlive(sim, member))
+  for (const member of living) {
+    sim.soldiers.squad.id[member] = squad.id
+  }
+  squad.members.splice(0, squad.members.length, ...living)
+  squad.leader = living[0] ?? -1
+  squad.order = from.order
+  // The bot squad is sent replacements behind the stretch it held, as if it had been wiped out there.
+  const held = squadMiddle(sim, from)
+  from.members.splice(0, from.members.length)
+  from.leader = -1
+  const men = replacementSize(state, from)
+  if (men > 0) {
+    const at = sim.tick + Math.round(redeploySeconds(state, from.side) * TICK_RATE)
+    state.pool[from.side] = Math.max(0, state.pool[from.side] - Math.min(men, Math.floor(state.pool[from.side])))
+    state.arrivals.push({ squad: from.id, at, men, x: held.x })
+  }
+  sim.events.push({ type: "squad-taken-over", side: squad.side, squad: squad.id, from: from.id, men: living.length })
+  return true
 }
