@@ -1,4 +1,4 @@
-import type { EntityId, Simulation, Squad } from "@verdun/sim"
+import type { EntityId, Simulation, Squad, SquadOrder } from "@verdun/sim"
 import type { HudState } from "./hud-state.ts"
 
 /**
@@ -53,6 +53,8 @@ export interface HudContext {
   takeSoldier(soldier: EntityId): void
   /** With the player's squad wiped out, takes over a bot squad's men, if it can still be handed over. */
   takeOverSquad(squad: number): void
+  /** Gives the player's squad an order, as F, H and E do. */
+  orderSquad(order: SquadOrder): void
   /** Swings the camera to look at a point on the ground, as if following a man there. */
   lookAt(x: number, z: number): void
   /** Sets how far back the camera stands, in metres. */

@@ -1,0 +1,72 @@
+/* H7: the orders wheel, round the pointer. Dark plates, brass on the order pointed at. */
+.order-wheel {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  animation: ow-in var(--hud-fast) var(--hud-ease) both;
+}
+
+@keyframes ow-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+.ow-wedge__shape {
+  fill: var(--hud-plate-deep);
+  stroke: var(--hud-hairline-strong);
+  stroke-width: 1;
+  transition: fill var(--hud-fast) var(--hud-ease);
+}
+
+.ow-wedge__icon {
+  color: var(--hud-ink-2);
+}
+
+.ow-wedge__label,
+.ow-wedge__key {
+  font-family: var(--hud-font-ui);
+  text-anchor: middle;
+}
+
+.ow-wedge__label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--hud-ink);
+}
+
+.ow-wedge__key {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--hud-ink-3);
+}
+
+.ow-wedge.is-chosen .ow-wedge__shape {
+  fill: rgb(70 56 30 / 92%);
+  stroke: var(--hud-brass-bright);
+  stroke-width: 1.6;
+}
+
+.ow-wedge.is-chosen .ow-wedge__icon,
+.ow-wedge.is-chosen .ow-wedge__key {
+  color: var(--hud-brass-bright);
+  fill: var(--hud-brass-bright);
+}
+
+.ow-wedge.is-unavailable {
+  opacity: 0.35;
+}
+
+.ow-centre__ring {
+  fill: rgb(12 11 8 / 55%);
+  stroke: var(--hud-ink-4);
+  stroke-width: 1;
+}
+
+.ow-centre__cross {
+  stroke: var(--hud-brass);
+  stroke-width: 1.4;
+}

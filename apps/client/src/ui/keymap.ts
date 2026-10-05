@@ -16,10 +16,12 @@ export type KeyAction =
   | "throw"
   | "crouch"
   | "prone"
+  | "act"
   | "next-soldier"
   | "follow"
   | "hold"
   | "advance"
+  | "orders"
   | "take-over"
   | "bombard"
   | "fire-mission"
@@ -61,7 +63,12 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "run", label: "Run, while you have the breath", keys: ["ShiftLeft", "ShiftRight"] },
       { action: "throw", label: "Hold to aim a grenade at the pointer, let go to throw", keys: ["KeyQ"] },
       { action: "crouch", label: "Crouch, or stand back up", keys: ["KeyC"] },
-      { action: "prone", label: "Lie down and crawl, or get back up", keys: ["KeyZ"] }
+      { action: "prone", label: "Lie down and crawl, or get back up", keys: ["KeyZ"] },
+      {
+        action: "act",
+        label: "Climb the wire fence ahead, or man the machine gun beside you; again to leave the gun",
+        keys: ["Space"]
+      }
     ]
   },
   {
@@ -71,6 +78,7 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "follow", label: "Squad order: follow me", keys: ["KeyF"] },
       { action: "hold", label: "Squad order: hold", keys: ["KeyH"] },
       { action: "advance", label: "Squad order: advance to the point under the pointer", keys: ["KeyE"] },
+      { action: "orders", label: "Hold for the orders wheel: point at an order and let go", keys: ["KeyR"] },
       { action: "take-over", label: "Take over the nearest squad, when yours is lost", keys: ["KeyT"] }
     ]
   },
@@ -90,7 +98,7 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "pan-back", label: "Pan back", keys: ["ArrowDown"] },
       { action: "pan-left", label: "Pan left; with Shift, turn", keys: ["ArrowLeft"] },
       { action: "pan-right", label: "Pan right; with Shift, turn", keys: ["ArrowRight"] },
-      { action: "recentre", label: "Back to the soldier you control", keys: ["Space"] }
+      { action: "recentre", label: "Back to the soldier you control", keys: ["Home", "KeyL"] }
     ]
   },
   {

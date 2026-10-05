@@ -12,6 +12,7 @@ import { logFeed } from "./elements/log-feed.ts"
 import { objectivesPanel } from "./elements/objectives-panel.ts"
 import { operationClock } from "./elements/operation-clock.ts"
 import { orderPlate } from "./elements/order-plate.ts"
+import { orderWheel } from "./elements/order-wheel.ts"
 import { rosterStrip } from "./elements/roster-strip.ts"
 import { screenEffects } from "./elements/screen-effects.ts"
 import { soldierCard } from "./elements/soldier-card.ts"
@@ -38,6 +39,7 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   // H9 and W7: the grenade's arc, reach and blast while the throw key is held, over every other mark.
   throwPreviewMarks,
   callPreviewMarks,
+  orderWheel,
   takeOverMarks,
   gunMarks,
   // Bottom left, from the bottom: H1, H3 and H4; H5; H6; H2 beside them.

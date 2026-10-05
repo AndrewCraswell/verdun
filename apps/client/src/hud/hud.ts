@@ -165,6 +165,9 @@ export function createHud(
         enqueueCommand(sim, { type: "take-command", squad: squad.id, soldier })
       }
     },
+    orderSquad(order) {
+      enqueueCommand(sim, { type: "squad-order", squad: squad.id, order })
+    },
     takeOverSquad(from) {
       // The same command T sends, through the player's own: the simulation checks the squad can still be taken.
       enqueueCommand(sim, { type: "take-over-squad", squad: squad.id, from })
@@ -206,6 +209,10 @@ export function createHud(
 
   let state: HudState | null = null
   let sinceRedraw = Infinity
+  // The man under control and the squad's strength as last drawn: a change (a click on a tile, a number key, a squad
+  // taken over) shows at once, once the simulation has made it, not at the next redraw.
+  let drawnLeader = -1
+  let drawnMembers = -1
   // The overview: up while its key is held, or kept up by a tap until the next.
   let held = false
   let pinned = false
@@ -227,6 +234,8 @@ export function createHud(
     }
     const next = model.read(seconds(), now(), current)
     state = next
+    drawnLeader = squad.leader
+    drawnMembers = squad.members.length
     // A zone set to show always sees the overview's state; one set to hide is drawn but kept out of sight.
     const always: HudState = { ...next, view: { ...next.view, overview: true } }
     for (const element of built) {
@@ -311,7 +320,8 @@ export function createHud(
     },
     update(frameSeconds) {
       sinceRedraw += frameSeconds
-      if (sinceRedraw >= 1 / REDRAWS_PER_SECOND) {
+      const changed = squad.leader !== drawnLeader || squad.members.length !== drawnMembers
+      if (changed || sinceRedraw >= 1 / REDRAWS_PER_SECOND) {
         sinceRedraw = 0
         redraw()
       }
