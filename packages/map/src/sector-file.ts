@@ -1,16 +1,19 @@
 import type { Crater } from "./craters.ts"
+import type { Objective, SceneryKind } from "./scenery.ts"
 import {
   type Frame,
   HEADING_DECIMALS,
   isFiniteNumber,
   isPositiveNumber,
   isRecord,
+  isSceneryKind,
   METRE_DECIMALS,
   objectPosition,
   PIXEL_DECIMALS,
   polylinePoints,
   propertiesOf,
   readLayer,
+  readObjective,
   round,
   TILED_PIXELS_PER_METRE,
   type TiledImageLayer,
@@ -60,6 +63,12 @@ export interface SectorFeatures {
   readonly craters: readonly Crater[]
   /** Each side's trench system: the French first, then the Germans. */
   readonly sides: readonly TrenchSide[]
+  /** Batteries of field guns, each gun dug in at its point if the ground there is clear. */
+  readonly batteries: readonly Battery[]
+  /** Things placed by hand, such as wrecks and concrete posts: each at the nearest clear spot to where it's drawn. */
+  readonly placed: readonly Placed[]
+  /** The ground both sides fight over. */
+  readonly objectives: readonly Objective[]
   /** The surveyed ground drawn as shaded relief (scripts/sector-backdrop.mjs), shown under the features in Tiled. */
   readonly backdrop?: string
 }
@@ -81,6 +90,21 @@ export interface TrenchSide {
   readonly saps: readonly number[]
   /** How far in front of the front line each belt of wire is staked, in metres. */
   readonly wire: readonly number[]
+}
+
+export interface Battery {
+  readonly guns: readonly GroundPoint[]
+  /** Radians clockwise from north: where the guns point. */
+  readonly heading: number
+}
+
+export interface Placed {
+  readonly kind: SceneryKind
+  readonly x: number
+  readonly z: number
+  readonly heading: number
+  /** The clear ground it needs round it, in metres. */
+  readonly radius: number
 }
 
 export interface Village {
@@ -133,6 +157,8 @@ export interface Wood {
 const LAYERS = {
   survey: "survey",
   trenches: "trenches",
+  positions: "positions",
+  objectives: "objectives",
   ground: "ground",
   roads: "roads",
   railways: "railways",
@@ -279,6 +305,17 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
     ...side.saps.map((x) => point("sap", "", [x, lineZ(side.front, x)], [label("side", side.side)]))
   ])
 
+  const degrees = (heading: number) => float("heading", round(toDegrees(heading), HEADING_DECIMALS))
+  const positions = [
+    ...features.batteries.map((battery) => polyline("battery", "", battery.guns, [degrees(battery.heading)])),
+    ...features.placed.map((item) =>
+      point(item.kind, "", [item.x, item.z], [degrees(item.heading), float("radius", metres(item.radius))])
+    )
+  ]
+  const objectives = features.objectives.map((objective) =>
+    point("", objective.name, [objective.x, objective.z], [float("radius", metres(objective.radius))])
+  )
+
   const layer = (
     id: number,
     name: string,
@@ -323,6 +360,8 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
       ...survey,
       layer(1, LAYERS.ground, ground),
       layer(7, LAYERS.trenches, trenches),
+      layer(8, LAYERS.positions, positions),
+      layer(9, LAYERS.objectives, objectives),
       layer(2, LAYERS.woods, woods),
       layer(3, LAYERS.roads, roads, [
         float("frenchRear", metres(features.rearRoads.french)),
@@ -331,7 +370,7 @@ export function toTiledSector(features: SectorFeatures): TiledSectorMap {
       layer(4, LAYERS.railways, railways),
       layer(5, LAYERS.landmarks, landmarks)
     ],
-    nextlayerid: 8,
+    nextlayerid: 10,
     nextobjectid: nextId,
     orientation: "orthogonal",
     properties: [
@@ -539,6 +578,25 @@ export function fromTiledSector(json: unknown): SectorFeatures {
   })
 
   const sides = readTrenchSides(frame, layers)
+  const batteries: Battery[] = []
+  const placed: Placed[] = []
+  readLayer(layers, LAYERS.positions, (object, label) => {
+    const kind = kindOf(object)
+    const own = propertiesOf(object, label)
+    const heading = own.get("heading") ?? 0
+    if (!isFiniteNumber(heading)) {
+      throw new TypeError(`${label} needs a heading in degrees, got ${JSON.stringify(heading)}`)
+    }
+    if (kind === "battery") {
+      batteries.push({ guns: polylinePoints(frame, object, label), heading: toRadians(heading) })
+    } else if (isSceneryKind(kind)) {
+      const [x, z] = pointOf(frame, object, label)
+      placed.push({ kind, x, z, heading: toRadians(heading), radius: positive(own, "radius", label) })
+    } else {
+      throw new TypeError(`${label} has class ${JSON.stringify(kind)}; expected battery or a kind of scenery`)
+    }
+  })
+  const objectives = readLayer(layers, LAYERS.objectives, (object, label) => readObjective(frame, object, label)).items
   const survey = layers.find((layer) => isRecord(layer) && layer.name === LAYERS.survey)
   const backdrop = isRecord(survey) && typeof survey.image === "string" ? survey.image : undefined
   const [cross] = crossroads
@@ -574,6 +632,9 @@ export function fromTiledSector(json: unknown): SectorFeatures {
     woods,
     craters,
     sides,
+    batteries,
+    placed,
+    objectives,
     ...(backdrop ? { backdrop } : {})
   }
 }

@@ -213,3 +213,29 @@ describe("lineZ", () => {
     expect(lineZ([], 5)).toBe(0)
   })
 })
+
+describe("sector files' positions and objectives", () => {
+  it("read the batteries, the things placed by hand and the objectives", () => {
+    const features = fromTiledSector(fleury())
+    expect(features.batteries.map((battery) => battery.guns.length)).toEqual([4, 3])
+    expect(features.batteries[1]?.heading).toBeCloseTo(Math.PI)
+    expect(features.placed.map((item) => item.kind)).toEqual([
+      "wrecked-gun",
+      "wrecked-gun",
+      "wrecked-plane",
+      "bunker",
+      "bunker",
+      "bunker"
+    ])
+    expect(features.objectives.map((objective) => objective.name)).toContain("Fleury crossroads")
+  })
+
+  it("say what they can't place", () => {
+    expect(() => fromTiledSector(edited("positions", (battery) => (battery.type = "regiment")))).toThrow(
+      "expected battery or a kind of scenery"
+    )
+    const heading = edited("positions", (battery) => (battery.properties = [{ name: "heading", value: "north" }]))
+    expect(() => fromTiledSector(heading)).toThrow("heading in degrees")
+    expect(() => fromTiledSector(edited("objectives", (objective) => (objective.name = "")))).toThrow("needs a name")
+  })
+})

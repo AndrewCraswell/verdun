@@ -98,8 +98,6 @@ const ROADS = FEATURES.roads
 /** The village's other streets: the cross street the survey shows meeting the main street near the French line, and
  * the lane out to the sunken road. */
 const SIDE_STREETS = FEATURES.streets.slice(1)
-/** Where the cross street meets the main street. */
-const CROSSROADS = FEATURES.crossroads
 /** Roads behind the lines keep their surface; the one through no man's land and the village is shelled to nothing. */
 const REAR_ROAD_LIMITS = FEATURES.rearRoads
 const ROAD_HALF_WIDTH = 2.4
@@ -1097,20 +1095,6 @@ function ravineCrossing(): number {
   return best.x
 }
 
-/** The ground both sides fight over. */
-function objectivesOf(): Objective[] {
-  const [mouthX, mouthZ] = RAVINE[RAVINE.length - 1] ?? [250, 182]
-  const [crossroadsX, crossroadsZ] = CROSSROADS
-  const head = ravineCrossing()
-  return [
-    { name: "Fleury", x: VILLAGE.x, z: VILLAGE.z, radius: 28 },
-    { name: "Fleury crossroads", x: crossroadsX, z: crossroadsZ, radius: 14 },
-    { name: "The mine craters", x: 308, z: 218, radius: 18 },
-    { name: "Ravin de la Dame", x: mouthX - 10, z: mouthZ + 12, radius: 18 },
-    { name: "Ravine head", x: head, z: germanFront(head), radius: 16 }
-  ]
-}
-
 /**
  * A layout drawn by hand, for example in Tiled (see tiled.ts): trenches, wire and scenery to use in place of the
  * generated ones, and objectives if it has them. Pools and bridges follow the generated craters and roads, so they are
@@ -1173,7 +1157,7 @@ export function generateFleurySector({
   const placer = createPlacer(segments, sceneryRandom)
   placeBridges(segments, placer)
   placePools(map, craters, placer, sceneryRandom, levels.low + 1.5)
-  const objectives = layout?.objectives ? [...layout.objectives] : objectivesOf()
+  const objectives = layout?.objectives ? [...layout.objectives] : [...FEATURES.objectives]
   if (layout) {
     placer.layRailways(railways)
     placer.scenery.push(...layout.scenery.filter((item) => item.kind !== "pool" && item.kind !== "bridge"))
@@ -1184,33 +1168,14 @@ export function generateFleurySector({
   }
 
   placeVillage(placer, craters, sceneryRandom)
-  placeBattery(
-    placer,
-    [
-      [138, 12],
-      [162, 13],
-      [186, 12],
-      [210, 13]
-    ],
-    0
-  )
-  placeBattery(
-    placer,
-    [
-      [252, 392],
-      [276, 392],
-      [300, 391]
-    ],
-    Math.PI
-  )
-  placeNear(placer, "wrecked-gun", 338, 62, 0.4, 3)
-  placeNear(placer, "wrecked-gun", 432, 388, 2.8, 3)
-  placeNear(placer, "wrecked-plane", 262, 203, 2.2, 5)
-  // Concrete machine-gun posts behind the German front, one of them sited to sweep the ravine.
-  const ravine = ravineCrossing()
-  for (const x of [ravine + 9, 258, 392]) {
-    placeNear(placer, "bunker", x, germanFront(x) + 15, Math.PI, 4)
+  // The batteries, then the wrecks and concrete posts, each at the nearest clear spot to where it's drawn.
+  for (const battery of FEATURES.batteries) {
+    placeBattery(placer, battery.guns, battery.heading)
   }
+  for (const item of FEATURES.placed) {
+    placeNear(placer, item.kind, item.x, item.z, item.heading, item.radius)
+  }
+  const ravine = ravineCrossing()
   const frenchWire = wireBelts(seed, french, frenchTrenches, germanTrenches)
   const germanWire = wireBelts(seed, german, germanTrenches, frenchTrenches)
   for (const [side, trenchesOfSide, wire] of [

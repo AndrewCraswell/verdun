@@ -275,7 +275,7 @@ export function isPositiveNumber(value: unknown): value is number {
   return isFiniteNumber(value) && value > 0
 }
 
-function isSceneryKind(value: unknown): value is SceneryKind {
+export function isSceneryKind(value: unknown): value is SceneryKind {
   return SCENERY_KINDS.some((kind) => kind === value)
 }
 
@@ -391,7 +391,7 @@ function readScenery(frame: Frame, object: Record<string, unknown>, label: strin
   return { kind, x: mapX, z: mapZ, heading: toRadians(heading), variant, scale }
 }
 
-function readObjective(frame: Frame, object: Record<string, unknown>, label: string): Objective {
+export function readObjective(frame: Frame, object: Record<string, unknown>, label: string): Objective {
   if (object.point !== true) {
     throw new TypeError(`${label} must be a point object`)
   }

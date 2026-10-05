@@ -2025,6 +2025,337 @@
   },
   {
    "draworder": "index",
+   "id": 8,
+   "name": "positions",
+   "objects": [
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 53,
+     "name": "",
+     "polyline": [
+      {
+       "x": 0,
+       "y": 0
+      },
+      {
+       "x": 240,
+       "y": -10
+      },
+      {
+       "x": 480,
+       "y": 0
+      },
+      {
+       "x": 720,
+       "y": -10
+      }
+     ],
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 0
+      }
+     ],
+     "type": "battery",
+     "x": 1380,
+     "y": 3880
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 54,
+     "name": "",
+     "polyline": [
+      {
+       "x": 0,
+       "y": 0
+      },
+      {
+       "x": 240,
+       "y": 0
+      },
+      {
+       "x": 480,
+       "y": 10
+      }
+     ],
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 180
+      }
+     ],
+     "type": "battery",
+     "x": 2520,
+     "y": 80
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 55,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 22.92
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 3
+      }
+     ],
+     "type": "wrecked-gun",
+     "x": 3380,
+     "y": 3380
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 56,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 160.43
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 3
+      }
+     ],
+     "type": "wrecked-gun",
+     "x": 4320,
+     "y": 120
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 57,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 126.05
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 5
+      }
+     ],
+     "type": "wrecked-plane",
+     "x": 2620,
+     "y": 1970
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 58,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 180
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 4
+      }
+     ],
+     "type": "bunker",
+     "x": 1750,
+     "y": 1140.9
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 59,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 180
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 4
+      }
+     ],
+     "type": "bunker",
+     "x": 2580,
+     "y": 1131.01
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 60,
+     "name": "",
+     "point": true,
+     "properties": [
+      {
+       "name": "heading",
+       "type": "float",
+       "value": 180
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 4
+      }
+     ],
+     "type": "bunker",
+     "x": 3920,
+     "y": 1141.55
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "index",
+   "id": 9,
+   "name": "objectives",
+   "objects": [
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 61,
+     "name": "Fleury",
+     "point": true,
+     "properties": [
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 28
+      }
+     ],
+     "type": "",
+     "x": 5050,
+     "y": 1950
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 62,
+     "name": "Fleury crossroads",
+     "point": true,
+     "properties": [
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 14
+      }
+     ],
+     "type": "",
+     "x": 5260,
+     "y": 2260
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 63,
+     "name": "The mine craters",
+     "point": true,
+     "properties": [
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 18
+      }
+     ],
+     "type": "",
+     "x": 3080,
+     "y": 1820
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 64,
+     "name": "Ravin de la Dame",
+     "point": true,
+     "properties": [
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 18
+      }
+     ],
+     "type": "",
+     "x": 2400,
+     "y": 2060
+    },
+    {
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "width": 0,
+     "id": 65,
+     "name": "Ravine head",
+     "point": true,
+     "properties": [
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 16
+      }
+     ],
+     "type": "",
+     "x": 1660,
+     "y": 1292.82
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "index",
    "id": 2,
    "name": "woods",
    "objects": [
@@ -2458,8 +2789,8 @@
    "y": 0
   }
  ],
- "nextlayerid": 8,
- "nextobjectid": 53,
+ "nextlayerid": 10,
+ "nextobjectid": 66,
  "orientation": "orthogonal",
  "properties": [
   {
