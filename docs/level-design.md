@@ -432,10 +432,16 @@ only those listed under `keep`. `scripts/build-sound-effects.py` cuts them:
 - It matches each sound's variations in loudness, with a limiter catching the peaks.
 
 ```
+pnpm sound:fetch
 blender -b --factory-startup -P scripts/build-sound-effects.py -- vendor/audio .asset-cache/level
 ```
 
-It writes mono Opus files and a manifest to `.asset-cache/level/sfx/`, about 5.5 MB (long loops at a lower bitrate),
+The libraries live in the asset library on E: (`docs/assets/backup.md`), not the checkout. `pnpm sound:fetch` asks the
+build which recordings it reads (`-- --sources`, 282 files, 2.6 GB of the libraries' 100 GB) and copies just those into
+`vendor/audio`. Each Ogg gets a serial number from its name, so a sound rebuilt the same is byte for byte the same, and
+git sees only the sounds that changed.
+
+It writes mono Opus files and a manifest to `.asset-cache/level/sfx/`, about 9 MB (long loops at a lower bitrate),
 swapping them in file by file. The asset pack encrypts them with the rest of the kit. The ambience beds come from the
 kit build's `audio` section.
 

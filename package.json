@@ -31,6 +31,7 @@
     "map:front": "node scripts/build-front-map.mjs",
     "weather:build": "node scripts/build-historical-weather.mjs",
     "sound:voices": "node scripts/generate-voices.mjs scripts/voice-lines.json",
+    "sound:fetch": "node scripts/fetch-sound-sources.mjs",
     "sound:music": "node scripts/build-music.mjs",
     "balance": "node scripts/balance.mjs",
     "perf": "node scripts/perf.mjs --headed"

@@ -808,14 +808,28 @@ def build(vendor, output):
     shutil.rmtree(sfx, ignore_errors=True)
 
 
+def sources(vendor):
+    """Prints every file the build reads, as a path under vendor/audio (one per line, "source: " first), so just those
+    can be fetched from the asset library (scripts/fetch-sound-sources.mjs): `vendor` is the library's vendor/audio."""
+    paths = {find(vendor, *source) for cue in CUES.values() for source in cue["sources"]}
+    takes = vendor / VOICES / "takes.json"
+    paths.add(takes)
+    paths.update(vendor / VOICES / f"{name}.mp3" for name in json.loads(VOICE_LINES.read_text(encoding="utf-8")).get("keep", []))
+    for path in sorted(paths):
+        print(f"source: vendor/audio/{path.relative_to(vendor).as_posix()}", flush=True)
+
+
 if __name__ == "__main__":
     arguments = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     if len(arguments) == 2 and arguments[0] == "--shortlist":
         shortlist(Path(arguments[1]).resolve())
+    elif len(arguments) == 2 and arguments[0] == "--sources":
+        sources(Path(arguments[1]).resolve())
     elif len(arguments) == 2:
         build(Path(arguments[0]).resolve(), Path(arguments[1]).resolve())
     else:
         sys.exit(
             "usage: blender -b --factory-startup -P scripts/build-sound-effects.py -- <vendor/audio> <output>\n"
-            "       blender -b --factory-startup -P scripts/build-sound-effects.py -- --shortlist <vendor/audio>"
+            "       blender -b --factory-startup -P scripts/build-sound-effects.py -- --shortlist <vendor/audio>\n"
+            "       blender -b --factory-startup -P scripts/build-sound-effects.py -- --sources <library's vendor/audio>"
         )
