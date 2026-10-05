@@ -776,51 +776,55 @@ async function main() {
       print(JSON.stringify(await evaluate(report), null, 1))
     }
     const results = []
-    for (const scenario of AB ? abScenarios() : SCENARIOS) {
-      // --only picks among the usual scenarios; --ab brings its own.
-      if (!AB && ONLY.length > 0 && !ONLY.includes(scenario.name)) {
-        continue
+    // What was measured is written even when a scenario fails part way.
+    try {
+      for (const scenario of AB ? abScenarios() : SCENARIOS) {
+        // --only picks among the usual scenarios; --ab brings its own.
+        if (!AB && ONLY.length > 0 && !ONLY.includes(scenario.name)) {
+          continue
+        }
+        await evaluate(scenario.setup)
+        // --profile: a CPU profile of each scenario's sample, for Chrome's DevTools, and its costliest functions here.
+        const profiles = option("--profile", "")
+        if (profiles) {
+          await cdp.send("Profiler.enable", {}, sessionId)
+          await cdp.send("Profiler.start", {}, sessionId)
+        }
+        const result = await evaluate(`__perf.sample(${SECONDS})`)
+        if (profiles) {
+          const { profile } = await cdp.send("Profiler.stop", {}, sessionId)
+          writeFileSync(join(profiles, `${scenario.name.replace(/[^\w]+/g, "-")}.cpuprofile`), JSON.stringify(profile))
+          print(costliest(profile, 15))
+        }
+        const shots = option("--shots", "")
+        if (shots) {
+          // What each scenario looked like, to check a faster setting still draws the same picture.
+          const { data } = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 80 }, sessionId)
+          writeFileSync(join(shots, `${scenario.name.replace(/[^\w]+/g, "-")}.jpg`), Buffer.from(data, "base64"))
+        }
+        if (scenario.teardown) {
+          await evaluate(scenario.teardown)
+        }
+        results.push({ scenario: scenario.name, ...result })
+        const hot = result.hot
+          .slice(0, 4)
+          .map(([name, ms]) => `${ms} ${name.replace("babylon: ", "")}`)
+          .join(" | ")
+        print(
+          `${scenario.name.padEnd(28)} ${result.fps.toFixed(1).padStart(5)} fps  ${result.frameMs.toFixed(1).padStart(5)} ms (worst ${result.worstMs.toFixed(0)})  GPU ${result.gpuMs ? `${result.gpuMs.toFixed(1)} ms, 20th pct ${result.gpuP20.toFixed(1)}` : "n/a"}  ${result.snapshot}\n${" ".repeat(30)}${hot}` +
+            (result.passes.length > 0
+              ? `\n${" ".repeat(30)}GPU: ${result.passes.map(([name, ms]) => `${ms} ${name}`).join(" | ")}`
+              : "")
+        )
       }
-      await evaluate(scenario.setup)
-      // --profile: a CPU profile of each scenario's sample, for Chrome's DevTools, and its costliest functions here.
-      const profiles = option("--profile", "")
-      if (profiles) {
-        await cdp.send("Profiler.enable", {}, sessionId)
-        await cdp.send("Profiler.start", {}, sessionId)
+    } finally {
+      const out = option("--out", "")
+      if (out) {
+        writeFileSync(out, JSON.stringify({ machine, width: WIDTH, height: HEIGHT, results }, null, 2))
       }
-      const result = await evaluate(`__perf.sample(${SECONDS})`)
-      if (profiles) {
-        const { profile } = await cdp.send("Profiler.stop", {}, sessionId)
-        writeFileSync(join(profiles, `${scenario.name.replace(/[^\w]+/g, "-")}.cpuprofile`), JSON.stringify(profile))
-        print(costliest(profile, 15))
-      }
-      const shots = option("--shots", "")
-      if (shots) {
-        // What each scenario looked like, to check a faster setting still draws the same picture.
-        const { data } = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 80 }, sessionId)
-        writeFileSync(join(shots, `${scenario.name.replace(/[^\w]+/g, "-")}.jpg`), Buffer.from(data, "base64"))
-      }
-      if (scenario.teardown) {
-        await evaluate(scenario.teardown)
-      }
-      results.push({ scenario: scenario.name, ...result })
-      const hot = result.hot
-        .slice(0, 4)
-        .map(([name, ms]) => `${ms} ${name.replace("babylon: ", "")}`)
-        .join(" | ")
-      print(
-        `${scenario.name.padEnd(28)} ${result.fps.toFixed(1).padStart(5)} fps  ${result.frameMs.toFixed(1).padStart(5)} ms (worst ${result.worstMs.toFixed(0)})  GPU ${result.gpuMs ? `${result.gpuMs.toFixed(1)} ms, 20th pct ${result.gpuP20.toFixed(1)}` : "n/a"}  ${result.snapshot}\n${" ".repeat(30)}${hot}` +
-          (result.passes.length > 0
-            ? `\n${" ".repeat(30)}GPU: ${result.passes.map(([name, ms]) => `${ms} ${name}`).join(" | ")}`
-            : "")
-      )
     }
     if (AB) {
       print(abSummary(results))
-    }
-    const out = option("--out", "")
-    if (out) {
-      writeFileSync(out, JSON.stringify({ machine, width: WIDTH, height: HEIGHT, results }, null, 2))
     }
   } catch (error) {
     print(`the page said, last:\n${cdp.errors.slice(-12).join("\n")}`)
