@@ -1,4 +1,4 @@
-import { beltLayout, createFlatMap, Surface, type WireBelt } from "@verdun/map"
+import { createFlatMap, type Scenery, Surface } from "@verdun/map"
 import {
   applySync,
   type Command,
@@ -120,30 +120,17 @@ describe("predicting the player's soldier", () => {
   })
 
   it("leaves him where the server has him while he climbs a fence, whatever the steering", () => {
-    const belt: WireBelt = {
-      points: [
-        [0, 50],
-        [100, 50]
-      ]
-    }
-    const { fences, tangles } = beltLayout(belt)
-    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 3))
-    const fenced = () => ({ ...field(), wire: [belt] })
-    // Half torn down by shellfire on both sides of the link: a belt the guns haven't broken can't be climbed.
-    const brokenUp = (sim: ReturnType<typeof createSimulation>) => {
-      sim.wire.density.forEach((density, cell) => {
-        sim.wire.density[cell] = density / 2
-      })
-      return sim
-    }
-    const server = brokenUp(createSimulation({ map: fenced(), seed: 3 }))
-    // Facing the fence from 3 m short of it.
-    const leader = spawnSoldier(server, { side: Side.French, x: bare?.x ?? 0, z: 47 })
+    // A wooden fence running east-west at z = 50.
+    const fence: Scenery = { kind: "knife-rest", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
+    const fenced = () => ({ ...field(), scenery: [fence] })
+    const server = createSimulation({ map: fenced(), seed: 3 })
+    // Facing the fence from where it stops him.
+    const leader = spawnSoldier(server, { side: Side.French, x: 50, z: 49.5 })
     server.soldiers.facing.x[leader] = 0
     server.soldiers.facing.z[leader] = 1
     createSquad(server, Side.French, [leader], "player")
     const source = createSyncSource(server)
-    const mirror = brokenUp(createSimulation({ map: fenced(), seed: 3 }))
+    const mirror = createSimulation({ map: fenced(), seed: 3 })
     applySync(mirror, source.take())
     const prediction = createPrediction(mirror)
 

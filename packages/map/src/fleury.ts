@@ -585,8 +585,9 @@ function wireBelts(
 }
 
 /**
- * The simulation stamps a belt's wire this far either side of its line, past its end posts too, and a knife rest's
- * this far round it (sim/wire.ts): rests go this far apart at most, so no opening is left between them.
+ * The simulation stamps a belt's wire this far either side of its line, past its end posts too (sim/wire.ts). A knife
+ * rest (a wooden fence 3.64 m long, which men climb) clears the small stuff this far round it, and rests go this far
+ * apart at most, so their rails overlap and leave no way through but over them.
  */
 const WIRE_STAMP = { belt: 1.7, knifeRest: 1.5, apart: 2.9 } as const
 /** What a knife rest is dragged over or pushes aside: the small stuff of the ground. Anything else blocks the gap itself. */

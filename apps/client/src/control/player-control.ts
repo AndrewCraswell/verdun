@@ -42,7 +42,7 @@ export type PlayerAction =
   | { readonly kind: "order-advance"; readonly x: number; readonly z: number }
   /** Pull the trigger: the controlled soldier fires where they aim. */
   | { readonly kind: "fire" }
-  /** Climb the wire fence ahead, or man (or leave) the machine gun beside the controlled soldier. */
+  /** Climb the fence or wall ahead, or man (or leave) the machine gun beside the controlled soldier. */
   | { readonly kind: "act" }
   /** Reload the controlled soldier's weapon before it's empty. It reloads by itself when it is. */
   | { readonly kind: "reload" }
@@ -307,7 +307,7 @@ export function createPlayerControl(
         }
         return
       case "act":
-        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire.
+        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at one.
         if (squad.leader >= 0) {
           enqueueCommand(sim, { type: actionCommand(sim, squad.leader), soldier: squad.leader, ...actionHeading(sim) })
         }

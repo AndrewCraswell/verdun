@@ -3,8 +3,9 @@ import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
-import { beltLayout, type FenceLength, heightAt } from "@verdun/map"
+import { heightAt } from "@verdun/map"
 import {
+  acrossFence,
   astrideFence,
   BROKEN_MORALE,
   canRun,
@@ -340,8 +341,6 @@ export function createSoldierCrowd(
   }
   const clipOf = (name: ClipName): BakedClip => kit.clips.get(name) ?? idle
 
-  // The staked fences on the map's belts of wire, as the simulation and the art lay them out.
-  const fences = map.wire.flatMap((belt) => beltLayout(belt).fences)
   const tracks: (Track | undefined)[] = []
   const drawn: Track[] = []
   let lastTick = sim.tick
@@ -541,25 +540,9 @@ export function createSoldierCrowd(
     return faced
   }
 
-  /** Square across the fence nearest a point, of those running past it: a unit vector, or null where none does. */
-  function fenceAcross(x: number, z: number): { x: number; z: number } | null {
-    let nearest: FenceLength | null = null
-    let nearestAcross = Number.POSITIVE_INFINITY
-    for (const fence of fences) {
-      const ox = x - fence.x
-      const oz = z - fence.z
-      const across = Math.abs(ox * fence.dz - oz * fence.dx)
-      if (Math.abs(ox * fence.dx + oz * fence.dz) <= fence.length / 2 && across < nearestAcross) {
-        nearest = fence
-        nearestAcross = across
-      }
-    }
-    return nearest && { x: nearest.dz, z: -nearest.dx }
-  }
-
   /**
-   * Starts or ends a man's climb over a fence: he's on it from the first step he takes across its line where the wire
-   * stands until he's past it, a vault on an order and on the action key alike, and he faces square across it. The
+   * Starts or ends a man's climb over a fence or low wall: he's on it from the first step he takes across its line until
+   * he's past it, a vault on an order and on the action key alike, and he faces square across it. The
    * simulation keeps no word of a vault on the page, so it's read from where he is and which way he went (dx, dz) in the
    * last `seconds`.
    */
@@ -568,7 +551,7 @@ export function createSoldierCrowd(
       track.overFence = null
       return
     }
-    const across = track.overFence === null && seconds > 0 ? fenceAcross(x, z) : null
+    const across = track.overFence === null && seconds > 0 ? acrossFence(sim, x, z) : null
     const distance = Math.sqrt(dx * dx + dz * dz)
     const over = across ? dx * across.x + dz * across.z : 0
     if (across && distance >= MOVING_SPEED * seconds && Math.abs(over) >= distance * ACROSS_FENCE) {

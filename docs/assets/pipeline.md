@@ -93,9 +93,9 @@ metal-roughness PBR. Limits and gotchas:
 
      Each clip is named after its file in snake case (`rifle_walk_forward`). Mixamo clips lose their travel across the
      ground, since the simulation moves the man, but keep the hips' rise and fall and their turn. The vault with both
-     hands planted becomes `climb_over`, over a wire fence in the 1.25 s the simulation takes (vault.ts). The script
-     keys `hands_up` and `hands_up_walk` itself, a prisoner's, from the idle and the walk with the arms raised: Mixamo
-     has no one giving himself up.
+     hands planted becomes `climb_over`, over a wooden fence or low wall in the 1.25 s the simulation takes (vault.ts).
+     The script keys `hands_up` and `hands_up_walk` itself, a prisoner's, from the idle and the walk with the arms
+     raised: Mixamo has no one giving himself up.
 
   4. `blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level soldier`
      rebuilds `soldier.glb`; commit it.

@@ -5,15 +5,7 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
-import {
-  beltLayout,
-  createFlatMap,
-  generateRollingTerrain,
-  heightAt,
-  sampleIndex,
-  Surface,
-  type WireBelt
-} from "@verdun/map"
+import { createFlatMap, generateRollingTerrain, heightAt, sampleIndex, type Scenery, Surface } from "@verdun/map"
 import {
   createSimulation,
   enqueueCommand,
@@ -723,24 +715,14 @@ describe("createSoldierCrowd", () => {
   })
 
   it("climbs over a fence the whole time he's on it, square across it, and walks on beyond", () => {
-    // A belt of wire running east-west across a flat field at z = 40, and a length of its fence no tangle lies by.
-    const belt: WireBelt = {
-      points: [
-        [0, 40],
-        [100, 40]
-      ]
-    }
+    // A wooden fence running east-west across a flat field at z = 40.
+    const fence: Scenery = { kind: "knife-rest", x: 50, z: 40, heading: 0, variant: 0, scale: 1 }
     const field = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 160 }, 5, Surface.Grass)
-    const sim = createSimulation({ map: { ...field, wire: [belt] }, seed: 1 })
-    // Half torn down by shellfire: a belt the guns haven't broken can't be climbed.
-    sim.wire.density.forEach((density, cell) => {
-      sim.wire.density[cell] = density / 2
-    })
-    const { fences, tangles } = beltLayout(belt)
-    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 4)) ?? fences[0]
-    // One heads for the wire slantwise, 30 degrees east of north; the other stands in it by the fence, going nowhere.
-    const climber = spawnSoldier(sim, { side: Side.French, x: bare?.x ?? 0, z: 38.6, facing: { x: 0.5, z: 0.866 } })
-    spawnSoldier(sim, { side: Side.French, x: (bare?.x ?? 0) + 2, z: 40.1 })
+    const sim = createSimulation({ map: { ...field, scenery: [fence] }, seed: 1 })
+    // One heads for it slantwise, 30 degrees east of north, from where it's in reach; the other stands on it, going
+    // nowhere.
+    const climber = spawnSoldier(sim, { side: Side.French, x: 50, z: 39.1, facing: { x: 0.5, z: 0.866 } })
+    spawnSoldier(sim, { side: Side.French, x: 52, z: 40.42 })
     const { crowd, kit, tick, rows, matrices } = harness(sim)
     crowd.sync()
     enqueueCommand(sim, { type: "vault", soldier: climber })
@@ -770,7 +752,7 @@ describe("createSoldierCrowd", () => {
     expect(lastRow).toBeGreaterThanOrEqual((climb?.start ?? 0) + CLIP_FRAMES - 2)
     // Square across the fence, not along his slanting way.
     expect(facing.z).toBeCloseTo(1, 1)
-    expect(sim.soldiers.position.z[climber]).toBeGreaterThan(41)
+    expect(sim.soldiers.position.z[climber]).toBeGreaterThan(40.45)
     expect(clipAt(rows(kit.bodies[Side.French])[0])).not.toBe("climb_over")
   })
 

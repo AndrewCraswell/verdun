@@ -55,38 +55,38 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 
 ### Controls (prototype)
 
-| Input                           | Action                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------ |
-| W A S D                         | Move the soldier you control, relative to the camera                           |
-| Mouse                           | Aim at the man nearest the pointer, or the ground; the view leans toward it    |
-| Left-click                      | Fire                                                                           |
-| Right button, held              | Aim over the soldier's shoulder: the mouse turns him, and he walks             |
-| Arrow keys                      | Pan the camera; once it's off your man, screen edges pan too                   |
-| Shift + middle-drag             | Grab and drag the ground                                                       |
-| Middle-drag, Shift + Left/Right | Turn and tilt the camera                                                       |
-| Mouse wheel                     | Zoom, toward the pointer                                                       |
-| Home, L                         | Back to the soldier you control (moving them or switching soldier does it too) |
-| Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                 |
-| F, H                            | Squad order: follow me, hold                                                   |
-| E                               | Squad order: advance to the point under the pointer                            |
-| G, twice                        | Whistle: every French squad attacks behind a creeping barrage                  |
-| B, twice                        | Bombard the German front line for two minutes                                  |
-| V                               | Call artillery onto the point under the pointer                                |
-| O                               | Turn fog of war off or on                                                      |
-| M                               | The sector map; the battle goes on while you look                              |
-| U                               | The squad book: every man, and the fallen                                      |
-| Esc                             | The menu: the war map, options, controls; the battle waits                     |
-| Z                               | Lie down and crawl, or get back up                                             |
-| C                               | Crouch, or stand back up                                                       |
-| Space                           | Climb the wall or wire fence ahead (a fence takes a few seconds), or man a gun |
-| Q                               | Throw a grenade at the pointer                                                 |
-| F3                              | Debug statistics                                                               |
-| K                               | Dev builds only: kill the soldier you control                                  |
-| [ ]                             | Dev builds only: move the clock an hour back or forward                        |
-| Shift + [ ]                     | Dev builds only: move to the week before or after (the daily turn)             |
-| N                               | Dev builds only: hold each weather in turn, then history's again               |
-| J                               | Dev builds only: mark where soldiers have fallen                               |
-| \`                              | Dev builds only: open Babylon's Inspector                                      |
+| Input                           | Action                                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| W A S D                         | Move the soldier you control, relative to the camera                                                    |
+| Mouse                           | Aim at the man nearest the pointer, or the ground; the view leans toward it                             |
+| Left-click                      | Fire                                                                                                    |
+| Right button, held              | Aim over the soldier's shoulder: the mouse turns him, and he walks                                      |
+| Arrow keys                      | Pan the camera; once it's off your man, screen edges pan too                                            |
+| Shift + middle-drag             | Grab and drag the ground                                                                                |
+| Middle-drag, Shift + Left/Right | Turn and tilt the camera                                                                                |
+| Mouse wheel                     | Zoom, toward the pointer                                                                                |
+| Home, L                         | Back to the soldier you control (moving them or switching soldier does it too)                          |
+| Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                                          |
+| F, H                            | Squad order: follow me, hold                                                                            |
+| E                               | Squad order: advance to the point under the pointer                                                     |
+| G, twice                        | Whistle: every French squad attacks behind a creeping barrage                                           |
+| B, twice                        | Bombard the German front line for two minutes                                                           |
+| V                               | Call artillery onto the point under the pointer                                                         |
+| O                               | Turn fog of war off or on                                                                               |
+| M                               | The sector map; the battle goes on while you look                                                       |
+| U                               | The squad book: every man, and the fallen                                                               |
+| Esc                             | The menu: the war map, options, controls; the battle waits                                              |
+| Z                               | Lie down and crawl, or get back up                                                                      |
+| C                               | Crouch, or stand back up                                                                                |
+| Space                           | Climb the trench wall, wooden fence or low wall ahead; at wire, crouched or prone, cut it; or man a gun |
+| Q                               | Throw a grenade at the pointer                                                                          |
+| F3                              | Debug statistics                                                                                        |
+| K                               | Dev builds only: kill the soldier you control                                                           |
+| [ ]                             | Dev builds only: move the clock an hour back or forward                                                 |
+| Shift + [ ]                     | Dev builds only: move to the week before or after (the daily turn)                                      |
+| N                               | Dev builds only: hold each weather in turn, then history's again                                        |
+| J                               | Dev builds only: mark where soldiers have fallen                                                        |
+| \`                              | Dev builds only: open Babylon's Inspector                                                               |
 
 The game opens on its front door, with the battle loading behind it; `?play` goes straight into the line behind the
 loading screen, and `?debug` past both, for measuring. Every battle is the playtest operation, a scripted French attack

@@ -11,8 +11,7 @@ import { type NavGoal, nextWaypoint } from "./navigation.ts"
 import { clampToMap, type Simulation } from "./simulation.ts"
 import { isInTrench } from "./stance.ts"
 import { FIRE_STEP_MIDDLE, nearestTrench, onFireStep, placeOn, pointAlong } from "./trench-lines.ts"
-import { startVault, vaultLanding } from "./vault.ts"
-import { wirePace } from "./wire.ts"
+import { fenceAhead, startVault, vaultLanding } from "./vault.ts"
 
 /** A point on the ground. */
 interface Place {
@@ -381,10 +380,6 @@ function orderMoveTo(
   }
 }
 
-/** Wire this intact or worse, as a fraction of walking pace, is waded rather than walked: worth climbing its fence. */
-const WIRE_WADE = 0.5
-/** A man looks this far ahead for wire across his way, in metres. */
-const WIRE_LOOK = [0.5, 1, 1.5] as const
 /** A vault must bring him at least this much nearer where he's going, in metres. */
 const VAULT_GAIN = 1
 /** A man boxed in sidesteps this far, in metres... */
@@ -395,8 +390,9 @@ const SIDESTEP_WAYS = 16
 const BLOCKED = 0.25
 
 /**
- * When a man's way to `via` runs into a wire fence he'd otherwise wade, or a wall he'd otherwise scramble up, he climbs
- * it as a player does with Space, if that gets him nearer `target`. Boxed into a corner, he sidesteps the free way that
+ * When a man's way to `via` runs into a wooden fence or low wall, or a trench wall he'd otherwise scramble up, he climbs
+ * it as a player does with Space, if that gets him nearer `target`. Barbed wire he never climbs: his route takes him
+ * through a gap, or he wades it. Boxed into a corner, he sidesteps the free way that
  * heads most nearly where he's going. Whether he did either, which takes the place of his move order this time.
  */
 function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Place): boolean {
@@ -415,8 +411,7 @@ function overOrAround(sim: Simulation, soldier: EntityId, via: Place, target: Pl
   const toward = { x: dx / distance, z: dz / distance }
   const way = wayAhead(sim.map, x, z, toward.x, toward.z, WALKING_STRIDE, Climbing.Ordered)
   const kept = Math.sqrt(way.x * way.x + way.z * way.z)
-  const wired = WIRE_LOOK.some((ahead) => wirePace(sim.wire, x + toward.x * ahead, z + toward.z * ahead) < WIRE_WADE)
-  if (wired || (way.met === Obstacle.Wall && way.climbing) || kept < BLOCKED) {
+  if (fenceAhead(sim, soldier, toward) || (way.met === Obstacle.Wall && way.climbing) || kept < BLOCKED) {
     const landing = vaultLanding(sim, soldier, toward)
     const from = Math.sqrt((target.x - x) ** 2 + (target.z - z) ** 2)
     if (

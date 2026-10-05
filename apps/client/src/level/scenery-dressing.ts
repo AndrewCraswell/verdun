@@ -504,8 +504,7 @@ const TANGLES = ["Prop_Wire_Fence_Tangled_01", "Prop_Wire_Fence_Tangled_02", "Pr
 
 /**
  * A belt of wire as the map lays it out (`beltLayout`): a staked fence along the line, with tangled coils thrown in front
- * of and behind it. Fence pieces run along their x axis and lean with the ground between their ends. The simulation
- * reads the same layout: a man can climb the fence where no tangle lies in his way.
+ * of and behind it. Fence pieces run along their x axis and lean with the ground between their ends.
  */
 function wirePlacements(map: BattlefieldMap, belt: WireBelt): Placement[] {
   const { fences, tangles } = beltLayout(belt)

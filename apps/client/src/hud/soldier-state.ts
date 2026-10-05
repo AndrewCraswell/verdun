@@ -118,7 +118,7 @@ export interface SoldierView {
 /**
  * What the action key would do for a man now, as the player control decides it (control/player-control.ts): take over
  * a comrade's machine gun beside him, or hand his own back; stop cutting wire; down at the wire, crouched or prone, cut
- * it; else climb what's ahead of him, a trench wall or a wire fence. Null with nothing to do.
+ * it; else climb what's ahead of him, a trench wall, a wooden fence or a low wall. Null with nothing to do.
  */
 export function actionFor(sim: Simulation, soldier: EntityId): string | null {
   if (gunPartner(sim, soldier) >= 0) {
@@ -131,7 +131,7 @@ export function actionFor(sim: Simulation, soldier: EntityId): string | null {
   if (sim.soldiers.stance.value[soldier] !== Stance.Standing && canCut(sim, soldier, heading)) {
     return "Cut the wire"
   }
-  if (!vaultLanding(sim, soldier, heading, true)) {
+  if (!vaultLanding(sim, soldier, heading)) {
     return null
   }
   const { x, z } = sim.soldiers.position

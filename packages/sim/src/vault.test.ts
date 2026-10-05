@@ -1,4 +1,4 @@
-import { beltLayout, createFlatMap, sampleIndex, Surface, type WireBelt } from "@verdun/map"
+import { beltLayout, createFlatMap, sampleIndex, type Scenery, Surface, type WireBelt } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -11,9 +11,9 @@ import {
   TICK_RATE
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { astrideFence, FENCE_CLIMB_SECONDS, isVaulting, startVault, vaultLanding } from "./vault.ts"
+import { acrossFence, astrideFence, FENCE_CLIMB_SECONDS, isVaulting, startVault, vaultLanding } from "./vault.ts"
 
-/** A belt of wire running east-west across a flat field at z = 50, 100 m long: ten lengths of fence. */
+/** A belt of wire running east-west across a flat field at z = 50, 100 m long. */
 const BELT: WireBelt = {
   points: [
     [0, 50],
@@ -21,129 +21,123 @@ const BELT: WireBelt = {
   ]
 }
 
-/** Every belt half torn down, as a bombardment leaves it: wreckage that can be climbed (intact wire can't). */
-function brokenUp(sim: Simulation): Simulation {
-  sim.wire.density.forEach((density, cell) => {
-    sim.wire.density[cell] = density / 2
-  })
-  return sim
-}
+/** A wooden fence at (x, 50), its rails running east-west (it faces north), and a low stone wall the same at (x, 70). */
+const fenceAt = (x: number): Scenery => ({ kind: "knife-rest", x, z: 50, heading: 0, variant: 0, scale: 1 })
+const wallAt = (x: number): Scenery => ({ kind: "wall", x, z: 70, heading: 0, variant: 0, scale: 1 })
 
-function field(intact = false): Simulation {
+function field(scenery: readonly Scenery[] = [], wire: readonly WireBelt[] = []): Simulation {
   const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
-  const sim = createSimulation({ map: { ...map, wire: [BELT] }, seed: 1 })
-  return intact ? sim : brokenUp(sim)
+  return createSimulation({ map: { ...map, scenery, wire }, seed: 1 })
 }
 
-/** A soldier 3 m short of the belt at `x`, facing it. */
-function facingTheWire(sim: Simulation, x: number) {
-  const soldier = spawnSoldier(sim, { side: Side.French, x, z: 47 })
+/** A soldier at (x, z), facing north. */
+function facingNorth(sim: Simulation, x: number, z: number) {
+  const soldier = spawnSoldier(sim, { side: Side.French, x, z })
   sim.soldiers.facing.x[soldier] = 0
   sim.soldiers.facing.z[soldier] = 1
   return soldier
 }
 
-const { fences, tangles } = beltLayout(BELT)
-/** A length of fence with no tangle beside it, and one with. */
-const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 3))
-const tangled = tangles[0]
+/** Steps until he's over, counting the seconds he spends astride. */
+function climb(sim: Simulation, soldier: number) {
+  let astride = 0
+  let seconds = 0
+  while (isVaulting(sim, soldier) || seconds === 0) {
+    stepSimulation(sim)
+    seconds += 1 / TICK_RATE
+    if (astrideFence(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])) {
+      astride += 1 / TICK_RATE
+    }
+    if (seconds > 8) {
+      break
+    }
+  }
+  return { astride, seconds }
+}
 
-describe("vaulting a wire fence", () => {
-  it("lays the belt out as the art draws it: a fence in lengths, and tangles beside most of them", () => {
-    expect(fences).toHaveLength(10)
-    expect(tangles.length).toBeGreaterThan(3)
-    expect(tangles.length).toBeLessThan(10)
-    expect(bare).toBeDefined()
-  })
+describe("climbing a wooden fence or a low wall", () => {
+  it("walks into a fence and stops there, then climbs it, taking a few seconds over it, whatever the steering", () => {
+    const sim = field([fenceAt(50)])
+    const soldier = facingNorth(sim, 50, 47)
+    enqueueCommand(sim, { type: "steer", soldier, x: 0, z: 1 })
+    for (let step = 0; step < 3 * TICK_RATE; step++) {
+      stepSimulation(sim)
+    }
+    // The rails stop him a body's half-width short.
+    expect(sim.soldiers.position.z[soldier]).toBeLessThan(49.65)
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(49.4)
+    expect(acrossFence(sim, 50, sim.soldiers.position.z[soldier])).toEqual({ x: -0, z: -1 })
 
-  it("climbs the staked fence where no tangle lies in his way, taking a few seconds over the fence itself", () => {
-    const sim = field()
-    const soldier = facingTheWire(sim, bare?.x ?? 0)
-    const landing = vaultLanding(sim, soldier)
-    expect(landing?.z).toBeGreaterThan(51.7)
-
+    expect(vaultLanding(sim, soldier)?.z).toBeCloseTo(50.5, 5)
     enqueueCommand(sim, { type: "vault", soldier })
     // Steering mid-climb doesn't pull him off the fence.
     enqueueCommand(sim, { type: "steer", soldier, x: 1, z: 0 })
-    let astride = 0
-    let seconds = 0
-    while (isVaulting(sim, soldier) || seconds === 0) {
-      stepSimulation(sim)
-      seconds += 1 / TICK_RATE
-      if (astrideFence(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])) {
-        astride += 1 / TICK_RATE
-      }
-      expect(seconds).toBeLessThan(8)
-    }
-    // A barrier: astride it for the length of a climb, not stepped over at a walk.
-    expect(astride).toBeGreaterThan(FENCE_CLIMB_SECONDS * 0.85)
+    const { astride, seconds } = climb(sim, soldier)
+    // A barrier: on it for the length of a climb, not stepped over at a walk.
+    expect(seconds).toBeGreaterThan(FENCE_CLIMB_SECONDS * 0.9)
     expect(astride).toBeLessThan(FENCE_CLIMB_SECONDS * 1.15)
-    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(51.7)
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(50.45)
   })
 
-  it("won't climb a belt the guns haven't broken up", () => {
-    const sim = field(true)
-    const soldier = facingTheWire(sim, bare?.x ?? 0)
+  it("climbs a low stone wall the same way", () => {
+    const sim = field([wallAt(50)])
+    const soldier = facingNorth(sim, 50, 67)
+    enqueueCommand(sim, { type: "steer", soldier, x: 0, z: 1 })
+    for (let step = 0; step < 3 * TICK_RATE; step++) {
+      stepSimulation(sim)
+    }
+    // Its stones stand 0.3 m either side of its line.
+    expect(sim.soldiers.position.z[soldier]).toBeCloseTo(69.4, 3)
+    expect(startVault(sim, soldier)).toBe(true)
+    climb(sim, soldier)
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(70.6)
+  })
 
+  it("won't climb a fence he heads along, past its end, out of reach, out of breath, or while already climbing", () => {
+    const sim = field([fenceAt(50)])
+    const along = facingNorth(sim, 46, 49.5)
+    sim.soldiers.facing.x[along] = 1
+    sim.soldiers.facing.z[along] = 0
+    expect(vaultLanding(sim, along)).toBeNull()
+    // Past its end, where he walks round.
+    expect(vaultLanding(sim, facingNorth(sim, 53, 49.5))).toBeNull()
+    expect(vaultLanding(sim, facingNorth(sim, 50, 45))).toBeNull()
+
+    const winded = facingNorth(sim, 50.5, 49.5)
+    sim.soldiers.stamina.spent[winded] = 1
+    expect(startVault(sim, winded)).toBe(false)
+    sim.soldiers.stamina.spent[winded] = 0
+    expect(startVault(sim, winded)).toBe(true)
+    expect(startVault(sim, winded)).toBe(false)
+
+    const still = spawnSoldier(sim, { side: Side.French, x: 49, z: 49.5 })
+    sim.soldiers.facing.x[still] = 0
+    sim.soldiers.facing.z[still] = 0
+    expect(vaultLanding(sim, still)).toBeNull()
+  })
+
+  it("won't come down where there's no room past it", () => {
+    // A tree just behind the fence.
+    const sim = field([fenceAt(50), { kind: "tree", x: 50, z: 51, heading: 0, variant: 0, scale: 1 }])
+    expect(vaultLanding(sim, facingNorth(sim, 50, 49.5))).toBeNull()
+  })
+})
+
+describe("barbed wire", () => {
+  it("is never climbed: not the staked fence of an intact belt, nor one the guns have broken up", () => {
+    const sim = field([], [BELT])
+    const { fences } = beltLayout(BELT)
+    const soldier = facingNorth(sim, fences[3]?.x ?? 0, 47)
     expect(vaultLanding(sim, soldier)).toBeNull()
-    expect(startVault(sim, soldier)).toBe(false)
-  })
+    expect(astrideFence(sim, fences[3]?.x ?? 0, 50)).toBe(false)
 
-  it("gets a player's man over a fence however whole the belt stands", () => {
-    const sim = field(true)
-    const soldier = facingTheWire(sim, bare?.x ?? 0)
-    expect(vaultLanding(sim, soldier, undefined, true)?.z).toBeGreaterThan(51.7)
-
+    sim.wire.density.forEach((density, cell) => {
+      sim.wire.density[cell] = density / 2
+    })
+    expect(vaultLanding(sim, soldier)).toBeNull()
     enqueueCommand(sim, { type: "vault", soldier })
     stepSimulation(sim)
-    expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(true)
-  })
-
-  it("leaves a bot short of a tangle of coils across his way, a player's man climbing on over it", () => {
-    const sim = field()
-    const snared = facingTheWire(sim, tangled?.x ?? 0)
-    expect(vaultLanding(sim, snared)).toBeNull()
-    expect(startVault(sim, snared)).toBe(false)
-    enqueueCommand(sim, { type: "vault", soldier: snared })
-    stepSimulation(sim)
-    expect(hasComponent(sim.world, snared, sim.soldiers.vault)).toBe(true)
-  })
-
-  it("won't climb with no wire ahead", () => {
-    const sim = field()
-
-    const away = spawnSoldier(sim, { side: Side.French, x: 50, z: 20 })
-    sim.soldiers.facing.z[away] = 1
-    expect(vaultLanding(sim, away)).toBeNull()
-  })
-
-  it("won't climb a belt too deep to get over in one go, out of breath, or while already climbing", () => {
-    const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
-    // Three belts one behind another: twelve metres of wire.
-    const deep = [48, 52, 56].map((z): WireBelt => ({
-      points: [
-        [0, z],
-        [100, z]
-      ]
-    }))
-    const sim = brokenUp(createSimulation({ map: { ...map, wire: deep }, seed: 1 }))
-    const soldier = facingTheWire(sim, 50)
-    expect(vaultLanding(sim, soldier)).toBeNull()
-    // A player's man gets over the first fence and into the wire behind it, to climb on with another go.
-    expect(vaultLanding(sim, soldier, undefined, true)?.z).toBeCloseTo(52, 1)
-
-    const fresh = field()
-    const winded = facingTheWire(fresh, bare?.x ?? 0)
-    fresh.soldiers.stamina.spent[winded] = 1
-    expect(startVault(fresh, winded)).toBe(false)
-    fresh.soldiers.stamina.spent[winded] = 0
-    expect(startVault(fresh, winded)).toBe(true)
-    expect(startVault(fresh, winded)).toBe(false)
-
-    const still = spawnSoldier(fresh, { side: Side.French, x: 30, z: 47 })
-    fresh.soldiers.facing.x[still] = 0
-    fresh.soldiers.facing.z[still] = 0
-    expect(vaultLanding(fresh, still)).toBeNull()
+    expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(false)
   })
 })
 

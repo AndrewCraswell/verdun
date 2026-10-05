@@ -9,7 +9,18 @@ import {
   type Trench
 } from "@verdun/map"
 import { describe, expect, it } from "vitest"
-import { BODY_RADIUS, canBeShoved, clearOfScenery, Climbing, insideScenery, Obstacle, wayAhead } from "./body.ts"
+import {
+  BODY_RADIUS,
+  canBeShoved,
+  clearOfScenery,
+  climbedAhead,
+  climbedShapes,
+  climbedUnder,
+  Climbing,
+  insideScenery,
+  Obstacle,
+  wayAhead
+} from "./body.ts"
 
 /** Firm ground 5 m up, with a north-facing fire trench along z = 50. */
 function trenchField() {
@@ -184,5 +195,70 @@ describe("climbing out of a shell hole", () => {
     const out = walk(map, { x: 50, z: 80 }, 90, 15)
     expect(out.z).toBeGreaterThan(84)
     expect(out.height).toBeGreaterThan(-0.5)
+
+describe("fences and low walls", () => {
+  // A wooden fence at (50, 50) whose rails run east-west, and a low wall at (50, 80) turned a quarter, running north-south.
+  const fence: Scenery = { kind: "knife-rest", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
+  const wall: Scenery = { kind: "wall", x: 50, z: 80, heading: Math.PI / 2, variant: 0, scale: 1 }
+  const map = {
+    ...createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass),
+    scenery: [fence, wall]
+  }
+
+  it("stand in a man's way along their length, as boxes, not discs", () => {
+    expect(climbedShapes(fence)).toEqual([{ x: 50, z: 50, lineX: 1, lineZ: -0, halfLength: 1.82, halfDepth: 0.1 }])
+    // Along the fence's rails, out to their ends, and no further.
+    expect(insideScenery(map, 51.7, 50.3)).toBe(true)
+    expect(insideScenery(map, 50, 50.45)).toBe(false)
+    expect(insideScenery(map, 52.2, 50)).toBe(false)
+    // The wall runs north-south, 4.3 m long and 0.6 m thick.
+    expect(insideScenery(map, 50, 81.9)).toBe(true)
+    expect(insideScenery(map, 50.7, 80)).toBe(false)
+    // Its lowest stretches are stepped over.
+    expect(climbedShapes({ ...wall, variant: 3 })).toEqual([])
+  })
+
+  it("stop a man walking straight at one, slide him along it at a slant, and let him round its end", () => {
+    const walkInto = (x: number, dx: number) => {
+      let px = x
+      let pz = 47
+      for (let step = 0; step < 20 * 8; step++) {
+        const next = clearOfScenery(map, px + dx * 0.07, pz + 0.07)
+        px = next.x
+        pz = next.z
+        expect(insideScenery(map, px, pz)).toBe(false)
+      }
+      return { x: px, z: pz }
+    }
+    expect(walkInto(50, 0).z).toBeCloseTo(50 - 0.1 - BODY_RADIUS, 4)
+    expect(walkInto(50, 0).x).toBeCloseTo(50, 4)
+    // Heading north-east, he slides east along the rails, off their end and on north.
+    const slanting = walkInto(50, 1)
+    expect(slanting.x).toBeGreaterThan(52.1)
+    expect(slanting.z).toBeGreaterThan(51)
+  })
+
+  it("push a man inside one out by the nearer face", () => {
+    expect(clearOfScenery(map, 50, 50.05)).toEqual({ x: 50, z: expect.closeTo(50.4, 5) })
+    expect(clearOfScenery(map, 50, 49.95).z).toBeCloseTo(49.6, 5)
+    // Near its end, out past the end.
+    expect(clearOfScenery(map, 51.8, 50).x).toBeCloseTo(52.12, 5)
+  })
+
+  it("are found under a man astride one, and ahead of a man heading across one within reach", () => {
+    expect(climbedUnder(map, 50, 50.5, 0.6)).not.toBeNull()
+    expect(climbedUnder(map, 50, 51, 0.6)).toBeNull()
+    expect(climbedUnder(map, 10, 10, 0.6)).toBeNull()
+
+    expect(climbedAhead(map, 50, 49, 0, 1, 1)).toMatchObject({
+      entry: expect.closeTo(0.6, 5),
+      exit: expect.closeTo(1.4, 5)
+    })
+    expect(climbedAhead(map, 50, 51, 0, -1, 1)?.entry).toBeCloseTo(0.6, 5)
+    // Too far off, along it, or past its end.
+    expect(climbedAhead(map, 50, 47, 0, 1, 1)).toBeNull()
+    expect(climbedAhead(map, 47, 49.5, 1, 0, 1)).toBeNull()
+    expect(climbedAhead(map, 52.5, 49.5, 0, 1, 1)).toBeNull()
+    expect(climbedAhead(map, 50, 52, 0, 1, 1)).toBeNull()
   })
 })

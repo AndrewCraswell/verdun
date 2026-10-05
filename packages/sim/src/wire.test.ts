@@ -48,14 +48,14 @@ describe("barbed wire", () => {
     expect(cutLane(sim, 60, 120, 140, 3)).toBe(false)
   })
 
-  it("is staked along each belt, about 3.4 m deep, and around knife rests", () => {
+  it("is staked along each belt, about 3.4 m deep, and nowhere else: a wooden fence in a gap has none", () => {
     const field = createWireField(wired())
 
     expect(wireAt(field, 60, 100)).toBe(1)
     expect(wireAt(field, 60, 101.2)).toBe(1)
     expect(wireAt(field, 60, 103)).toBe(0)
     expect(wireAt(field, 140, 100)).toBe(0)
-    expect(wireAt(field, 50, 150)).toBe(1)
+    expect(wireAt(field, 50, 150)).toBe(0)
     expect(wireAt(field, -5, 100)).toBe(0)
   })
 

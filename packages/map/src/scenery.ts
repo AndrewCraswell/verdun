@@ -11,7 +11,7 @@ export const SCENERY_KINDS = [
   "landmark",
   /** A heap of brick and stone. */
   "rubble",
-  /** The broken remains of a field or garden wall. */
+  /** The broken remains of a field or garden wall, running across its heading: men climb over it. */
   "wall",
   /** A tree killed by shellfire, still standing. */
   "tree",
@@ -31,7 +31,10 @@ export const SCENERY_KINDS = [
   "bunker",
   /** A sandbagged machine-gun emplacement. */
   "machine-gun",
-  /** A knife rest: a timber trestle strung with wire, closing a gap in a belt or the mouth of a sap. */
+  /**
+   * A wooden rail fence about 3.6 m long, running across its heading, closing a gap in a belt or the mouth of a sap: no
+   * wire on it, so men climb over it, as they do a low wall, where the belt's barbed wire can only be waded or cut.
+   */
   "knife-rest",
   /** Crates, barrels and sacks in a supply dump. */
   "stores",
@@ -63,6 +66,11 @@ export interface SceneryFootprint {
   readonly sightHeight: number
   /** Cost of walking through it as a multiple of firm ground: Infinity where nobody can. */
   readonly walkCost: number
+  /**
+   * Nobody walks through it, but men climb over it (the simulation's vault.ts): a fence, a low wall. Its `walkCost` is
+   * what a route reckons the climb costs.
+   */
+  readonly climbed?: boolean
 }
 
 /**
@@ -74,7 +82,8 @@ export const SCENERY_FOOTPRINTS: Readonly<Record<SceneryKind, SceneryFootprint>>
   ruin: { radius: 4, sightHeight: 4.5, walkCost: Infinity },
   landmark: { radius: 7, sightHeight: 7, walkCost: Infinity },
   rubble: { radius: 2.5, sightHeight: 1.1, walkCost: 2.5 },
-  wall: { radius: 1.5, sightHeight: 1.3, walkCost: Infinity },
+  // Climbing over takes as long as walking a few metres round.
+  wall: { radius: 1.5, sightHeight: 1.3, walkCost: 3, climbed: true },
   tree: { radius: 0.6, sightHeight: 8, walkCost: Infinity },
   stump: { radius: 0.5, sightHeight: 0.8, walkCost: 2 },
   log: { radius: 1, sightHeight: 0.6, walkCost: 3 },
@@ -84,9 +93,8 @@ export const SCENERY_FOOTPRINTS: Readonly<Record<SceneryKind, SceneryFootprint>>
   "wrecked-plane": { radius: 4, sightHeight: 2.2, walkCost: Infinity },
   bunker: { radius: 3, sightHeight: 2.4, walkCost: Infinity },
   "machine-gun": { radius: 1.5, sightHeight: 0.9, walkCost: 4 },
-  // Wire on a timber trestle: no cover from sight. Its wire slows men (the simulation stakes it with the belts), so it
-  // costs nothing more here: counted twice, it walled off the gaps it was set in, and a lane cut through it stayed shut.
-  "knife-rest": { radius: 1.2, sightHeight: 0, walkCost: 1 },
+  // Open rails: no cover from sight.
+  "knife-rest": { radius: 1.2, sightHeight: 0, walkCost: 3, climbed: true },
   stores: { radius: 2, sightHeight: 1.8, walkCost: Infinity },
   bridge: { radius: 1, sightHeight: 0, walkCost: 1 },
   // Wading through a flooded shell hole: possible, but slow and cold.

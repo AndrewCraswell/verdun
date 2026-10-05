@@ -44,11 +44,12 @@ Each side has three crenellated fire trenches (front, support, reserve), zigzag 
 saps pushed out to listening posts with machine guns and knife rests at their mouths, more machine guns on the
 front-line parapet, supply dumps, and belts of wire: two French belts at about 22 m and 33 m in front of the line, three
 German belts at 18, 30 and 42 m. Belts have staggered patrol gaps and gaps at the sap heads, closed as every attack
-found them, at stand-to: knife rests dragged side by side across each gap of a post or two, near enough together and
-overlapping the belts' ends so the simulation's wire leaves no way through (`closeGaps`). Only the sap trench runs on
-through its gap, and where the lines close up the belts break off for tens of metres, open. No man's land is shelled
-into churned ground with some 2,600 craters, the deeper ones holding water; craters on the ridge throw up rims of chalk,
-and shelling tapers off behind the lines.
+found them, at stand-to: wooden rail fences (the `knife-rest` kind, which the art draws as Synty's barricade, with no
+wire on it) set side by side across each gap of a post or two, overlapping the belts' ends so there's no way through but
+over them (`closeGaps`): men climb a fence in 1.25 s, while the belts' barbed wire is never climbed. Only the sap trench
+runs on through its gap, and where the lines close up the belts break off for tens of metres, open. No man's land is
+shelled into churned ground with some 2,600 craters, the deeper ones holding water; craters on the ridge throw up rims
+of chalk, and shelling tapers off behind the lines.
 
 **Objectives**, the ground worth fighting for: Fleury, the Fleury crossroads, the mine craters, the Ravin de la Dame and
 the ravine head. They're data for the capture rules; holding them is up to the simulation.

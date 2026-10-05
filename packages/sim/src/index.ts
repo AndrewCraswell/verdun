@@ -132,7 +132,7 @@ export {
 export { type GunSighting, type GunSpottedEvent, SPOTTED_SECONDS, spottedGuns } from "./spotting.ts"
 export type { GunMannedEvent } from "./gun-crews.ts"
 export { gunPartner } from "./man-gun.ts"
-export { astrideFence, FENCE_CLIMB_SECONDS, isVaulting, vaultLanding } from "./vault.ts"
+export { acrossFence, astrideFence, FENCE_CLIMB_SECONDS, isVaulting, vaultLanding } from "./vault.ts"
 export { canCut, isCutting } from "./cutters.ts"
 export type { CounterThrustEvent, StandToEvent } from "./defence.ts"
 export {

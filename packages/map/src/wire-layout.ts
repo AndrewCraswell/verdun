@@ -34,8 +34,8 @@ export interface WireTangle {
 
 /**
  * How a belt of wire stands: a staked fence along its line in lengths of about 10 m, and beside most lengths a tangle of
- * loose coils, in front or behind. A man can climb a fence; the coils snare him. The level's art draws the same layout
- * (apps/client's scenery dressing), and the simulation reads the tangles to tell where a fence can be climbed.
+ * loose coils, in front or behind. The level's art draws the same layout (apps/client's scenery dressing). Nobody climbs
+ * it: barbed wire is waded, cut or gone round.
  */
 export function beltLayout(belt: WireBelt): { readonly fences: FenceLength[]; readonly tangles: WireTangle[] } {
   const fences: FenceLength[] = []

@@ -452,7 +452,7 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "vault": {
       if (isSoldier(sim, command.soldier)) {
-        startVault(sim, command.soldier, headingOf(command), true)
+        startVault(sim, command.soldier, headingOf(command))
       }
       return
     }

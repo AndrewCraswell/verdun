@@ -14,6 +14,7 @@ import {
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
 import { createSquad, isAlive, nextLivingMember, wayOut } from "./squads.ts"
+import { isVaulting } from "./vault.ts"
 
 // Firm ground, so soldiers walk at their full pace.
 const map = createFlatMap({ name: "test", cellSize: 1, columns: 200, rows: 200 }, 0, Surface.Grass)
@@ -336,6 +337,44 @@ describe("moving like men in a trench", () => {
       stepSimulation(sim)
     }
     // Wading an intact belt goes at a twentieth of walking pace: this is through it and nearly there in 15 s.
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(106)
+  })
+
+  it("climbs the wooden fence closing a gap in the wire rather than wading the belt either side", () => {
+    // An intact belt with a gap at x = 94-106, its wire reaching 1.7 m past each end post, closed by fences across the
+    // clear ground between, as Fleury's patrol gaps are at stand-to.
+    const belts = [
+      {
+        points: [
+          [0, 100],
+          [94, 100]
+        ] as [number, number][]
+      },
+      {
+        points: [
+          [106, 100],
+          [200, 100]
+        ] as [number, number][]
+      }
+    ]
+    const fences = [97.4, 100, 102.6].map((x): Scenery => ({
+      kind: "knife-rest",
+      x,
+      z: 100,
+      heading: 0,
+      variant: 0,
+      scale: 1
+    }))
+    const sim = createSimulation({ map: { ...map, wire: belts, scenery: fences }, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 100, z: 94 })
+    const squad = createSquad(sim, Side.French, [soldier], "ai")
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: 100, z: 110 } })
+    let climbed = false
+    for (let step = 0; step < 15 * TICK_RATE; step++) {
+      stepSimulation(sim)
+      climbed ||= isVaulting(sim, soldier)
+    }
+    expect(climbed).toBe(true)
     expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(106)
   })
 

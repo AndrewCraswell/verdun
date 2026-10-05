@@ -67,7 +67,8 @@ export const KEY_GROUPS: readonly KeyGroup[] = [
       { action: "prone", label: "Lie down and crawl, or get back up", keys: ["KeyZ"] },
       {
         action: "act",
-        label: "Vault the trench wall or wire fence ahead, or man the machine gun beside you; again to leave the gun",
+        label:
+          "Climb the trench wall, fence or low wall ahead, or man the machine gun beside you; again to leave the gun",
         keys: ["Space"]
       },
       { action: "reload", label: "Reload before the magazine is empty", keys: ["KeyR"] }

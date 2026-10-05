@@ -4,10 +4,12 @@ import {
   heightAt,
   mapDepth,
   mapWidth,
-  SCENERY_FOOTPRINTS,
   sampleIndex,
+  type Scenery,
+  SCENERY_FOOTPRINTS,
   Surface
 } from "@verdun/map"
+import { sightBlocks } from "./sight-shapes.ts"
 import { isInTrench } from "./trench-grid.ts"
 
 /**
@@ -200,11 +202,110 @@ export function wayAhead(
   return last ? { x: 0, z: 0, met, climbing: false } : { x: wx, z: wz, met, climbing: false }
 }
 
-/** An impassable piece of scenery's footprint, as a circle a man can't stand in. */
-interface Footing {
+/**
+ * A fence or low wall, as men climb it: a box along its line, `halfLength` either way along (`lineX`, `lineZ`), a unit
+ * vector, and `halfDepth` either side of it.
+ */
+export interface Climbed {
   readonly x: number
   readonly z: number
-  readonly radius: number
+  readonly lineX: number
+  readonly lineZ: number
+  readonly halfLength: number
+  readonly halfDepth: number
+}
+
+/** A fence's rails run this far either side of its middle, in metres, times its scale: the art's 3.64 m... */
+const FENCE_HALF_LENGTH = 1.82
+/** ...and its posts stand this far either side of its line. */
+const FENCE_HALF_DEPTH = 0.1
+
+/**
+ * The boxes a climbed piece of scenery stands in a man's way with: a fence's rails, a wall's stretches of stone as their
+ * sight shapes measure them (sight-shapes.ts). A stretch no higher than a step is walked over.
+ */
+export function climbedShapes(item: Scenery): Climbed[] {
+  if (item.kind === "knife-rest") {
+    return [
+      {
+        x: item.x,
+        z: item.z,
+        lineX: Math.cos(item.heading),
+        lineZ: -Math.sin(item.heading),
+        halfLength: FENCE_HALF_LENGTH * item.scale,
+        halfDepth: FENCE_HALF_DEPTH * item.scale
+      }
+    ]
+  }
+  return sightBlocks(item).flatMap((block) =>
+    block.kind === "box" && block.height > STEP_UP
+      ? [
+          {
+            x: block.x,
+            z: block.z,
+            lineX: Math.cos(block.yaw),
+            lineZ: -Math.sin(block.yaw),
+            halfLength: block.halfAcross,
+            halfDepth: block.halfAlong
+          }
+        ]
+      : []
+  )
+}
+
+/** What a man can't stand in: an impassable piece of scenery's footprint, as a circle, or a climbed one's box. */
+type Footing =
+  | { readonly kind: "disc"; readonly x: number; readonly z: number; readonly radius: number }
+  | ({ readonly kind: "box" } & Climbed)
+
+/** How far a footing reaches from its middle, in metres. */
+function footingReach(footing: Footing): number {
+  return footing.kind === "disc" ? footing.radius : Math.sqrt(footing.halfLength ** 2 + footing.halfDepth ** 2)
+}
+
+/** A point relative to a box: how far along its line, and across it (the line turned a quarter clockwise from above). */
+function local(box: Climbed, x: number, z: number): { along: number; across: number } {
+  const dx = x - box.x
+  const dz = z - box.z
+  return { along: dx * box.lineX + dz * box.lineZ, across: dx * box.lineZ - dz * box.lineX }
+}
+
+/**
+ * Where a man at (x, z) stands against a footing: how far outside its edge he is (negative inside), and the way out of
+ * it, a unit vector.
+ */
+function standing(footing: Footing, x: number, z: number): { gap: number; outX: number; outZ: number } {
+  if (footing.kind === "disc") {
+    const dx = x - footing.x
+    const dz = z - footing.z
+    // Math.sqrt is correctly rounded on every engine; Math.hypot is not, which would break determinism.
+    const distance = Math.sqrt(dx * dx + dz * dz)
+    // Dead in the middle: out to the east, the same way every time.
+    return distance > 1e-9
+      ? { gap: distance - footing.radius, outX: dx / distance, outZ: dz / distance }
+      : { gap: -footing.radius, outX: 1, outZ: 0 }
+  }
+  const { along, across } = local(footing, x, z)
+  const pastEnd = Math.abs(along) - footing.halfLength
+  const pastSide = Math.abs(across) - footing.halfDepth
+  const alongSign = along < 0 ? -1 : 1
+  const acrossSign = across < 0 ? -1 : 1
+  if (pastEnd <= 0 && pastSide <= 0) {
+    // Inside: out by the nearer face.
+    return pastSide >= pastEnd
+      ? { gap: pastSide, outX: footing.lineZ * acrossSign, outZ: -footing.lineX * acrossSign }
+      : { gap: pastEnd, outX: footing.lineX * alongSign, outZ: footing.lineZ * alongSign }
+  }
+  const endOut = Math.max(0, pastEnd)
+  const sideOut = Math.max(0, pastSide)
+  const gap = Math.sqrt(endOut * endOut + sideOut * sideOut)
+  const outAlong = (endOut / gap) * alongSign
+  const outAcross = (sideOut / gap) * acrossSign
+  return {
+    gap,
+    outX: footing.lineX * outAlong + footing.lineZ * outAcross,
+    outZ: footing.lineZ * outAlong - footing.lineX * outAcross
+  }
 }
 
 /** Bucket size for finding the scenery near a man, in metres: about the widest footprint. */
@@ -219,8 +320,9 @@ interface SceneryIndex {
 const sceneryIndexes = new WeakMap<BattlefieldMap, SceneryIndex>()
 
 /**
- * The scenery nobody can walk through (ruins, walls, trees, guns, bunkers: `walkCost` Infinity, as the routes have
- * them), bucketed by where it stands, each footprint in every bucket it reaches. Built once per map.
+ * The scenery nobody can walk through (ruins, trees, guns, bunkers: `walkCost` Infinity, as the routes have them; and
+ * the fences and low walls men climb), bucketed by where it stands, each footing in every bucket it reaches. Built
+ * once per map.
  */
 function sceneryIndex(map: BattlefieldMap): SceneryIndex {
   const cached = sceneryIndexes.get(map)
@@ -230,12 +332,8 @@ function sceneryIndex(map: BattlefieldMap): SceneryIndex {
   const columns = Math.max(1, Math.ceil(mapWidth(map) / SCENERY_BUCKET))
   const rows = Math.max(1, Math.ceil(mapDepth(map) / SCENERY_BUCKET))
   const buckets: Footing[][] = Array.from({ length: columns * rows }, () => [])
-  for (const scenery of map.scenery) {
-    if (Number.isFinite(SCENERY_FOOTPRINTS[scenery.kind].walkCost)) {
-      continue
-    }
-    const footing = { x: scenery.x, z: scenery.z, radius: footprintRadius(scenery) }
-    const reach = footing.radius + BODY_RADIUS
+  const add = (footing: Footing) => {
+    const reach = footingReach(footing) + BODY_RADIUS
     const minColumn = Math.max(0, Math.floor((footing.x - reach) / SCENERY_BUCKET))
     const maxColumn = Math.min(columns - 1, Math.floor((footing.x + reach) / SCENERY_BUCKET))
     const minRow = Math.max(0, Math.floor((footing.z - reach) / SCENERY_BUCKET))
@@ -246,56 +344,53 @@ function sceneryIndex(map: BattlefieldMap): SceneryIndex {
       }
     }
   }
+  for (const scenery of map.scenery) {
+    const footprint = SCENERY_FOOTPRINTS[scenery.kind]
+    if (footprint.climbed) {
+      for (const shape of climbedShapes(scenery)) {
+        add({ kind: "box", ...shape })
+      }
+    } else if (!Number.isFinite(footprint.walkCost)) {
+      add({ kind: "disc", x: scenery.x, z: scenery.z, radius: footprintRadius(scenery) })
+    }
+  }
   const index = { columns, rows, buckets }
   sceneryIndexes.set(map, index)
   return index
 }
 
-/** Whether a man standing at (x, z) would be inside a piece of impassable scenery. */
-export function insideScenery(map: BattlefieldMap, x: number, z: number): boolean {
+/** The footings that may reach (x, z). */
+function footingsNear(map: BattlefieldMap, x: number, z: number): readonly Footing[] {
   const { columns, rows, buckets } = sceneryIndex(map)
   const column = Math.min(columns - 1, Math.max(0, Math.floor(x / SCENERY_BUCKET)))
   const row = Math.min(rows - 1, Math.max(0, Math.floor(z / SCENERY_BUCKET)))
-  for (const footing of buckets[row * columns + column] ?? []) {
-    const dx = x - footing.x
-    const dz = z - footing.z
-    const reach = footing.radius + BODY_RADIUS
-    if (dx * dx + dz * dz < reach * reach) {
-      return true
-    }
-  }
-  return false
+  return buckets[row * columns + column] ?? []
+}
+
+/** Whether a man standing at (x, z) would be inside a piece of impassable or climbed scenery. */
+export function insideScenery(map: BattlefieldMap, x: number, z: number): boolean {
+  return footingsNear(map, x, z).some((footing) => standing(footing, x, z).gap < BODY_RADIUS)
 }
 
 /**
- * Where a man stepping to (x, z) ends up clear of impassable scenery: pushed straight out of any footprint he'd stand
- * in, which keeps the part of his step that runs round it, so he slides round a ruin's corner or a tree rather than
- * stopping at it. Twice over, for footprints that touch.
+ * Where a man stepping to (x, z) ends up clear of the scenery: pushed straight out of any footing he'd stand in, which
+ * keeps the part of his step that runs round it, so he slides round a ruin's corner, a tree or along a fence rather than
+ * stopping at it. Twice over, for footings that touch.
  */
 export function clearOfScenery(map: BattlefieldMap, x: number, z: number): { x: number; z: number } {
-  const { columns, rows, buckets } = sceneryIndex(map)
   let px = x
   let pz = z
   for (let pass = 0; pass < 2; pass++) {
-    const column = Math.min(columns - 1, Math.max(0, Math.floor(px / SCENERY_BUCKET)))
-    const row = Math.min(rows - 1, Math.max(0, Math.floor(pz / SCENERY_BUCKET)))
     let moved = false
-    for (const footing of buckets[row * columns + column] ?? []) {
-      const dx = px - footing.x
-      const dz = pz - footing.z
-      const reach = footing.radius + BODY_RADIUS
-      const distanceSquared = dx * dx + dz * dz
-      if (distanceSquared >= reach * reach) {
+    for (const footing of footingsNear(map, px, pz)) {
+      const { gap, outX, outZ } = standing(footing, px, pz)
+      if (gap >= BODY_RADIUS) {
         continue
       }
-      // Math.sqrt is correctly rounded on every engine; Math.hypot is not, which would break determinism.
-      const distance = Math.sqrt(distanceSquared)
-      // Dead in the middle: out to the east, the same way every time.
-      const outX = distance > 1e-9 ? dx / distance : 1
-      const outZ = distance > 1e-9 ? dz / distance : 0
       // A hair past the edge, so he counts as out of it.
-      px = footing.x + outX * (reach + 1e-6)
-      pz = footing.z + outZ * (reach + 1e-6)
+      const push = BODY_RADIUS - gap + 1e-6
+      px += outX * push
+      pz += outZ * push
       moved = true
     }
     if (!moved) {
@@ -303,6 +398,65 @@ export function clearOfScenery(map: BattlefieldMap, x: number, z: number): { x: 
     }
   }
   return { x: px, z: pz }
+}
+
+/** The fence or low wall a man at (x, z) is on, within `reach` of its faces and along its length, or null. */
+export function climbedUnder(map: BattlefieldMap, x: number, z: number, reach: number): Climbed | null {
+  for (const footing of footingsNear(map, x, z)) {
+    if (footing.kind !== "box") {
+      continue
+    }
+    const { along, across } = local(footing, x, z)
+    if (Math.abs(along) <= footing.halfLength + BODY_RADIUS && Math.abs(across) <= footing.halfDepth + reach) {
+      return footing
+    }
+  }
+  return null
+}
+
+/**
+ * The fence or low wall that a man at (x, z) heading along (dx, dz), a unit vector, runs into within `reach` of his
+ * edge, or null: how far on his middle comes within his half-width of its near face (`entry`) and gets as far past its
+ * far face (`exit`), and the box. Only one he crosses squarely enough to climb, within 60 degrees of straight across,
+ * and within its length, or he'd go round its end.
+ */
+export function climbedAhead(
+  map: BattlefieldMap,
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+  reach: number
+): { readonly entry: number; readonly exit: number; readonly climbed: Climbed } | null {
+  let best: { entry: number; exit: number; climbed: Climbed } | null = null
+  const probe = reach + BODY_RADIUS
+  const near = new Set([...footingsNear(map, x, z), ...footingsNear(map, x + dx * probe, z + dz * probe)])
+  for (const footing of near) {
+    if (footing.kind !== "box") {
+      continue
+    }
+    const { along, across } = local(footing, x, z)
+    const wayAlong = dx * footing.lineX + dz * footing.lineZ
+    const wayAcross = dx * footing.lineZ - dz * footing.lineX
+    if (Math.abs(wayAcross) < 0.5) {
+      continue
+    }
+    const depth = footing.halfDepth + BODY_RADIUS
+    const toward = wayAcross < 0 ? -1 : 1
+    const entry = (-toward * depth - across) / wayAcross
+    const exit = (toward * depth - across) / wayAcross
+    if (exit <= 0 || entry > probe) {
+      continue
+    }
+    const crossing = along + wayAlong * ((Math.max(0, entry) + exit) / 2)
+    if (Math.abs(crossing) > footing.halfLength) {
+      continue
+    }
+    if (!best || entry < best.entry) {
+      best = { entry: Math.max(0, entry), exit, climbed: footing }
+    }
+  }
+  return best
 }
 
 /** Whether a man can be shoved from (x, z) to (toX, toZ): no wall to go up, and no scenery to stand in. */

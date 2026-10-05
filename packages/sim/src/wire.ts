@@ -8,8 +8,6 @@ import { isAlive } from "./squads.ts"
 export const WIRE_CELL = 1
 /** A belt's stakes, coils and tangles reach this far either side of its line, in metres: a belt about 3.4 m deep. */
 const BELT_HALF_DEPTH = 1.7
-/** A knife rest blocks ground this far around its centre, in metres. */
-const KNIFE_REST_RADIUS = 1.5
 /**
  * Walking pace through intact wire, as a fraction of normal: crawling under it or cutting a way through by hand with
  * the issue cutters, snagging at every step. About a minute to get through a belt.
@@ -83,7 +81,7 @@ function stamp(
   }
 }
 
-/** Stakes out the map's wire belts and knife rests. */
+/** Stakes out the map's wire belts. */
 export function createWireField(map: BattlefieldMap): WireField {
   const columns = Math.max(1, Math.ceil(mapWidth(map) / WIRE_CELL))
   const rows = Math.max(1, Math.ceil(mapDepth(map) / WIRE_CELL))
@@ -100,12 +98,6 @@ export function createWireField(map: BattlefieldMap): WireField {
       const [bx, bz] = belt.points[index] ?? [0, 0]
       const reach = length(bx - ax, bz - az) / 2 + BELT_HALF_DEPTH
       stamp(field, (ax + bx) / 2, (az + bz) / 2, reach, BELT_HALF_DEPTH, [ax, az, bx, bz])
-    }
-  }
-  for (const scenery of map.scenery) {
-    if (scenery.kind === "knife-rest") {
-      const radius = KNIFE_REST_RADIUS * scenery.scale
-      stamp(field, scenery.x, scenery.z, radius, radius)
     }
   }
   return field
