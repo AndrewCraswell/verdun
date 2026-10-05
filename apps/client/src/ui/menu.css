@@ -83,7 +83,6 @@
 
 .ui[hidden],
 .ui-page[hidden],
-.menu-hint[hidden],
 .menu-paused[hidden],
 .ui [hidden] {
   display: none !important;
@@ -118,10 +117,6 @@
 
 /* At the front door and while the battle loads, the HUD stays away. */
 body:not([data-screen="battle"]) .hud,
-body:not([data-screen="battle"]) .menu-hint {
-  visibility: hidden;
-}
-
 /* The map pages take the whole width, the list put away while they're open: Back brings it again. */
 .ui[data-page="join"],
 .ui[data-page="front"],
@@ -863,19 +858,6 @@ body:not([data-screen="battle"]) .menu-hint {
 }
 
 /* Over the battle, outside the menu. */
-.menu-hint {
-  position: fixed;
-  right: 12px;
-  bottom: 12px;
-  padding: 4px 8px;
-  font:
-    12px/1.4 system-ui,
-    sans-serif;
-  color: #f2ede0;
-  background: rgb(20 18 14 / 45%);
-  border-radius: 4px;
-  pointer-events: none;
-}
 
 .menu-paused {
   position: fixed;

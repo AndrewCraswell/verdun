@@ -144,7 +144,6 @@ export function createMenu(
     entering = resolve
   })
 
-  const hint = h("div", "menu-hint", "Esc for the menu")
   // Browsers keep sound off until the player clicks or presses a key: say so, quietly, until they have (S23).
   const soundHint = h("div", "menu-sound", "Click or press a key for sound")
   soundHint.hidden = true
@@ -202,7 +201,7 @@ export function createMenu(
   root.setAttribute("role", "dialog")
   root.setAttribute("aria-modal", "true")
   root.setAttribute("aria-label", "Menu")
-  parent.append(root, hint, pausedBanner, soundHint)
+  parent.append(root, pausedBanner, soundHint)
 
   // The pages and acts that need the battle (the sector map, the squad book, the log's history, the join screen's
   // choices), loaded once the battle is up so the simulation stays out of the menus' own bundle.
@@ -414,7 +413,6 @@ export function createMenu(
       void loading.finish().then(() => {
         screen = "battle"
         layout()
-        hint.hidden = false
         entering()
         document.querySelector<HTMLElement>("canvas")?.focus()
       })
@@ -430,7 +428,6 @@ export function createMenu(
     }
     open = next
     root.hidden = !next
-    hint.hidden = next
     pausedBanner.hidden = !held || open
     if (next) {
       layout()
@@ -449,7 +446,6 @@ export function createMenu(
     }
     alone = true
     root.hidden = false
-    hint.hidden = true
     layout()
     openPage(next)
   }
@@ -458,7 +454,6 @@ export function createMenu(
     alone = false
     openPage(null)
     root.hidden = true
-    hint.hidden = false
     layout()
     document.querySelector<HTMLElement>("canvas")?.focus()
   }
@@ -540,8 +535,6 @@ export function createMenu(
   }, 1000)
 
   root.hidden = !open
-  // The hint comes once the battle shows.
-  hint.hidden = true
   layout()
   date()
   if (screen === "loading") {
@@ -658,7 +651,6 @@ export function createMenu(
       delete document.body.dataset.screen
       loading.dispose()
       root.remove()
-      hint.remove()
       pausedBanner.remove()
       soundHint.remove()
     }
