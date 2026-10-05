@@ -19,10 +19,10 @@ const ICONS: Readonly<Record<SquadOrder["kind"], IconName>> = {
   reserve: "dugout",
   creep: "creep",
   raid: "raid",
-  "run-to": "advance",
-  suppress: "fire-mission",
-  withdraw: "arrow",
-  "dig-in": "prone",
+  "run-to": "run-to",
+  suppress: "suppress",
+  withdraw: "withdraw",
+  "dig-in": "dig-in",
   rally: "pennant"
 }
 

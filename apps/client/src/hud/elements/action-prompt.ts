@@ -6,7 +6,8 @@ import "./action-prompt.css"
 
 /**
  * What the action key would do now, over the head of the man under control: "[Space] Man the gun", "[Space] Climb
- * over". Shown only while there's something to do, so the key is learnt where it matters.
+ * over". Shown only while there's something to do, so the key is learnt where it matters, and put away while the orders
+ * wheel is open.
  */
 
 /** Metres above the ground the prompt floats, over a standing man's head. */
@@ -38,7 +39,9 @@ export const actionPrompt: HudElementFactory = (context) => {
       }
       const { x, z } = soldier.position
       const point = context.project(x, context.heightAt(x, z) + LIFT, z)
-      root.style.visibility = point ? "" : "hidden"
+      // Out of the way of the orders wheel, which opens over the man as often as not.
+      const wheel = context.canvas?.dataset.orderMode === "wheel"
+      root.style.visibility = point && !wheel ? "" : "hidden"
       if (point) {
         root.style.transform = `translate(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px)`
       }

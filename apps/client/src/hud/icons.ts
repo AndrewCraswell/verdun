@@ -50,6 +50,14 @@ const ICONS = {
   follow: `<circle cx="12" cy="4.8" r="2"/><path d="M12 7.4v5.8M9 9.8h6"/><circle class="f" cx="7.6" cy="17.6" r="1.25"/><circle class="f" cx="12" cy="19.4" r="1.25"/><circle class="f" cx="16.4" cy="17.6" r="1.25"/>`,
   hold: `<path d="M12 2.8l7 2.9v5.8c0 4.4-3 7.6-7 9.4-4-1.8-7-5-7-9.4V5.7Z"/><path d="M12 7v9.6"/>`,
   advance: `<path d="M4 20 15.6 8.4M10 8.2h5.8V14"/><circle cx="18.6" cy="5.4" r="2"/>`,
+  // At the run: a double chevron forward.
+  "run-to": `<path d="M5 18l5.5-6L5 6M12 18l5.5-6L12 6"/>`,
+  // Fire into an area: three rounds streaking into a ring on the ground.
+  suppress: `<ellipse cx="17" cy="15.5" rx="4.6" ry="2.4"/><path d="M3 8.2h7.6M3 12h8.4M3 15.8h6.8"/>`,
+  // Back to our trench: an arrow turning about.
+  withdraw: `<path d="M18.6 6.4v6.2a4.6 4.6 0 0 1-4.6 4.6H5.4M9.4 13.2l-4 4 4 4"/>`,
+  // Into cover: an entrenching spade.
+  "dig-in": `<path d="M12 3v9.2M9.4 3h5.2"/><path d="M8 12.2h8v3.4a4 4 0 0 1-8 0Z"/>`,
   creep: `<path d="M2.6 16c2.4-3 4.6-3 7 0s4.6 3 7 0 3.6-2.4 4.8-1.2"/><path d="M12 12V3.2M9 6.2l3-3 3 3"/>`,
   raid: `<path d="M4 19.6 14.6 9M9.6 8.8h5.2V14"/><path d="M20.4 13.4a4.2 4.2 0 1 1-3.6-7 3.4 3.4 0 0 0 3.6 7Z"/>`,
   // The guns.

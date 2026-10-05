@@ -31,7 +31,7 @@
 }
 
 .ow-wedge__label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -39,7 +39,7 @@
 }
 
 .ow-wedge__key {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   fill: var(--hud-ink-3);
 }
@@ -58,6 +58,19 @@
 
 .ow-wedge.is-unavailable {
   opacity: 0.35;
+}
+
+/* Why the order pointed at can't be given, under the wheel. */
+.ow-reason {
+  font-family: var(--hud-font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--hud-ink);
+  stroke: rgb(12 11 8 / 85%);
+  stroke-width: 3px;
+  paint-order: stroke;
+  stroke-linejoin: round;
 }
 
 .ow-centre__ring {
