@@ -1,5 +1,6 @@
-import { type EntityId, isAlive, type Simulation, soldierIds, Stance } from "@verdun/sim"
-import { type Listener, placeSound, type SoundCall } from "./battle-sound-model.ts"
+import { sampleIndex, Surface as Ground } from "@verdun/map"
+import { type EntityId, isAlive, isInTrench, type Simulation, soldierIds, Stance } from "@verdun/sim"
+import { inPool, isSodden, type Listener, placeSound, type SoundCall } from "./battle-sound-model.ts"
 
 /** Footsteps are heard only with the camera this low, from men within FOOT_RANGE metres of where it looks. */
 const FOOT_HEIGHT = 60
@@ -16,14 +17,37 @@ const SNOW_DEPTH = 2
 /** Ruins this dense put stones and rubble underfoot. */
 const STONY = 0.5
 
-export type Surface = "step-earth" | "step-snow" | "step-stone"
+/** What a man treads on, each a cue for walking (step-*) and for running (run-*). */
+export type Surface = "mud" | "wood" | "gravel" | "snow" | "grass" | "water"
 
-/** What a man walking at (x, z) treads on: snow when it lies, the rubble of the ruins, otherwise bare earth. */
+/**
+ * What a man walking at (x, z) treads on: water in a shell hole's pool or a flooded trench, snow when it lies, the
+ * duckboards along a trench floor, the ruins' rubble, mud where the ground is mud or sodden, grass, and otherwise the
+ * shell-torn ground and chalk, which crunch like gravel.
+ */
 export function surfaceAt(sim: Simulation, ruins: (x: number, z: number) => number, x: number, z: number): Surface {
-  if (sim.environment.weather.snowCover >= SNOW_DEPTH) {
-    return "step-snow"
+  const trench = isInTrench(sim.map, x, z)
+  const sodden = isSodden(sim)
+  if (inPool(sim, x, z) || (trench && sodden)) {
+    return "water"
   }
-  return ruins(x, z) >= STONY ? "step-stone" : "step-earth"
+  if (sim.environment.weather.snowCover >= SNOW_DEPTH) {
+    return "snow"
+  }
+  if (trench) {
+    return "wood"
+  }
+  if (ruins(x, z) >= STONY) {
+    return "gravel"
+  }
+  const { cellSize, columns, rows } = sim.map
+  const column = Math.max(0, Math.min(columns, Math.round(x / cellSize)))
+  const row = Math.max(0, Math.min(rows, Math.round(z / cellSize)))
+  const ground = sim.map.surfaces[sampleIndex(sim.map, column, row)]
+  if (sodden || ground === Ground.Mud) {
+    return "mud"
+  }
+  return ground === Ground.Grass ? "grass" : "gravel"
 }
 
 export interface FootstepModel {
@@ -71,11 +95,12 @@ export function createFootstepModel(sim: Simulation, ruins: (x: number, z: numbe
         last.z = z
         if (last.since >= STRIDE && calls.length < MAX_STEPS) {
           last.since %= STRIDE
-          const call = placeSound(listener, surfaceAt(sim, ruins, x, z), x, z)
+          const running = moved >= RUNNING
+          const call = placeSound(listener, `${running ? "run" : "step"}-${surfaceAt(sim, ruins, x, z)}`, x, z)
           if (call) {
             calls.push(call)
           }
-          const rattle = moved >= RUNNING ? placeSound(listener, "gear", x, z) : null
+          const rattle = running ? placeSound(listener, "gear", x, z) : null
           if (rattle) {
             calls.push(rattle)
           }

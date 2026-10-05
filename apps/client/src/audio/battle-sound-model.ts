@@ -73,9 +73,18 @@ export const SOUND_CUES = [
   "night-cold",
   "crow",
   "flare",
-  "step-earth",
+  "step-mud",
+  "run-mud",
+  "step-wood",
+  "run-wood",
+  "step-gravel",
+  "run-gravel",
   "step-snow",
-  "step-stone",
+  "run-snow",
+  "step-grass",
+  "run-grass",
+  "step-water",
+  "run-water",
   "voice-charge-fr",
   "voice-charge-de",
   "voice-cover-fr",
@@ -244,9 +253,18 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "night-cold": { volume: 1, reference: 1 },
   crow: { volume: 0.18, reference: 15 },
   flare: { volume: 0.5, reference: 30 },
-  "step-earth": { volume: 0.3, reference: 4 },
+  "step-mud": { volume: 0.3, reference: 4 },
+  "run-mud": { volume: 0.38, reference: 4 },
+  "step-wood": { volume: 0.3, reference: 4 },
+  "run-wood": { volume: 0.38, reference: 4 },
+  "step-gravel": { volume: 0.3, reference: 4 },
+  "run-gravel": { volume: 0.38, reference: 4 },
   "step-snow": { volume: 0.3, reference: 4 },
-  "step-stone": { volume: 0.3, reference: 4 },
+  "run-snow": { volume: 0.38, reference: 4 },
+  "step-grass": { volume: 0.3, reference: 4 },
+  "run-grass": { volume: 0.38, reference: 4 },
+  "step-water": { volume: 0.3, reference: 4 },
+  "run-water": { volume: 0.38, reference: 4 },
   // Shouts sit under the guns and shells nearby but over a wounded man's groan: heard, without drowning the battle.
   "voice-charge-fr": { volume: 0.45, reference: 15 },
   "voice-charge-de": { volume: 0.45, reference: 15 },
@@ -296,9 +314,20 @@ const IMPACT_INTERVAL = 0.08
 export type StrikeSurface = "ground" | "wire" | "parapet"
 /** One round in RICOCHET_EVERY striking open ground glances off it and whines away. */
 const RICOCHET_EVERY = 4
-/** Ground this wet (weather wetness, 0 to 1) and not frozen takes a round with a muddy thump; a trench floor floods. */
+/** Ground this wet (weather wetness, 0 to 1) and not frozen is sodden: a round thumps into mud, a trench floor floods. */
 const MUDDY = 0.5
 const FROZEN = -2
+
+/** Whether the ground is sodden after rain: mud underfoot, water standing on the trench floors. */
+export function isSodden(sim: Simulation): boolean {
+  const { wetness, temperature } = sim.environment.weather
+  return wetness >= MUDDY && temperature >= FROZEN
+}
+
+/** Whether (x, z) lies in a shell hole's pool of rainwater. */
+export function inPool(sim: Simulation, x: number, z: number): boolean {
+  return sim.map.scenery.some(({ kind, x: px, z: pz, scale }) => kind === "pool" && Math.hypot(px - x, pz - z) < scale)
+}
 /** Snow lying this deep, in millimetres of water, takes a round with a soft crump. */
 const SNOWY = 3
 /** Ruins this dense where a round lands (0 to 1) have it strike stone and brick. */
@@ -500,7 +529,6 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
   let lastImpact = -Infinity
   let lastWhizz = -Infinity
   let strikes = 0
-  const pools = sim.map.scenery.filter(({ kind }) => kind === "pool")
   let shock = 0
   let lastPain = -Infinity
   const health = Float32Array.from(sim.soldiers.health.value)
@@ -894,15 +922,11 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
     if (on === "parapet") {
       return "bullet-parapet"
     }
-    const { wetness, temperature, snowCover } = sim.environment.weather
-    const sodden = wetness >= MUDDY && temperature >= FROZEN
-    if (
-      pools.some((pool) => Math.hypot(pool.x - x, pool.z - z) < pool.scale) ||
-      (sodden && isInTrench(sim.map, x, z))
-    ) {
+    const sodden = isSodden(sim)
+    if (inPool(sim, x, z) || (sodden && isInTrench(sim.map, x, z))) {
       return "bullet-water"
     }
-    if (snowCover >= SNOWY) {
+    if (sim.environment.weather.snowCover >= SNOWY) {
       return "bullet-snow"
     }
     if ((ruins?.(x, z) ?? 0) >= STONY) {

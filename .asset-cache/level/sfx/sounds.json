@@ -127,16 +127,52 @@
     "variations": 5,
     "loop": false
   },
-  "step-earth": {
+  "step-mud": {
+    "variations": 10,
+    "loop": false
+  },
+  "run-mud": {
+    "variations": 10,
+    "loop": false
+  },
+  "step-wood": {
+    "variations": 10,
+    "loop": false
+  },
+  "run-wood": {
+    "variations": 10,
+    "loop": false
+  },
+  "step-gravel": {
+    "variations": 10,
+    "loop": false
+  },
+  "run-gravel": {
     "variations": 10,
     "loop": false
   },
   "step-snow": {
-    "variations": 8,
+    "variations": 10,
     "loop": false
   },
-  "step-stone": {
-    "variations": 8,
+  "run-snow": {
+    "variations": 10,
+    "loop": false
+  },
+  "step-grass": {
+    "variations": 10,
+    "loop": false
+  },
+  "run-grass": {
+    "variations": 10,
+    "loop": false
+  },
+  "step-water": {
+    "variations": 10,
+    "loop": false
+  },
+  "run-water": {
+    "variations": 10,
     "loop": false
   },
   "gear": {

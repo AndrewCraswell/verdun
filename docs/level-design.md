@@ -398,7 +398,10 @@ won't decode is left out with a warning rather than stopping the game.
   - **Zero hour**: as squads are sent after a creeping barrage, up to three officers blow their whistles, and the cry to
     go and the cheer follow 1.2 s later (silent until a whistle is recorded). Raids go out without a sound.
   - **Footsteps** ([footstep-model.ts](../apps/client/src/audio/footstep-model.ts)): with the camera low, men standing
-    within 18 m step once a stride on snow, the stones of the ruins or bare earth, and running men's kit rattles.
+    within 18 m step once a stride in boots, walking or running (Pro Sound Effects' Game Audio Collection: Footsteps):
+    on the duckboards along a trench floor, through shallow water in a shell hole's pool or a trench flooded after rain,
+    on snow, the ruins' rubble, mud where the map has mud or the ground is sodden, grass, and the crunch of the
+    shell-torn ground and chalk. A running man's kit rattles.
 - **Weather and the front** ([atmosphere-model.ts](../apps/client/src/audio/atmosphere-model.ts)):
   - Rain falls as hard as the weather says (snow is silent), dripping on corrugated iron down in a trench, and the wind
     gusts once it blows harder than a breeze, the wire's belts singing in it close by.

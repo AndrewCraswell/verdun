@@ -61,7 +61,7 @@ describe("captions", () => {
       side: null,
       direction: "right"
     })
-    expect(captionOf("all", shout("step-earth"), "fr")).toBeNull()
+    expect(captionOf("all", shout("step-mud"), "fr")).toBeNull()
     expect(captionOf("voices", shout("voice-gas-fr", { volume: 0.01 }), "fr")).toBeNull()
     expect(captionOf("off", shout("voice-gas-fr"), "fr")).toBeNull()
   })

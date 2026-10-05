@@ -13,12 +13,14 @@ one at random and set the level itself.
 """
 
 import difflib
+import functools
 import json
 import os
 import re
 import shutil
 import sys
 import time
+import zlib
 from pathlib import Path
 
 import aud
@@ -49,6 +51,17 @@ SUPERTHUMP = "superthump-weapons-of-wwii"
 GDC = "sonniss-gdc"
 RECORDIST = "recordist-bullets-3"
 CROWDS = "boom-crowds-war-battle"
+FOOTSTEPS = "pse-footsteps"
+
+
+def footsteps(surface, gait):
+    """Pro Sound Effects' single footsteps on one surface at one gait (Walk, Run): five each foot, left and right."""
+    return [(FOOTSTEPS, f"FOLYFeet_{surface} {gait} {foot} {take:03d}_PSE_GACF_*") for take in range(1, 6) for foot in ("Left", "Right")]
+
+
+def step_cue(surface, gait):
+    """A footstep cue: each of the ten single steps a variation, cut as it dies away."""
+    return dict(sources=footsteps(surface, gait), gap=0.3, length=0.8, take=10, per_source=1, floor=-30)
 
 
 def crowd(kind, name, mic):
@@ -308,29 +321,23 @@ CUES = {
         take=6,
         per_source=1,
     ),
-    # Footsteps of men close by, on bare earth, snow and the stones of Fleury's ruins. Boots on duckboards and in
-    # mud have no recording good enough yet (docs/sound.md); trench floors use the earth.
-    "step-earth": dict(
-        sources=[
-            (GDC, "PM_SDNG_Stereo_Walk_Seamless_Loop_1.wav"),
-            (GDC, "PM_SDNG_Single_Step_Footstep_19.wav"),
-            (GDC, "PM_SDNG_Single_Step_Footstep_46.wav"),
-        ],
-        gap=0.12,
-        length=0.5,
-        take=10,
-        floor=-10,
-    ),
-    "step-snow": dict(
-        sources=[(GDC, "S23_SFX_Footsteps_Snow_Singles_Sequence.wav")], gap=0.15, length=0.6, take=8, floor=-10
-    ),
-    "step-stone": dict(
-        sources=[(GDC, "015_Foley_Footsteps_Asphalt_Boot_Walk_Fast_Run_Jog_Close.wav")],
-        gap=0.12,
-        length=0.45,
-        take=8,
-        floor=-8,
-    ),
+    # Footsteps of men close by, walking and running, in boots (Pro Sound Effects' Game Audio Collection: Footsteps,
+    # chosen by ear): mud, duckboards, gravel, snow, grass and shallow water.
+    "step-mud": step_cue("Mud Boots", "Walk"),
+    "run-mud": step_cue("Mud Boots", "Run"),
+    # Duckboards along a trench floor.
+    "step-wood": step_cue("Wood Full Boots", "Walk"),
+    "run-wood": step_cue("Wood Full Boots", "Run"),
+    # Shell-torn ground, chalk and the ruins' rubble.
+    "step-gravel": step_cue("Gravel Boots", "Walk"),
+    "run-gravel": step_cue("Gravel Boots", "Run"),
+    "step-snow": step_cue("Snow Boots", "Walk"),
+    "run-snow": step_cue("Snow Boots", "Run"),
+    "step-grass": step_cue("Grass Short Boots", "Walk"),
+    "run-grass": step_cue("Grass Short Boots", "Run"),
+    # Wading a flooded trench floor or a shell hole's pool.
+    "step-water": step_cue("Water Shallow", "Walk"),
+    "run-water": step_cue("Water Shallow", "Run"),
     # Kit rattling on a running man: webbing, canteen and pack (Joshua Reinhardt's army gear).
     "gear": dict(sources=[(GDC, "PR ARMY GEAR ROOM_WALK_C414.wav")], take=8, loudest=0.6),
     # Fire crackling in the braziers and where shells set things alight, and crows taking off from the wire.
@@ -445,9 +452,17 @@ TAKES_PER_LINE = 2
 EAR_RING = dict(seconds=4.0, tone=3400, wobble=0.6, hiss=0.04)
 
 
+@functools.cache
+def library(folder):
+    """Every recording under a library's folder, listed once: some hold thousands."""
+    return sorted(folder.rglob("*.wav"))
+
+
 def find(vendor, folder, name):
-    """Looks up a file by name under one library: folder names in the bundles carry odd spacing and characters."""
-    matches = [path for path in (vendor / folder).rglob("*.wav") if path.name == name]
+    """Looks up a file by name under one library: folder names in the bundles carry odd spacing and characters. A name
+    ending in "*" matches the start of a file name, for libraries that end theirs in a random code."""
+    prefix = name[:-1] if name.endswith("*") else None
+    matches = [path for path in library(vendor / folder) if path.name == name or (prefix and path.name.startswith(prefix))]
     if not matches:
         raise FileNotFoundError(f"{name} not found under {vendor / folder}")
     return matches[0]
@@ -715,6 +730,33 @@ def write(path, clip, bitrate=BITRATE):
         codec=aud.CODEC_OPUS,
         bitrate=bitrate,
     )
+    steady_serial(path)
+
+
+def ogg_crc(data):
+    """The Ogg page checksum: CRC-32, polynomial 0x04C11DB7, unreflected, starting from 0."""
+    crc = 0
+    for byte in data:
+        crc ^= byte << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0x04C11DB7 if crc & 0x80000000 else crc << 1) & 0xFFFFFFFF
+    return crc
+
+
+def steady_serial(path):
+    """Gives an Ogg file a serial number from its name in place of the encoder's random one, so a sound rebuilt the same
+    comes out byte for byte the same and git sees only real changes (the built sounds are committed)."""
+    data = bytearray(path.read_bytes())
+    serial = zlib.crc32(path.name.encode()).to_bytes(4, "little")
+    page = 0
+    while page + 27 <= len(data) and data[page : page + 4] == b"OggS":
+        segments = data[page + 26]
+        length = 27 + segments + sum(data[page + 27 : page + 27 + segments])
+        data[page + 14 : page + 18] = serial
+        data[page + 22 : page + 26] = bytes(4)
+        data[page + 22 : page + 26] = ogg_crc(data[page : page + length]).to_bytes(4, "little")
+        page += length
+    path.write_bytes(bytes(data))
 
 
 def replace(source, target, tries=30):

@@ -1,5 +1,5 @@
 import { createFlatMap, layOutFront, Surface } from "@verdun/map"
-import { createSimulation, Side, type Simulation, spawnSoldier, Stance } from "@verdun/sim"
+import { createSimulation, isInTrench, Side, type Simulation, spawnSoldier, Stance } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import type { Listener } from "./battle-sound-model.ts"
 import { createFootstepModel, surfaceAt } from "./footstep-model.ts"
@@ -27,12 +27,25 @@ function walk(
 }
 
 describe("surfaceAt", () => {
-  it("is snow when it lies, stone among the ruins, otherwise earth", () => {
+  it("is duckboards in a trench, rubble in the ruins, the map's grass, mud when sodden, snow, and water in a pool", () => {
     const { sim } = battle()
-    expect(surfaceAt(sim, open, 0, 0)).toBe("step-earth")
-    expect(surfaceAt(sim, () => 0.8, 0, 0)).toBe("step-stone")
-    sim.environment.weather = { ...sim.environment.weather, snowCover: 5 }
-    expect(surfaceAt(sim, () => 0.8, 0, 0)).toBe("step-snow")
+    let trench = { x: 0, z: 0 }
+    for (let z = 0; z < 200 && trench.x === 0; z += 0.5) {
+      for (let x = 0; x < 300 && trench.x === 0; x += 0.5) {
+        if (isInTrench(sim.map, x, z)) {
+          trench = { x, z }
+        }
+      }
+    }
+    expect(surfaceAt(sim, open, 1, 1)).toBe("grass")
+    expect(surfaceAt(sim, open, trench.x, trench.z)).toBe("wood")
+    expect(surfaceAt(sim, () => 0.8, 1, 1)).toBe("gravel")
+    sim.environment.weather = { ...sim.environment.weather, wetness: 0.9, temperature: 10 }
+    expect(surfaceAt(sim, open, 1, 1)).toBe("mud")
+    // A sodden trench floor floods.
+    expect(surfaceAt(sim, open, trench.x, trench.z)).toBe("water")
+    sim.environment.weather = { ...sim.environment.weather, wetness: 0, snowCover: 5 }
+    expect(surfaceAt(sim, open, 1, 1)).toBe("snow")
   })
 })
 
@@ -45,7 +58,7 @@ describe("createFootstepModel", () => {
     // Walking pace: 0.25 m a check.
     expect(walk(sim, model, walker, 0.25)).toEqual([])
     expect(walk(sim, model, walker, 0.25)).toEqual([])
-    expect(walk(sim, model, walker, 0.25).map((call) => call.cue)).toEqual(["step-earth"])
+    expect(walk(sim, model, walker, 0.25).map((call) => call.cue)).toEqual(["step-grass"])
     expect(walk(sim, model, walker, 0)).toEqual([])
   })
 
@@ -54,7 +67,7 @@ describe("createFootstepModel", () => {
     const model = createFootstepModel(sim, open)
     sim.tick = 0
     model.step(LISTENER)
-    expect(walk(sim, model, walker, 0.8).map((call) => call.cue)).toEqual(["step-earth", "gear"])
+    expect(walk(sim, model, walker, 0.8).map((call) => call.cue)).toEqual(["run-grass", "gear"])
   })
 
   it("is silent for men lying down, and with the camera high", () => {
