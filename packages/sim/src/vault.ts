@@ -21,6 +21,12 @@ const SPAN = 5
 const STEP = 0.25
 /** Wire this thin or thinner, cut or trampled, is no obstacle (as for walking: wire.ts). */
 const CLEAR = 0.15
+/**
+ * Wire denser than this anywhere on the way over can't be climbed at all: a belt the guns haven't broken up is a thicket
+ * of stakes, strands and coils several metres deep, and only after a bombardment has torn it does it become wreckage a
+ * man can get over. Below it he climbs; above it he wades, or finds a gap.
+ */
+const INTACT = 0.6
 /** He comes down this far past the wire, in metres. */
 const LANDING = 0.6
 /** A tangle of loose coils this near his way over, in metres, snares him: only the staked fence can be climbed. */
@@ -179,14 +185,17 @@ export function vaultLanding(
     return wallLanding(sim, x, z, heading)
   }
   let exit = -1
+  let thickest = 0
   for (let distance = entry + STEP; distance <= entry + SPAN; distance += STEP) {
     const point = at(distance)
-    if (wireAt(sim.wire, point.x, point.z) <= CLEAR) {
+    const density = wireAt(sim.wire, point.x, point.z)
+    if (density <= CLEAR) {
       exit = distance
       break
     }
+    thickest = Math.max(thickest, density)
   }
-  if (exit < 0) {
+  if (exit < 0 || thickest > INTACT) {
     return null
   }
   const from = at(entry)

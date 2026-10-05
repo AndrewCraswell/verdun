@@ -235,7 +235,8 @@ export interface OperationState {
   readonly plan: OperationPlan
   readonly plannedAt: number
   readonly zeroHourAt: number
-  readonly endsAt: number
+  /** When the result is judged: the planned end, put back to see out the defenders' counter-attack (`judgedAt`). */
+  endsAt: number
   /** The stretch of the enemy's line attacked, from west to east, in metres. */
   readonly fromX: number
   readonly toX: number
@@ -287,6 +288,12 @@ const REPULSED_AFTER = 240
 const OUT_BEYOND = 10
 /** Seconds between looks at whether the attack is still out. Converted where used (see objectives.ts). */
 const CHECK_SECONDS = 2
+/** The result is judged this long after the defenders' counter-attack goes in, in seconds... */
+const AFTER_COUNTER_ATTACK = 300
+/** ...and no more than this long past the planned end. */
+const MOST_EXTRA = 900
+/** Seconds the defenders' guns shell the lost stretch before their counter-attack goes in (commander.ts). */
+const COUNTER_ATTACK_PREPARATION = 120
 /** The second wave goes this long after zero hour, in seconds. */
 const SECOND_WAVE_AFTER = 180
 /** Attackers in the stretch of the enemy's line, short of holding it, that make a footing. */
@@ -715,6 +722,27 @@ function answerCounterAttack(sim: Simulation, operation: OperationState): void {
   })
 }
 
+/**
+ * When to judge an operation whose planned end has come: then, unless the defenders have lost the stretch and their
+ * counter-attack is still to come or still going in, in which case once it has gone in and had `AFTER_COUNTER_ATTACK`
+ * to tell, and never more than `MOST_EXTRA` past the planned end. So the result is who holds after the counter-attack,
+ * whether the stretch fell early or late.
+ */
+function judgedAt(sim: Simulation, operation: OperationState): number {
+  const planned = operation.zeroHourAt + Math.round(operation.plan.holdSeconds * TICK_RATE)
+  const latest = planned + MOST_EXTRA * TICK_RATE
+  const commander = sim.commanders[enemyOf(operation.plan.side)]
+  if (commander.lostAt < 0 || sim.tick >= latest) {
+    return sim.tick
+  }
+  if (commander.counterAttackedAt < 0) {
+    // Lost, and the counter-attack still forming up: look again in a while.
+    return Math.min(latest, sim.tick + CHECK_SECONDS * TICK_RATE)
+  }
+  const told = commander.counterAttackedAt + (COUNTER_ATTACK_PREPARATION + AFTER_COUNTER_ATTACK) * TICK_RATE
+  return Math.min(latest, Math.max(sim.tick, told))
+}
+
 /** Zero hour: the first wave goes over behind the barrage on the stretch, with the enemy's line either side kept down. */
 function goOver(sim: Simulation, operation: OperationState): void {
   const { side } = operation.plan
@@ -774,8 +802,12 @@ export function operationSystem(sim: Simulation): void {
     sendSecondWave(sim, operation)
   }
   if (sim.tick >= operation.endsAt) {
-    end(sim, operation, judgeOperation(sim, operation))
-    return
+    const judged = judgedAt(sim, operation)
+    if (judged <= sim.tick) {
+      end(sim, operation, judgeOperation(sim, operation))
+      return
+    }
+    operation.endsAt = judged
   }
   if (sim.tick % (CHECK_SECONDS * TICK_RATE) !== 0) {
     return

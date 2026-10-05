@@ -198,6 +198,15 @@ bombardment the French find their target's wire whole and don't get in. 13 of 15
 for both sides: taken 20%/20% on the barrage alone, 30%/40% after one bombardment and 60%/30% after three
 (French/German). Only the German attack after three bombardments is under its band, by one seed in ten.
 
+**The tuning pass, 5 October 2026** (15 seeds each way, with combat changes held): since the morning, bots had learned
+to vault wire, men spread 0.6 m apart, weapons reload and the trench lines came from the sector file, and preparation
+had stopped counting: one bombardment was taken 60%/60% (French/German), three 27%/20%. Two changes: a belt still more
+than 60% intact can't be climbed, and an operation whose stretch has fallen is judged after the counter-attack, not at a
+fixed time. Now barrage only 7%/7%, one bombardment 33%/13%, three bombardments 53%/20%: 10 of 12 checks pass and the
+French scale with preparation as they should. **The German attack after three bombardments stays at 20%**, the French
+counter-attack retaking the stretch; tried and rejected: holding at 2 to 1 rather than 3 (no change), and an answering
+barrage twice as heavy (three bombardments in band for both sides, but unprepared attacks taken up to 60%).
+
 **Latest** (on `3be231d` with the counter-thrust at 2.5 to 1, up to three squads a look, every 5 s, counting squads
 already on their way, and commanders' automatic counter-fire off): barrage-only attacks hold 4 in 10 from both sides,
 one bombardment 2 and 5 in 10, three bombardments 9 and 8 in 10 at 59% and 64% losses; guns cause 36–45% of an

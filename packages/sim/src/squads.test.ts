@@ -1,13 +1,4 @@
-import {
-  beltLayout,
-  carveTrenches,
-  createFlatMap,
-  heightAt,
-  sampleIndex,
-  type Scenery,
-  Surface,
-  type Trench
-} from "@verdun/map"
+import { carveTrenches, createFlatMap, heightAt, sampleIndex, type Scenery, Surface, type Trench } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
 import { Side } from "./components.ts"
@@ -326,27 +317,25 @@ describe("moving like men in a trench", () => {
     expect(members.slice(1).filter((member) => Math.abs(floor(member) + 0.85) < 0.1).length).toBeGreaterThanOrEqual(5)
   })
 
-  it("climbs a bare stretch of a wire fence his route would have him wade, as a player does", () => {
+  it("gets through a belt his route crosses once the guns have broken it up", () => {
     const belt = {
       points: [
         [0, 100],
         [200, 100]
       ] as [number, number][]
     }
-    const { fences, tangles } = beltLayout(belt)
-    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 4))
     const sim = createSimulation({ map: { ...map, wire: [belt] }, seed: 1 })
-    const soldier = spawnSoldier(sim, { side: Side.French, x: bare?.x ?? 0, z: 95 })
+    // Half torn down by shellfire: thin enough to walk through at better than half pace, so nobody climbs it.
+    sim.wire.density.forEach((density, cell) => {
+      sim.wire.density[cell] = density / 2
+    })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 100, z: 95 })
     const squad = createSquad(sim, Side.French, [soldier], "ai")
-    // No gap anywhere: the route goes through the belt.
-    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: bare?.x ?? 0, z: 110 } })
-    let climbed = false
+    enqueueCommand(sim, { type: "squad-order", squad: squad.id, order: { kind: "advance", x: 100, z: 110 } })
     for (let step = 0; step < 15 * TICK_RATE; step++) {
       stepSimulation(sim)
-      climbed ||= hasComponent(sim.world, soldier, sim.soldiers.vault)
     }
-    expect(climbed).toBe(true)
-    // Wading a belt goes at a twentieth of walking pace: this is over it and nearly there in 15 s.
+    // Wading an intact belt goes at a twentieth of walking pace: this is through it and nearly there in 15 s.
     expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(106)
   })
 

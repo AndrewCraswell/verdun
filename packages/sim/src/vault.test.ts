@@ -21,9 +21,18 @@ const BELT: WireBelt = {
   ]
 }
 
-function field(): Simulation {
+/** Every belt half torn down, as a bombardment leaves it: wreckage that can be climbed (intact wire can't). */
+function brokenUp(sim: Simulation): Simulation {
+  sim.wire.density.forEach((density, cell) => {
+    sim.wire.density[cell] = density / 2
+  })
+  return sim
+}
+
+function field(intact = false): Simulation {
   const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
-  return createSimulation({ map: { ...map, wire: [BELT] }, seed: 1 })
+  const sim = createSimulation({ map: { ...map, wire: [BELT] }, seed: 1 })
+  return intact ? sim : brokenUp(sim)
 }
 
 /** A soldier 3 m short of the belt at `x`, facing it. */
@@ -72,6 +81,14 @@ describe("vaulting a wire fence", () => {
     expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(51.7)
   })
 
+  it("won't climb a belt the guns haven't broken up", () => {
+    const sim = field(true)
+    const soldier = facingTheWire(sim, bare?.x ?? 0)
+
+    expect(vaultLanding(sim, soldier)).toBeNull()
+    expect(startVault(sim, soldier)).toBe(false)
+  })
+
   it("won't climb where a tangle of coils lies across his way, nor with no wire ahead", () => {
     const sim = field()
     const snared = facingTheWire(sim, tangled?.x ?? 0)
@@ -94,7 +111,7 @@ describe("vaulting a wire fence", () => {
         [100, z]
       ]
     }))
-    const sim = createSimulation({ map: { ...map, wire: deep }, seed: 1 })
+    const sim = brokenUp(createSimulation({ map: { ...map, wire: deep }, seed: 1 }))
     const soldier = facingTheWire(sim, 50)
     expect(vaultLanding(sim, soldier)).toBeNull()
 

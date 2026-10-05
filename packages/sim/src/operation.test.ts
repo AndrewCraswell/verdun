@@ -330,6 +330,43 @@ describe("operations", () => {
     expect(judgeOperation(sim, operation)).toBe("footing")
   })
 
+  it("judge the result once the counter-attack on a lost stretch has gone in, not before", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    spawnSoldier(sim, { side: Side.French, x: 100, z: 100 })
+    const operation = planOperation(sim, plan({ zeroHourIn: 0, bombardments: 0, holdSeconds: 60 }))
+    // Zero hour, at once.
+    operationSystem(sim)
+    const planned = operation.endsAt
+    const german = sim.commanders[Side.German]
+    german.lostAt = 0
+    sim.tick = planned
+    operationSystem(sim)
+
+    // The stretch lost and its counter-attack still forming up: wait.
+    expect(operation.result).toBeNull()
+    expect(operation.endsAt).toBeGreaterThan(planned)
+    german.counterAttackedAt = planned
+    sim.tick = operation.endsAt
+    operationSystem(sim)
+    // It goes in two minutes after the guns open; the result comes five minutes after that.
+    expect(operation.endsAt).toBe(planned + 420 * TICK_RATE)
+    sim.tick = operation.endsAt
+    operationSystem(sim)
+    expect(operation.result).not.toBeNull()
+  })
+
+  it("judge it no later than fifteen minutes past the planned end", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const operation = planOperation(sim, plan({ zeroHourIn: 0, bombardments: 0, holdSeconds: 60 }))
+    operationSystem(sim)
+    const planned = operation.endsAt
+    sim.commanders[Side.German].lostAt = 0
+    sim.tick = planned + 900 * TICK_RATE
+    operationSystem(sim)
+
+    expect(operation.result).not.toBeNull()
+  })
+
   it("copy deeply for snapshots", () => {
     const sim = createSimulation({ map, seed: 1 })
     const operation = planOperation(sim, plan())

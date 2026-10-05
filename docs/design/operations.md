@@ -133,6 +133,13 @@ Two more fire tasks belong to a local attack:
   support line behind it, where his reserves wait and form up, after an SOS barrage's delay, at three times its weight,
   for six minutes.
 
+### Wire the guns haven't broken
+
+A belt is a thicket of stakes, strands and coils several metres deep. Nobody climbs one while it stands: only where a
+bombardment has torn it to wreckage (below 60% of the wire staked) can a man get over it, and by then it can mostly be
+walked through. Uncut, it's waded at a twentieth of walking pace, or gone round through a gap. So an attack without
+preparation meets its wire whole.
+
 ### Holding the stretch
 
 Men in a trench taken from the enemy don't go down its dugouts: the entrances face the wrong way and the enemy knows
@@ -248,7 +255,10 @@ raising the assembly to eight squads and the second wave to three changed nothin
 | 18–28 | The hold: the German counter-thrusts and counter-attack, about seven minutes after the line falls.        |
 | 28:00 | **The end.** The result is judged and the report shown.                                                   |
 
-**The result**, judged at the end:
+**The result**, judged at the end, after the counter-attack: if the defenders have lost the stretch, the end waits until
+their counter-attack has gone in and had five minutes to tell, and at most fifteen minutes more. Judged at a fixed time,
+an attack that broke in late was still holding when the clock ran out because the counter-attack hadn't landed, and one
+bombardment did better than three.
 
 - **Taken**: the French hold the stretch of German front line they attacked, by the commander's own test of a lost line
   (at least eight men in it, outnumbering what's left of the garrison there three to one).
