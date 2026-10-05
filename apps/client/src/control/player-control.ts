@@ -99,6 +99,9 @@ export function aimToward(from: GroundVector, target: GroundVector): GroundVecto
   return length < 0.25 ? null : { x: dx / length, z: dz / length }
 }
 
+/** The keys `steerFromKeys` reads, in a fixed order. */
+const STEER_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD"] as const
+
 /** A call that would hit our own men needs calling again within this many milliseconds. */
 const CONFIRM_MS = 3000
 /** Aim changes smaller than about one degree aren't worth a command. */
@@ -148,6 +151,9 @@ export function createPlayerControl(
   let lastRun = false
   let lastAim: GroundVector | null = null
   let followedSoldier: EntityId = -1
+  // The movement keys held, and the camera's bearing when they last changed: what WASD steers by.
+  let steerChord = ""
+  let steerBearing = camera.alpha
   camera.panningSensibility = 0
 
   function takeCommand(soldier: EntityId): void {
@@ -285,7 +291,14 @@ export function createPlayerControl(
         lastAim = null
       }
 
-      const steer = steerFromKeys(input.held, camera.alpha)
+      // WASD keeps the bearing the camera had when the keys went down until the keys held change, as a third-person
+      // game holds the stick's direction across a camera cut: turning the view mid-stride doesn't swing him round.
+      const chord = STEER_KEYS.filter((code) => input.held.has(code)).join(" ")
+      if (chord !== steerChord) {
+        steerChord = chord
+        steerBearing = camera.alpha
+      }
+      const steer = steerFromKeys(input.held, steerBearing)
       const moving = steer.x !== 0 || steer.z !== 0
       const run = moving && (input.held.has("ShiftLeft") || input.held.has("ShiftRight"))
       if (run && !lastRun && sim.soldiers.stance.value[soldier] !== Stance.Standing) {

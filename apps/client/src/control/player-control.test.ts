@@ -150,6 +150,32 @@ describe("createPlayerControl", () => {
     expect(sim.soldiers.stance.value[soldier]).toBe(Stance.Standing)
   })
 
+  it("keeps WASD's bearing while the keys stay held, however the camera turns, and takes it afresh when they change", () => {
+    const { sim, soldier, camera, held, control } = setup()
+    const steers = () => sim.pendingCommands.splice(0).filter((command) => command.type === "steer")
+    held.add("KeyW")
+    control.update(0.05)
+    expect(steers()).toEqual([{ type: "steer", soldier, x: expect.closeTo(0), z: 1, run: false }])
+
+    // Turned to look east mid-stride: he keeps walking north.
+    camera.alpha = Math.PI
+    control.update(0.05)
+    expect(steers()).toEqual([])
+
+    // Another key down: the keys are read against the camera as it is now, W east and D south.
+    held.add("KeyD")
+    control.update(0.05)
+    const [diagonal] = steers()
+    expect(diagonal).toMatchObject({ x: expect.closeTo(Math.SQRT1_2), z: expect.closeTo(-Math.SQRT1_2) })
+
+    held.clear()
+    control.update(0.05)
+    camera.alpha = LOOKING_NORTH
+    held.add("KeyD")
+    control.update(0.05)
+    expect(steers().at(-1)).toMatchObject({ x: expect.closeTo(1), z: expect.closeTo(0) })
+  })
+
   it("only sends steering when it changes", () => {
     const { sim, held, control } = setup()
     held.add("KeyD")
