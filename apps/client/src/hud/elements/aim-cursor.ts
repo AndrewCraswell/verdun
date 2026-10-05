@@ -1,6 +1,8 @@
+import { WEAPONS } from "@verdun/sim"
 import type { HudElementFactory } from "../element.ts"
 import type { HudState, ShotChance } from "../hud-state.ts"
 import { interfaceSettings } from "../interface-settings.ts"
+import { weaponOf } from "../squad-names.ts"
 
 /**
  * H8: the pointer over the battlefield, where the man aims. The battlefield's own reticle (style.css) is the resting
@@ -27,10 +29,12 @@ interface Reticle {
   readonly dot: boolean
   /** Chance pips under it, out of three, or none. */
   readonly pips?: number
+  /** Struck through: nothing will happen here. */
+  readonly slash?: boolean
 }
 
 /** A reticle as a cursor, drawn `scale` times its size: the player's marker size. */
-function svgOf({ gap, tick, colour, ring, ringColour, dot, pips }: Reticle, scale: number): string {
+function svgOf({ gap, tick, colour, ring, ringColour, dot, pips, slash }: Reticle, scale: number): string {
   const lines = [
     [CENTRE, CENTRE - gap, CENTRE, CENTRE - gap - tick],
     [CENTRE, CENTRE + gap, CENTRE, CENTRE + gap + tick],
@@ -64,11 +68,15 @@ function svgOf({ gap, tick, colour, ring, ringColour, dot, pips }: Reticle, scal
             )
           })
           .join("")
+  const struck = slash
+    ? `<path d="M${CENTRE - 7} ${CENTRE + 7}L${CENTRE + 7} ${CENTRE - 7}" stroke="#000" stroke-opacity=".6" stroke-width="3.4" stroke-linecap="round"/>` +
+      `<path d="M${CENTRE - 7} ${CENTRE + 7}L${CENTRE + 7} ${CENTRE - 7}" stroke="${colour}" stroke-width="1.5" stroke-linecap="round"/>`
+    : ""
   const size = Math.round(SIZE * scale)
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${SIZE} ${SIZE}">` +
     `<path d="${lines}" stroke="#000" stroke-opacity=".6" stroke-width="3.6" stroke-linecap="round"/>` +
-    `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}${pipMarks}</svg>`
+    `<path d="${lines}" stroke="${colour}" stroke-width="1.7" stroke-linecap="round"/>${arc}${centre}${pipMarks}${struck}</svg>`
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Math.round(size / 2)} ${Math.round(size / 2)}, crosshair`
 }
 
@@ -79,6 +87,12 @@ const DANGER = "#ff6a43"
 interface Cursors {
   readonly aim: string
   readonly spoiled: string
+  /** Over the sky or past the map's edge: a shot or a call there does nothing. */
+  readonly offMap: string
+  /** Beyond the weapon's reach: it can fire, but won't carry there. */
+  readonly outOfRange: string
+  /** Giving an order or a call (the orders wheel, a call's preview): a plain mark, the rest is on the ground. */
+  readonly order: string
   readonly target: string
   /** On target, with the shot's chance shown. */
   readonly chances: Readonly<Record<ShotChance, string>>
@@ -92,6 +106,9 @@ function cursorsAt(scale: number): Cursors {
   return {
     aim: svgOf({ gap: 4.5, tick: 5, colour: INK, ring: null, dot: true }, scale),
     spoiled: svgOf({ gap: 8.5, tick: 4.5, colour: INK, ring: null, dot: true }, scale),
+    offMap: svgOf({ gap: 4.5, tick: 3.5, colour: "rgba(242,217,115,.55)", ring: null, dot: false, slash: true }, scale),
+    outOfRange: svgOf({ gap: 10, tick: 3, colour: "rgba(242,217,115,.6)", ring: null, dot: true }, scale),
+    order: svgOf({ gap: 2.5, tick: 7, colour: INK, ring: null, dot: false }, scale),
     target: svgOf({ gap: 7.5, tick: 4.5, colour: DANGER, ring: 1, ringColour: DANGER, dot: true }, scale),
     chances: {
       good: onTarget(PIPS.good),
@@ -128,7 +145,21 @@ export const aimCursor: HudElementFactory = (context) => {
       }
       const { cursor } = state
       let next = ""
-      if (cursor.state === "target") {
+      const aiming = cursor.state === "aim" || cursor.state === "target"
+      const ground = aiming ? context.pointerGround() : null
+      const soldier = state.soldier
+      const reach = soldier ? WEAPONS[weaponOf(context.sim, soldier.id)].range : Infinity
+      const far =
+        ground !== null &&
+        soldier !== null &&
+        Math.hypot(ground.x - soldier.position.x, ground.z - soldier.position.z) > reach
+      if (cursor.state !== "none" && canvas.dataset.orderMode) {
+        next = cursors.order
+      } else if (aiming && ground === null) {
+        next = cursors.offMap
+      } else if (cursor.state === "aim" && far) {
+        next = cursors.outOfRange
+      } else if (cursor.state === "target") {
         next = showChance && cursor.chance ? cursors.chances[cursor.chance] : cursors.target
       } else if (cursor.state === "reload") {
         next = cursors.reloading[Math.min(RELOAD_STEPS, Math.floor(cursor.ready * RELOAD_STEPS))] ?? cursors.aim

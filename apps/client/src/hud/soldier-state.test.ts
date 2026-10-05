@@ -1,12 +1,23 @@
 import { casualty, enqueueCommand, MaskState, Stance, stepSimulation, surrender, TICK_RATE, Weapon } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { type Casualties, effectsOn, rosterView, severityOf, soldierView } from "./soldier-state.ts"
+import { actionFor, type Casualties, effectsOn, rosterView, severityOf, soldierView } from "./soldier-state.ts"
 import { createSquadNames } from "./squad-names.ts"
 import { slot, testBattle } from "./test-battle.ts"
 
 const NONE: Casualties = { lying: new Set(), evacuated: new Set(), captured: new Set(), returned: new Set() }
 
 describe("soldierView", () => {
+  it("says what the action key would do: man a comrade's gun beside him, hand his own back, or nothing", () => {
+    const { sim, members } = testBattle()
+    const leader = slot(members, 0)
+    const gunner = slot(members, 7)
+    expect(actionFor(sim, leader)).toBeNull()
+    sim.soldiers.position.x[gunner] = sim.soldiers.position.x[leader] + 1
+    sim.soldiers.position.z[gunner] = sim.soldiers.position.z[leader]
+    expect(actionFor(sim, leader)).toBe("Man the gun")
+    expect(actionFor(sim, gunner)).toBe("Hand back the gun")
+  })
+
   it("names a sniper and a rifle grenadier by their job, and counts the grenadier's rifle grenades", () => {
     const { sim, squad, members } = testBattle()
     const names = createSquadNames()

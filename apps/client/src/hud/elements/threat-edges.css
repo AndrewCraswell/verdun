@@ -1,0 +1,31 @@
+/* Marks at the screen's edge toward the danger: vermilion for fire at the man, amber for a shell about to land near. */
+.threat-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.te-mark {
+  stroke: rgb(6 5 4 / 75%);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  transition: opacity 120ms linear;
+}
+
+.te-mark--fire {
+  fill: var(--hud-danger);
+}
+
+.te-mark--shell {
+  fill: var(--hud-caution);
+  fill-rule: evenodd;
+}
+
+.te-mark--heavy {
+  fill: var(--hud-danger);
+  fill-rule: evenodd;
+}

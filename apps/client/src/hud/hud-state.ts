@@ -46,6 +46,7 @@ import { createSquadNames, type SquadNames, weaponOf } from "./squad-names.ts"
 import { createOrderWatch, type OrderView } from "./squad-order.ts"
 import { createSuccessionWatch, type Succession } from "./succession.ts"
 import { middleOf, type TakeOverChoice, takeOverChoices } from "./take-over.ts"
+import { createThreatWatch, type Threat } from "./threats.ts"
 import { type WarStatus, warStatus } from "./war-status.ts"
 
 /**
@@ -73,6 +74,8 @@ export interface HudState {
   readonly wiped: WipedView | null
   /** Machine guns given away by their fire: the enemy's we've spotted, and ours once the enemy has. */
   readonly guns: readonly SpottedGun[]
+  /** Where the danger comes from now: fire at the man under control, shells about to land near him. */
+  readonly threats: readonly Threat[]
   /** The operation the battle is fought in, counted down from now; null without one. */
   readonly operation: OperationView | null
   readonly hint: Hint | null
@@ -193,6 +196,7 @@ export function createHudModel(
   const names = createSquadNames()
   const log: BattleLog = createBattleLog(sim, squad, tickRate, names)
   const banners = createBannerQueue(sim, squad, names)
+  const threats = createThreatWatch(sim, squad, tickRate)
   const succession = createSuccessionWatch(sim, squad, names)
   const orders = createOrderWatch(sim, squad)
   const ledger = createShellLedger()
@@ -287,6 +291,7 @@ export function createHudModel(
     record(events) {
       log.record(events)
       banners.record(events)
+      threats.record(events)
       const leader = squad.leader
       for (const event of events) {
         if (event.type === "returned-to-duty") {
@@ -340,6 +345,7 @@ export function createHudModel(
         succession: handover,
         wiped: wipedOf(soldier, roster, strength.reserves?.men ?? null),
         guns: spottedGunsView(sim, squad, tickRate),
+        threats: threats.read(),
         operation: operationView(sim, squad.side, tickRate),
         hint: hints.read(now, view),
         screen: screenOf(soldier, handover),

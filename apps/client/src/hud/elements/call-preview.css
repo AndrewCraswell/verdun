@@ -34,6 +34,23 @@
   opacity: 0.6;
 }
 
+/* Gas: where the wind carries the cloud by the time the shoot ends. */
+.cpv-drift {
+  fill: color-mix(in srgb, var(--call) 9%, transparent);
+  stroke: var(--call);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.8;
+}
+
+.cpv-drift-arrow {
+  fill: none;
+  stroke: var(--call);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .cpv-centre {
   stroke: var(--call);
   stroke-width: 1.6;

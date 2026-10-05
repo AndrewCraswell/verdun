@@ -1,4 +1,5 @@
 import type { HudElementFactory } from "./element.ts"
+import { actionPrompt } from "./elements/action-prompt.ts"
 import { aimCursor } from "./elements/aim-cursor.ts"
 import { bannerStrip } from "./elements/banner-strip.ts"
 import { callPreviewMarks } from "./elements/call-preview.ts"
@@ -18,6 +19,7 @@ import { screenEffects } from "./elements/screen-effects.ts"
 import { soldierCard } from "./elements/soldier-card.ts"
 import { strengthPanel } from "./elements/strength-panel.ts"
 import { takeOverMarks } from "./elements/take-over-marks.ts"
+import { threatEdges } from "./elements/threat-edges.ts"
 import { throwPreviewMarks } from "./elements/throw-preview.ts"
 import { warMap } from "./elements/war-map.ts"
 import { wipedPanel } from "./elements/wiped-panel.ts"
@@ -40,6 +42,8 @@ export const HUD_ELEMENTS: readonly HudElementFactory[] = [
   throwPreviewMarks,
   callPreviewMarks,
   orderWheel,
+  actionPrompt,
+  threatEdges,
   takeOverMarks,
   gunMarks,
   // Bottom left, from the bottom: H1, H3 and H4; H5; H6; H2 beside them.

@@ -3,8 +3,11 @@
   display: flex;
   align-items: center;
   gap: 0.85em;
-  /* Between the corners' panels, however narrow the screen. */
-  max-width: calc(100vw - 2 * (24.6em + var(--hud-margin) + 1em));
+  /*
+   * Between the corners' panels, however narrow the screen: clear of the soldier card (24.6em) and the column of effects
+   * beside it (0.75em off the card, a 2.9em disc), and as much again on the right for the artillery board.
+   */
+  max-width: calc(100vw - 2 * (24.6em + 0.75em + 2.9em + var(--hud-margin) + 1em));
   padding: 0.55em 1em 0.55em 0.65em;
   box-sizing: border-box;
   border-color: rgb(201 163 90 / 30%);

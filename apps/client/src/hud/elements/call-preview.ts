@@ -33,6 +33,9 @@ export const callPreviewMarks: HudElementFactory = (context) => {
   root.setAttribute("aria-hidden", "true")
   const margin = svg("path", "cpv-margin")
   const area = svg("path", "cpv-area")
+  // Gas only: where the wind carries the cloud, and an arrow from the bursts to it.
+  const drifted = svg("path", "cpv-drift")
+  const driftArrow = svg("path", "cpv-drift-arrow")
   const centre = svg("path", "cpv-centre")
   const title = svg("text", "cpv-title")
   const detail = svg("text", "cpv-detail")
@@ -40,7 +43,7 @@ export const callPreviewMarks: HudElementFactory = (context) => {
   detail.setAttribute("y", "4")
   const label = svg("g", "cpv-label")
   label.append(title, detail)
-  root.append(margin, area, centre, label)
+  root.append(drifted, driftArrow, margin, area, centre, label)
   root.style.display = "none"
 
   let aiming: CallKind | null = null
@@ -108,21 +111,47 @@ export const callPreviewMarks: HudElementFactory = (context) => {
     const { fromX, toX, nearZ, farZ, reach } = preview
     area.setAttribute("d", outline(fromX, toX, nearZ, farZ))
     margin.setAttribute("d", outline(fromX - reach, toX + reach, nearZ - reach, farZ + reach))
+    const { drift } = preview
+    const drifting = Math.hypot(drift.x, drift.z) > 2
+    drifted.setAttribute("d", drifting ? outline(fromX + drift.x, toX + drift.x, nearZ + drift.z, farZ + drift.z) : "")
+    const downwind = drifting
+      ? context.project(at.x + drift.x, context.heightAt(at.x + drift.x, at.z + drift.z) + 0.3, at.z + drift.z)
+      : null
     const middle = context.project(at.x, context.heightAt(at.x, at.z) + 0.3, at.z)
     if (middle) {
       const { x, y } = middle
       centre.setAttribute("d", `M${x - 9} ${y}H${x + 9}M${x} ${y - 9}V${y + 9}`)
     }
-    const top = context.project(at.x, context.heightAt(at.x, farZ) + 0.3, farZ + reach)
-    if (top) {
-      label.setAttribute("transform", `translate(${top.x.toFixed(1)} ${(top.y - 10).toFixed(1)})`)
+    if (middle && downwind) {
+      const angle = Math.atan2(downwind.y - middle.y, downwind.x - middle.x)
+      const head = (turn: number) =>
+        `${(downwind.x - Math.cos(angle + turn) * 10).toFixed(1)} ${(downwind.y - Math.sin(angle + turn) * 10).toFixed(1)}`
+      driftArrow.setAttribute(
+        "d",
+        `M${middle.x.toFixed(1)} ${middle.y.toFixed(1)}L${downwind.x.toFixed(1)} ${downwind.y.toFixed(1)}M${head(0.5)}L${downwind.x.toFixed(1)} ${downwind.y.toFixed(1)}L${head(-0.5)}`
+      )
+    } else {
+      driftArrow.setAttribute("d", "")
+    }
+    // The words go under whichever edge of the footprint is nearer the camera, where they stay on the screen.
+    const edges = [nearZ - reach, farZ + reach].map((z) => context.project(at.x, context.heightAt(at.x, z) + 0.3, z))
+    const bottom = edges.reduce<ScreenPoint | null>(
+      (low, point) => (point && (!low || point.y > low.y) ? point : low),
+      null
+    )
+    if (bottom) {
+      label.setAttribute("transform", `translate(${bottom.x.toFixed(1)} ${(bottom.y + 26).toFixed(1)})`)
     }
     if (preview.ourMen > 0) {
       title.textContent = "Our men in the beaten zone"
       detail.textContent = `${preview.ourMen === 1 ? "1 man" : `${preview.ourMen} men`}, call twice to fire`
     } else {
       title.textContent = TITLES[preview.kind]
-      detail.textContent = `Lands in about ${preview.delay} s, fires ${preview.duration} s`
+      const carried = Math.round(Math.hypot(preview.drift.x, preview.drift.z))
+      detail.textContent =
+        carried > 2
+          ? `Lands in about ${preview.delay} s, fires ${preview.duration} s, drifts ${carried} m downwind`
+          : `Lands in about ${preview.delay} s, fires ${preview.duration} s`
     }
   }
 
@@ -139,6 +168,14 @@ export const callPreviewMarks: HudElementFactory = (context) => {
     frame() {
       const at = aiming ? context.pointerGround() : null
       root.style.display = at && aiming ? "" : "none"
+      // The cursor turns plain while a call is aimed: the footprint on the ground says where it goes.
+      if (context.canvas) {
+        if (aiming) {
+          context.canvas.dataset.orderMode = "call"
+        } else if (context.canvas.dataset.orderMode === "call") {
+          delete context.canvas.dataset.orderMode
+        }
+      }
       if (at && aiming) {
         draw(callPreview(context.sim, context.squad.side, aiming, at), at)
       }

@@ -1,5 +1,5 @@
 import { mapDepth, mapWidth } from "@verdun/map"
-import { isAlive, Side, soldierIds } from "@verdun/sim"
+import { GAS_CELL, GAS_DETECTED, isAlive, Side, soldierIds } from "@verdun/sim"
 import type { HudElementFactory, ScreenPoint } from "../element.ts"
 import type { HudState } from "../hud-state.ts"
 import "./war-map.css"
@@ -28,13 +28,14 @@ function smoothstep(from: number, to: number, value: number): number {
 }
 
 /** The colours the map draws with: read from the HUD's tokens, so a colour-vision palette changes them too. */
-function inks(element: Element): { ours: string; theirs: string; brass: string; ink: string } {
+function inks(element: Element): { ours: string; theirs: string; brass: string; gas: string; ink: string } {
   const style = getComputedStyle(element)
   const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
   return {
     ours: token("--hud-ours", "#87a9da"),
     theirs: token("--hud-theirs", "#d4644b"),
     brass: token("--hud-brass-bright", "#e8ca88"),
+    gas: token("--hud-gas", "#c4c968"),
     ink: token("--hud-ink", "#efe7d3")
   }
 }
@@ -209,6 +210,40 @@ export const warMap: HudElementFactory = (context) => {
     }
   }
 
+  /** Gas on the ground, where it's thick enough to smell: the gas colour, stronger where it's thicker. */
+  function drawGas(): void {
+    const pen = drawing
+    const { gas } = sim
+    if (!pen) {
+      return
+    }
+    pen.fillStyle = colours.gas
+    for (let row = 0; row < gas.rows; row++) {
+      for (let column = 0; column < gas.columns; column++) {
+        const concentration = gas.concentration[row * gas.columns + column] ?? 0
+        if (concentration < GAS_DETECTED) {
+          continue
+        }
+        const x = column * GAS_CELL
+        const z = row * GAS_CELL
+        const near = project(x, z)
+        const far = project(x + GAS_CELL, z + GAS_CELL)
+        if (!near || !far) {
+          continue
+        }
+        // On a log scale, as the cloud's own picture: the faint edges matter too.
+        pen.globalAlpha = Math.min(0.55, 0.12 + 0.08 * Math.log10(concentration / GAS_DETECTED + 1) * 4)
+        pen.fillRect(
+          Math.min(near.x, far.x),
+          Math.min(near.y, far.y),
+          Math.abs(far.x - near.x) + 0.5,
+          Math.abs(far.y - near.y) + 0.5
+        )
+      }
+    }
+    pen.globalAlpha = 1
+  }
+
   function drawSoldiers(state: HudState): void {
     const pen = drawing
     if (!pen) {
@@ -314,6 +349,7 @@ export const warMap: HudElementFactory = (context) => {
       }
       drawing = menLayer
       drawing.clearRect(0, 0, innerWidth, innerHeight)
+      drawGas()
       drawSoldiers(state)
     }
   }

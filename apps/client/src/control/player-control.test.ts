@@ -237,6 +237,9 @@ describe("createPlayerControl", () => {
     const engine = new NullEngine()
     engines.push(engine)
     const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    // Still air: a gas shoot's drift then reaches nobody, so it goes without asking twice.
+    sim.wind.x = 0
+    sim.wind.z = 0
     const leader = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
     const squad = createSquad(sim, Side.French, [leader], "player")
     const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))

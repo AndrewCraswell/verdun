@@ -84,6 +84,9 @@ export const orderWheel: HudElementFactory = (context) => {
   }
 
   function close(): void {
+    if (context.canvas) {
+      delete context.canvas.dataset.orderMode
+    }
     open = null
     chosen = null
     root.style.display = "none"
@@ -103,6 +106,9 @@ export const orderWheel: HudElementFactory = (context) => {
     root.style.left = `${open.x - size / 2}px`
     root.style.top = `${open.y - size / 2}px`
     root.style.display = ""
+    if (context.canvas) {
+      context.canvas.dataset.orderMode = "wheel"
+    }
     for (const [index, wedge] of WEDGES.entries()) {
       const key = wedges[index]?.key
       if (key) {

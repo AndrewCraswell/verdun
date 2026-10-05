@@ -11,7 +11,9 @@ import {
   RIFLE_GRENADES_CARRIED,
   isAlive,
   isDark,
+  gunPartner,
   isInTrench,
+  vaultLanding,
   MaskState,
   PINNED,
   seesOverParapet,
@@ -97,6 +99,24 @@ export interface SoldierView {
   /** A rifle grenadier's VB grenades, fired from the cup on his rifle; null for anyone else. */
   readonly rifleGrenades: { readonly count: number; readonly carried: number } | null
   readonly position: { readonly x: number; readonly z: number }
+  /** What the action key (Space) would do now, in a few words, or null when it would do nothing. */
+  readonly action: string | null
+}
+
+/**
+ * What the action key would do for a man now, as the player control decides it (control/player-control.ts): take over
+ * a comrade's machine gun beside him, or hand his own back; else climb what's ahead of him, a trench wall or a wire
+ * fence. Null with nothing to do.
+ */
+export function actionFor(sim: Simulation, soldier: EntityId): string | null {
+  if (gunPartner(sim, soldier) >= 0) {
+    return sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? "Hand back the gun" : "Man the gun"
+  }
+  if (!vaultLanding(sim, soldier)) {
+    return null
+  }
+  const { x, z } = sim.soldiers.position
+  return isInTrench(sim.map, x[soldier], z[soldier]) ? "Climb out" : "Climb over"
 }
 
 /** The one state that says most about a man at a glance, by the priority in docs/design/interface.md. */
@@ -231,7 +251,8 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
       kind === Weapon.RifleGrenadier
         ? { count: soldiers.rifleGrenades.count[soldier], carried: RIFLE_GRENADES_CARRIED }
         : null,
-    position: { x, z }
+    position: { x, z },
+    action: actionFor(sim, soldier)
   }
 }
 

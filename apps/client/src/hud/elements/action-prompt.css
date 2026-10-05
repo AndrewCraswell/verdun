@@ -1,0 +1,33 @@
+/* The action key's prompt over the man under control: a key cap and a few words on a small dark plate. */
+.action-prompt {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.22em 0.55em 0.22em 0.3em;
+  border: 1px solid var(--hud-brass-dim);
+  border-radius: var(--hud-radius);
+  font-size: 0.82em;
+  font-weight: 650;
+  white-space: nowrap;
+  background: var(--hud-plate-deep);
+  translate: -50% -100%;
+  animation: ap-in var(--hud-med) var(--hud-ease) both;
+}
+
+.action-prompt[hidden] {
+  display: none;
+}
+
+@keyframes ap-in {
+  from {
+    opacity: 0;
+    translate: -50% -80%;
+  }
+}
+
+.ap-label {
+  color: var(--hud-ink);
+}
