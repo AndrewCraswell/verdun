@@ -1,6 +1,6 @@
 import { pointsAlong, type Trench, TRENCH_PROFILE } from "@verdun/map"
 import type { EntityId } from "bitecs"
-import { Shell } from "./artillery.ts"
+import { type FireMissionPlan, Shell } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { allotReinforcements } from "./reinforcements.ts"
@@ -175,20 +175,22 @@ export function setupSkirmish(
  * and lay the guns, then a battery fires for 45 seconds on a 60 m front.
  */
 export function callForFire(sim: Simulation, side: Side, x: number, z: number): void {
-  enqueueCommand(sim, {
-    type: "fire-mission",
-    plan: {
-      side,
-      shell: Shell.FieldHighExplosive,
-      fromX: x - 30,
-      toX: x + 30,
-      z,
-      band: 20,
-      roundsPerMinute: 24,
-      delay: 30,
-      duration: 45
-    }
-  })
+  enqueueCommand(sim, { type: "fire-mission", plan: fireMissionAt(side, x, z) })
+}
+
+/** The fire mission a call for fire on a point brings: see `callForFire`. */
+export function fireMissionAt(side: Side, x: number, z: number): FireMissionPlan {
+  return {
+    side,
+    shell: Shell.FieldHighExplosive,
+    fromX: x - 30,
+    toX: x + 30,
+    z,
+    band: 20,
+    roundsPerMinute: 24,
+    delay: 30,
+    duration: 45
+  }
 }
 
 /**
@@ -197,18 +199,20 @@ export function callForFire(sim: Simulation, side: Side, x: number, z: number): 
  * to build a cloud thick enough to catch men before their masks were on, and to keep them masked for long after.
  */
 export function callGasOn(sim: Simulation, side: Side, x: number, z: number): void {
-  enqueueCommand(sim, {
-    type: "fire-mission",
-    plan: {
-      side,
-      shell: Shell.FieldGas,
-      fromX: x - 50,
-      toX: x + 50,
-      z,
-      band: 40,
-      roundsPerMinute: 60,
-      delay: 30,
-      duration: 60
-    }
-  })
+  enqueueCommand(sim, { type: "fire-mission", plan: gasShootAt(side, x, z) })
+}
+
+/** The fire mission a gas shoot on a point brings: see `callGasOn`. */
+export function gasShootAt(side: Side, x: number, z: number): FireMissionPlan {
+  return {
+    side,
+    shell: Shell.FieldGas,
+    fromX: x - 50,
+    toX: x + 50,
+    z,
+    band: 40,
+    roundsPerMinute: 60,
+    delay: 30,
+    duration: 60
+  }
 }
