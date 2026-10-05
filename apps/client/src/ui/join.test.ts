@@ -1,7 +1,7 @@
 import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { createSimulation, createSquad, enqueueCommand, Side, spawnSoldier, stepSimulation } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { joinChoices, placeName } from "./join.ts"
+import { joinArea, joinChoices, placeName } from "./join.ts"
 
 /** Our front line at z = 100 facing north, our reserve line at z = 40, the enemy's at z = 180 facing south. */
 function battle() {
@@ -64,5 +64,15 @@ describe("the join screen's choices", () => {
   it("names a place by its objective when one is near, by its square otherwise", () => {
     const { sim } = battle()
     expect(placeName(sim, 20, 190)).toBe("in square A1")
+  })
+
+  it("shows the squads and out to the enemy's nearest line, with ground round them", () => {
+    const { sim, squadAt } = battle()
+    const player = squadAt(30, 100, Side.French, "player")
+    squadAt(150, 100)
+    const choices = joinChoices(sim, player)
+    const area = joinArea(sim, Side.French, [choices.held, ...choices.line])
+    // From the squads at z 100 out to the enemy's line at z 180, 40 m round, within the map's 200 m.
+    expect(area).toEqual({ minX: 0, maxX: 197, minZ: 60, maxZ: 200 })
   })
 })

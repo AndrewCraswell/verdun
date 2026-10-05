@@ -1,16 +1,14 @@
 import type { WarDay } from "@verdun/sim"
 import { getMixer } from "../audio/mixer.ts"
-import { countdownLabel, turnLabel, weekLabel } from "../environment/war-labels.ts"
+import { turnLabel, weekLabel } from "../environment/war-labels.ts"
 import { h, setText } from "../hud/dom.ts"
 import { type InterfaceSettings, interfaceSettings } from "../hud/interface-settings.ts"
 import type { BattlePages } from "./battle-pages.ts"
 import type { BattleParts } from "./battle.ts"
-import { createControlsPage } from "./controls.ts"
 import { createCreditsPage } from "./credits.ts"
 import { createFrontMapPage } from "./front/front-map.ts"
-import { OPEN_SECTOR, seasonPhase } from "./front/front.ts"
+import { OPEN_SECTOR } from "./front/front.ts"
 import { weekAtVerdun } from "./front/verdun-1916.ts"
-import { createJoinPage } from "./join-page.ts"
 import { keymap } from "./keymap.ts"
 import { createLoadingScreen } from "./loading.ts"
 import { createOptionsPage } from "./options.ts"
@@ -125,8 +123,6 @@ export function createMenu(
   const kicker = h("div", "ui-kicker")
   const title = h("h1", "ui-title")
   const week = h("div", "ui-week")
-  const turn = h("div", "ui-turn")
-  const phase = h("div", "ui-phase")
   const history = h("p", "ui-history")
   const nav = h("nav", "ui-nav-list")
   nav.setAttribute("aria-label", "Menu")
@@ -135,7 +131,7 @@ export function createMenu(
     "div",
     "ui-column",
     h("header", "ui-masthead", kicker, title),
-    h("div", "ui-date", week, turn, phase, history),
+    h("div", "ui-date", week, history),
     nav,
     footer
   )
@@ -178,22 +174,24 @@ export function createMenu(
     war: () => war?.day ?? null,
     entry: () =>
       screen === "front-door"
-        ? { label: `Into the line at ${OPEN_SECTOR.name}`, enabled: true }
-        : { label: "Back to the battle", enabled: true },
-    enter: () => (screen === "front-door" ? openPage(joinPage) : show(false))
+        ? { label: `Join the battle at ${OPEN_SECTOR.name}`, enabled: true }
+        : { label: "Resume", enabled: true },
+    enter: () => (screen === "front-door" ? openJoin() : show(false))
   })
-  // Choosing a squad goes to the operation's briefing, then up the line; in free play, straight up the line.
-  const joinPage = createJoinPage({
-    choices: () => made?.choices() ?? null,
-    join: (squad) => (made?.brief(squad) ? openPage(made.briefing) : enter(squad))
+  // Until the battle's squads are mustered, the join screen says so; then it's the map to choose one on.
+  const mustering: MenuPage = {
+    id: "join",
+    title: "Choose your squad",
+    root: h("p", "ui-controls-intro", "Mustering the sector's squads…")
+  }
+  const openJoin = () => openPage(made?.join ?? mustering)
+  const options = createOptionsPage({
+    development,
+    renderer: () => renderer,
+    reload: () => reload(screen !== "front-door")
   })
-  const pages: MenuPage[] = [
-    joinPage,
-    front,
-    createOptionsPage({ renderer: () => renderer, reload: () => reload(screen !== "front-door") }),
-    createControlsPage({ development }),
-    createCreditsPage()
-  ]
+  const credits = createCreditsPage()
+  const pages: MenuPage[] = [front, options, credits]
   let page: MenuPage | null = null
   let opener: HTMLElement | null = null
 
@@ -229,9 +227,15 @@ export function createMenu(
   const enterBar = h("span", "ui-progress", h("span", "ui-progress-fill"))
   enterButton.append(enterLabel, enterNote, enterBar)
   enterButton.dataset.page = "join"
-  enterButton.addEventListener("click", () =>
-    screen === "front-door" ? openPage(page === joinPage ? null : joinPage) : show(false)
-  )
+  enterButton.addEventListener("click", () => {
+    if (screen !== "front-door") {
+      show(false)
+    } else if (page?.id === "join") {
+      openPage(null)
+    } else {
+      openJoin()
+    }
+  })
 
   function navItem(label: string, onClick: () => void, pageId?: string): HTMLButtonElement {
     const item = h("button", "ui-nav-item", h("span", "ui-nav-label", label))
@@ -253,8 +257,8 @@ export function createMenu(
     }
     return item
   }
-  const restart = navItem("Restart the skirmish", () => reload(true))
-  const leave = navItem("Leave for the front door", () => reload(false))
+  const restart = navItem("Restart", () => reload(true))
+  const leave = navItem("Leave the battle", () => reload(false))
 
   function layout(): void {
     const door = screen === "front-door"
@@ -262,12 +266,13 @@ export function createMenu(
     document.body.dataset.screen = screen
     setText(kicker, door ? "The Western Front, 1914–1918" : "The battle waits")
     setText(title, door ? "Verdun" : OPEN_SECTOR.name)
-    setText(enterLabel, door ? "Into the line" : "Back to the battle")
-    // The join screen opens from the way in, not from a list entry of its own; the battle's pages only in battle.
-    const battlePages = made && !door ? [made.sector, made.squad, made.log] : []
-    const [, frontPage, ...rest] = pages
-    const shown = [frontPage, ...battlePages, ...rest].flatMap((each) => (each ? [itemOf(each)] : []))
-    nav.replaceChildren(enterButton, ...shown, ...(door ? [] : [restart, leave]))
+    setText(enterLabel, door ? "Join the battle" : "Resume")
+    // At the front door: join, the war map, the options, the credits. In battle: the battle's own pages first, then
+    // the war map and the options; the credits stay at the front door.
+    const shown = door
+      ? [front, options, credits]
+      : [...(made ? [made.sector, made.squad, made.log] : []), front, options]
+    nav.replaceChildren(enterButton, ...shown.map(itemOf), ...(door ? [] : [restart, leave]))
     entry()
   }
 
@@ -287,13 +292,8 @@ export function createMenu(
     if (!day) {
       return
     }
+    // The week, and at the front door one line of what happened at Verdun that week: no more.
     setText(week, day.phase === "turn" ? weekLabel(day.week) : turnLabel(day))
-    setText(
-      turn,
-      // The turn and the countdown as two sentences, not strung together with a dot.
-      day.phase === "turn" ? `${turnLabel(day)}. ${countdownLabel(day, Date.now())}.` : countdownLabel(day, Date.now())
-    )
-    setText(phase, day.phase === "turn" ? (seasonPhase(day.season, day.turn) ?? "") : "")
     setText(history, day.phase === "turn" && screen === "front-door" ? (weekAtVerdun(day.week) ?? "") : "")
     loading.date(day)
   }
@@ -313,7 +313,7 @@ export function createMenu(
     if (screen !== "front-door") {
       return
     }
-    made?.join(squad)
+    made?.enlist(squad)
     openPage(null)
     open = false
     root.hidden = true
@@ -512,13 +512,16 @@ export function createMenu(
         battle = up
         void import("./battle-pages.ts").then(({ createBattlePages }) => {
           made = createBattlePages(up, putAway, {
-            go: (squad) => enter(squad),
-            back: () => openPage(joinPage),
+            start: (squad) => enter(squad),
             again: () => reload(true),
             frontDoor: () => reload(false)
           })
           if (open && screen !== "front-door") {
             layout()
+          }
+          // A player waiting on the squads to be mustered gets the map to choose one on.
+          if (page === mustering) {
+            openPage(made.join)
           }
           page?.tick?.()
         })

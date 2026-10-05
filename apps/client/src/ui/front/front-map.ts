@@ -423,7 +423,7 @@ export function createFrontMapPage(context: FrontMapContext): MenuPage {
 
   return {
     id: "front",
-    title: "The front",
+    title: "War map",
     root,
     opened() {
       const day = context.war()

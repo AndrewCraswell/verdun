@@ -1,0 +1,226 @@
+/* Joining on the map: the plan with the squads pinned where they stand, and the choice beside it. */
+.join-page {
+  --paper: #e9e0c8;
+  --paper-ink: #2c261b;
+  --paper-ink-2: rgb(44 38 27 / 72%);
+  --paper-ink-3: rgb(44 38 27 / 50%);
+  --paper-rule: rgb(44 38 27 / 16%);
+  --paper-ours: #2f5d9e;
+  --paper-theirs: #b0341f;
+  --paper-brass: #8a6420;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16em, 21em);
+  height: 100%;
+}
+
+.ui[data-vision="deuteranopia"] .join-page,
+.ui[data-vision="protanopia"] .join-page {
+  --paper-ours: #1f5fc4;
+  --paper-theirs: #b0610b;
+}
+
+.ui[data-vision="tritanopia"] .join-page {
+  --paper-ours: #187c86;
+  --paper-theirs: #c2264a;
+}
+
+.join-map {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.join-map-box {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.join-plan {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.join-pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A squad: its number in a disc, centred on where its men stand. */
+.join-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  margin: -0.95em 0 0 -0.95em;
+  padding: 0;
+  font: 700 0.78em/1 var(--ui-font);
+  color: #fff;
+  background: var(--paper-ours);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Going over in the first wave: a small arrow on the pin, pointing at the enemy. */
+.join-pin--wave::after {
+  content: "";
+  position: absolute;
+  top: -0.75em;
+  left: 50%;
+  margin-left: -0.4em;
+  border: 0.4em solid transparent;
+  border-bottom: 0.45em solid var(--paper-theirs);
+  border-top: 0;
+}
+
+.join-pin--held {
+  width: 2.3em;
+  height: 2.3em;
+  margin: -1.15em 0 0 -1.15em;
+  background: var(--paper-brass);
+}
+
+/* In reserve: a square, so the shape says it as well as the place. */
+.join-pin--reserve {
+  border-radius: 3px;
+}
+
+.join-pin--refused {
+  color: var(--paper-ink-2);
+  background: #cfc6ad;
+  cursor: help;
+}
+
+.join-pin:hover,
+.join-pin:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px var(--paper-ink);
+}
+
+.join-pin[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 5px var(--paper-brass);
+}
+
+.join-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em 1.2em;
+  padding: 0.5em 1em 0.7em;
+  font-size: 0.74em;
+  color: var(--paper-ink-2);
+  border-top: 1px solid var(--paper-rule);
+}
+
+.join-key {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.join-key::before {
+  content: "";
+  width: 0.85em;
+  height: 0.85em;
+  background: var(--paper-ours);
+  border-radius: 50%;
+}
+
+.join-key--wave::before {
+  width: 0;
+  height: 0;
+  background: none;
+  border: 0.42em solid transparent;
+  border-bottom: 0.5em solid var(--paper-theirs);
+  border-top: 0;
+  border-radius: 0;
+}
+
+.join-key--held::before {
+  background: var(--paper-brass);
+}
+
+.join-key--reserve::before {
+  border-radius: 2px;
+}
+
+.join-key--refused::before {
+  background: #cfc6ad;
+  border: 1px solid var(--paper-ink-3);
+}
+
+.join-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4em;
+  min-height: 0;
+  padding: 1.1em 1.3em 1.4em;
+  overflow-y: auto;
+  border-left: 1px solid var(--ui-hairline);
+}
+
+.join-attack-lines {
+  margin: 0.4em 0 0.6em;
+  padding-left: 1.2em;
+  color: var(--ui-ink);
+}
+
+.join-attack-lines li {
+  margin-bottom: 0.3em;
+}
+
+.join-attack-win {
+  margin: 0;
+  font-size: 0.88em;
+  color: var(--ui-ink-2);
+}
+
+.join-outcome--taken {
+  color: var(--ui-ours);
+}
+
+.join-outcome--repulsed {
+  color: var(--ui-theirs);
+}
+
+.join-chosen {
+  margin-top: auto;
+  padding-top: 1em;
+  border-top: 1px solid var(--ui-hairline);
+}
+
+.join-chosen-name {
+  margin: 0 0 0.3em;
+  font: 400 1.5em/1.15 var(--ui-display);
+}
+
+.join-chosen-facts {
+  margin: 0 0 0.6em;
+  color: var(--ui-ink-2);
+}
+
+.join-chosen-refusal {
+  margin: 0 0 0.6em;
+  font-style: italic;
+  color: var(--ui-caution);
+}
+
+.join-start {
+  width: 100%;
+  padding: 0.7em 1em;
+  font-size: 1.05em;
+}

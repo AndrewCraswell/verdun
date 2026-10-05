@@ -99,6 +99,25 @@ body:not([data-screen="battle"]) .menu-hint {
   visibility: hidden;
 }
 
+/* The map pages take the whole width, the list put away while they're open: Back brings it again. */
+.ui[data-page="join"],
+.ui[data-page="front"],
+.ui[data-page="sector"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ui[data-page="join"] .ui-column,
+.ui[data-page="front"] .ui-column,
+.ui[data-page="sector"] .ui-column {
+  display: none;
+}
+
+.ui[data-page="join"] .ui-page,
+.ui[data-page="front"] .ui-page,
+.ui[data-page="sector"] .ui-page {
+  margin: clamp(16px, 3vh, 40px) clamp(16px, 2vw, 40px);
+}
+
 /* A page on its own over the running battle (the sector map, the squad book): full width, no list, the battle seen
    round it. */
 .ui[data-mode="alone"] {
@@ -383,7 +402,8 @@ body:not([data-screen="battle"]) .menu-hint {
 }
 
 .ui[data-page="front"] .ui-page-body,
-.ui[data-page="sector"] .ui-page-body {
+.ui[data-page="sector"] .ui-page-body,
+.ui[data-page="join"] .ui-page-body {
   padding: 0;
   overflow: hidden;
 }

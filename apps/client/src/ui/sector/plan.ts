@@ -48,6 +48,26 @@ export function fitPlan(map: BattlefieldMap, width: number, height: number, marg
   }
 }
 
+/** A stretch of the ground, in metres: the part of the sector a view is about. */
+export interface GroundArea {
+  readonly minX: number
+  readonly maxX: number
+  readonly minZ: number
+  readonly maxZ: number
+}
+
+/** Fits a stretch of the ground into a box of pixels with a margin round it, north up; the rest runs off the edges. */
+export function fitArea(map: BattlefieldMap, area: GroundArea, width: number, height: number, margin = 24): PlanFit {
+  const wide = Math.max(1, area.maxX - area.minX)
+  const deep = Math.max(1, area.maxZ - area.minZ)
+  const scale = Math.max(0.01, Math.min((width - margin * 2) / wide, (height - margin * 2) / deep))
+  return {
+    scale,
+    left: (width - wide * scale) / 2 - area.minX * scale,
+    top: (height - deep * scale) / 2 - (mapDepth(map) - area.maxZ) * scale
+  }
+}
+
 /** A ground point on the screen. */
 export function toPlan(map: BattlefieldMap, fit: PlanFit, x: number, z: number): { x: number; y: number } {
   return { x: fit.left + x * fit.scale, y: fit.top + (mapDepth(map) - z) * fit.scale }

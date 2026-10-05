@@ -1,11 +1,11 @@
-import { mapDepth, mapWidth } from "@verdun/map"
-import { aidPost, enqueueCommand, isAlive, soldierIds } from "@verdun/sim"
+import { enqueueCommand, isAlive, soldierIds } from "@verdun/sim"
 import { h, setText } from "../../hud/dom.ts"
 import { clockSeconds, metres } from "../../hud/format.ts"
 import type { HudState } from "../../hud/hud-state.ts"
 import type { BattleParts } from "../battle.ts"
 import type { MenuPage } from "../page.ts"
-import { fitPlan, fromPlan, groundImage, type PlanFit, SQUARE, squareName, toPlan, trenchOwner } from "./plan.ts"
+import { drawPlan, planInks, sizeCanvas } from "./plan-canvas.ts"
+import { fromPlan, type PlanFit, squareName, toPlan } from "./plan.ts"
 import "./sector-map.css"
 
 /** How often the men and the fire on the map are redrawn while it's open, in milliseconds. */
@@ -25,22 +25,6 @@ function bearing(from: { x: number; z: number }, to: { x: number; z: number }): 
 }
 
 const HOLDERS = { ours: "Ours", theirs: "Theirs", none: "No one's" } as const
-
-/** The inks, read from the page's tokens, so the colour-vision palettes change the map too. */
-function inks(element: Element) {
-  const style = getComputedStyle(element)
-  const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
-  return {
-    ink: token("--paper-ink", "#2c261b"),
-    ink2: token("--paper-ink-2", "rgb(44 38 27 / 72%)"),
-    ink3: token("--paper-ink-3", "rgb(44 38 27 / 48%)"),
-    rule: token("--paper-rule", "rgb(44 38 27 / 14%)"),
-    ours: token("--paper-ours", "#2f5d9e"),
-    theirs: token("--paper-theirs", "#b0341f"),
-    brass: token("--paper-brass", "#8a6420"),
-    caution: token("--paper-caution", "#b9780f")
-  }
-}
 
 /**
  * The sector map (S4 in docs/design/interface.md): the sector as a plan directeur, squared every 100 m, with the
@@ -91,141 +75,16 @@ export function createSectorMapPage({
 
   let fit: PlanFit | null = null
   let timer = 0
-  let ground: HTMLCanvasElement | null = null
-  let colours = inks(root)
+  let colours = planInks(root)
   let flashTimer = 0
-
-  function size(canvas: HTMLCanvasElement, width: number, height: number): CanvasRenderingContext2D | null {
-    const ratio = Math.min(2, devicePixelRatio || 1)
-    canvas.width = Math.round(width * ratio)
-    canvas.height = Math.round(height * ratio)
-    const drawing = canvas.getContext("2d")
-    drawing?.setTransform(ratio, 0, 0, ratio, 0, 0)
-    return drawing
-  }
 
   /** The ground, the squares, the trenches, the wire and what stands on the ground: drawn once a size. */
   function drawBase(parts: BattleParts): void {
     const width = canvasBox.clientWidth
     const height = canvasBox.clientHeight
-    const { sim, squad } = parts
-    const map = sim.map
-    fit = fitPlan(map, width, height, 36)
-    const drawing = size(base, width, height)
-    size(live, width, height)
-    if (!drawing) {
-      return
-    }
-    colours = inks(root)
-    if (!ground) {
-      const image = groundImage(map, 1)
-      ground = document.createElement("canvas")
-      ground.width = image.width
-      ground.height = image.height
-      ground.getContext("2d")?.putImageData(new ImageData(image.data, image.width, image.height), 0, 0)
-    }
-    const at = (x: number, z: number) => toPlan(map, fit!, x, z)
-    const topLeft = at(0, mapDepth(map))
-    drawing.imageSmoothingEnabled = true
-    drawing.drawImage(ground, topLeft.x, topLeft.y, mapWidth(map) * fit.scale, mapDepth(map) * fit.scale)
-    drawing.strokeStyle = colours.ink2
-    drawing.lineWidth = 1.2
-    drawing.strokeRect(topLeft.x, topLeft.y, mapWidth(map) * fit.scale, mapDepth(map) * fit.scale)
-
-    // The squares, lettered in their north-west corners.
-    drawing.beginPath()
-    for (let x = SQUARE; x < mapWidth(map); x += SQUARE) {
-      const from = at(x, 0)
-      const to = at(x, mapDepth(map))
-      drawing.moveTo(from.x, from.y)
-      drawing.lineTo(to.x, to.y)
-    }
-    for (let z = SQUARE; z < mapDepth(map); z += SQUARE) {
-      const from = at(0, z)
-      const to = at(mapWidth(map), z)
-      drawing.moveTo(from.x, from.y)
-      drawing.lineTo(to.x, to.y)
-    }
-    drawing.strokeStyle = colours.rule
-    drawing.lineWidth = 1
-    drawing.stroke()
-    drawing.font = "600 11px 'Archivo Variable', sans-serif"
-    drawing.fillStyle = colours.ink3
-    drawing.textBaseline = "top"
-    for (let x = 0; x < mapWidth(map); x += SQUARE) {
-      for (let z = mapDepth(map); z > 0; z -= SQUARE) {
-        const corner = at(x, z)
-        drawing.fillText(squareName(map, x + 1, z - 1), corner.x + 4, corner.y + 4)
-      }
-    }
-
-    const line = (points: readonly (readonly [number, number])[]) => {
-      points.forEach(([x, z], index) => {
-        const point = at(x, z)
-        if (index === 0) {
-          drawing.moveTo(point.x, point.y)
-        } else {
-          drawing.lineTo(point.x, point.y)
-        }
-      })
-    }
-    // The field railway, then the wire, then the trenches over them.
-    drawing.setLineDash([7, 3])
-    drawing.beginPath()
-    for (const railway of map.railways) {
-      line(railway.points)
-    }
-    drawing.strokeStyle = colours.ink3
-    drawing.lineWidth = 1.4
-    drawing.stroke()
-    drawing.setLineDash([1.5, 3])
-    drawing.beginPath()
-    for (const belt of map.wire) {
-      line(belt.points)
-    }
-    drawing.strokeStyle = colours.ink
-    drawing.lineWidth = 2.4
-    drawing.stroke()
-    drawing.setLineDash([])
-    drawing.lineJoin = "round"
-    drawing.lineCap = "round"
-    for (const owner of ["communication", "theirs", "ours"] as const) {
-      drawing.beginPath()
-      for (const trench of map.trenches) {
-        if (trenchOwner(trench, squad.side) === owner) {
-          line(trench.points)
-        }
-      }
-      drawing.strokeStyle = { communication: colours.ink2, theirs: colours.theirs, ours: colours.ours }[owner]
-      drawing.lineWidth = owner === "communication" ? 1.4 : 2.6
-      drawing.stroke()
-    }
-
-    // Ruins and works as solid blocks, trees as rings, as the plans directeurs marked them.
-    for (const item of map.scenery) {
-      const point = at(item.x, item.z)
-      if (item.kind === "ruin" || item.kind === "landmark" || item.kind === "bunker") {
-        const side = Math.max(3, (item.kind === "landmark" ? 9 : 5) * item.scale * fit.scale * 0.6)
-        drawing.fillStyle = colours.ink2
-        drawing.fillRect(point.x - side / 2, point.y - side / 2, side, side)
-      } else if (item.kind === "tree" || item.kind === "fruit-tree") {
-        drawing.beginPath()
-        drawing.arc(point.x, point.y, 1.6, 0, Math.PI * 2)
-        drawing.strokeStyle = colours.ink3
-        drawing.lineWidth = 0.8
-        drawing.stroke()
-      }
-    }
-
-    // Our aid post.
-    const post = aidPost(map, squad.side)
-    const cross = at(post.x, post.z)
-    drawing.fillStyle = colours.ink
-    drawing.fillRect(cross.x - 5, cross.y - 1.5, 10, 3)
-    drawing.fillRect(cross.x - 1.5, cross.y - 5, 3, 10)
-    drawing.font = "italic 500 11px 'Archivo Variable', sans-serif"
-    drawing.textBaseline = "middle"
-    drawing.fillText("Poste de secours", cross.x + 9, cross.y)
+    colours = planInks(root)
+    fit = drawPlan(base, parts.sim.map, parts.squad.side, width, height, colours)
+    sizeCanvas(live, width, height)
   }
 
   /** The live layer: objectives and holders, our fire, the men, the squad and its order. */

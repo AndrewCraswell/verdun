@@ -15,10 +15,13 @@ import { displaySettings, FRAME_CAPS } from "../settings/display.ts"
 import { type GraphicsQuality, graphicsQuality, saveGraphicsQuality } from "../settings/graphics.ts"
 import { type CaptionMode, playSettings } from "../settings/play.ts"
 import { browserStorage } from "../settings/store.ts"
+import { createControlsPage } from "./controls.ts"
 import { button, percent, segmented, settingRow, slider, toggle } from "./fields.ts"
 import type { MenuPage } from "./page.ts"
 
 export interface OptionsContext {
+  /** Development builds also list the development keys. */
+  readonly development: boolean
   /** The renderer drawing the battle now, "WebGPU" or "WebGL", once there is one. */
   readonly renderer: () => string | null
   /** Reloads the game, for settings that take a reload. */
@@ -43,12 +46,13 @@ const VISIONS: readonly { readonly value: ColourVision; readonly label: string }
 /** How far left and right move along a row of tabs. */
 const ARROW_STEPS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 }
 
-type Tab = "display" | "sound" | "controls" | "interface" | "accessibility"
+type Tab = "display" | "sound" | "controls" | "keys" | "interface" | "accessibility"
 
 const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
   { id: "display", label: "Display" },
   { id: "sound", label: "Sound" },
   { id: "controls", label: "Controls" },
+  { id: "keys", label: "Keys" },
   { id: "interface", label: "Interface" },
   { id: "accessibility", label: "Accessibility" }
 ]
@@ -277,8 +281,7 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
           "The bombardment and the whistle fire along the whole front: ask for a second press, so a slip can't fire them.",
           confirmFire.root
         )
-      ),
-      h("p", "ui-controls-intro", "Keys are moved on the Controls page, from the menu.")
+      )
     ),
     sync() {
       for (const { action, choice } of presses) {
@@ -404,12 +407,15 @@ function accessibilityTab(): { root: HTMLElement; sync(): void } {
 export function createOptionsPage(context: OptionsContext): MenuPage {
   const display = displayTab(context)
   const controlsPane = controlsTab()
+  // The keys, every one and where it's bound, rebindable: a tab of their own.
+  const keys = createControlsPage({ development: context.development })
   const interfacePane = interfaceTab()
   const accessibilityPane = accessibilityTab()
   const panes: Readonly<Record<Tab, HTMLElement>> = {
     display: display.root,
     sound: soundTab(),
     controls: controlsPane.root,
+    keys: keys.root,
     interface: interfacePane.root,
     accessibility: accessibilityPane.root
   }
@@ -427,6 +433,9 @@ export function createOptionsPage(context: OptionsContext): MenuPage {
     return { id, tab }
   })
   function select(id: Tab): void {
+    if (current === "keys" && id !== "keys") {
+      keys.closed?.()
+    }
     current = id
     for (const each of tabs) {
       each.tab.setAttribute("aria-selected", String(each.id === id))
@@ -436,6 +445,9 @@ export function createOptionsPage(context: OptionsContext): MenuPage {
     body.replaceChildren(panes[id])
     if (id === "display") {
       display.opened()
+    }
+    if (id === "keys") {
+      keys.opened?.()
     }
   }
   // Left and right move between the tabs, as a tab list does.
@@ -461,6 +473,14 @@ export function createOptionsPage(context: OptionsContext): MenuPage {
       accessibilityPane.sync()
       select(current)
     },
-    dispose: display.dispose
+    closed() {
+      keys.closed?.()
+    },
+    // A key pressed while choosing a new one for an action belongs to the keys' tab.
+    key: (event) => current === "keys" && (keys.key?.(event) ?? false),
+    dispose() {
+      display.dispose()
+      keys.dispose?.()
+    }
   }
 }

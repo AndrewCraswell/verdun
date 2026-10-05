@@ -67,13 +67,14 @@ The grenade throw (H9, W7) is built too: hold Q for the arc, reach, scatter and 
 from the hand to where it bursts.
 
 The menus are built too, in `apps/client/src/ui/`. The game opens on a front door (a first cut of S13), from a small
-bundle of its own, with the battle downloading and coming up behind it. "Into the line" opens the join screen (S8): the
-squad held for the player, another in the line to take over, an operation (none yet), or a fresh squad from the reserve
-line. Then the loading screen (S6) until the battle draws, and the battle. Esc opens the same list over the battle (S1).
-The list opens the war map (a first cut of S15: the Western Front in each season, the theatres each season opens,
-Verdun's sectors, Fleury playable), the sector map (S4), the squad book (S5), the battle log's history (H14), the
-options (S3), the controls with rebinding (S2) and the credits. M and U open the sector map and the squad book on their
-own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
+bundle of its own, with the battle downloading and coming up behind it: "Join the battle", "War map", "Options" and
+"Credits", nothing more. "Join the battle" opens the join screen (S8): the sector's plan with every squad pinned where
+it stands and the attack ahead beside it, and **Start**. Then the loading screen (S6) until the battle draws, and the
+battle. Esc opens the list over the battle (S1): "Resume", the sector map (S4), the squad book (S5), the battle log's
+history (H14), the war map (a first cut of S15: the Western Front in each season, the theatres each season opens,
+Verdun's sectors, Fleury playable), the options (S3, with the keys and their rebinding, S2, as a tab), "Restart" and
+"Leave the battle". M and U open the sector map and the squad book on their own over the running battle. `?play` goes
+straight into the line behind the loading screen; `?debug` past both.
 
 Still to come: the order radial (H7), the call previews (H10), operations, tasks and chat (H19-H21), and the rest of
 stage 2-3's screens.
@@ -743,10 +744,10 @@ or replacements are on their way.
 
 **Stage** Now (redesign). **Kind** Screen.
 
-**Built** (`ui/menu.ts`): Esc opens a list down the left over the darkened battle: back to the battle, the front (the
-war map), options, controls, credits, restart the skirmish, and leave for the front door. Pages open beside the list;
-Esc closes a page, then the menu. The front door the game opens on shares the list, with "Into the line" in place of
-"Back to the battle", and shows the loading on it until the battle is ready. Below: the spec as first written.
+**Built** (`ui/menu.ts`), simplified at the developer's asking: Esc opens a list down the left over the darkened battle:
+Resume, Sector map, Squad book, Battle log, War map, Options, Restart and Leave the battle. Pages open beside the list,
+the maps full width; Esc closes a page, then the menu. The front door has Join the battle, War map, Options and Credits,
+and shows the loading under Join the battle until the battle is ready. Below: the spec as first written.
 
 Today Esc opens a dimmed backdrop and a panel listing the controls with "Back to the battle" (`menu.ts`). The battle
 carries on behind it, and the menu takes key presses away from the game while open.
@@ -938,11 +939,13 @@ record and your side". Skippable, and offered again later, never in the middle o
 
 **Stage** 2. **Kind** Screen.
 
-**Built**, a first cut (`ui/join-page.ts`, `ui/join.ts`): the squad held for the player; every squad of their side in
-the line, nearest the enemy first, with men, order, place and distance from the enemy line, or why it can't be taken (in
-contact, too few men); operations, none yet; and the fresh squads in the reserve line. Choosing one swaps it with the
-squad held for the player (the simulation's `join-squad` command) and goes into the line. Below: the spec as first
-written.
+**Built**, simplified at the developer's asking (`ui/join-map.ts`, `ui/join.ts`): "Join the battle" opens the sector's
+plan with every squad of the player's side pinned where it stands, the one held for them in brass, the first wave marked
+with an arrow, reserves square, squads that can't be taken grey; and the stretch of their line the operation attacks
+shaded. Beside it, the attack in three lines counted in minutes from the start (never a clock time: nobody knows the
+server's hour), and the chosen squad in a sentence ("8 men, in the front line in square B3, 145 m from the enemy. Goes
+over at 8 min."), with one button, **Start**. Choosing another squad swaps it with the one held for the player (the
+simulation's `join-squad` command). Below: the spec as first written.
 
 How a player gets into a sector in under a minute ([joining the battle](soldier-and-squad.md#joining-the-battle)). A
 sector map with the choices, in this order:
@@ -978,12 +981,11 @@ When a squad deploys or refills at the reserve line ([squad types](roles-and-loa
 
 **Stage** 2. **Kind** Screen.
 
-**Built** for the [playtest operation](operations.md#the-playtest-operation) (`ui/operation-pages.ts`,
-`ui/operation-report.ts`): after the join screen, a briefing with the date and hour, the plan in three lines, the squad
-and its place, and what counts as taken, a footing and repulsed, then up the line; and at the end, the report comes up
-by itself over the battle: the result, both sides' losses, ours by cause, the objectives as they changed hands, German
-machine gunners put down and the squad's own tally, with _Fight again_ and _Front door_. `?free` plays without the
-operation. Below: the spec as first written, for stage 2's board.
+**Built** for the [playtest operation](operations.md#the-playtest-operation) (`ui/operation-report.ts`,
+`ui/operation-pages.ts`): the briefing is the join screen's side panel (above), not a page of its own; at the end, the
+report comes up by itself over the battle: the result, how long it lasted, both sides' losses, ours by cause, the
+objectives as they changed hands, German machine gunners put down and the squad's own tally, with _Fight again_ and
+_Front door_. `?free` plays without the operation. Below: the spec as first written, for stage 2's board.
 
 Planned [operations](operations.md) for the side in this sector: objective, zero hour, waves and their jump-off
 trenches, places left, the fire plan in outline (bombardments, the creeping barrage), and what the side knows of the
@@ -1012,7 +1014,7 @@ separately when stage 2 starts.
 
 | ID  | Screen           | Contents                                                                                                                                                                                                                                                                         |
 | --- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S13 | Landing          | For returning players: today's communiqué headline, the war map, "Into the line" (to S8), the player's squad and regiment. First-time players see it too                                                                                                                         |
+| S13 | Landing          | For returning players: today's communiqué headline, the war map, "Join the battle" (to S8), the player's squad and regiment. First-time players see it too                                                                                                                       |
 | S14 | Side             | The season's side choice, locked for the season; the smaller side offered first with its reward; switching once with a 48-hour wait and the loss of the season's rank ([sides](balance.md#sides))                                                                                |
 | S15 | War map          | The [front](war-map-and-season.md#the-war-map) as a chain of sectors: the line, active sectors and their battles (players, operations), key points, salients, supply routes and railheads, the [Balance](war-map-and-season.md#the-balance-winning-a-year) of the year, the date |
 | S16 | Communiqué       | The [daily communiqué](war-map-and-season.md#the-communiqué), written from the side's own headquarters: the front map with the day's changes, each sector's gains and losses, key points, citations, the date and the weather to come, war events. Typeset as a period bulletin  |

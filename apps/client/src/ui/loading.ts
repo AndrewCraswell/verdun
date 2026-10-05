@@ -72,7 +72,7 @@ export function createLoadingScreen(parent: HTMLElement): LoadingScreen {
     h(
       "div",
       "ui-loading-card",
-      h("div", "ui-kicker", "Going up the line"),
+      h("div", "ui-kicker", "Joining the battle"),
       h("h1", "ui-loading-title", OPEN_SECTOR.name),
       where,
       history,

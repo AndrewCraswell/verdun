@@ -1,5 +1,6 @@
+import { mapDepth, mapWidth } from "@verdun/map"
 import { type EntityId, isAlive, type Simulation, type Squad, type SquadOrder, TAKE_OVER_MIN_MEN } from "@verdun/sim"
-import { squareName, trenchOwner } from "./sector/plan.ts"
+import { type GroundArea, squareName, trenchOwner } from "./sector/plan.ts"
 
 /**
  * The join screen's choices (S8 in docs/design/interface.md, docs/design/soldier-and-squad.md#joining-the-battle): the
@@ -26,6 +27,8 @@ export interface JoinChoice {
   readonly place: string
   /** Metres from its middle to the enemy's nearest fire trench, or null with none on the map. */
   readonly fromEnemy: number | null
+  /** Where it stands on the ground: the middle of its men, in metres. */
+  readonly at: { readonly x: number; readonly z: number }
   /** Why it can't be taken, in words, or null when it can. */
   readonly refusal: string | null
 }
@@ -129,6 +132,7 @@ export function joinChoices(sim: Simulation, player: Squad): JoinChoices {
       order: ORDERS[squad.order.kind],
       place: placeName(sim, middle.x, middle.z),
       fromEnemy: toEnemyLine(sim, player, middle),
+      at: middle,
       refusal
     }
   }
@@ -147,5 +151,53 @@ export function joinChoices(sim: Simulation, player: Squad): JoinChoices {
       .filter((each) => each.squad.order.kind === "reserve")
       .map((each) => each.choice)
       .sort(byFront)
+  }
+}
+
+/** Ground beyond the squads, in metres, that the join map shows round them. */
+const AROUND = 40
+
+/**
+ * The stretch of ground to show the choices on: every squad, and out to the enemy's nearest line, so the player sees
+ * where each stands and what's in front of it, and the pins sit far enough apart to tell.
+ */
+export function joinArea(sim: Simulation, side: Squad["side"], choices: readonly JoinChoice[]): GroundArea {
+  const map = sim.map
+  if (choices.length === 0) {
+    return { minX: 0, maxX: mapWidth(map), minZ: 0, maxZ: mapDepth(map) }
+  }
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const { at } of choices) {
+    minX = Math.min(minX, at.x)
+    maxX = Math.max(maxX, at.x)
+    minZ = Math.min(minZ, at.z)
+    maxZ = Math.max(maxZ, at.z)
+  }
+  // The enemy's line nearest the squads: the one whose middle lies closest to theirs.
+  const middle = (minZ + maxZ) / 2
+  let nearest: readonly (readonly [number, number])[] | null = null
+  let gap = Infinity
+  for (const trench of map.trenches) {
+    if (trenchOwner(trench, side) !== "theirs" || trench.points.length === 0) {
+      continue
+    }
+    const z = trench.points.reduce((sum, [, pointZ]) => sum + pointZ, 0) / trench.points.length
+    if (Math.abs(z - middle) < gap) {
+      gap = Math.abs(z - middle)
+      nearest = trench.points
+    }
+  }
+  for (const [, z] of nearest ?? []) {
+    minZ = Math.min(minZ, z)
+    maxZ = Math.max(maxZ, z)
+  }
+  return {
+    minX: Math.max(0, minX - AROUND),
+    maxX: Math.min(mapWidth(map), maxX + AROUND),
+    minZ: Math.max(0, minZ - AROUND),
+    maxZ: Math.min(mapDepth(map), maxZ + AROUND)
   }
 }
