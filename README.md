@@ -61,8 +61,8 @@ blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity
 | Tab, 1–8                        | Switch to the next soldier, or to a squad slot                                 |
 | F, H                            | Squad order: follow me, hold                                                   |
 | Right-click                     | Squad order: advance to that point                                             |
-| G                               | Whistle: every French squad attacks behind a creeping barrage                  |
-| B                               | Bombard the German front line for two minutes                                  |
+| G, twice                        | Whistle: every French squad attacks behind a creeping barrage                  |
+| B, twice                        | Bombard the German front line for two minutes                                  |
 | V                               | Call artillery onto the point under the pointer                                |
 | O                               | Turn fog of war on or off (off for now)                                        |
 | M                               | The sector map; the battle goes on while you look                              |

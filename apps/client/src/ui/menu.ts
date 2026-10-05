@@ -1,4 +1,5 @@
 import type { WarDay } from "@verdun/sim"
+import { getMixer } from "../audio/mixer.ts"
 import { countdownLabel, turnLabel, weekLabel } from "../environment/war-labels.ts"
 import { h, setText } from "../hud/dom.ts"
 import { type InterfaceSettings, interfaceSettings } from "../hud/interface-settings.ts"
@@ -45,6 +46,10 @@ export interface Menu {
   }): void
   /** Settles when the player is in the line and the battle shows: at once when there is neither front door nor loading. */
   readonly entered: Promise<void>
+  /** Opens the menu over the battle at one of its pages: "options", "front", "sector"... */
+  showPage(id: string): void
+  /** The battle couldn't be brought up: says why, plainly, in place of everything else (S23). */
+  fail(error: unknown): void
   dispose(): void
 }
 
@@ -109,6 +114,9 @@ export function createMenu(
   })
 
   const hint = h("div", "menu-hint", "Esc for the menu")
+  // Browsers keep sound off until the player clicks or presses a key: say so, quietly, until they have (S23).
+  const soundHint = h("div", "menu-sound", "Click or press a key for sound")
+  soundHint.hidden = true
   const pausedBanner = h("div", "menu-paused", "Paused. P to carry on")
   pausedBanner.hidden = true
   const loading = createLoadingScreen(parent)
@@ -144,7 +152,7 @@ export function createMenu(
   root.setAttribute("role", "dialog")
   root.setAttribute("aria-modal", "true")
   root.setAttribute("aria-label", "Menu")
-  parent.append(root, hint, pausedBanner)
+  parent.append(root, hint, pausedBanner, soundHint)
 
   // The pages and acts that need the battle (the sector map, the squad book, the log's history, the join screen's
   // choices), loaded once the battle is up so the simulation stays out of the menus' own bundle.
@@ -431,6 +439,7 @@ export function createMenu(
   window.addEventListener("keydown", onKey, { capture: true })
   pageClose.addEventListener("click", onClose)
   const clock = setInterval(() => {
+    soundHint.hidden = getMixer().context.state !== "suspended" || screen === "loading"
     if (screen === "battle") {
       observe()
     }
@@ -499,6 +508,47 @@ export function createMenu(
       date()
     },
     entered,
+    showPage(id) {
+      const wanted = [...pages, ...(made ? [made.sector, made.squad, made.log] : [])].find((each) => each.id === id)
+      if (!wanted) {
+        return
+      }
+      if (alone) {
+        closeAlone()
+      }
+      if (screen === "battle" && !open) {
+        show(true)
+      }
+      openPage(wanted)
+    },
+    fail(error) {
+      const unsupported = error instanceof Error && error.name === "UnsupportedBrowser"
+      const failure = h(
+        "div",
+        "ui-failure",
+        h("div", "ui-kicker", unsupported ? "This browser can't draw the battle" : "The battle couldn't be brought up"),
+        h(
+          "p",
+          "ui-failure-text",
+          unsupported
+            ? "Verdun draws with WebGPU, or WebGL 2 where there's no WebGPU, and this browser offers neither. A recent Chrome, Edge, Firefox or Safari will do, with hardware acceleration switched on in its settings."
+            : "Something went wrong while the battle was coming up. Reloading usually puts it right; if it happens again, the browser's console says what."
+        ),
+        h("p", "ui-failure-detail", error instanceof Error ? error.message : String(error)),
+        h("button", "ui-button ui-button--primary ui-failure-reload", "Reload")
+      )
+      failure.setAttribute("role", "alert")
+      failure.querySelector("button")?.addEventListener("click", () => location.reload())
+      void loading.finish()
+      open = true
+      root.hidden = false
+      root.dataset.mode = "failed"
+      pagePanel.hidden = true
+      column.replaceChildren(h("header", "ui-masthead", kicker, title), failure)
+      setText(kicker, "The Western Front, 1914–1918")
+      setText(title, "Verdun")
+      document.body.dataset.screen = "failed"
+    },
     dispose() {
       window.removeEventListener("keydown", onKey, { capture: true })
       pageClose.removeEventListener("click", onClose)
@@ -512,6 +562,7 @@ export function createMenu(
       root.remove()
       hint.remove()
       pausedBanner.remove()
+      soundHint.remove()
     }
   }
 }

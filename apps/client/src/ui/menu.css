@@ -1023,3 +1023,49 @@ body:not([data-screen="battle"]) .menu-hint {
   inset: 0 0 62%;
   background: linear-gradient(180deg, transparent, rgb(120 140 170 / 25%));
 }
+
+/* The battle couldn't come up (S23): what went wrong, plainly, and a way to try again. */
+.ui[data-mode="failed"] .ui-veil {
+  background: rgb(10 9 7 / 96%);
+}
+
+.ui-failure {
+  max-width: 36em;
+  margin-top: 1.5em;
+  padding-left: 1em;
+  border-left: 2px solid var(--ui-caution);
+}
+
+.ui-failure-text {
+  margin: 0.6em 0 0.8em;
+  color: var(--ui-ink-2);
+}
+
+.ui-failure-detail {
+  margin: 0 0 1.2em;
+  font:
+    0.8em/1.4 ui-monospace,
+    monospace;
+  color: var(--ui-ink-3);
+  overflow-wrap: anywhere;
+}
+
+/* Sound waits for the first click or key press: said quietly, bottom right above the menu's hint, until it comes on. */
+.menu-sound {
+  position: fixed;
+  right: 12px;
+  bottom: 40px;
+  z-index: 35;
+  padding: 4px 10px;
+  font:
+    12px/1.4 system-ui,
+    sans-serif;
+  color: #f2ede0;
+  background: rgb(20 18 14 / 60%);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.menu-sound[hidden] {
+  display: none;
+}

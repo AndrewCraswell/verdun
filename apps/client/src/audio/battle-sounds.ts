@@ -160,6 +160,8 @@ export interface BattleSoundPlayerOptions extends BattleSoundOptions {
   readonly level?: LevelSources | null
   /** Lightning flashes, with each strike's distance in metres, for thunder to follow; without it thunder comes on its own. */
   readonly lightning?: { add(callback: (distance: number) => void): unknown } | null
+  /** Hears each sound as it plays, for the captions. */
+  readonly heard?: (call: SoundCall) => void
 }
 
 /** Battle sounds that play nothing, for when they can't start. */
@@ -193,7 +195,7 @@ async function startBattleSounds(
 ): Promise<BattleSounds> {
   const mixer = getMixer()
   if (import.meta.env.DEV) {
-    // The sound mixer panel (M), for setting the mix by ear.
+    // The sound mixer panel (F7), for setting the mix by ear.
     void import("../dev/sound-mixer.ts").then(({ installSoundMixer }) => installSoundMixer(mixer))
   }
   const decoded = await decodeAll(mixer.context, files)
@@ -241,6 +243,7 @@ async function startBattleSounds(
           : (Math.random() * 2 - 1) * (call.cue.startsWith("voice-") ? VOICE_DETUNE : DETUNE),
         bus
       })
+      options.heard?.(call)
     }
   }
   options.lightning?.add((distance) => {

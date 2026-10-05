@@ -24,8 +24,14 @@ async function start(): Promise<void> {
     void startMenuMusic().then((theme) => menu.entered.then(() => theme?.stop()))
   }
   menu.progress("Loading the battle", 0.02)
-  const { startBattle } = await import("./start-battle.ts")
-  await startBattle(menu, { frontDoor })
+  try {
+    const { startBattle } = await import("./start-battle.ts")
+    await startBattle(menu, { frontDoor })
+  } catch (error) {
+    // Said on the screen, plainly, rather than left as a blank page and a line in the console (S23).
+    console.error(error)
+    menu.fail(error)
+  }
 }
 
 start().catch((error: unknown) => {

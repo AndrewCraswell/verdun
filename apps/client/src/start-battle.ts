@@ -10,6 +10,7 @@ import {
   shotEvents,
   loadWeatherRegion,
   WEATHER_REGIONS,
+  Side,
   STEP_SECONDS,
   TICK_RATE
 } from "@verdun/sim"
@@ -42,10 +43,16 @@ import { selectEnabledMeshes } from "./render/active-meshes.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
+import { playSettings } from "./settings/play.ts"
+import { browserStorage } from "./settings/store.ts"
 import { createSimHost } from "./sim/sim-host.ts"
 import { attackBehindBarrage, bombardEnemyLine, callForFire, callGasOn } from "./skirmish.ts"
 import { createSoldierCrowd } from "./soldiers/soldier-crowd.ts"
 import { loadSoldierKit } from "./soldiers/soldier-kit.ts"
+import { createBattleNotes } from "./ui/battle-notes.ts"
+import { createCaptions } from "./ui/captions.ts"
+import { createFireConfirm } from "./ui/fire-confirm.ts"
+import { createFrameWatch } from "./ui/frame-watch.ts"
 import { lookAt } from "./ui/look-at.ts"
 import type { Menu } from "./ui/menu.ts"
 
@@ -68,8 +75,26 @@ async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> 
     engine.enableGPUTimingMeasurements = gpuTime
     return engine
   }
-  return new Engine(canvas, true)
+  // Without WebGPU, WebGL 2 or nothing: a browser with neither gets told so plainly (S23), not a blank page.
+  if (!document.createElement("canvas").getContext("webgl2")) {
+    throw unsupported()
+  }
+  try {
+    return new Engine(canvas, true)
+  } catch {
+    throw unsupported()
+  }
 }
+
+/** The error a browser that can't draw the battle raises: the menus know it by its name. */
+function unsupported(): Error {
+  const error = new Error("Neither WebGPU nor WebGL 2 is available")
+  error.name = "UnsupportedBrowser"
+  return error
+}
+
+/** Where the suggestion of a lower setting is remembered as made, so it's made once. */
+const SLOW_SUGGESTED = "verdun.slow-suggested"
 
 /**
  * Brings up the battle behind the menus: the renderer, the ground, the simulation in its worker, the level, the
@@ -227,12 +252,39 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
     { quality }
   )
 
+  // The notes over the battle: captions of what's heard, the question before sector-wide fire, and the suggestion of a
+  // lower setting when the battle has run slowly, made once.
+  const confirm = createFireConfirm(() => playSettings().current.confirmSectorFire)
+  const captions = createCaptions(() => playSettings().current.captions, playerSquad.side === Side.German ? "de" : "fr")
+  const notes = createBattleNotes(document.body, { captions, confirm })
+  const storage = browserStorage()
+  let suggested = false
+  try {
+    suggested = storage?.getItem(SLOW_SUGGESTED) === "yes"
+  } catch {
+    // Storage blocked: the suggestion may come again next visit.
+  }
+  const frames = createFrameWatch(suggested)
+  const suggest = (fps: number) => {
+    try {
+      storage?.setItem(SLOW_SUGGESTED, "yes")
+    } catch {
+      // As above.
+    }
+    const lower = quality === "high" ? "The low graphics setting" : "A lower render scale"
+    notes.notice(`The battle is running at ${fps} frames a second. ${lower} may help.`, [
+      { label: "Open the options", act: () => menu.showPage("options") },
+      { label: "Not now", act: () => undefined }
+    ])
+  }
+
   // The player commands the squad in the middle of the French front line.
   const control = createPlayerControl(sim, playerSquad, view.camera, createBrowserInput(view.scene, sim.map), {
     debugActions: import.meta.env.DEV,
     commands: {
-      whistle: () => attackBehindBarrage(sim, playerSquad.side),
-      bombard: () => bombardEnemyLine(sim, playerSquad.side),
+      // The whistle and the bombardment fire along the whole front: they ask for a second press first.
+      whistle: () => confirm.press("whistle", () => attackBehindBarrage(sim, playerSquad.side), performance.now()),
+      bombard: () => confirm.press("bombard", () => bombardEnemyLine(sim, playerSquad.side), performance.now()),
       callFire: (x, z) => callForFire(sim, playerSquad.side, x, z),
       callGas: (x, z) => callGasOn(sim, playerSquad.side, x, z)
     },
@@ -247,7 +299,8 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
     ? await createBattleSounds(level.sfx, sim, view.camera, {
         soldier: () => (control.soldier >= 0 ? control.soldier : null),
         level,
-        lightning: environment?.onLightning
+        lightning: environment?.onLightning,
+        heard: (call) => captions.hear(call)
       })
     : null
   // The soundtrack, following the player's squad, when it has been built (pnpm sound:music): from when the player goes
@@ -308,6 +361,9 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
           return music
         },
         menu,
+        notes,
+        captions,
+        confirm,
         night,
         war,
         flares,
@@ -382,6 +438,11 @@ export async function startBattle(menu: Menu, { frontDoor }: { readonly frontDoo
       grenades.update()
     })
     trace("hud", () => hud.update(frameSeconds))
+    notes.update(frameSeconds)
+    const slow = frames.frame(frameSeconds, !menu.paused && !menu.open && document.visibilityState === "visible")
+    if (slow !== null) {
+      suggest(slow)
+    }
     const sightChanged = trace("fog", () => fog.update(frameSeconds))
     if (taken.length > 0 || sightChanged) {
       trace("soldiers: sync", () => view.syncSoldiers(fog.isShown))

@@ -13,6 +13,7 @@ import {
 import { cameraSettings } from "../settings/camera.ts"
 import { displaySettings, FRAME_CAPS } from "../settings/display.ts"
 import { type GraphicsQuality, graphicsQuality, saveGraphicsQuality } from "../settings/graphics.ts"
+import { type CaptionMode, playSettings } from "../settings/play.ts"
 import { browserStorage } from "../settings/store.ts"
 import { button, percent, segmented, settingRow, slider, toggle } from "./fields.ts"
 import type { MenuPage } from "./page.ts"
@@ -216,7 +217,29 @@ function soundTab(): HTMLElement {
     )
     return settingRow(label, note, control.root)
   })
-  return h("div", "ui-settings", section("Volume", ...rows))
+  const play = playSettings()
+  const captions = segmented<CaptionMode>(
+    [
+      { value: "off", label: "Off" },
+      { value: "voices", label: "Voices" },
+      { value: "all", label: "Voices and warnings" }
+    ],
+    play.current.captions,
+    (value) => play.change({ captions: value })
+  )
+  return h(
+    "div",
+    "ui-settings",
+    section("Volume", ...rows),
+    section(
+      "Captions",
+      settingRow(
+        "Captions",
+        "The men's shouts, in French and German, with who, where and what they mean; and on request the warnings: whistles, the gas gong, heavy shells coming in.",
+        captions.root
+      )
+    )
+  )
 }
 
 /** The controls: hold or toggle for the held actions, and the camera's panning and dragging. Keys have their own page. */
@@ -234,6 +257,8 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
     camera.change({ panSpeed: value })
   )
   const invert = toggle(camera.current.invertDrag, (on) => camera.change({ invertDrag: on }))
+  const play = playSettings()
+  const confirmFire = toggle(play.current.confirmSectorFire, (on) => play.change({ confirmSectorFire: on }))
   return {
     root: h(
       "div",
@@ -245,6 +270,14 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
         settingRow("Pan speed", "Arrow keys and screen edges.", speed.root),
         settingRow("Invert drag", "Middle-drag turns and tilts the other way.", invert.root)
       ),
+      section(
+        "Orders",
+        settingRow(
+          "Confirm sector-wide fire",
+          "The bombardment and the whistle fire along the whole front: ask for a second press, so a slip can't fire them.",
+          confirmFire.root
+        )
+      ),
       h("p", "ui-controls-intro", "Keys are moved on the Controls page, from the menu.")
     ),
     sync() {
@@ -252,6 +285,7 @@ function controlsTab(): { root: HTMLElement; sync(): void } {
         choice.set(hub.current.presses[action])
       }
       edge.set(camera.current.edgePan)
+      confirmFire.set(play.current.confirmSectorFire)
       speed.set(camera.current.panSpeed)
       invert.set(camera.current.invertDrag)
     }

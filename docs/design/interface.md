@@ -456,9 +456,9 @@ Calling, with a preview (proposed; the keys stay as they are):
 - **Hold V** (or X): the **footprint** shows on the ground at the pointer (60 m wide for V, 100 × 40 m for X) with the
   delay ("about 30 s"). Release to call, right-click to cancel. Friendly men inside the footprint: a strong warning
   ("Our men in the beaten zone") and a second press to confirm.
-- **B and G** are sector-wide and fire for minutes: a confirmation step (hold for a moment, or press twice) so they
-  can't be fired by a slip. These are the prototype's stand-ins for [operations](operations.md); in stage 2 they move to
-  the commander.
+- **B and G** (built: press twice within 3 s, the question standing bottom centre; off in the options) are sector-wide
+  and fire for minutes: a confirmation step (hold for a moment, or press twice) so they can't be fired by a slip. These
+  are the prototype's stand-ins for [operations](operations.md); in stage 2 they move to the commander.
 - After calling: the footprint stays on the ground as pending, then firing ([W6](#w6-artillery)), and a line goes to the
   log. Later, a period signal: a rocket going up for the SOS, a runner or field telephone for a call (as Tannenberg made
   calls physical), each with its delay.
@@ -798,7 +798,8 @@ storage today; on the account in stage 3) and apply at once where they can.
 reload; render scale and full screen at once; the five volumes; interface scale, backing and the prompts (with "show
 them again"); colour vision, high contrast and screen effects' strength. Since added: the frame-rate cap, brightness
 with a test image, each zone of the HUD, the clock, marker size, hold or toggle for run, crouch, lie down and the
-grenade, edge panning, pan speed and the drag's direction. Not yet: captions, and confirming sector-wide fire.
+grenade, edge panning, pan speed and the drag's direction, captions (off, voices, or voices and warnings), and
+confirming sector-wide fire.
 
 **Display**
 
@@ -1019,6 +1020,11 @@ separately when stage 2 starts.
 
 **Stage** P (offline), 2 (online). **Kind** Screen or Overlay.
 
+**Built**, offline: a browser with neither WebGPU nor WebGL 2 is told what it needs, and any other failure while the
+battle comes up says so with a reload, in place of a blank page (`menu.fail`); a battle that runs under 24 frames a
+second for 20 s suggests a lower setting once, with a way to the options (`ui/frame-watch.ts`); and "Click or press a
+key for sound" shows while the browser keeps sound off. Below: the spec as first written.
+
 - Browser not supported, or WebGPU and WebGL both unavailable: say what's needed, plainly.
 - Low frame rate for a while: suggest a lower preset, once.
 - Audio blocked until the first click (today audio starts on the first key or click): a quiet "Click for sound".
@@ -1137,7 +1143,9 @@ Xbox's text and contrast guidance
 - **Colour**: no information by colour alone; colour-vision palettes for state and side colours.
 - **Captions**: every voice line captioned, with the speaker and its meaning in the interface language (the voices are
   French and German, `scripts/voice-lines.json`): "Sgt. Dubois: Gas! Masks on!" Optional captions for important sounds
-  (incoming shell, whistle, gas gong) and visual cues for them.
+  (incoming shell, whistle, gas gong) and visual cues for them. Built (`ui/captions.ts`): each shout with its side and
+  direction ("The enemy, to the left"), its meaning and the words as shouted; the warnings on request. The speaker isn't
+  named yet: the sound engine doesn't say which man shouts.
 - **Input**: every key rebindable; every hold also available as a toggle; no fast repeated presses required; the radial
   usable without precise mouse work.
 - **Motion and light**: screen effects, shake and flashes each reducible or off; nothing flashes more than three times a

@@ -42,6 +42,7 @@ export default defineConfig({
         "src/ui/squad-book.ts",
         "src/ui/log-page.ts",
         "src/ui/join-page.ts",
+        "src/ui/battle-notes.ts",
         "src/debug/dock.ts",
         "src/debug/stats.ts"
       ],
