@@ -39,10 +39,10 @@ async function withSightLines(sim: Simulation): Promise<Simulation> {
 }
 
 /**
- * A fresh battle on the map: both lines manned, the playtest's operation planned, and every squad fighting by its own
- * orders until a player joins it.
+ * A fresh battle on the map: both lines manned with `soldiersPerSide` men each (the local game's 200 unless given), the
+ * playtest's operation planned, and every squad fighting by its own orders until a player joins it.
  */
-export async function newBattle(map: BattlefieldMap): Promise<Simulation> {
+export async function newBattle(map: BattlefieldMap, soldiersPerSide = 200): Promise<Simulation> {
   const region = regionOf(map)
   await loadWeatherRegion(region)
   const sim = createSimulation({
@@ -51,7 +51,7 @@ export async function newBattle(map: BattlefieldMap): Promise<Simulation> {
     environment: { forecast: { kind: "records", seed: WEATHER_SEED, region } }
   })
   // The skirmish hands one squad to the local player; on the server no one leads it until a player joins.
-  const { playerSquad } = setupSkirmish(sim)
+  const { playerSquad } = setupSkirmish(sim, soldiersPerSide)
   enqueueCommand(sim, { type: "squad-controller", squad: playerSquad.id, controller: "ai" })
   planOperation(sim, PLAYTEST_OPERATION)
   return withSightLines(sim)

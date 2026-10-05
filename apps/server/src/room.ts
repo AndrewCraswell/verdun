@@ -13,6 +13,51 @@ export interface SectorRoomOptions {
   /** Lets the dev keys' commands through (`--dev`). */
   readonly dev: boolean
   readonly log: (line: string) => void
+  /** Logs how the room keeps up every this many milliseconds (`--stats`), for the load test; never if absent. */
+  readonly statsEvery?: number
+}
+
+/** How the room kept up since the last report: the battle's steps, the messages, and how long each took. */
+function createStats() {
+  let steps = 0
+  let stepMs: number[] = []
+  let encodeMs = 0
+  let messages = 0
+  let bytes = 0
+  let since = performance.now()
+  return {
+    stepped(ms: number, count: number) {
+      steps += count
+      if (count > 0) {
+        stepMs.push(ms / count)
+      }
+    },
+    sent(ms: number, size: number) {
+      encodeMs += ms
+      messages++
+      bytes += size
+    },
+    report(players: number): string {
+      const seconds = (performance.now() - since) / 1000
+      stepMs.sort((a, b) => a - b)
+      const at = (fraction: number) =>
+        (stepMs[Math.min(stepMs.length - 1, Math.floor(stepMs.length * fraction))] ?? 0).toFixed(1)
+      const mean = stepMs.reduce((sum, ms) => sum + ms, 0) / Math.max(1, stepMs.length)
+      const memory = process.memoryUsage().heapUsed / 1048576
+      const line =
+        `stats: ${players} players, ${(steps / seconds).toFixed(1)} steps/s, step ${mean.toFixed(1)} ms mean, ` +
+        `${at(0.95)} p95, ${at(1)} max; ${messages} messages, ${(bytes / Math.max(1, messages) / 1024).toFixed(1)} KB each, ` +
+        `${(bytes / seconds / 1024).toFixed(1)} KB/s a player, encode ${(encodeMs / Math.max(1, messages)).toFixed(1)} ms; ` +
+        `heap ${memory.toFixed(0)} MB`
+      steps = 0
+      stepMs = []
+      encodeMs = 0
+      messages = 0
+      bytes = 0
+      since = performance.now()
+      return line
+    }
+  }
 }
 
 /**
@@ -20,10 +65,12 @@ export interface SectorRoomOptions {
  * joins a squad of their side, takes their commands, and sends everyone the battle ten times a second. Made once, when
  * the server starts, and never closed.
  */
-export function sectorRoom({ sector, dev, log }: SectorRoomOptions) {
+export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) {
   const players = createPlayers(sector.sim, dev)
   const relay = createRelay(sector)
   sector.onStep(() => players.stepped())
+  const stats = createStats()
+  let reported = performance.now()
 
   return class SectorRoom extends Room {
     override autoDispose = false
@@ -43,10 +90,18 @@ export function sectorRoom({ sector, dev, log }: SectorRoomOptions) {
         }
       })
       this.setSimulationInterval(() => {
-        sector.advance(Date.now())
+        const started = performance.now()
+        const steps = sector.advance(Date.now())
+        const stepped = performance.now()
         const sync = relay.due(this.clients.length > 0)
         if (sync) {
+          stats.sent(performance.now() - stepped, sync.byteLength)
           this.broadcastBytes(MESSAGE.sync, sync, {})
+        }
+        stats.stepped(stepped - started, steps)
+        if (statsEvery !== undefined && performance.now() - reported >= statsEvery) {
+          reported = performance.now()
+          log(stats.report(this.clients.length))
         }
         // After the sync, so a player's prediction starts again from the battle that has their commands in it.
         for (const [player, acknowledgement] of players.acknowledgements()) {

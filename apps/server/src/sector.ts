@@ -44,6 +44,8 @@ export interface SectorOptions {
   readonly map: BattlefieldMap
   readonly now: number
   readonly log: (line: string) => void
+  /** Men in each side's front line, if a new battle begins: the local game's 200 unless given. */
+  readonly soldiersPerSide?: number
 }
 
 /** Our own saves, read back: checked only as far as telling a snapshot of this build's format from anything else. */
@@ -79,7 +81,7 @@ function readable(saved: SavedBattle | null, log: (line: string) => void): Simul
  * sector's own, kept from the first time it opened, so the war goes on a week each real day across restarts and new
  * battles alike.
  */
-export async function openSector({ store, name, map, now, log }: SectorOptions): Promise<Sector> {
+export async function openSector({ store, name, map, now, log, soldiersPerSide }: SectorOptions): Promise<Sector> {
   const generated = groundOf(map)
   const saved = store.latest(name)
   const snapshot = readable(saved, log)
@@ -91,7 +93,7 @@ export async function openSector({ store, name, map, now, log }: SectorOptions):
     sim = await resumeBattle(map, snapshot)
     log(`Took up ${name} at step ${sim.tick}, saved ${Math.round((now - saved.savedAt) / 1000)} s ago`)
   } else {
-    sim = await newBattle(map)
+    sim = await newBattle(map, soldiersPerSide)
     log(`Began a new battle in ${name}`)
   }
   let schedule = store.schedule(name)
