@@ -1,0 +1,1358 @@
+{
+  "source": "Mixamo (Adobe), exported 2026-10-05 for the character French_Soldier_Mixamo (auto-rigged): FBX binary, without skin, 24 fps, no keyframe reduction",
+  "folder": "vendor/mixamo",
+  "clips": [
+    {
+      "file": "45-degree-right-turn-while-aiming-a-rifle.fbx",
+      "name": "Turning Right 45 Degrees",
+      "description": "45 Degree Right Turn While Aiming A Rifle",
+      "mixamoId": "c9c930cf-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=45%20Degree%20Right%20Turn%20While%20Aiming%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "90-degree-right-turn-while-aiming-a-rifle.fbx",
+      "name": "Turning Right 90 Degrees",
+      "description": "90 Degree Right Turn While Aiming A Rifle",
+      "mixamoId": "c9c932fb-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=90%20Degree%20Right%20Turn%20While%20Aiming%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "advancing-and-punching-with-butt-of-a-rifle.fbx",
+      "name": "Rifle Punch",
+      "description": "Advancing And Punching With Butt Of A Rifle",
+      "mixamoId": "c9c6c8e0-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Advancing%20And%20Punching%20With%20Butt%20Of%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "advancing-and-stabbing-with-rifle-bayonet-or-spear.fbx",
+      "name": "Bayonet Stab",
+      "description": "Advancing And Stabbing With Rifle Bayonet Or Spear",
+      "mixamoId": "c9c6c767-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Advancing%20And%20Stabbing%20With%20Rifle%20Bayonet%20Or%20Spear&type=Motion"
+    },
+    {
+      "file": "being-terrified-while-standing.fbx",
+      "name": "Terrified",
+      "description": "Being Terrified While Standing",
+      "mixamoId": "c9c99025-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Being%20Terrified%20While%20Standing&type=Motion"
+    },
+    {
+      "file": "blocking-with-a-rifle.fbx",
+      "name": "Rifle Block",
+      "description": "Blocking With A Rifle",
+      "mixamoId": "c9c6c99a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Blocking%20With%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "carrying-someone-idle.fbx",
+      "name": "Carrying",
+      "description": "Carrying Someone Idle",
+      "mixamoId": "c9c82dfa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Carrying%20Someone%20Idle&type=Motion"
+    },
+    {
+      "file": "climb-through-fence-and-jump-down.fbx",
+      "name": "Climbing Down",
+      "description": "Climb Through Fence And Jump Down",
+      "mixamoId": "c9c8b4dd-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Climb%20Through%20Fence%20And%20Jump%20Down&type=Motion"
+    },
+    {
+      "file": "climbing-up-a-ladder-to-standing.fbx",
+      "name": "Climbing To Top",
+      "description": "Climbing Up A Ladder To Standing",
+      "mixamoId": "c9c9611b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Climbing%20Up%20A%20Ladder%20To%20Standing&type=Motion"
+    },
+    {
+      "file": "climbing-up-a-slope.fbx",
+      "name": "Climbing",
+      "description": "Climbing Up A Slope",
+      "mixamoId": "c9c83859-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Climbing%20Up%20A%20Slope&type=Motion"
+    },
+    {
+      "file": "climbing-up-a-wall.fbx",
+      "name": "Climbing Up Wall",
+      "description": "Climbing Up A Wall",
+      "mixamoId": "c9c9b079-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Climbing%20Up%20A%20Wall&type=Motion"
+    },
+    {
+      "file": "clumsily-running-to-evade-a-threat.fbx",
+      "name": "Evading A Threat",
+      "description": "Clumsily Running To Evade A Threat",
+      "mixamoId": "c9c8da25-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Clumsily%20Running%20To%20Evade%20A%20Threat&type=Motion"
+    },
+    {
+      "file": "crawling-backwards-in-fear.fbx",
+      "name": "Crawl Backwards",
+      "description": "Crawling Backwards In Fear",
+      "mixamoId": "c9ccc230-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crawling%20Backwards%20In%20Fear&type=Motion"
+    },
+    {
+      "file": "crouch-to-stand-with-rifle.fbx",
+      "name": "Crouch To Stand",
+      "description": "Crouch To Stand With Rifle",
+      "mixamoId": "c9c62af7-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouch%20To%20Stand%20With%20Rifle&type=Motion"
+    },
+    {
+      "file": "crouched-hiding-to-ducking.fbx",
+      "name": "Hiding",
+      "description": "Crouched Hiding To Ducking",
+      "mixamoId": "c9c8469a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouched%20Hiding%20To%20Ducking&type=Motion"
+    },
+    {
+      "file": "crouched-rifle-walk-strafe-left.fbx",
+      "name": "Crouch Walk Strafe Left",
+      "description": "Crouched Rifle Walk Strafe Left",
+      "mixamoId": "c9c93013-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouched%20Rifle%20Walk%20Strafe%20Left&type=Motion"
+    },
+    {
+      "file": "crouched-rifle-walk-strafe-right.fbx",
+      "name": "Crouch Walk Strafe Right",
+      "description": "Crouched Rifle Walk Strafe Right",
+      "mixamoId": "c9c9279d-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouched%20Rifle%20Walk%20Strafe%20Right&type=Motion"
+    },
+    {
+      "file": "crouched-walking-backwards-while-aiming-rifle.fbx",
+      "name": "Crouch Walking Backwards",
+      "description": "Crouched Walking Backwards While Aiming Rifle",
+      "mixamoId": "c9c92aaa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouched%20Walking%20Backwards%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "crouched-walking-while-aiming-rifle.fbx",
+      "name": "Crouch Walking",
+      "description": "Crouched Walking While Aiming Rifle",
+      "mixamoId": "c9c92c49-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Crouched%20Walking%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "death-hit-from-the-back-falling-on-one-knee.fbx",
+      "name": "Dying",
+      "description": "Death Hit From The Back Falling On One Knee",
+      "mixamoId": "c9c62d63-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Death%20Hit%20From%20The%20Back%20Falling%20On%20One%20Knee&type=Motion"
+    },
+    {
+      "file": "digging-hole-with-shovel.fbx",
+      "name": "Digging",
+      "description": "Digging Hole With Shovel",
+      "mixamoId": "c9c6cd3e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Digging%20Hole%20With%20Shovel&type=Motion"
+    },
+    {
+      "file": "dive-roll-while-holding-rifle.fbx",
+      "name": "Dive Roll",
+      "description": "Dive Roll While Holding Rifle",
+      "mixamoId": "c9c88244-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dive%20Roll%20While%20Holding%20Rifle&type=Motion"
+    },
+    {
+      "file": "diving-from-a-run-pose.fbx",
+      "name": "Run To Dive",
+      "description": "Diving From A Run Pose",
+      "mixamoId": "c9ce7cd1-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Diving%20From%20A%20Run%20Pose&type=Motion"
+    },
+    {
+      "file": "duck-and-look-around-apprehensively.fbx",
+      "name": "Gunplay",
+      "description": "Duck And Look Around Apprehensively",
+      "mixamoId": "c9c6bdd2-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Duck%20And%20Look%20Around%20Apprehensively&type=Motion"
+    },
+    {
+      "file": "ducking-for-cover-from-standing-idle.fbx",
+      "name": "Ducking",
+      "description": "Ducking For Cover From Standing Idle",
+      "mixamoId": "c9c8de59-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Ducking%20For%20Cover%20From%20Standing%20Idle&type=Motion"
+    },
+    {
+      "file": "dying-flying-backward.fbx",
+      "name": "Flying Back Death",
+      "description": "Dying Flying Backward",
+      "mixamoId": "c9cdb4c8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dying%20Flying%20Backward&type=Motion"
+    },
+    {
+      "file": "dying-from-a-crouched-position.fbx",
+      "name": "Crouch Death",
+      "description": "Dying From A Crouched Position",
+      "mixamoId": "c9c85edd-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dying%20From%20A%20Crouched%20Position&type=Motion"
+    },
+    {
+      "file": "dying-from-a-prone-position.fbx",
+      "name": "Prone Death",
+      "description": "Dying From A Prone Position",
+      "mixamoId": "c9c8a3f3-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dying%20From%20A%20Prone%20Position&type=Motion"
+    },
+    {
+      "file": "dying-reaction-while-standing-holding-a-rifle.fbx",
+      "name": "Rifle Death",
+      "description": "Dying Reaction While Standing Holding A Rifle",
+      "mixamoId": "c9c871f6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dying%20Reaction%20While%20Standing%20Holding%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "dying-shot-to-the-chest-falling-on-two-knees.fbx",
+      "name": "Dying",
+      "description": "Dying Shot To The Chest Falling On Two Knees",
+      "mixamoId": "c9c62e30-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Dying%20Shot%20To%20The%20Chest%20Falling%20On%20Two%20Knees&type=Motion"
+    },
+    {
+      "file": "explosion-from-behind.fbx",
+      "name": "Dying",
+      "description": "Explosion From Behind",
+      "mixamoId": "c9c6e758-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Explosion%20From%20Behind&type=Motion"
+    },
+    {
+      "file": "fire-rifle-while-crouched.fbx",
+      "name": "Fire Rifle",
+      "description": "Fire Rifle While Crouched",
+      "mixamoId": "c9c86f03-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Fire%20Rifle%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "firing-a-rifle-while-prone.fbx",
+      "name": "Prone Firing Rifle",
+      "description": "Firing A Rifle While Prone",
+      "mixamoId": "c9c85afc-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Firing%20A%20Rifle%20While%20Prone&type=Motion"
+    },
+    {
+      "file": "firing-a-rifle-while-standing.fbx",
+      "name": "Firing Rifle",
+      "description": "Firing A Rifle While Standing",
+      "mixamoId": "c9c863fe-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Firing%20A%20Rifle%20While%20Standing&type=Motion"
+    },
+    {
+      "file": "getting-shot-while-running-with-an-aimed-rifle.fbx",
+      "name": "Rifle Run To Dying",
+      "description": "Getting Shot While Running With An Aimed Rifle",
+      "mixamoId": "c9c8662e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Getting%20Shot%20While%20Running%20With%20An%20Aimed%20Rifle&type=Motion"
+    },
+    {
+      "file": "hit-reaction-from-rifle-crouched.fbx",
+      "name": "Hit Reaction",
+      "description": "Hit Reaction From Rifle Crouched",
+      "mixamoId": "c9c86340-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Hit%20Reaction%20From%20Rifle%20Crouched&type=Motion"
+    },
+    {
+      "file": "hit-reaction-when-running-with-rifle.fbx",
+      "name": "Hit Reaction",
+      "description": "Hit Reaction When Running With Rifle",
+      "mixamoId": "c9c896b0-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Hit%20Reaction%20When%20Running%20With%20Rifle&type=Motion"
+    },
+    {
+      "file": "hit-reaction-when-walking-while-aiming-rifle.fbx",
+      "name": "Walking Hit Reaction",
+      "description": "Hit Reaction When Walking While Aiming Rifle",
+      "mixamoId": "c9c88d6c-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Hit%20Reaction%20When%20Walking%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "hit-reaction-while-holding-a-rifle.fbx",
+      "name": "Hit Reaction",
+      "description": "Hit Reaction While Holding A Rifle",
+      "mixamoId": "c9c6bd18-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Hit%20Reaction%20While%20Holding%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "idle-holding-a-rifle-while-shaking-legs.fbx",
+      "name": "Rifle Idle",
+      "description": "Idle Holding A Rifle While Shaking Legs",
+      "mixamoId": "c9c6bf49-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Idle%20Holding%20A%20Rifle%20While%20Shaking%20Legs&type=Motion"
+    },
+    {
+      "file": "injured-and-being-carried-to-a-safer-place.fbx",
+      "name": "Being Carried",
+      "description": "Injured And Being Carried To A Safer Place",
+      "mixamoId": "c9c828f8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Injured%20And%20Being%20Carried%20To%20A%20Safer%20Place&type=Motion"
+    },
+    {
+      "file": "injured-holding-hurt-leg-idle.fbx",
+      "name": "Injured Hurting Idle",
+      "description": "Injured Holding Hurt Leg Idle",
+      "mixamoId": "c9ce552b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Injured%20Holding%20Hurt%20Leg%20Idle&type=Motion"
+    },
+    {
+      "file": "injured-standard-idle.fbx",
+      "name": "Injured Idle",
+      "description": "Injured Standard Idle",
+      "mixamoId": "c9ce52f6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Injured%20Standard%20Idle&type=Motion"
+    },
+    {
+      "file": "injured-walking.fbx",
+      "name": "Injured Walk",
+      "description": "Injured Walking",
+      "mixamoId": "c9cdc569-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Injured%20Walking&type=Motion"
+    },
+    {
+      "file": "jump-down-with-two-feet-while-holding-rifle.fbx",
+      "name": "Jumping Down",
+      "description": "Jump Down With Two Feet While Holding Rifle",
+      "mixamoId": "c9c66c45-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Jump%20Down%20With%20Two%20Feet%20While%20Holding%20Rifle&type=Motion"
+    },
+    {
+      "file": "jumping-away-to-avoid-explosion.fbx",
+      "name": "Jump Away",
+      "description": "Jumping Away To Avoid Explosion",
+      "mixamoId": "c9c6d3d1-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Jumping%20Away%20To%20Avoid%20Explosion&type=Motion"
+    },
+    {
+      "file": "jumping-over-obstacle-getting-ready-to-fight.fbx",
+      "name": "Jumping Over Into Combat",
+      "description": "Jumping Over Obstacle Getting Ready To Fight",
+      "mixamoId": "c9c76939-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Jumping%20Over%20Obstacle%20Getting%20Ready%20To%20Fight&type=Motion"
+    },
+    {
+      "file": "laying-coughing-severely.fbx",
+      "name": "Laying Severe Cough",
+      "description": "Laying Coughing Severely",
+      "mixamoId": "c9ce70c7-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Laying%20Coughing%20Severely&type=Motion"
+    },
+    {
+      "file": "laying-on-back-writhing-in-pain.fbx",
+      "name": "Writhing In Pain",
+      "description": "Laying On Back Writhing In Pain",
+      "mixamoId": "c9c8fcef-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Laying%20On%20Back%20Writhing%20In%20Pain&type=Motion"
+    },
+    {
+      "file": "laying-on-the-ground-dying.fbx",
+      "name": "Dying",
+      "description": "Laying On The Ground Dying",
+      "mixamoId": "c9c6df2e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Laying%20On%20The%20Ground%20Dying&type=Motion"
+    },
+    {
+      "file": "laying-squirming-and-moaning.fbx",
+      "name": "Laying Moaning",
+      "description": "Laying Squirming And Moaning",
+      "mixamoId": "c9ce7187-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Laying%20Squirming%20And%20Moaning&type=Motion"
+    },
+    {
+      "file": "left-reaction-to-front-hit-holding-a-rifle.fbx",
+      "name": "Hit Reaction",
+      "description": "Left Reaction To Front Hit Holding A Rifle",
+      "mixamoId": "c9c6bba5-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Left%20Reaction%20To%20Front%20Hit%20Holding%20A%20Rifle&type=Motion"
+    },
+    {
+      "file": "look-around-nervously.fbx",
+      "name": "Look Around",
+      "description": "Look Around Nervously",
+      "mixamoId": "c9c8f860-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Look%20Around%20Nervously&type=Motion"
+    },
+    {
+      "file": "looking-at-rifle.fbx",
+      "name": "Inspecting",
+      "description": "Looking At Rifle",
+      "mixamoId": "c9c83c87-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Looking%20At%20Rifle&type=Motion"
+    },
+    {
+      "file": "lying-down-prone-with-rifle.fbx",
+      "name": "Prone Idle",
+      "description": "Lying Down Prone With Rifle",
+      "mixamoId": "c9c875ba-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Lying%20Down%20Prone%20With%20Rifle&type=Motion"
+    },
+    {
+      "file": "male-jumping-over-an-obstacle-with-2-hands-planted.fbx",
+      "name": "Jumping",
+      "description": "Male Jumping Over An Obstacle With 2 Hands Planted",
+      "mixamoId": "c9ca8bbd-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Male%20Jumping%20Over%20An%20Obstacle%20With%202%20Hands%20Planted&type=Motion"
+    },
+    {
+      "file": "military-signaling-follow-while-crouched.fbx",
+      "name": "Military Signaling",
+      "description": "Military Signaling \"Follow\" While Crouched",
+      "mixamoId": "c9c6a494-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Military%20Signaling%20%22Follow%22%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "military-signaling-military-signal-look-while-crouched-2.fbx",
+      "name": "Military Signaling",
+      "description": "Military Signal \"Look\" While Crouched",
+      "mixamoId": "c9c6a70a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Military%20Signal%20%22Look%22%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "military-signaling-military-signal-look-while-crouched.fbx",
+      "name": "Military Signaling",
+      "description": "Military Signal \"Look\" While Crouched",
+      "mixamoId": "c9c6a64d-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Military%20Signal%20%22Look%22%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "military-signaling-move-slow-while-crouched.fbx",
+      "name": "Military Signaling",
+      "description": "Military Signaling \"Move Slow\" While Crouched",
+      "mixamoId": "c9c6a7c8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Military%20Signaling%20%22Move%20Slow%22%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "military-signaling-stay-back-while-crouched.fbx",
+      "name": "Military Signaling",
+      "description": "Military Signaling \"Stay Back\" While Crouched",
+      "mixamoId": "c9c6a58a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Military%20Signaling%20%22Stay%20Back%22%20While%20Crouched&type=Motion"
+    },
+    {
+      "file": "moving-backward-in-prone-position-with-rifle.fbx",
+      "name": "Moving Backward In Prone Position",
+      "description": "Moving Backward In Prone Position With Rifle",
+      "mixamoId": "c9c87e8e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Moving%20Backward%20In%20Prone%20Position%20With%20Rifle&type=Motion"
+    },
+    {
+      "file": "moving-forward-while-in-prone-position.fbx",
+      "name": "Prone Forward",
+      "description": "Moving Forward While In Prone Position",
+      "mixamoId": "c9c878a5-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Moving%20Forward%20While%20In%20Prone%20Position&type=Motion"
+    },
+    {
+      "file": "pointing-onward-charge.fbx",
+      "name": "Charge",
+      "description": "Pointing Onward Charge",
+      "mixamoId": "c9c77324-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Pointing%20Onward%20Charge&type=Motion"
+    },
+    {
+      "file": "pulling-up-to-a-ledge.fbx",
+      "name": "Climbing",
+      "description": "Pulling Up To A Ledge",
+      "mixamoId": "c9c803b5-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Pulling%20Up%20To%20A%20Ledge&type=Motion"
+    },
+    {
+      "file": "reload-rifle-while-in-crouch-position.fbx",
+      "name": "Reload",
+      "description": "Reload Rifle While In Crouch Position",
+      "mixamoId": "c9c86923-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Reload%20Rifle%20While%20In%20Crouch%20Position&type=Motion"
+    },
+    {
+      "file": "reloading-rifle-in-prone.fbx",
+      "name": "Prone Reloading",
+      "description": "Reloading Rifle In Prone",
+      "mixamoId": "c9c87673-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Reloading%20Rifle%20In%20Prone&type=Motion"
+    },
+    {
+      "file": "reloading-rifle-while-standing.fbx",
+      "name": "Reloading",
+      "description": "Reloading Rifle While Standing",
+      "mixamoId": "c9c8939f-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Reloading%20Rifle%20While%20Standing&type=Motion"
+    },
+    {
+      "file": "repeatedly-firing-a-rifle-while-crouch-walking.fbx",
+      "name": "Firing Rifle",
+      "description": "Repeatedly Firing A Rifle While Crouch Walking",
+      "mixamoId": "c9ca927e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Repeatedly%20Firing%20A%20Rifle%20While%20Crouch%20Walking&type=Motion"
+    },
+    {
+      "file": "repeatedly-firing-while-walking-with-rifle.fbx",
+      "name": "Firing Rifle",
+      "description": "Repeatedly Firing While Walking With Rifle",
+      "mixamoId": "c9c92f55-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Repeatedly%20Firing%20While%20Walking%20With%20Rifle&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-135-degree-left-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "135 Degree Left Turn",
+      "mixamoId": "c9cd6935-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=135%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-180-degree-left-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "180 Degree Left Turn",
+      "mixamoId": "c9cd69f9-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=180%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-180-degree-right-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "180 Degree Right Turn",
+      "mixamoId": "c9cd6cfe-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=180%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-45-degree-left-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "45 Degree Left Turn",
+      "mixamoId": "c9cd67a6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=45%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-90-degree-left-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "90 Degree Left Turn",
+      "mixamoId": "c9cd686a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=90%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouch-turn-90-degree-right-turn.fbx",
+      "name": "Rifle Crouch Turn",
+      "description": "90 Degree Right Turn",
+      "mixamoId": "c9cd6b7e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=90%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-idle-aiming.fbx",
+      "name": "Idle Crouching Aiming",
+      "description": "Rifle Crouched Idle Aiming",
+      "mixamoId": "c9ceac02-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Idle%20Aiming&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-idle.fbx",
+      "name": "Idle Crouching",
+      "description": "Rifle Crouched Idle",
+      "mixamoId": "c9ce8aaf-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Idle&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-turn-90-left.fbx",
+      "name": "Crouching Turn 90 Left",
+      "description": "Rifle Crouched Turn 90 Left",
+      "mixamoId": "c9cea330-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Turn%2090%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-backward-left.fbx",
+      "name": "Walk Crouching Backward Left",
+      "description": "Rifle Crouched Walk Backward Left",
+      "mixamoId": "c9cea00a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Backward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-backward-right.fbx",
+      "name": "Walk Crouching Backward Right",
+      "description": "Rifle Crouched Walk Backward Right",
+      "mixamoId": "c9cea0d3-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Backward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-backward.fbx",
+      "name": "Walk Crouching Backward",
+      "description": "Rifle Crouched Walk Backward",
+      "mixamoId": "c9ce9f47-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Backward&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-forward-left.fbx",
+      "name": "Walk Crouching Forward Left",
+      "description": "Rifle Crouched Walk Forward Left",
+      "mixamoId": "c9ce9e88-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Forward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-forward-right.fbx",
+      "name": "Walk Crouching Forward Right",
+      "description": "Rifle Crouched Walk Forward Right",
+      "mixamoId": "c9ce8860-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Forward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-forward.fbx",
+      "name": "Walk Crouching Forward",
+      "description": "Rifle Crouched Walk Forward",
+      "mixamoId": "c9ce9c39-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Forward&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-left.fbx",
+      "name": "Walk Crouching Left",
+      "description": "Rifle Crouched Walk Left",
+      "mixamoId": "c9ce9dc5-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-crouched-walk-right.fbx",
+      "name": "Walk Crouching Right",
+      "description": "Rifle Crouched Walk Right",
+      "mixamoId": "c9ce9d03-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Crouched%20Walk%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-death-crouched-from-headshot-front.fbx",
+      "name": "Death Crouching Headshot Front",
+      "description": "Rifle Death Crouched From Headshot Front",
+      "mixamoId": "c9cea8f6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20Crouched%20From%20Headshot%20Front&type=Motion"
+    },
+    {
+      "file": "rifle-death-from-back-headshot.fbx",
+      "name": "Death From Back Headshot",
+      "description": "Rifle Death From Back Headshot",
+      "mixamoId": "c9cea9b8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20From%20Back%20Headshot&type=Motion"
+    },
+    {
+      "file": "rifle-death-from-front-headshot.fbx",
+      "name": "Death From Front Headshot",
+      "description": "Rifle Death From Front Headshot",
+      "mixamoId": "c9cea76f-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20From%20Front%20Headshot&type=Motion"
+    },
+    {
+      "file": "rifle-death-from-right-side.fbx",
+      "name": "Death From Right",
+      "description": "Rifle Death From Right Side",
+      "mixamoId": "c9cea835-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20From%20Right%20Side&type=Motion"
+    },
+    {
+      "file": "rifle-death-from-the-back.fbx",
+      "name": "Death From The Back",
+      "description": "Rifle Death From The Back",
+      "mixamoId": "c9ceaa7b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20From%20The%20Back&type=Motion"
+    },
+    {
+      "file": "rifle-death-from-the-front.fbx",
+      "name": "Death From The Front",
+      "description": "Rifle Death From The Front",
+      "mixamoId": "c9ceab40-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Death%20From%20The%20Front&type=Motion"
+    },
+    {
+      "file": "rifle-idle-looking-around.fbx",
+      "name": "Rifle Idle",
+      "description": "Rifle Idle Looking Around",
+      "mixamoId": "c9cd5052-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Idle%20Looking%20Around&type=Motion"
+    },
+    {
+      "file": "rifle-idle-to-crouch-walk.fbx",
+      "name": "Rifle Idle To Crouch",
+      "description": "Rifle Idle To Crouch Walk",
+      "mixamoId": "c9cd6dc3-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Idle%20To%20Crouch%20Walk&type=Motion"
+    },
+    {
+      "file": "rifle-jump-down.fbx",
+      "name": "Jump Down",
+      "description": "Rifle Jump Down",
+      "mixamoId": "c9cea6ae-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Jump%20Down&type=Motion"
+    },
+    {
+      "file": "rifle-jump-idle.fbx",
+      "name": "Jump Loop",
+      "description": "Rifle Jump Idle",
+      "mixamoId": "c9cea5e9-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Jump%20Idle&type=Motion"
+    },
+    {
+      "file": "rifle-jump-up.fbx",
+      "name": "Jump Up",
+      "description": "Rifle Jump Up",
+      "mixamoId": "c9cea51f-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Jump%20Up&type=Motion"
+    },
+    {
+      "file": "rifle-kneeling-and-aiming.fbx",
+      "name": "Rifle Kneel To Aim",
+      "description": "Rifle Kneeling And Aiming",
+      "mixamoId": "c9cd6315-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Kneeling%20And%20Aiming&type=Motion"
+    },
+    {
+      "file": "rifle-kneeling-getting-hit-to-back.fbx",
+      "name": "Rifle Kneel Hit To Back",
+      "description": "Rifle Kneeling Getting Hit To Back",
+      "mixamoId": "c9cd717c-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Kneeling%20Getting%20Hit%20To%20Back&type=Motion"
+    },
+    {
+      "file": "rifle-kneeling-idle.fbx",
+      "name": "Rifle Kneel Idle",
+      "description": "Rifle Kneeling Idle",
+      "mixamoId": "c9cd79d4-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Kneeling%20Idle&type=Motion"
+    },
+    {
+      "file": "rifle-kneeling-to-prone.fbx",
+      "name": "Rifle Kneel To Prone",
+      "description": "Rifle Kneeling To Prone",
+      "mixamoId": "c9cd6196-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Kneeling%20To%20Prone&type=Motion"
+    },
+    {
+      "file": "rifle-kneeling-to-standing.fbx",
+      "name": "Rifle Kneel To Stand",
+      "description": "Rifle Kneeling To Standing",
+      "mixamoId": "c9cd60ba-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Kneeling%20To%20Standing&type=Motion"
+    },
+    {
+      "file": "rifle-prone-hit-reaction.fbx",
+      "name": "Rifle Prone Hit Reaction",
+      "description": "Rifle Prone Hit Reaction",
+      "mixamoId": "c9c89e21-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Prone%20Hit%20Reaction&type=Motion"
+    },
+    {
+      "file": "rifle-prone-rolling-right.fbx",
+      "name": "Prone Roll",
+      "description": "Rifle Prone Rolling Right",
+      "mixamoId": "c9c86fc2-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Prone%20Rolling%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-prone-to-kneeling.fbx",
+      "name": "Rifle Prone To Kneel",
+      "description": "Rifle Prone To Kneeling",
+      "mixamoId": "c9cd6254-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Prone%20To%20Kneeling&type=Motion"
+    },
+    {
+      "file": "rifle-rubbing-debris-from-eyes.fbx",
+      "name": "Rifle Rubbing Eyes",
+      "description": "Rifle Rubbing Debris From Eyes",
+      "mixamoId": "c9cd75ce-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Rubbing%20Debris%20From%20Eyes&type=Motion"
+    },
+    {
+      "file": "rifle-run-backward-right.fbx",
+      "name": "Run Backward Right",
+      "description": "Rifle Run Backward Right",
+      "mixamoId": "c9ce8ffa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Backward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-run-backward.fbx",
+      "name": "Run Backward",
+      "description": "Rifle Run Backward",
+      "mixamoId": "c9ce8b7b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Backward&type=Motion"
+    },
+    {
+      "file": "rifle-run-dive-roll-to-stopped.fbx",
+      "name": "Running Dive Roll",
+      "description": "Rifle Run Dive Roll To Stopped",
+      "mixamoId": "c9c87dd0-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Dive%20Roll%20To%20Stopped&type=Motion"
+    },
+    {
+      "file": "rifle-run-forward-left.fbx",
+      "name": "Run Forward Left",
+      "description": "Rifle Run Forward Left",
+      "mixamoId": "c9ce8e76-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Forward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-run-forward-right.fbx",
+      "name": "Run Forward Right",
+      "description": "Rifle Run Forward Right",
+      "mixamoId": "c9ce8db2-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Forward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-run-forward.fbx",
+      "name": "Run Forward",
+      "description": "Rifle Run Forward",
+      "mixamoId": "c9ce8798-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Forward&type=Motion"
+    },
+    {
+      "file": "rifle-run-left.fbx",
+      "name": "Run Left",
+      "description": "Rifle Run Left",
+      "mixamoId": "c9ce8c37-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-run-right.fbx",
+      "name": "Run Right",
+      "description": "Rifle Run Right",
+      "mixamoId": "c9ce8cf6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Run%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-shielding-face-from-debris.fbx",
+      "name": "Rifle Shielding Face",
+      "description": "Rifle Shielding Face From Debris",
+      "mixamoId": "c9cd7246-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Shielding%20Face%20From%20Debris&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-backward-left.fbx",
+      "name": "Sprint Backward Left",
+      "description": "Rifle Sprint Backward Left",
+      "mixamoId": "c9ce9553-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Backward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-backward-right.fbx",
+      "name": "Sprint Backward Right",
+      "description": "Rifle Sprint Backward Right",
+      "mixamoId": "c9ce9493-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Backward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-backward.fbx",
+      "name": "Sprint Backward",
+      "description": "Rifle Sprint Backward",
+      "mixamoId": "c9ce93c8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Backward&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-forward-left.fbx",
+      "name": "Sprint Forward Left",
+      "description": "Rifle Sprint Forward Left",
+      "mixamoId": "c9ce917b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Forward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-forward-right.fbx",
+      "name": "Sprint Forward Right",
+      "description": "Rifle Sprint Forward Right",
+      "mixamoId": "c9ce90bc-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Forward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-forward.fbx",
+      "name": "Sprint Forward",
+      "description": "Rifle Sprint Forward",
+      "mixamoId": "c9ce86d8-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Forward&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-left.fbx",
+      "name": "Sprint Left",
+      "description": "Rifle Sprint Left",
+      "mixamoId": "c9ce9302-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-sprint-right.fbx",
+      "name": "Sprint Right",
+      "description": "Rifle Sprint Right",
+      "mixamoId": "c9ce9239-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Sprint%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-standing-aiming-idle.fbx",
+      "name": "Rifle Aiming Idle",
+      "description": "Rifle Standing Aiming Idle",
+      "mixamoId": "c9c84492-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Standing%20Aiming%20Idle&type=Motion"
+    },
+    {
+      "file": "rifle-standing-idle.fbx",
+      "name": "Idle",
+      "description": "Rifle Standing Idle",
+      "mixamoId": "c9ce8927-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Standing%20Idle&type=Motion"
+    },
+    {
+      "file": "rifle-standing-to-kneeling.fbx",
+      "name": "Rifle Stand To Kneel",
+      "description": "Rifle Standing To Kneeling",
+      "mixamoId": "c9cd5e7d-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Standing%20To%20Kneeling&type=Motion"
+    },
+    {
+      "file": "rifle-turn-135-degree-right-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "135 Degree Right Turn",
+      "mixamoId": "c9cd5d03-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=135%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-180-degree-left-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "180 Degree Left Turn",
+      "mixamoId": "c9cd5ab9-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=180%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-180-degree-right-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "180 Degree Right Turn",
+      "mixamoId": "c9cd5dbe-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=180%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-45-degree-left-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "45 Degree Left Turn",
+      "mixamoId": "c9cd5884-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=45%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-45-degree-right-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "45 Degree Right Turn",
+      "mixamoId": "c9cd5b7f-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=45%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-90-degree-left-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "90 Degree Left Turn",
+      "mixamoId": "c9cd5941-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=90%20Degree%20Left%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-90-degree-right-turn.fbx",
+      "name": "Rifle Turn",
+      "description": "90 Degree Right Turn",
+      "mixamoId": "c9cd5c3e-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=90%20Degree%20Right%20Turn&type=Motion"
+    },
+    {
+      "file": "rifle-turn-90-left.fbx",
+      "name": "Turn 90 Left",
+      "description": "Rifle Turn 90 Left",
+      "mixamoId": "c9ce89ec-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Turn%2090%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-turn-90-right.fbx",
+      "name": "Turn 90 Right",
+      "description": "Rifle Turn 90 Right",
+      "mixamoId": "c9cea265-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Turn%2090%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-walk-backward-left.fbx",
+      "name": "Walk Backward Left",
+      "description": "Rifle Walk Backward Left",
+      "mixamoId": "c9ce9b78-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Backward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-walk-backward-right.fbx",
+      "name": "Walk Backward Right",
+      "description": "Rifle Walk Backward Right",
+      "mixamoId": "c9ce9ab2-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Backward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-walk-backward.fbx",
+      "name": "Walk Backward",
+      "description": "Rifle Walk Backward",
+      "mixamoId": "c9ce99ef-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Backward&type=Motion"
+    },
+    {
+      "file": "rifle-walk-forward-left.fbx",
+      "name": "Walk Forward Left",
+      "description": "Rifle Walk Forward Left",
+      "mixamoId": "c9ce97a2-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Forward%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-walk-forward-right.fbx",
+      "name": "Walk Forward Right",
+      "description": "Rifle Walk Forward Right",
+      "mixamoId": "c9ce96df-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Forward%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-walk-forward.fbx",
+      "name": "Walk Forward",
+      "description": "Rifle Walk Forward",
+      "mixamoId": "c9ce9616-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Forward&type=Motion"
+    },
+    {
+      "file": "rifle-walk-left.fbx",
+      "name": "Walk Left",
+      "description": "Rifle Walk Left",
+      "mixamoId": "c9ce9930-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-walk-right.fbx",
+      "name": "Walk Right",
+      "description": "Rifle Walk Right",
+      "mixamoId": "c9ce986c-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Right&type=Motion"
+    },
+    {
+      "file": "rifle-walk-strafe-left.fbx",
+      "name": "Strafe Left",
+      "description": "Rifle Walk Strafe Left",
+      "mixamoId": "c9c874fa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Strafe%20Left&type=Motion"
+    },
+    {
+      "file": "rifle-walk-strafe-right.fbx",
+      "name": "Strafe Right",
+      "description": "Rifle Walk Strafe Right",
+      "mixamoId": "c9c86113-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Rifle%20Walk%20Strafe%20Right&type=Motion"
+    },
+    {
+      "file": "running-while-carrying-someone.fbx",
+      "name": "Running",
+      "description": "Running While Carrying Someone",
+      "mixamoId": "c9c83b2a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Running%20While%20Carrying%20Someone&type=Motion"
+    },
+    {
+      "file": "slashing-forward-with-a-bayonet.fbx",
+      "name": "Slash Advance",
+      "description": "Slashing Forward With A Bayonet",
+      "mixamoId": "c9c6c823-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Slashing%20Forward%20With%20A%20Bayonet&type=Motion"
+    },
+    {
+      "file": "sleeping-deeply.fbx",
+      "name": "Sleeping Idle",
+      "description": "Sleeping Deeply",
+      "mixamoId": "c9ccd46a-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Sleeping%20Deeply&type=Motion"
+    },
+    {
+      "file": "slowly-backing-away-in-fear.fbx",
+      "name": "Walk Backwards",
+      "description": "Slowly Backing Away In Fear",
+      "mixamoId": "c9cca689-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Slowly%20Backing%20Away%20In%20Fear&type=Motion"
+    },
+    {
+      "file": "smash-with-back-of-rifle-or-staff.fbx",
+      "name": "Smash",
+      "description": "Smash With Back Of Rifle Or Staff",
+      "mixamoId": "c9c6c6ad-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Smash%20With%20Back%20Of%20Rifle%20Or%20Staff&type=Motion"
+    },
+    {
+      "file": "step-up-to-jump-over-object.fbx",
+      "name": "Jumping",
+      "description": "Step Up To Jump Over Object",
+      "mixamoId": "c9c849de-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Step%20Up%20To%20Jump%20Over%20Object&type=Motion"
+    },
+    {
+      "file": "stepping-forward-and-yelling-out.fbx",
+      "name": "Yelling Out",
+      "description": "Stepping Forward And Yelling Out",
+      "mixamoId": "c9c91437-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Stepping%20Forward%20And%20Yelling%20Out&type=Motion"
+    },
+    {
+      "file": "throw-grenade-while-in-prone-position.fbx",
+      "name": "Throw Grenade",
+      "description": "Throw Grenade While In Prone Position",
+      "mixamoId": "c9c872b9-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throw%20Grenade%20While%20In%20Prone%20Position&type=Motion"
+    },
+    {
+      "file": "throw-grenade-while-running.fbx",
+      "name": "Run And Throw Grenade",
+      "description": "Throw Grenade While Running",
+      "mixamoId": "c9c89b1d-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throw%20Grenade%20While%20Running&type=Motion"
+    },
+    {
+      "file": "throwing-a-grenade-while-kneeling-pulling-pin-with-teeth.fbx",
+      "name": "Grenade Throw",
+      "description": "Throwing A Grenade While Kneeling Pulling Pin With Teeth",
+      "mixamoId": "c9c6a383-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throwing%20A%20Grenade%20While%20Kneeling%20Pulling%20Pin%20With%20Teeth&type=Motion"
+    },
+    {
+      "file": "throwing-a-grenade-while-walking.fbx",
+      "name": "Grenade Throw",
+      "description": "Throwing A Grenade While Walking",
+      "mixamoId": "c9c889b1-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throwing%20A%20Grenade%20While%20Walking&type=Motion"
+    },
+    {
+      "file": "throwing-an-object-from-a-standard-pose.fbx",
+      "name": "Throw",
+      "description": "Throwing An Object From A Standard Pose",
+      "mixamoId": "c9cb09fa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throwing%20An%20Object%20From%20A%20Standard%20Pose&type=Motion"
+    },
+    {
+      "file": "throwing-something-holding-rifle-aimed.fbx",
+      "name": "Toss Grenade",
+      "description": "Throwing Something Holding Rifle Aimed",
+      "mixamoId": "c9c8236b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Throwing%20Something%20Holding%20Rifle%20Aimed&type=Motion"
+    },
+    {
+      "file": "transition-from-prone-to-crouch.fbx",
+      "name": "Prone To Crouch Transition",
+      "description": "Transition From Prone To Crouch",
+      "mixamoId": "c9c8772f-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Transition%20From%20Prone%20To%20Crouch&type=Motion"
+    },
+    {
+      "file": "turn-left-45-degrees-while-aiming-rifle.fbx",
+      "name": "Turn Left 45 Degrees",
+      "description": "Turn Left 45 Degrees While Aiming Rifle",
+      "mixamoId": "c9ccccfa-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Turn%20Left%2045%20Degrees%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "turn-left-while-aiming.fbx",
+      "name": "Turn Left",
+      "description": "Turn Left While Aiming",
+      "mixamoId": "c9c94d31-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Turn%20Left%20While%20Aiming&type=Motion"
+    },
+    {
+      "file": "turning-left-while-prone-game-blend.fbx",
+      "name": "Prone Left Turn",
+      "description": "Turning Left While Prone Game Blend",
+      "mixamoId": "c9c943dc-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Turning%20Left%20While%20Prone%20Game%20Blend&type=Motion"
+    },
+    {
+      "file": "turning-right-while-prone.fbx",
+      "name": "Prone Right Turn",
+      "description": "Turning Right While Prone",
+      "mixamoId": "c9c944a4-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Turning%20Right%20While%20Prone&type=Motion"
+    },
+    {
+      "file": "two-hand-lowered-gun-rifle-idle.fbx",
+      "name": "Rifle Idle",
+      "description": "Two Hand Lowered Gun Rifle Idle",
+      "mixamoId": "c9cd4f94-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Two%20Hand%20Lowered%20Gun%20Rifle%20Idle&type=Motion"
+    },
+    {
+      "file": "walking-backwards-while-aiming-rifle.fbx",
+      "name": "Walking Backwards",
+      "description": "Walking Backwards While Aiming Rifle",
+      "mixamoId": "c9c87375-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Walking%20Backwards%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "walking-while-aiming-rifle-to-dying.fbx",
+      "name": "Walking To Dying",
+      "description": "Walking While Aiming Rifle To Dying",
+      "mixamoId": "c9c869e6-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": false,
+      "link": "https://www.mixamo.com/#/?page=1&query=Walking%20While%20Aiming%20Rifle%20To%20Dying&type=Motion"
+    },
+    {
+      "file": "walking-while-aiming-rifle.fbx",
+      "name": "Walking",
+      "description": "Walking While Aiming Rifle",
+      "mixamoId": "c9c84e7b-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Walking%20While%20Aiming%20Rifle&type=Motion"
+    },
+    {
+      "file": "walking-with-rifle-at-waist-level.fbx",
+      "name": "Walk With Rifle",
+      "description": "Walking With Rifle At Waist Level",
+      "mixamoId": "c9cc1182-b96c-11e4-a802-0aaa78deedf9",
+      "inPlace": true,
+      "link": "https://www.mixamo.com/#/?page=1&query=Walking%20With%20Rifle%20At%20Waist%20Level&type=Motion"
+    }
+  ]
+}

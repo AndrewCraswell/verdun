@@ -11,6 +11,14 @@ description Mixamo shows under it. Search for the description to find the right 
 its skeleton. **Download** FBX, without skin (one with skin for reference), 24 fps (the rate the game bakes at), and
 tick **In Place** on every walk, run, crawl and strafe.
 
+**Downloaded** on 5 October 2026: all 169 clips below, from the uploaded soldier, into `vendor/mixamo/` (61 MB, in the
+[asset library](backup.md)), each named after its description in kebab case (`rifle-walk-forward.fbx`).
+[mixamo-clips.json](mixamo-clips.json) lists every file with its Mixamo name, description, id, whether it came in place,
+and a link that finds it on Mixamo again. Mixamo has no In Place for four of the clips asked for in place: the crouched
+aimed walk, the idle to crouched walk, the clumsy run and carrying someone. Each was checked against its preview before
+download; two were dropped for not showing what they say (a hands-and-knees climb for the low crawl, and a standing wave
+for the wounded calling for help).
+
 Priority: **1** replaces a clip the game uses now or a stand-in; **2** fills a gap in what the game already shows; **3**
 is for behaviour the game doesn't have yet.
 
@@ -83,7 +91,6 @@ laying the aiming idle's arms, spine and head over the pack's 8-way legs, the wa
 | 2        | Rolling aside     | **Prone Roll**, Rifle Prone Rolling Right                                                                 |
 | 1        | Hit               | **Rifle Prone Hit Reaction**, Rifle Prone Hit Reaction                                                    |
 | 3        | Reloading         | **Prone Reloading**, Reloading Rifle In Prone                                                             |
-| 3        | Low crawl         | **Low Crawl**, Super Low Crawl, Or Crawling Up A Wall (under wire)                                        |
 
 There's no aimed crawl: a man aiming lies still, and crawls with the rifle down.
 
@@ -173,7 +180,6 @@ The crowd can't blend, so a change of stance snaps unless a clip carries it.
 | Priority | Situation                          | Clip                                                                                                                                            |
 | -------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2        | Lying wounded, waiting for bearers | **Writhing In Pain**, Laying On Back Writhing In Pain; **Laying Moaning**, Laying Squirming And Moaning                                         |
-| 2        | Lying wounded, calling             | **Injured Wave Idle**, Injured Wave For Help Idle                                                                                               |
 | 2        | Dying where he lies                | **Dying**, Laying On The Ground Dying                                                                                                           |
 | 2        | Gassed                             | **Laying Severe Cough**, Laying Coughing Severely                                                                                               |
 | 3        | Walking wounded                    | Male Injured Pack: **Injured Walk**, **Injured Idle**, **Injured Hurting Idle**                                                                 |
