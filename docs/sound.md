@@ -8,6 +8,27 @@ takes to fix: recordings nobody sells, things the game doesn't yet tell the soun
 Nobody has listened to the mix yet. Every level was set by measurement (loudness of each file, distance laws), so an ear
 pass comes before anything below is tuned.
 
+## Next
+
+In order, as of 2026-10-05:
+
+1. **Trench whistle**: the zero-hour whistles are wired up and silent. No library records one: buy Acme's 1914
+   Metropolitan replica and a Thunderer (about £40) and record them; Gee Collection's "Wild Whistles" would stand in
+   ([notes](research/notes/audio/whistles_and_bullets.md)). Add it as the `whistle` cue in
+   `scripts/build-sound-effects.py`.
+2. **Rounds striking men**: SoundMorph "Gore" ($149) and 344 Audio's "Flesh, Bones & Gore" ($27.50), for a
+   `bullet-flesh` cue on shots that hit (`event.hit`).
+3. **A heavy shell coming in**: `incoming-heavy` is wired up with no recording.
+4. **Home recordings**: a flare pistol's pop, a gas rattle and an empty brass shell case struck as a gong (the gas alarm
+   uses struck iron).
+5. **The mix by ear**: one play session with the mixer panel (F7, dev builds), its Copy button's values into
+   `audio/tuning.ts`.
+
+Choosing sounds: every shipped sound is picked by ear from numbered review clips; only the picks go in (voice takes
+under `keep` in `scripts/voice-lines.json`, library files named in `scripts/build-sound-effects.py`). Re-cutting needs
+the source recordings: `pnpm sound:fetch` copies the 282 the build reads from the asset library, then run the build
+([level design](level-design.md#sound)). The built sounds are committed; the game build never needs the libraries.
+
 ## Recordings we don't have
 
 No library sells these at the quality the rest of the game uses. "Proxy" says what stands in today.
@@ -44,8 +65,7 @@ happen in the game but have no event or hook yet, or a hook that only plays a st
   rain on steel helmets or on the water lying in the trench.
 - **3D**: sounds are panned in stereo, not placed with HRTF, so there is no above or behind.
 - **Mix**: nobody has listened yet. Levels were set by measurement; the sound mixer panel (F7, dev builds) is for
-  setting them by ear, and its Copy button gives the values to ship in audio/tuning.ts. Battery reports under a heavy
-  bombardment may be too dense.
+  setting them by ear, and its Copy button gives the values to ship in audio/tuning.ts.
 - **Close bullets**: rounds crack, zip past, ricochet and strike earth, mud, snow, water, stone, wire and parapets (The
   Recordist's Bullets 3), but nothing is heard of a round striking a man or a steel helmet: a flesh-impact library is
   needed (SoundMorph "Gore" or 344 Audio's, [notes](research/notes/audio/whistles_and_bullets.md)). Bullets 3's rounds
