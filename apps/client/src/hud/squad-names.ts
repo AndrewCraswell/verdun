@@ -80,8 +80,18 @@ const RANKS: Readonly<Record<Side, readonly [string, string, string]>> = {
 
 /** Each side's 1916 weapons, by kind (docs/design/soldier-and-squad.md#weapons). */
 const WEAPON_NAMES: Readonly<Record<Side, Readonly<Record<Weapon, string>>>> = {
-  [Side.French]: { [Weapon.Rifle]: "Lebel M1886", [Weapon.MachineGun]: "Hotchkiss M1914" },
-  [Side.German]: { [Weapon.Rifle]: "Gewehr 98", [Weapon.MachineGun]: "MG 08" }
+  [Side.French]: {
+    [Weapon.Rifle]: "Lebel M1886",
+    [Weapon.MachineGun]: "Hotchkiss M1914",
+    [Weapon.Sniper]: "Lebel with APX scope",
+    [Weapon.RifleGrenadier]: "Lebel with VB discharger"
+  },
+  [Side.German]: {
+    [Weapon.Rifle]: "Gewehr 98",
+    [Weapon.MachineGun]: "MG 08",
+    [Weapon.Sniper]: "Gewehr 98 with scope",
+    [Weapon.RifleGrenadier]: "Gewehr 98 with rifle grenades"
+  }
 }
 
 /** A well-mixed 32-bit hash of a whole number (the finaliser of MurmurHash3). */

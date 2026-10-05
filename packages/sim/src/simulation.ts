@@ -33,6 +33,7 @@ import {
   type ReinforcementState,
   type SquadTakenOverEvent
 } from "./reinforcements.ts"
+import { RIFLE_GRENADES_CARRIED, type RifleGrenadeEvent, rifleGrenadeSystem } from "./rifle-grenades.ts"
 import { createRng, type Rng } from "./rng.ts"
 import { createSpotting, type GunSpottedEvent, spottingSystem, type SpottingState } from "./spotting.ts"
 import { type Squad, squadSystem } from "./squads.ts"
@@ -119,6 +120,7 @@ export type SimEvent =
   | GunMannedEvent
   | CounterThrustEvent
   | StandToEvent
+  | RifleGrenadeEvent
   | FlareEvent
   | OutOfShellsEvent
   | WoundedEvent
@@ -228,6 +230,8 @@ export function spawnSoldier(
   sim.soldiers.mask.clearSince[soldier] = -1
   sim.soldiers.gasDose.value[soldier] = 0
   sim.soldiers.grenades.count[soldier] = GRENADES_CARRIED
+  sim.soldiers.rifleGrenades.count[soldier] = weapon === Weapon.RifleGrenadier ? RIFLE_GRENADES_CARRIED : 0
+  sim.soldiers.rifleGrenades.readyAt[soldier] = 0
   sim.soldiers.stamina.value[soldier] = FULL_STAMINA
   sim.soldiers.stamina.spent[soldier] = 0
   const towardEnemy = side === Side.French ? 1 : -1
@@ -312,6 +316,7 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: flares", flareSystem],
   ["sim: capture", captureSystem],
   ["sim: combat", combatSystem],
+  ["sim: rifle grenades", rifleGrenadeSystem],
   ["sim: artillery", artillerySystem],
   ["sim: gas", gasSystem],
   ["sim: wounds", woundSystem],

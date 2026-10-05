@@ -82,6 +82,8 @@ export interface SoldierComponents {
   readonly gasDose: { readonly value: Float32Array }
   /** Hand grenades still carried. */
   readonly grenades: { readonly count: Uint8Array }
+  /** Rifle grenades a grenadier still carries, and the step he can fire the next. */
+  readonly rifleGrenades: { readonly count: Uint8Array; readonly readyAt: Int32Array }
   /**
    * Breath for running and climbing, from 100 down to 0, and whether the soldier is spent: he ran himself out and walks
    * slowly until he has his breath back.
@@ -121,6 +123,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     },
     gasDose: { value: new Float32Array(capacity) },
     grenades: { count: new Uint8Array(capacity) },
+    rifleGrenades: { count: new Uint8Array(capacity), readyAt: new Int32Array(capacity) },
     stamina: { value: new Float32Array(capacity), spent: new Uint8Array(capacity) }
   }
 }

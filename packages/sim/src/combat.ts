@@ -9,11 +9,16 @@ import { aimInLight, canMakeOut } from "./sight.ts"
 import { type SimEvent, STEP_SECONDS, type Simulation, soldierIds } from "./simulation.ts"
 import { smokeBetween } from "./smoke.ts"
 import { nearestSoldiers, soldiersNear } from "./spatial.ts"
+import { spottedGuns } from "./spotting.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, isSheltering, soldierEye } from "./stance.ts"
 import { casualty, KILLED_OUTRIGHT } from "./wounds.ts"
 
-export const Weapon = { Rifle: 0, MachineGun: 1 } as const
+/**
+ * What a soldier carries. A sniper has a scoped rifle; a rifle grenadier has a rifle with a VB discharger cup and rifle
+ * grenades (see rifle-grenades.ts), and fires his rifle like anyone else.
+ */
+export const Weapon = { Rifle: 0, MachineGun: 1, Sniper: 2, RifleGrenadier: 3 } as const
 export type Weapon = (typeof Weapon)[keyof typeof Weapon]
 
 interface WeaponStats {
@@ -37,7 +42,22 @@ interface WeaponStats {
  */
 export const WEAPONS: Readonly<Record<Weapon, WeaponStats>> = {
   [Weapon.Rifle]: { interval: 3, accuracy: 0.2, falloff: 100, range: 400, suppression: 0.25 },
-  [Weapon.MachineGun]: { interval: 0.1, accuracy: 0.35, falloff: 220, range: 600, suppression: 0.12 }
+  [Weapon.MachineGun]: { interval: 0.1, accuracy: 0.35, falloff: 220, range: 600, suppression: 0.12 },
+  // A scoped rifle in a hide: slow, careful shots that tell at long range.
+  [Weapon.Sniper]: { interval: 6, accuracy: 0.6, falloff: 400, range: 600, suppression: 0.3 },
+  [Weapon.RifleGrenadier]: { interval: 3, accuracy: 0.2, falloff: 100, range: 400, suppression: 0.25 }
+}
+
+const WEAPON_KINDS: readonly Weapon[] = [Weapon.Rifle, Weapon.MachineGun, Weapon.Sniper, Weapon.RifleGrenadier]
+
+/** A stored weapon kind as a `Weapon`; anything unknown is a rifle. */
+export function toWeapon(value: number): Weapon {
+  return WEAPON_KINDS.find((kind) => kind === value) ?? Weapon.Rifle
+}
+
+/** What a soldier carries. */
+export function weaponKind(sim: Simulation, soldier: EntityId): Weapon {
+  return toWeapon(sim.soldiers.weapon.kind[soldier])
 }
 
 /** Seconds from deciding to throw until the grenade bursts: pull the pin or the cord, throw, and a 4-5 s fuse. */
@@ -74,6 +94,8 @@ const GUN_CANDIDATES = 24
 /** How far below the eye a target's waist is: hidden waists mean the target is behind cover. */
 const WAIST_DROP = 0.8
 const COVER_FACTOR = 0.35
+/** A sniper aims at the head that shows: a man behind a parapet is only this much harder for him to hit. */
+const SNIPER_COVER_FACTOR = 0.7
 /** A prone soldier shows a third of a standing man's height, and less again of his width end-on. */
 const PRONE_FACTOR = 0.3
 /**
@@ -175,7 +197,7 @@ function isExposed(sim: Simulation, shooter: EntityId, target: EntityId): boolea
 
 /** Chance that a shot hits, given range, the target's cover and movement, and the shooter's state. */
 export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId): number {
-  const stats = WEAPONS[sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
+  const stats = WEAPONS[weaponKind(sim, shooter)]
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   let chance = stats.accuracy * Math.exp(-Math.sqrt(dx * dx + dz * dz) / stats.falloff)
@@ -185,8 +207,9 @@ export function hitChance(sim: Simulation, shooter: EntityId, target: EntityId):
       !isInTrench(sim.map, sim.soldiers.position.x[target], sim.soldiers.position.z[target])
     chance *= grazed ? GRAZED_FACTOR : PRONE_FACTOR
   } else if (!isExposed(sim, shooter, target) || sim.soldiers.suppression.value[target] >= PINNED) {
-    // A pinned target is flat in the bottom of a trench or crater: as good as covered.
-    chance *= COVER_FACTOR
+    // A pinned target is flat in the bottom of a trench or crater: as good as covered. A sniper's business is the
+    // head that shows over a parapet.
+    chance *= weaponKind(sim, shooter) === Weapon.Sniper ? SNIPER_COVER_FACTOR : COVER_FACTOR
   } else if (sim.soldiers.stance.value[target] === Stance.Crouching) {
     chance *= CROUCH_FACTOR
   }
@@ -214,7 +237,7 @@ function canEngage(sim: Simulation, shooter: EntityId, target: EntityId): boolea
   if (!isAlive(sim, target) || !sim.lineOfSight || isSheltering(sim, target)) {
     return false
   }
-  const stats = WEAPONS[sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
+  const stats = WEAPONS[weaponKind(sim, shooter)]
   const dx = sim.soldiers.position.x[target] - sim.soldiers.position.x[shooter]
   const dz = sim.soldiers.position.z[target] - sim.soldiers.position.z[shooter]
   if (dx * dx + dz * dz > stats.range * stats.range) {
@@ -241,7 +264,38 @@ function sweepsTheOpen(sim: Simulation, shooter: EntityId, target: EntityId): bo
   )
 }
 
+/**
+ * A sniper's quarry, best first: an enemy machine gunner his side has spotted, then a squad leader, either one he can
+ * see and reach. -1 when neither is in sight.
+ */
+function sniperQuarry(sim: Simulation, shooter: EntityId): EntityId {
+  const side = sim.soldiers.side.value[shooter] === Side.German ? Side.German : Side.French
+  const { range } = WEAPONS[Weapon.Sniper]
+  const inReach = (enemy: EntityId) => {
+    const dx = sim.soldiers.position.x[enemy] - sim.soldiers.position.x[shooter]
+    const dz = sim.soldiers.position.z[enemy] - sim.soldiers.position.z[shooter]
+    return dx * dx + dz * dz <= range * range && canEngage(sim, shooter, enemy)
+  }
+  const gunner = spottedGuns(sim, side)
+    .map((sighting) => sighting.soldier)
+    .find((enemy) => isAlive(sim, enemy) && inReach(enemy))
+  if (gunner !== undefined) {
+    return gunner
+  }
+  const leaders = sim.squads
+    .filter((squad) => squad.side !== side && squad.leader >= 0)
+    .map((squad) => squad.leader)
+    .sort((a, b) => a - b)
+  return leaders.find((enemy) => isAlive(sim, enemy) && inReach(enemy)) ?? -1
+}
+
 function pickTarget(sim: Simulation, shooter: EntityId): EntityId {
+  if (weaponKind(sim, shooter) === Weapon.Sniper) {
+    const quarry = sniperQuarry(sim, shooter)
+    if (quarry >= 0) {
+      return quarry
+    }
+  }
   const x = sim.soldiers.position.x[shooter]
   const z = sim.soldiers.position.z[shooter]
   const side = sim.soldiers.side.value[shooter]
@@ -281,7 +335,7 @@ function pickTarget(sim: Simulation, shooter: EntityId): EntityId {
 }
 
 function weaponOf(sim: Simulation, soldier: EntityId): WeaponStats {
-  return WEAPONS[sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle]
+  return WEAPONS[weaponKind(sim, soldier)]
 }
 
 /** A bullet strikes a soldier: a wound he may fight on with, or one that puts him out of the fight. */
@@ -331,7 +385,7 @@ function inBeatenZone(sim: Simulation, shooter: EntityId, target: EntityId): Ent
 
 /** Fires one shot at a target, rolling to hit; hits wound or kill, and every shot suppresses the target. */
 export function fireAt(sim: Simulation, shooter: EntityId, target: EntityId): void {
-  const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+  const kind = weaponKind(sim, shooter)
   const stats = WEAPONS[kind]
   const hit = sim.rng.next() < hitChance(sim, shooter, target)
   const { suppression } = sim.soldiers
@@ -379,7 +433,7 @@ export function fireAimed(sim: Simulation, shooter: EntityId): boolean {
   const z = sim.soldiers.position.z[shooter]
   const facingX = sim.soldiers.facing.x[shooter]
   const facingZ = sim.soldiers.facing.z[shooter]
-  const kind = sim.soldiers.weapon.kind[shooter] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+  const kind = weaponKind(sim, shooter)
   sim.soldiers.weapon.cooldown[shooter] = WEAPONS[kind].interval * reloadFactor(sim, kind === Weapon.MachineGun)
   sim.soldiers.weapon.firedAt[shooter] = sim.tick
   const from = soldierEye(sim, shooter)

@@ -1,6 +1,6 @@
 import { pointsAlong, type Trench } from "@verdun/map"
 import type { EntityId } from "bitecs"
-import { Weapon } from "./combat.ts"
+import { toWeapon, Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
 import { clampToMap, type Simulation, spawnSoldier, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
@@ -179,7 +179,7 @@ function bringUp(sim: Simulation, squad: Squad, men: number, x = squadX(sim, squ
       side: squad.side,
       x,
       z,
-      weapon: weapons[slot] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle
+      weapon: toWeapon(weapons[slot] ?? Weapon.Rifle)
     })
   )
   for (const recruit of recruits) {

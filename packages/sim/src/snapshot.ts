@@ -1,7 +1,7 @@
 import type { BattlefieldMap } from "@verdun/map"
 import { addComponent, hasComponent } from "bitecs"
 import { type ArtilleryState, copyArtilleryState } from "./artillery.ts"
-import { Weapon } from "./combat.ts"
+import { toWeapon, Weapon } from "./combat.ts"
 import type { CommanderState } from "./commander.ts"
 import { MaskState, Side, Stance } from "./components.ts"
 import type { DefenceState } from "./defence.ts"
@@ -23,7 +23,7 @@ import type { SquadOrder } from "./squads.ts"
 import { wireCuts } from "./wire.ts"
 
 /** Bump when the snapshot shape changes, and add a migration for older saves. */
-export const SIM_STATE_VERSION = 20
+export const SIM_STATE_VERSION = 21
 
 export interface SoldierState {
   readonly id: number
@@ -57,6 +57,8 @@ export interface SoldierState {
   readonly maskClearSince: number
   readonly gasDose: number
   readonly grenades: number
+  readonly rifleGrenades: number
+  readonly rifleGrenadeReadyAt: number
   /** The step the soldier last fired: the muzzle flash shows at night. */
   readonly firedAt: number
 }
@@ -148,7 +150,7 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       stamina: sim.soldiers.stamina.value[id],
       spent: sim.soldiers.stamina.spent[id] === 1,
       treatment: sim.soldiers.casualty.treatment[id],
-      weapon: weapon.kind[id] === Weapon.MachineGun ? Weapon.MachineGun : Weapon.Rifle,
+      weapon: toWeapon(weapon.kind[id]),
       cooldown: weapon.cooldown[id],
       target: target.id[id],
       suppression: suppression.value[id],
@@ -161,6 +163,8 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       maskClearSince: sim.soldiers.mask.clearSince[id],
       gasDose: sim.soldiers.gasDose.value[id],
       grenades: sim.soldiers.grenades.count[id],
+      rifleGrenades: sim.soldiers.rifleGrenades.count[id],
+      rifleGrenadeReadyAt: sim.soldiers.rifleGrenades.readyAt[id],
       firedAt: sim.soldiers.weapon.firedAt[id]
     }))
   const squads = sim.squads.map((squad): SquadState => ({
@@ -252,6 +256,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.soldiers.mask.clearSince[id] = soldier.maskClearSince
     sim.soldiers.gasDose.value[id] = soldier.gasDose
     sim.soldiers.grenades.count[id] = soldier.grenades
+    sim.soldiers.rifleGrenades.count[id] = soldier.rifleGrenades
+    sim.soldiers.rifleGrenades.readyAt[id] = soldier.rifleGrenadeReadyAt
     sim.soldiers.weapon.firedAt[id] = soldier.firedAt
     if (soldier.dead) {
       addComponent(sim.world, id, sim.soldiers.dead)

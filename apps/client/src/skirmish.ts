@@ -19,6 +19,10 @@ import {
 export const SQUAD_SIZE = 8
 /** One squad in this many carries a machine gun, in its last slot. */
 const MACHINE_GUN_EVERY = 5
+/** One squad in this many has a rifle grenadier, in its third slot. */
+const RIFLE_GRENADIER_EVERY = 4
+/** One squad in this many has a sniper, in its second slot. */
+const SNIPER_EVERY = 6
 /** How far toward the enemy the fire step's middle is from the trench centre line. */
 const FIRE_STEP_OFFSET = (TRENCH_PROFILE.floorHalfWidth + TRENCH_PROFILE.fireStepOuter) / 2
 
@@ -60,6 +64,20 @@ function fireStepPositions(trench: Trench, count: number): [number, number][] {
     .map(([x, z]) => [x, z + towardEnemy * FIRE_STEP_OFFSET])
 }
 
+/** What the man in a squad slot carries: a machine gun last in every fifth squad, a sniper's rifle second in every sixth, a rifle grenade discharger third in every fourth, a rifle otherwise. */
+function weaponFor(squadIndex: number, slot: number, size: number): Weapon {
+  if (squadIndex % MACHINE_GUN_EVERY === 2 && slot === size - 1) {
+    return Weapon.MachineGun
+  }
+  if (squadIndex % SNIPER_EVERY === 4 && slot === 1) {
+    return Weapon.Sniper
+  }
+  if (squadIndex % RIFLE_GRENADIER_EVERY === 0 && slot === 2) {
+    return Weapon.RifleGrenadier
+  }
+  return Weapon.Rifle
+}
+
 /**
  * Mans a trench in squads of neighbours. Every fifth squad's last soldier carries a machine gun. The squad at
  * `playerSquadIndex`, if any, is the player's.
@@ -75,7 +93,7 @@ function manTrench(sim: Simulation, trench: Trench, side: Side, count: number, p
         side,
         x,
         z,
-        weapon: squadIndex % MACHINE_GUN_EVERY === 2 && slot === slots.length - 1 ? Weapon.MachineGun : Weapon.Rifle
+        weapon: weaponFor(squadIndex, slot, slots.length)
       })
     )
     squads.push(createSquad(sim, side, members, squadIndex === playerSquadIndex ? "player" : "ai"))

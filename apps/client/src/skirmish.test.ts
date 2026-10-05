@@ -27,6 +27,17 @@ describe("setupSkirmish", () => {
     expect(german.every((soldier) => Math.abs(sim.soldiers.position.z[soldier] - depth * 0.75) <= 4)).toBe(true)
   })
 
+  it("arms some squads with rifle grenadiers and snipers alongside the machine guns", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const { french } = setupSkirmish(sim, 48, 0)
+    const carrying = (weapon: number) => french.filter((soldier) => sim.soldiers.weapon.kind[soldier] === weapon)
+
+    // Six squads: grenadiers in squads 0 and 4, a sniper in squad 4, a machine gun in squad 2.
+    expect(carrying(Weapon.RifleGrenadier)).toEqual([french[2], french[34]])
+    expect(carrying(Weapon.Sniper)).toEqual([french[33]])
+    expect(carrying(Weapon.MachineGun)).toEqual([french[23]])
+  })
+
   it("spreads soldiers along the whole trench", () => {
     const sim = createSimulation({ map, seed: 1 })
     const { french } = setupSkirmish(sim, 20)
