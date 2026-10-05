@@ -37,6 +37,10 @@ function library() {
 async function* files(folder, under = folder) {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
     const path = join(folder, entry.name)
+    // A build's work in progress (sfx.building) isn't worth keeping, and its files come and go mid-copy.
+    if (entry.isDirectory() && entry.name.endsWith(".building")) {
+      continue
+    }
     if (entry.isDirectory()) {
       yield* files(path, under)
     } else if (entry.isFile()) {
