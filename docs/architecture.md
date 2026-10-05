@@ -141,7 +141,10 @@ before, for development and `pnpm perf`.
   player last aimed. Each sync starts it afresh, so where the server moved him otherwise (a wall, the wire) the page
   follows within a message. An empty batch on joining ties the steps together before the first move. Measured with 200
   ms of round trip (`COLYSEUS_LATENCY=200`): the soldier moves the frame after the key, and stopping corrects him by
-  millimetres. Only the controlled soldier is predicted; his stance, fire and grenades wait for the server.
+  millimetres. Only the controlled soldier is predicted; his stance, fire and grenades wait for the server. The worker
+  is predicted the same way (`sim-host.ts`): it steps only as the page asks, so the tick each command takes effect at is
+  known when it's queued, and no acknowledgement is needed. A man climbing a fence or wall goes over whatever the
+  steering, so he's left where the simulation has him.
 
 In order, what comes next:
 
@@ -294,7 +297,8 @@ tools but is still pre-1.0 (1.0.0-rc.1 as of October 2026), and its task runner 
   up to the highest soldier, component membership, the rest of the state as plain data, each step's events, the wire
   when cut, the ground craters reshaped) and the mirror takes it in place. Everything on the page reads the mirror as it
   would the simulation, and queues commands on it; the host ([sim-host.ts](../apps/client/src/sim/sim-host.ts)) forwards
-  them with the next batch.
+  them with the next batch. The soldier the player controls is moved and turned on the page ahead of the worker, as
+  under a server (see client-side prediction above).
 - This is the shape networking takes later: a server stepping the simulation, clients mirroring it.
 
 ### Time of day and weather

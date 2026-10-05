@@ -1,14 +1,24 @@
-import { type Command, type EntityId, type Simulation, STEP_SECONDS, type Steering, steeredPosition } from "@verdun/sim"
+import {
+  type Command,
+  type EntityId,
+  isVaulting,
+  type Simulation,
+  STEP_SECONDS,
+  type Steering,
+  steeredPosition
+} from "@verdun/sim"
 
 /**
- * Client-side prediction for the soldier the player controls, when a server runs the battle. The server's word on him
- * comes back a round trip after the player's keys, so the page moves him itself: from where the server last had him, it
- * replays the steering the server hasn't yet applied, step by step, with the simulation's own arithmetic
- * (`steeredPosition`), and shows him facing where the player last aimed. Each sync from the server starts it afresh from
- * the server's position, so a man the server stopped (a wall, the wire) is corrected within a message.
+ * Client-side prediction for the soldier the player controls, when the simulation runs elsewhere: on a server, or in
+ * the page's worker. Its word on him comes back a round trip after the player's keys, so the page moves him itself: from
+ * where the simulation last had him, it replays the steering it hasn't yet applied, step by step, with the simulation's
+ * own arithmetic (`steeredPosition`), and shows him facing where the player last aimed. Each sync starts it afresh from
+ * the simulation's position, so a man it stopped (a wall, the wire) is corrected within a message. A man climbing a
+ * fence goes over whatever the steering, so he's left where the simulation has him.
  *
- * Steps are counted twice: the page's own (its clock at the simulation's rate) and the server's ticks. The server
- * acknowledges each batch of commands with the tick it applied them at, which ties the two together.
+ * Steps are counted twice: the page's own (its clock at the simulation's rate) and the simulation's ticks. The server
+ * acknowledges each batch of commands with the tick it applied them at, which ties the two together; a worker steps
+ * only as the page asks, so the tie is known from the start.
  */
 export interface Prediction {
   /** Notes the commands the page sent at its step `step`: its controlled soldier's steering and aim among them. */
@@ -87,7 +97,7 @@ export function createPrediction(mirror: Simulation): Prediction {
           facing.z[soldier] = aim.z / length
         }
       }
-      if (offset === null) {
+      if (offset === null || isVaulting(mirror, soldier)) {
         return
       }
       // The page's step the server's last sync stands at: everything the page sent after it is still to come.

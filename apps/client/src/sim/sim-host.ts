@@ -4,6 +4,7 @@ import {
   type Command,
   type EntityId,
   createSimulation,
+  type EntityId,
   type LineOfSight,
   planOperation,
   PLAYTEST_OPERATION,
@@ -15,6 +16,7 @@ import {
 } from "@verdun/sim"
 import type { SightFeed } from "../fog/fog-of-war.ts"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
+import { createPrediction } from "./prediction.ts"
 import type { BattleSetup, FromWorker, SightLook, ToWorker } from "./sim-protocol.ts"
 
 /** A step taken, as the page plays it out: its tick and what happened in it. */
@@ -25,8 +27,8 @@ export interface StepTaken {
 
 /**
  * The battle's simulation as the page sees it. In a Web Worker (the default) `sim` is a mirror of the running
- * simulation, brought up to date as each batch of steps comes back; inline (`?inline`) it's the simulation itself,
- * stepped on the page as before. Either way the page reads `sim` as it always has, and queues commands on it with
+ * simulation, brought up to date as each batch of steps comes back, with the soldier the player controls moved on the
+ * page ahead of it (see prediction.ts); inline (`?inline`) it's the simulation itself, stepped on the page as before. Either way the page reads `sim` as it always has, and queues commands on it with
  * `enqueueCommand`.
  */
 export interface SimHost {
@@ -111,6 +113,9 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer)
   let arrived: StepTaken[] = []
   let inFlight = false
+  // Steps the page has asked for, and of them those not yet sent: the worker steps only as asked, so its tick is the
+  // tick it started at plus the steps sent, and the page's steps are its clock.
+  let asked = 0
   let owed = 0
   let commands: Command[] = []
   // The page's own questions of sight, answered from the map as craters reshape it.
@@ -120,6 +125,9 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   // Whether the fog is shown and wants looks, and whether it wants one at once (just turned on).
   let watching = true
   let lookNow = false
+  const prediction = createPrediction(mirror)
+  // The soldier the player controls, once the battle has come.
+  let controlled = (): EntityId => -1
 
   const started = new Promise<number>((resolve, reject) => {
     worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
@@ -130,12 +138,16 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
       }
       applySync(mirror, message.sync)
       if (message.type === "started") {
+        // The page's step 0 is the tick the worker starts at.
+        prediction.acknowledged(0, message.sync.tick)
         resolve(message.playerSquad)
         return
       }
       inFlight = false
       arrived.push(...message.sync.steps)
       latestSight = message.sight ?? latestSight
+      prediction.synced(message.sync.tick)
+      prediction.predict(asked, controlled())
     })
     worker.addEventListener("error", (event) => reject(new Error(`the simulation's worker failed: ${event.message}`)))
   })
@@ -145,6 +157,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
   if (!playerSquad) {
     throw new Error("the simulation's worker sent no player squad")
   }
+  controlled = () => playerSquad.leader
 
   return {
     sim: mirror,
@@ -169,8 +182,12 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
       // Commands queued on the mirror go to the simulation, in order, with the next batch: there's no sending them
       // sooner, since a command takes effect only as a step is taken. A batch of none would only cost both threads a
       // round trip, except to fetch a look for fog just turned on.
-      commands.push(...mirror.pendingCommands.splice(0))
+      const queued = mirror.pendingCommands.splice(0)
+      asked += steps
       owed += steps
+      // They go with the next batch, and take effect in its first step: the one after every step sent so far.
+      prediction.sent(asked - owed + 1, queued)
+      commands.push(...queued)
       if (!inFlight && (owed > 0 || lookNow)) {
         const batch = Math.min(MOST_STEPS, owed)
         send({ type: "step", commands, steps: batch, look: watching, lookNow })
@@ -179,6 +196,7 @@ async function workerHost(map: BattlefieldMap, setup: BattleSetup): Promise<SimH
         lookNow = false
         inFlight = true
       }
+      prediction.predict(asked, playerSquad.leader)
       const taken = arrived
       arrived = []
       return taken

@@ -11,7 +11,7 @@ import {
   TICK_RATE
 } from "./simulation.ts"
 import { restoreSimulation, takeSnapshot } from "./snapshot.ts"
-import { astrideFence, FENCE_CLIMB_SECONDS, startVault, vaultLanding } from "./vault.ts"
+import { astrideFence, FENCE_CLIMB_SECONDS, isVaulting, startVault, vaultLanding } from "./vault.ts"
 
 /** A belt of wire running east-west across a flat field at z = 50, 100 m long: ten lengths of fence. */
 const BELT: WireBelt = {
@@ -58,7 +58,7 @@ describe("vaulting a wire fence", () => {
     enqueueCommand(sim, { type: "steer", soldier, x: 1, z: 0 })
     let astride = 0
     let seconds = 0
-    while (hasComponent(sim.world, soldier, sim.soldiers.vault) || seconds === 0) {
+    while (isVaulting(sim, soldier) || seconds === 0) {
       stepSimulation(sim)
       seconds += 1 / TICK_RATE
       if (astrideFence(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier])) {

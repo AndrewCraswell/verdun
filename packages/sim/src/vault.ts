@@ -198,6 +198,11 @@ export function vaultLanding(
   return snared || !onMap(sim, landing) ? null : landing
 }
 
+/** Whether a soldier is on his way over a fence or wall: he goes straight over, whatever the steering. */
+export function isVaulting(sim: Simulation, soldier: EntityId): boolean {
+  return hasComponent(sim.world, soldier, sim.soldiers.vault)
+}
+
 /**
  * Sets a soldier climbing the fence or wall ahead of him, if there's one he can climb, the way he's going (`toward`, as
  * for `vaultLanding`). Whether he does.

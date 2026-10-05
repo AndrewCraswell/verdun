@@ -1,4 +1,4 @@
-import { createFlatMap, Surface } from "@verdun/map"
+import { beltLayout, createFlatMap, Surface, type WireBelt } from "@verdun/map"
 import {
   applySync,
   type Command,
@@ -6,6 +6,7 @@ import {
   createSquad,
   createSyncSource,
   enqueueCommand,
+  isVaulting,
   Side,
   spawnSoldier,
   stepSimulation
@@ -116,6 +117,47 @@ describe("predicting the player's soldier", () => {
     expect(shown[25]).toBe(40)
     expect(mirror.soldiers.facing.x[leader]).toBe(1)
     expect(mirror.soldiers.facing.z[leader]).toBe(0)
+  })
+
+  it("leaves him where the server has him while he climbs a fence, whatever the steering", () => {
+    const belt: WireBelt = {
+      points: [
+        [0, 50],
+        [100, 50]
+      ]
+    }
+    const { fences, tangles } = beltLayout(belt)
+    const bare = fences.find((fence) => !tangles.some((tangle) => Math.abs(tangle.x - fence.x) < 3))
+    const fenced = () => ({ ...field(), wire: [belt] })
+    const server = createSimulation({ map: fenced(), seed: 3 })
+    // Facing the fence from 3 m short of it.
+    const leader = spawnSoldier(server, { side: Side.French, x: bare?.x ?? 0, z: 47 })
+    server.soldiers.facing.x[leader] = 0
+    server.soldiers.facing.z[leader] = 1
+    createSquad(server, Side.French, [leader], "player")
+    const source = createSyncSource(server)
+    const mirror = createSimulation({ map: fenced(), seed: 3 })
+    applySync(mirror, source.take())
+    const prediction = createPrediction(mirror)
+
+    const commands: Command[] = [
+      { type: "vault", soldier: leader },
+      { type: "steer", soldier: leader, x: 1, z: 0 }
+    ]
+    prediction.sent(1, commands)
+    for (const command of commands) {
+      enqueueCommand(server, command)
+    }
+    stepSimulation(server)
+    source.stepped()
+    prediction.acknowledged(1, server.tick)
+    applySync(mirror, source.take())
+    prediction.synced(server.tick)
+    prediction.predict(5, leader)
+
+    expect(isVaulting(mirror, leader)).toBe(true)
+    expect(mirror.soldiers.position.x[leader]).toBe(server.soldiers.position.x[leader])
+    expect(mirror.soldiers.position.z[leader]).toBe(server.soldiers.position.z[leader])
   })
 
   it("follows the server's word when the server moved him otherwise", () => {

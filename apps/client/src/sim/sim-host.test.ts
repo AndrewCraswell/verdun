@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { decodeElevation, generateFleurySector, heightAt, sampleIndex } from "@verdun/map"
-import { enqueueCommand, type LineOfSight, Side } from "@verdun/sim"
+import { enqueueCommand, type LineOfSight, Side, STEP_SECONDS, steeredPosition } from "@verdun/sim"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createSimHost, type SimHost, type StepTaken } from "./sim-host.ts"
 import type { BattleSetup, FromWorker, ToWorker } from "./sim-protocol.ts"
@@ -120,6 +120,49 @@ describe("the simulation's host", () => {
     expect(batches).toEqual([8, 8, 4])
     expect(squad.order).toEqual({ kind: "follow" })
     expect(host.sim.tick).toBe(20)
+  })
+
+  it("moves the soldier the player controls on the page in the step he's steered, where the worker will have him", async () => {
+    vi.stubGlobal("Worker", InProcessWorker)
+    const host = await createSimHost(map(), setup)
+    hosts.push(host)
+    const { sim } = host
+    const leader = host.playerSquad.leader
+    const fromX = sim.soldiers.position.x[leader]
+    const fromZ = sim.soldiers.position.z[leader]
+    // A way he can walk from where he stands, worked out before anything moves.
+    const ways = [
+      { x: 1, z: 0 },
+      { x: -1, z: 0 },
+      { x: 0, z: 1 },
+      { x: 0, z: -1 }
+    ]
+    const steering = ways.find((way) => {
+      const to = steeredPosition(sim, leader, { ...way, run: false }, STEP_SECONDS)
+      return to.x !== fromX || to.z !== fromZ
+    })
+    expect(steering).toBeDefined()
+    const way = steering ?? { x: 1, z: 0 }
+    const next = steeredPosition(sim, leader, { ...way, run: false }, STEP_SECONDS)
+    // As the soldier arrays keep it.
+    const expected = { x: Math.fround(next.x), z: Math.fround(next.z) }
+
+    enqueueCommand(sim, { type: "steer", soldier: leader, ...way })
+    enqueueCommand(sim, { type: "face", soldier: leader, x: 0, z: -1 })
+    // Steered on a frame with no step due, he goes with the next one; facing round, he turns at once.
+    host.update(0)
+    expect(sim.soldiers.position.x[leader]).toBe(fromX)
+    expect(sim.soldiers.facing.z[leader]).toBe(-1)
+    // The step comes due: he's moved before the worker has taken it.
+    host.update(1)
+    expect(sim.soldiers.position.x[leader]).toBe(expected.x)
+    expect(sim.soldiers.position.z[leader]).toBe(expected.z)
+
+    // The worker's word, when it comes, has him just there.
+    const taken = await stepsTaken(host, 1)
+    expect(taken.map((step) => step.tick)).toEqual([1])
+    expect(sim.soldiers.position.x[leader]).toBe(expected.x)
+    expect(sim.soldiers.position.z[leader]).toBe(expected.z)
   })
 
   it("answers the page's questions of sight from the map as it is, with no physics, in a worker", async () => {
