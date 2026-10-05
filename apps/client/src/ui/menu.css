@@ -2,7 +2,8 @@
  * The menus: the front door and the menu over the battle, a list down the left and a page beside it. Out of battle the
  * interface can be generous (docs/design/interface.md#principles): Bodoni Moda for headings, as the communiqués were
  * set, Archivo for everything read. The colours are the HUD's (hud/tokens.css), named again here for the menus, with
- * the same colour-vision and contrast sets.
+ * the same colour-vision and contrast sets. Sides are the French blue and the Germans red, whichever the player fights
+ * for: --ui-ours and --ui-theirs on the dark ground, --paper-ours and --paper-theirs on the maps' paper.
  */
 .ui {
   --ui-font: "Archivo Variable", "Archivo", "Arial Narrow", system-ui, sans-serif;
@@ -20,8 +21,16 @@
   --ui-brass: #c9a35a;
   --ui-brass-bright: #e8ca88;
   --ui-brass-dim: rgb(201 163 90 / 40%);
-  --ui-ours: #87a9da;
-  --ui-theirs: #d4644b;
+  --ui-french: #87a9da;
+  --ui-french-deep: #4d6f9f;
+  --ui-german: #d4644b;
+  --ui-german-deep: #8f3a29;
+  --paper-french: #2f5d9e;
+  --paper-german: #b0341f;
+  --ui-ours: var(--ui-french);
+  --ui-theirs: var(--ui-german);
+  --paper-ours: var(--paper-french);
+  --paper-theirs: var(--paper-german);
   --ui-caution: #e7b24f;
   --ui-focus: 0 0 0 2px #14120e, 0 0 0 4px var(--ui-brass-bright);
   --ui-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -40,14 +49,28 @@
 
 .ui[data-vision="deuteranopia"],
 .ui[data-vision="protanopia"] {
-  --ui-ours: #7fb2ff;
-  --ui-theirs: #e08a2c;
+  --ui-french: #7fb2ff;
+  --ui-german: #e08a2c;
+  --ui-german-deep: #8a5216;
+  --paper-french: #1f5fc4;
+  --paper-german: #b0610b;
   --ui-caution: #f2d25a;
 }
 
 .ui[data-vision="tritanopia"] {
-  --ui-ours: #7fd0d8;
-  --ui-theirs: #f0607a;
+  --ui-french: #7fd0d8;
+  --ui-french-deep: #3b8a92;
+  --ui-german: #f0607a;
+  --paper-french: #187c86;
+  --paper-german: #c2264a;
+}
+
+/* Fighting for Germany: our own lines red, the French still blue. */
+:root[data-army="german"] .ui {
+  --ui-ours: var(--ui-german);
+  --ui-theirs: var(--ui-french);
+  --paper-ours: var(--paper-german);
+  --paper-theirs: var(--paper-french);
 }
 
 .ui[data-contrast="high"] {
@@ -214,7 +237,7 @@ body:not([data-screen="battle"]) .menu-hint {
   display: none;
 }
 
-/* The side to fight for: a pair of choices over the way in, horizon blue and feldgrau. */
+/* The side to fight for: a pair of choices over the way in, in the sides' own colours. */
 .ui-side {
   display: flex;
   align-items: center;
@@ -238,12 +261,12 @@ body:not([data-screen="battle"]) .menu-hint {
 
 .ui-side-choice .ui-segmented-option:first-child .ui-segmented-input:checked + .ui-segmented-text {
   color: #f4f1ea;
-  background: #5f7a9c;
+  background: var(--ui-french-deep);
 }
 
 .ui-side-choice .ui-segmented-option:last-child .ui-segmented-input:checked + .ui-segmented-text {
   color: #f4f1ea;
-  background: #5d6352;
+  background: var(--ui-german-deep);
 }
 
 .ui-nav-list {

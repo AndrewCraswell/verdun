@@ -157,9 +157,9 @@ Screen space goes to what matters now. The HUD has three states:
   their bearings; reserves and losses; the artillery board with its stocks). Tap I to keep it up, tap again to put it
   away. Marks on the ground show in full: firing footprints hatched, every objective named.
 - **The war map's view**: pulling the camera back past about 150 m fades in a trench map over the ground, complete at
-  230 m: 100 m squares lettered as on the period maps, every trench in its side's colour (ours blue, theirs red), our
-  men as blue dots and the squad in brass, and the enemy in red, only the men our side can see now (the fog of war's
-  rule: while fog is off, all of them). The overview's panels come up with it.
+  230 m: 100 m squares lettered as on the period maps, every trench in its side's colour (French blue, German red), our
+  men as dots in our colour and the squad in brass, and the enemy in theirs, only the men our side can see now (the fog
+  of war's rule: while fog is off, all of them). The overview's panels come up with it.
 
 Firing footprints at rest are a thin red edge with their countdown, since the shells' own bursts and smoke carry the
 picture; pending ones stay a dashed amber outline, as a warning.
@@ -871,9 +871,9 @@ whatever the interface; captions follow the interface language.
 **Stage** P (first version), 1–2 (more layers). **Kind** Screen over the live battle (proposed M).
 
 **Built** (`ui/sector/`): M opens it full width while the battle goes on, or the menu's list beside it. The ground in
-contours and shading from the survey, 100 m squares lettered as the trench maps did, trenches ours blue and theirs red,
-communication trenches, wire, ruins, trees, the field railway and our aid post; live, the squad in brass with the man
-under control ringed and its order's pin, our men, the enemy the side sees now, objectives ringed in their holder's
+contours and shading from the survey, 100 m squares lettered as the trench maps did, trenches French blue and German
+red, communication trenches, wire, ruins, trees, the field railway and our aid post; live, the squad in brass with the
+man under control ringed and its order's pin, our men, the enemy the side sees now, objectives ringed in their holder's
 colour (dashed when contested) and our side's fire missions, pending dashed and firing filled. The panel lists the
 order, the objectives with bearing and distance, and the missions. Click looks there, right-click sends the squad there.
 Not yet: control cells, dumps, other players. Below: the spec as first written.
@@ -891,9 +891,9 @@ glance.
 - **Stage 1–2**: control cells (held, contested, taken, no man's land), consolidation clocks, dumps, other players'
   squads, tasks, pings, operations' objectives and jump-offs, known wire and gaps.
 - **Actions**: click to pan the camera there; right-click to order the squad to advance there; ping (stage 2).
-- **Side-relative colours**: our lines in blue and the enemy's in red, for both sides, as the plans directeurs drew
-  French lines blue and German lines red, and blue against red holds up for most colour-blind players. Holders also have
-  patterns (hatching for taken, dots for contested) and labels.
+- **Side colours**: the French in blue and the Germans in red, whichever side the player is on, as the plans directeurs
+  drew them; blue against red holds up for most colour-blind players. A German player's own lines are red. Holders also
+  have patterns (hatching for taken, dots for contested) and labels.
 
 ### S5 Squad book
 
@@ -1126,8 +1126,10 @@ Direction, for the designer to develop and decide.
   to the out-of-battle screens at most, and lightly.
 - **Palette.** The world is desaturated mud and chalk, with horizon blue (French, `#7d93ad`) and feldgrau (German,
   `#6a6f5c`) as its only saturated accents ([art direction](../assets/art-direction.md)). These two are close in
-  lightness and poor as UI colours on their own; in the interface, sides are **ours and theirs**, blue and red as on the
-  period maps, with shape and label to back them up.
+  lightness and poor as UI colours on their own; in the interface the **French are blue and the Germans red**, as on the
+  period maps and whichever side the player is on, with shape and label to back them up. Code names them ours and theirs
+  (`--hud-ours`, `--ui-ours`, `--paper-ours`), which take the French or German colour from the side played (`data-army`
+  on the page).
 - **State colours.** A neutral for steady, a warm amber for caution (shaken, under fire, winded), a strong warm for
   danger (pinned, broken, gas), and a muted grey for out. Today's cream `#f2ede0` and orange `#ffb27a` are a starting
   point. Never red against green.
@@ -1253,7 +1255,6 @@ For the designer and developer to settle, then fold into the sections above.
   form is authentic but slow; a ration and a delay may carry the period weight instead.
 - **Minimap**: none is proposed (the camera zooms out to 450 m, and S4 opens on a key). Playtest whether players miss
   one.
-- **Side colours**: ours blue and theirs red for both sides, as proposed, or each side's own colours?
 - **The red cross** in a game: check the emblem's protected status before shipping, or use the period _poste de secours_
   sign without it.
 - **Keys** for the radial, the map, rally, ping and the squad book (S2).

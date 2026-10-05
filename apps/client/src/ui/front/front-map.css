@@ -1,7 +1,6 @@
 /*
- * The war map: a staff map on paper, in the manner of the plans directeurs, beside a panel in the menus' ink. Our line
- * in blue and theirs in red, as the period maps drew them; inked dark enough to read on the paper, with the HUD's
- * colour-vision sets carried over.
+ * The war map: a staff map on paper, in the manner of the plans directeurs, beside a panel in the menus' ink. The
+ * French line in blue and the German in red, as the period maps drew them, in the paper inks of menu.css.
  */
 .front-page {
   --paper: #e9e0c8;
@@ -12,24 +11,11 @@
   --paper-rule: rgb(44 38 27 / 14%);
   --paper-water: #5d7f99;
   --paper-sea: rgb(93 127 153 / 22%);
-  --paper-ours: #2f5d9e;
-  --paper-theirs: #b0341f;
   --paper-brass: #8a6420;
 
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(17em, 22em);
   height: 100%;
-}
-
-.ui[data-vision="deuteranopia"] .front-page,
-.ui[data-vision="protanopia"] .front-page {
-  --paper-ours: #1f5fc4;
-  --paper-theirs: #b0610b;
-}
-
-.ui[data-vision="tritanopia"] .front-page {
-  --paper-ours: #187c86;
-  --paper-theirs: #c2264a;
 }
 
 .front-map {

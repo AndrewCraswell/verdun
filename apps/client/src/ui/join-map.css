@@ -5,24 +5,11 @@
   --paper-ink-2: rgb(44 38 27 / 72%);
   --paper-ink-3: rgb(44 38 27 / 50%);
   --paper-rule: rgb(44 38 27 / 16%);
-  --paper-ours: #2f5d9e;
-  --paper-theirs: #b0341f;
   --paper-brass: #8a6420;
 
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16em, 21em);
   height: 100%;
-}
-
-.ui[data-vision="deuteranopia"] .join-page,
-.ui[data-vision="protanopia"] .join-page {
-  --paper-ours: #1f5fc4;
-  --paper-theirs: #b0610b;
-}
-
-.ui[data-vision="tritanopia"] .join-page {
-  --paper-ours: #187c86;
-  --paper-theirs: #c2264a;
 }
 
 .join-map {

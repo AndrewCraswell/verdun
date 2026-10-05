@@ -36,11 +36,15 @@
   --hud-brass-dim: rgb(201 163 90 / 42%);
   --hud-brass-glow: rgb(232 202 136 / 26%);
 
-  /* Sides, as the period trench maps drew them: our lines blue, the enemy's red, for both armies. */
-  --hud-ours: #87a9da;
-  --hud-ours-deep: #4d6f9f;
-  --hud-theirs: #d4644b;
-  --hud-theirs-deep: #8f3a29;
+  /* Sides, as the plans directeurs drew them: the French blue and the Germans red, whichever side the player is on. */
+  --hud-french: #87a9da;
+  --hud-french-deep: #4d6f9f;
+  --hud-german: #d4644b;
+  --hud-german-deep: #8f3a29;
+  --hud-ours: var(--hud-french);
+  --hud-ours-deep: var(--hud-french-deep);
+  --hud-theirs: var(--hud-german);
+  --hud-theirs-deep: var(--hud-german-deep);
 
   /* States: neutral for steady, amber for caution, vermilion for danger, stone for men out of the fight. */
   --hud-good: var(--hud-ink);
@@ -70,18 +74,26 @@
 /* Colour vision: the warm danger and the sides moved apart from what each kind of colour blindness confuses. */
 .hud[data-vision="deuteranopia"],
 .hud[data-vision="protanopia"] {
-  --hud-theirs: #e08a2c;
-  --hud-theirs-deep: #8a5216;
+  --hud-german: #e08a2c;
+  --hud-german-deep: #8a5216;
   --hud-danger: #ff9a3d;
   --hud-caution: #f2d25a;
-  --hud-ours: #7fb2ff;
+  --hud-french: #7fb2ff;
 }
 
 .hud[data-vision="tritanopia"] {
-  --hud-ours: #7fd0d8;
-  --hud-ours-deep: #3b8a92;
-  --hud-theirs: #f0607a;
+  --hud-french: #7fd0d8;
+  --hud-french-deep: #3b8a92;
+  --hud-german: #f0607a;
   --hud-caution: #f4a3b0;
+}
+
+/* Fighting for Germany: our own lines red, the French still blue. */
+:root[data-army="german"] .hud {
+  --hud-ours: var(--hud-german);
+  --hud-ours-deep: var(--hud-german-deep);
+  --hud-theirs: var(--hud-french);
+  --hud-theirs-deep: var(--hud-french-deep);
 }
 
 /* High contrast: solid plates, brighter ink and stronger lines. */

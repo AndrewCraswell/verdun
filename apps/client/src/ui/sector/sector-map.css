@@ -5,8 +5,6 @@
   --paper-ink-2: rgb(44 38 27 / 72%);
   --paper-ink-3: rgb(44 38 27 / 50%);
   --paper-rule: rgb(44 38 27 / 16%);
-  --paper-ours: #2f5d9e;
-  --paper-theirs: #b0341f;
   --paper-brass: #8a6420;
   --paper-caution: #b9780f;
 
@@ -17,14 +15,7 @@
 
 .ui[data-vision="deuteranopia"] .sector-page,
 .ui[data-vision="protanopia"] .sector-page {
-  --paper-ours: #1f5fc4;
-  --paper-theirs: #b0610b;
   --paper-caution: #8f7a00;
-}
-
-.ui[data-vision="tritanopia"] .sector-page {
-  --paper-ours: #187c86;
-  --paper-theirs: #c2264a;
 }
 
 .sector-main {

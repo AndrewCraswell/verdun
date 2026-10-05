@@ -1,6 +1,7 @@
 import { startMenuMusic } from "./audio/music.ts"
 import { openKitFiles } from "./level/kit-files.ts"
 import "./style.css"
+import { sideSettings } from "./settings/side.ts"
 import { createMenu } from "./ui/menu.ts"
 
 /**
@@ -14,6 +15,8 @@ async function start(): Promise<void> {
   const address = new URLSearchParams(location.search)
   const frontDoor = !address.has("play") && !address.has("debug")
   const build: unknown = import.meta.env.VERDUN_BUILD
+  // The side the player fights for colours the interface: the French blue and the Germans red, whichever is ours.
+  document.documentElement.dataset.army = sideSettings().current.side
   const menu = createMenu(document.body, {
     development: import.meta.env.DEV,
     frontDoor,
