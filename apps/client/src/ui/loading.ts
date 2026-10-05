@@ -106,7 +106,7 @@ export function createLoadingScreen(parent: HTMLElement): LoadingScreen {
       if (day?.phase !== "turn") {
         return
       }
-      setText(where, `Verdun, the right bank · ${weekLabel(day.week)}`)
+      setText(where, `Verdun, the right bank, ${weekLabel(day.week).replace(/^Week/, "week")}`)
       setText(history, weekAtVerdun(day.week) ?? seasonPhase(day.season, day.turn) ?? "")
     },
     renderer(name) {

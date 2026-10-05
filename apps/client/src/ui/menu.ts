@@ -130,7 +130,7 @@ export function createMenu(
   const history = h("p", "ui-history")
   const nav = h("nav", "ui-nav-list")
   nav.setAttribute("aria-label", "Menu")
-  const footer = h("footer", "ui-footer", `Single-player prototype · build ${build}`)
+  const footer = h("footer", "ui-footer", `Single-player prototype, build ${build}`)
   const column = h(
     "div",
     "ui-column",
@@ -277,7 +277,8 @@ export function createMenu(
     setText(week, day.phase === "turn" ? weekLabel(day.week) : turnLabel(day))
     setText(
       turn,
-      day.phase === "turn" ? `${turnLabel(day)} · ${countdownLabel(day, Date.now())}` : countdownLabel(day, Date.now())
+      // The turn and the countdown as two sentences, not strung together with a dot.
+      day.phase === "turn" ? `${turnLabel(day)}. ${countdownLabel(day, Date.now())}.` : countdownLabel(day, Date.now())
     )
     setText(phase, day.phase === "turn" ? (seasonPhase(day.season, day.turn) ?? "") : "")
     setText(history, day.phase === "turn" && screen === "front-door" ? (weekAtVerdun(day.week) ?? "") : "")

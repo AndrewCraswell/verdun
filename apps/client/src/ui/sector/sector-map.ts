@@ -363,7 +363,7 @@ export function createSectorMapPage({
           h(
             "span",
             "sector-objective-state",
-            `${objective.contested ? "Contested" : HOLDERS[objective.holder]}${from ? ` · ${bearing(from, objective)}` : ""}`
+            `${objective.contested ? "Contested" : HOLDERS[objective.holder]}${from ? `, ${bearing(from, objective)}` : ""}`
           )
         )
         item.type = "button"
@@ -426,7 +426,7 @@ export function createSectorMapPage({
     const leader = parts.hud.state?.soldier
     setText(
       readout,
-      `Square ${squareName(parts.sim.map, point.x, point.z)}${leader ? ` · ${bearing(leader.position, point)} of you` : ""}`
+      `Square ${squareName(parts.sim.map, point.x, point.z)}${leader ? `, ${bearing(leader.position, point)} of you` : ""}`
     )
   })
   live.addEventListener("mouseleave", () => {

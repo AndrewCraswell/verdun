@@ -29,13 +29,10 @@ export function createJoinPage({
   )
 
   function details(choice: JoinChoice): HTMLElement {
-    const facts = [
-      `${choice.men} men`,
-      choice.order,
-      choice.place,
-      ...(choice.fromEnemy === null ? [] : [`${metres(choice.fromEnemy)} from the enemy's line`])
-    ]
-    return h("span", "join-facts", facts.join(" · "))
+    // In words, as a sentence: "8 men, holding its stretch of trench near Fleury crossroads, 85 m from the enemy's line".
+    const order = choice.order.charAt(0).toLowerCase() + choice.order.slice(1)
+    const distance = choice.fromEnemy === null ? "" : `, ${metres(choice.fromEnemy)} from the enemy's line`
+    return h("span", "join-facts", `${choice.men} men, ${order} ${choice.place}${distance}`)
   }
 
   function row(choice: JoinChoice, action: string): HTMLElement {
