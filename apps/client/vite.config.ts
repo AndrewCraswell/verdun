@@ -184,5 +184,10 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: "es2024"
+  },
+  // The workers are modules (src/sim/sim-host.ts, src/level/kit-files.ts), so they can load what they import lazily,
+  // like a region's weather records, when it's asked for: bundled as scripts, every region came inlined.
+  worker: {
+    format: "es"
   }
 }))
