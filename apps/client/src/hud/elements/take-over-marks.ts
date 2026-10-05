@@ -83,7 +83,7 @@ export const takeOverMarks: HudElementFactory = (context) => {
         setText(marker.number, String(index + 1))
         setText(marker.men, String(choice.men))
         setText(marker.name, choice.name)
-        setText(marker.about, `${choice.men} men · ${choice.order}`)
+        setText(marker.about, `${choice.men} men, ${choice.order.toLowerCase()}`)
         const kitKey = choice.kit.join()
         if (kitKey !== marker.kitKey) {
           marker.kitKey = kitKey

@@ -49,9 +49,9 @@ export const wipedPanel: HudElementFactory = (context) => {
     keyCap("1"),
     "–",
     lastKey,
-    h("span", "", "or click a squad ·"),
+    h("span", "", "or click a squad,"),
     nearestKey,
-    h("span", "", "the nearest")
+    h("span", "", "for the nearest")
   )
   const root = h(
     "section",

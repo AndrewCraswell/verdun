@@ -22,6 +22,9 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
   exposes `window.verdun` (`engine`, `sim`, `view`, `control`, `fog`, `lineOfSight`, `trace`) for inspecting the running
   game, and the backquote key toggles Babylon's Inspector. The game opens on its front door, which pauses the battle:
   load `?play` to go straight into the line.
+- **No dots as separators in copy.** Player-facing text never strings facts together with a middle dot (·), bullet (•)
+  or similar, as in "8 men · Holding": write it as words ("8 men, holding"), split it over lines, or lay it out with
+  space or a rule in the design.
 - **No Fluent UI in our own UI.** Babylon's Inspector v2 uses Fluent internally; that's acceptable because it is a
   dev-only tool that never ships to players.
 - **Babylon imports are deep** (`@babylonjs/core/Meshes/mesh`), never the `@babylonjs/core` barrel, which defeats

@@ -109,7 +109,7 @@ export const rosterStrip: HudElementFactory = (context) => {
     if (!slot) {
       return
     }
-    setText(tipRank, `${slot.name.rank} · slot ${slot.slot}`)
+    setText(tipRank, `${slot.name.rank}, slot ${slot.slot}`)
     setText(tipName, `${slot.name.given} ${slot.name.surname}`)
     setText(tipRole, ROLE_WORDS[slot.role])
     setText(tipStatus, STATUS[slot.status][1])
@@ -118,7 +118,7 @@ export const rosterStrip: HudElementFactory = (context) => {
     if (slot.distance !== null) {
       notes.push(`${metres(slot.distance)} from you`)
     }
-    setText(tipMarks, notes.join(" · "))
+    setText(tipMarks, notes.join(", "))
     show(tipMarks, notes.length > 0)
     setText(tipAction, actionOf(slot))
     tip.style.setProperty("--x", `${tile.root.offsetLeft + tile.root.offsetWidth / 2}px`)

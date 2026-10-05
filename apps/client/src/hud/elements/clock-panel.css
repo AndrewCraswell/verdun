@@ -95,9 +95,14 @@
 .cp-light__next::before,
 .cp-weather__temperature::before,
 .cp-weather__visibility:not(:empty)::before {
-  content: "·";
-  margin-right: 0.38em;
-  color: var(--hud-ink-4);
+  /* A hairline between the facts in a row: copy never uses dots as separators. */
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.8em;
+  margin-right: 0.45em;
+  vertical-align: -0.08em;
+  background: var(--hud-ink-4);
 }
 
 .cp-light__next:empty {

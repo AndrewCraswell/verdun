@@ -53,7 +53,7 @@ export const handoverCard: HudElementFactory = () => {
       setData(root, "turned", turned)
       if (handover.next) {
         setText(nextName, `${handover.next.name.rank} ${handover.next.name.surname}`)
-        setText(nextRole, `Slot ${handover.next.slot} · ${handover.next.role}`)
+        setText(nextRole, `${handover.next.role}, slot ${handover.next.slot}`)
       }
       root.classList.toggle("is-leaving", handover.progress > 0.9)
     }

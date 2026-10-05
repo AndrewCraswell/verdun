@@ -192,7 +192,7 @@ export const throwPreviewMarks: HudElementFactory = (context) => {
         break
       case "short":
         title.textContent = word
-        detail.textContent = `${metres(preview.distance - preview.reach)} too far · lands at ${metres(preview.reach)}`
+        detail.textContent = `${metres(preview.distance - preview.reach)} too far, lands at ${metres(preview.reach)}`
         break
       case "danger":
         title.textContent = word
