@@ -302,6 +302,11 @@ const CRACK_MIN_RANGE = 40
 /** Riflemen this close are heard working the bolt this many seconds after each shot. */
 const BOLT_RANGE = 30
 const BOLT_DELAY = 0.7
+/**
+ * Reloads heard within this many metres: a hand at the pouches as one starts (the kit's rattle), the bolt or cocking
+ * handle going home as it's done. No more than one a this many seconds, or a section topping up together would chatter.
+ */
+const RELOAD = { range: 30, interval: 0.35 } as const
 /** At most one crack this often, in seconds: a burst of cracks blurs into noise. */
 const CRACK_INTERVAL = 0.1
 /**
@@ -522,6 +527,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
   let fallen = new Set(fallenIds(sim))
   const lastFarBurst = new Map<EntityId, number>()
   let lastCrack = -Infinity
+  let lastReload = -Infinity
   let lastDeath = -Infinity
   let lastBattery = -Infinity
   let lastGasAlarm = -Infinity
@@ -659,6 +665,25 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
         lastWhizz = now
         push(calls, place(listener, "bullet-whizz", pass.x, pass.z, pass.along / BULLET_SPEED))
       }
+    }
+  }
+
+  function reloadSounds(listener: Listener, calls: SoundCall[]): void {
+    const now = seconds(sim.tick)
+    const { position, side } = sim.soldiers
+    for (const event of sim.events) {
+      if (event.type !== "reloading" && event.type !== "reloaded") {
+        continue
+      }
+      const x = position.x[event.soldier] ?? 0
+      const z = position.z[event.soldier] ?? 0
+      if (hearingDistance(listener, x, z) >= RELOAD.range || now - lastReload < RELOAD.interval) {
+        continue
+      }
+      lastReload = now
+      const bolt = side.value[event.soldier] === Side.French ? "bolt-fr" : "bolt-de"
+      const cue = event.type === "reloading" ? "gear" : bolt
+      push(calls, place(listener, cue, x, z))
     }
   }
 
@@ -944,6 +969,7 @@ export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: Batt
       occlusionChecks = 0
       const calls: SoundCall[] = []
       shotSounds(listener, calls)
+      reloadSounds(listener, calls)
       throwSounds(listener, calls)
       flareSounds(listener, calls)
       burstSounds(listener, calls)

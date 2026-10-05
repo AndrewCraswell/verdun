@@ -87,6 +87,17 @@ describe("createBattleSoundModel", () => {
     ])
   })
 
+  it("rattles the kit as a man nearby starts reloading and works the bolt as he finishes, but not a man far off", () => {
+    const { sim, french, german } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french })
+    happen(sim, { type: "reloading", soldier: french }, { type: "reloading", soldier: german })
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["gear"])
+
+    sim.tick += 20
+    happen(sim, { type: "reloaded", soldier: french })
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["bolt-fr"])
+  })
+
   it("plays a nearby machine gun round by round, a distant one a burst at a time", () => {
     const { sim, french, gunner } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })
