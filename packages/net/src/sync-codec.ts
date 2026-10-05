@@ -91,13 +91,13 @@ export interface SyncDecoder {
   decode(bytes: Uint8Array): SimSync
 }
 
-/** Cells are this many metres a side: Fleury's 600 by 400 m is 96 of them. */
-export const CELL_SIZE = 50
+/** Cells are this many metres a side: Fleury's 600 by 400 m is 24 of them. Finer (50 m) sent no less in the load test, the fighting being where everyone's men are, and took twice as long to encode. */
+export const CELL_SIZE = 100
 /**
  * The cells farther from all of a player's men than this go to them every `FAR_EVERY` messages: twice a second, as the
  * server sends ten. The page eases every man between his updates (server-host.ts), so the far ones walk, not hop.
  */
-export const NEAR_RADIUS = 75
+export const NEAR_RADIUS = 120
 export const FAR_EVERY = 5
 
 /** MessagePack that keeps typed arrays and array buffers as they are, which the battle is made of. */

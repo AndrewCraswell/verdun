@@ -104,9 +104,13 @@ before, for development and `pnpm perf`.
   every time, it was 1.4 to 2.8 MB/s and 1.75 MB. Encoding takes about 4 ms a message, once for every player. What's
   left: smoke drifting (about 6 KB/s), all the soldiers' arrays together (5), shells and fire missions (2), craters
   (1.3).
-- **Relevance filtering isn't done yet; the load test says it's needed** (see [the load test](#the-load-test)). Every
-  player is sent the whole battle, and with 100 players' squads on the move the soldiers' arrays are three quarters of
-  it. Visibility filtering (sending only what a player's men can see) waits on fog of war being on.
+- **Relevance filtering by map cells** (`packages/net/src/soldier-cells.ts`): the soldiers' changes are encoded once a
+  message by 100 m cell, and each player is sent the cells within 120 m of their men every message and the rest every
+  fifth (`FAR_EVERY`), each built on what that player had: a player's cells change only at those messages, and a man who
+  crosses into a cell is sent whole. The global part (state, clouds, events, craters) goes to everyone. Positions go as
+  16 bits on a grid fitted to the map (a centimetre on Fleury). The page eases every man between the server's word on
+  him (`smoothing.ts`), so the far ones walk rather than hop. Visibility filtering (sending only what a player's men can
+  see) waits on fog of war being on.
 - **A hidden tab** draws no frames, so it sends no commands and plays out no steps; its mirror stays up to date, and it
   keeps only the last two seconds of steps to play on coming back (`server-host.ts`).
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
@@ -125,9 +129,9 @@ before, for development and `pnpm perf`.
 
 In order, what comes next:
 
-1. Profiling the step under the load test's 100 players (see [the load test](#the-load-test)).
-2. Relevance filtering by map cells, and positions as 16-bit movements.
-3. Hosting on Railway, with the database on a volume.
+1. The navigation's route searches under many players' goals (see [the load test](#the-load-test)), and encoding off the
+   room's thread if the step needs the time.
+2. Hosting on Railway, with the database on a volume.
 
 ### The load test
 
@@ -153,19 +157,34 @@ development machine with other sessions' work running alongside, so the worst st
 What a message holds with 100 players: the soldiers' arrays 74% (positions alone 40%), smoke 9%, which soldiers have
 which components 6%, events 5%. Server memory stayed under 100 MB.
 
-What it says:
+What it said, and what was done about it:
 
 - **The simulation's own step is the first limit.** Players' squads walking, running, navigating to the objective and
-  fighting take the step from 12 ms to 22 to 45 ms mean, with a p95 near or past the 50 ms budget; when it falls behind
-  the battle slows (fewer steps a second) rather than stuttering. Before any more players or men, profile the step under
-  this load: what 100 players' squads cost the navigation, the sight lines and the AI.
-- **Relevance filtering is worth doing**, but not at the step's expense: per-player encoding on the room's thread would
-  cost what the step can't spare. The shape to build is encoding by map cells, each cell's soldiers once a message for
-  everyone, every player sent the cells near their men every message and the rest a few times a second; or encoding
-  moved to a worker thread. Positions sent as centimetre movements in 16 bits, rather than 32-bit floats, would halve
-  the biggest part of every message in any case.
-- **Hosting**: at 100 players a sector sends about 12 MB/s (100 Mbit/s) as things stand, which matters for Railway's
-  egress pricing until relevance filtering lands.
+  fighting took the step from 12 ms to 22 to 45 ms mean, with a p95 near or past the 50 ms budget; when it falls behind
+  the battle slows (fewer steps a second) rather than stuttering. Timing each system (`--stats`) put navigation first,
+  at 11 to 16 ms a step: 100 squads each sent to their own point, plus the bots', outnumbered the 64 route fields kept,
+  so every field was dropped before its squad came back to it and searched again from nothing, and the squads stood
+  waiting for their routes. Keeping 256 brought navigation to 8 to 10 ms in a headless run of the same battle
+  (`MAX_FIELDS`), with the squads moving as ordered. After it, per step: squads 8 to 11 ms, navigation 8 to 10, combat 5
+  to 7, movement 2. In a CPU profile the route search (`settle`) is still the costliest single function, then the
+  straight-line walk checks (`clearLine`): a barrage's craters rebuild the costs every 10 s, which drops every field,
+  and every new advance order is a new search. Sharing fields between nearby goals, and keeping fields through a
+  rebuild, are the next things to try, in the navigation's own terms.
+- **Relevance filtering is done by map cells** (see [the sector server](#the-sector-server)): encoded once for everyone,
+  each player sent the cells within 120 m of their men every message and the rest twice a second, with positions in 16
+  bits. It brought each player's share from 95 to 127 KB/s to about 75 KB/s, less than hoped, because in this test
+  everyone fights over one objective: the men moving are near everyone's squads, and the far cells hold men standing in
+  their trenches, who change little anyway. Finer cells (50 m within 75 m) sent no less and took twice as long to
+  encode. With 100 players encoding takes 6 to 10 ms a message and making each player's message from it 4 to 6 ms more,
+  on the room's thread: moving it to a worker thread is the next step if the step needs the time.
+- **What players are sent now**, per message: soldiers' arrays about 60% (positions 20%), smoke 13 to 15%, which
+  soldiers have which components 7 to 8%, events 5 to 7%. Smoke goes to everyone whole; sending it at a lower rate, or
+  by cells too, is the next saving.
+- **Hosting**: at 100 players a sector sends about 7 MB/s (60 Mbit/s), which matters for Railway's egress pricing.
+- **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
+  over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
+  algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module
+  behind the same call, as the sight lines already are (Rapier).
 
 ### ECS decision
 

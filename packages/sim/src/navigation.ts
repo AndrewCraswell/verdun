@@ -32,9 +32,12 @@ const CLEAR_COST = 3
 const LOOKAHEAD = 12
 /**
  * At most this many flow fields are kept; the least recently used goes first. Every squad on its own point (an advance,
- * a leader followed) has a field of its own, and a full map's whole field is a few hundred kilobytes.
+ * a leader followed) has a field of its own, and a full map's whole field is a few hundred kilobytes. With fewer fields
+ * than goals they thrash: the stage 2 load test's hundred players, each sending their squad to a point of their own,
+ * had every field dropped before its squad came back to it, searched again from nothing, and the squads stood waiting
+ * for routes; navigation took 15 to 21 ms a step with 64 kept, 8 to 10 with 256.
  */
-const MAX_FIELDS = 64
+const MAX_FIELDS = 256
 
 /**
  * Cells a step's route searches may settle, all told. A mass order (thirty squads sent at once, each to its own point)
