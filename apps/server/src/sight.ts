@@ -3,7 +3,6 @@ import type { SideSight } from "@verdun/net"
 import {
   type EntityId,
   type GroundPatch,
-  isAlive,
   isSheltering,
   type LineOfSight,
   Side,
@@ -41,7 +40,7 @@ const NEAR_GROUND = 6
 
 /** A soldier's state in a `SightFrame`: in the battle and not down a dugout, so he can be seen. */
 export const VISIBLE = 1
-/** A soldier's state in a `SightFrame`: alive and not down a dugout, so he can look. */
+/** A soldier's state in a `SightFrame`: able to look, as every man in the fight not down a dugout is. */
 export const LOOKING = 2
 
 /** What a side sees is worked out from: each soldier's eye, how far off he can be made out, his side, and his state. */
@@ -83,7 +82,7 @@ export function sightFrame(sim: Simulation, ground: readonly GroundPatch[]): Sig
     eyes.set([eye.x, eye.y, eye.z], soldier * 3)
     reach[soldier] = Math.min(SIGHT_RANGE, sightReach(sim, soldier))
     side[soldier] = sim.soldiers.side.value[soldier] === Side.German ? Side.German : Side.French
-    state[soldier] = VISIBLE | (isAlive(sim, soldier) ? LOOKING : 0)
+    state[soldier] = VISIBLE | LOOKING
   }
   return { tick: sim.tick, eyes, reach, side, state, ground }
 }
@@ -94,7 +93,7 @@ export function reshape(map: BattlefieldMap, lineOfSight: LineOfSight, ground: r
     let at = 0
     for (let row = patch.minRow; row <= patch.maxRow; row++) {
       for (let column = patch.minColumn; column <= patch.maxColumn; column++) {
-        map.heights[sampleIndex(map, column, row)] = patch.heights[at] ?? 0
+        map.heights[sampleIndex(map, column, row)] = valueAt(patch.heights, at)
         at++
       }
     }
@@ -106,6 +105,9 @@ export function reshape(map: BattlefieldMap, lineOfSight: LineOfSight, ground: r
     )
   }
 }
+
+/** An element of a frame's typed array, which is there for every soldier the frame has. */
+const valueAt = (array: ArrayLike<number>, index: number): number => array[index] ?? 0
 
 /** Whether the ground rises above the line from `from` to `to` within `NEAR_GROUND` metres of `from`. */
 function groundBlocksNear(map: BattlefieldMap, from: WorldPoint, to: WorldPoint): boolean {
@@ -152,10 +154,7 @@ export function createSightCore(
     Math.min(rows - 1, Math.max(0, Math.floor(z / BUCKET))) * columns +
     Math.min(columns - 1, Math.max(0, Math.floor(x / BUCKET)))
   // By side, the step each enemy soldier was last made out at.
-  const lastSeen = new Map<Side, Map<EntityId, number>>([
-    [Side.French, new Map()],
-    [Side.German, new Map()]
-  ])
+  const lastSeen: Readonly<Record<Side, Map<EntityId, number>>> = { [Side.French]: new Map(), [Side.German]: new Map() }
   // Sight lines cast, by the pair of men, the lower id first.
   const cast = new Map<number, CastLine>()
   let share = 0
@@ -165,28 +164,29 @@ export function createSightCore(
       reshape(map, lineOfSight, frame.ground)
       const { tick, eyes, reach, side, state } = frame
       const eyeOf = (soldier: EntityId): WorldPoint => ({
-        x: eyes[soldier * 3] ?? 0,
-        y: eyes[soldier * 3 + 1] ?? 0,
-        z: eyes[soldier * 3 + 2] ?? 0
+        x: valueAt(eyes, soldier * 3),
+        y: valueAt(eyes, soldier * 3 + 1),
+        z: valueAt(eyes, soldier * 3 + 2)
       })
       const sideOf = (soldier: EntityId): Side => (side[soldier] === Side.German ? Side.German : Side.French)
       // Each side's lookers, by the map's squares.
-      const buckets = new Map<Side, Map<number, EntityId[]>>([
-        [Side.French, new Map()],
-        [Side.German, new Map()]
-      ])
-      for (let soldier = 0; soldier < state.length; soldier++) {
-        if (((state[soldier] ?? 0) & LOOKING) !== 0) {
-          const bucket = bucketOf(eyes[soldier * 3] ?? 0, eyes[soldier * 3 + 2] ?? 0)
-          const lookers = buckets.get(sideOf(soldier))
-          const men = lookers?.get(bucket)
+      const buckets: Readonly<Record<Side, Map<number, EntityId[]>>> = {
+        [Side.French]: new Map(),
+        [Side.German]: new Map()
+      }
+      state.forEach((flags, soldier) => {
+        if ((flags & LOOKING) !== 0) {
+          const eye = eyeOf(soldier)
+          const bucket = bucketOf(eye.x, eye.z)
+          const lookers = buckets[sideOf(soldier)]
+          const men = lookers.get(bucket)
           if (men) {
             men.push(soldier)
           } else {
-            lookers?.set(bucket, [soldier])
+            lookers.set(bucket, [soldier])
           }
         }
-      }
+      })
       /**
        * The `LOOKERS` nearest of a side's lookers within `within` of `head`, nearest first: searched in widening squares,
        * so a crowded front costs little.
@@ -200,7 +200,8 @@ export function createSightCore(
           for (let row = Math.floor(first / columns); row <= Math.floor(last / columns); row++) {
             for (let column = first % columns; column <= last % columns; column++) {
               for (const looker of lookers.get(row * columns + column) ?? []) {
-                const distance = ((eyes[looker * 3] ?? 0) - head.x) ** 2 + ((eyes[looker * 3 + 2] ?? 0) - head.z) ** 2
+                const distance =
+                  (valueAt(eyes, looker * 3) - head.x) ** 2 + (valueAt(eyes, looker * 3 + 2) - head.z) ** 2
                 if (distance <= extent * extent) {
                   near.push({ looker, distance })
                 }
@@ -231,23 +232,19 @@ export function createSightCore(
         cast.set(key, { at, tick, clear })
         return clear
       }
-      const seenAt = (by: Side, soldier: EntityId) => lastSeen.get(by)?.set(soldier, tick)
+      const seenAt = (by: Side, soldier: EntityId) => lastSeen[by].set(soldier, tick)
 
       for (let soldier = share; soldier < state.length; soldier += shares) {
-        if (((state[soldier] ?? 0) & VISIBLE) === 0) {
+        if ((valueAt(state, soldier) & VISIBLE) === 0) {
           continue
         }
         const own = sideOf(soldier)
         const enemy = own === Side.French ? Side.German : Side.French
-        for (const { looker, distance } of nearest(
-          buckets.get(enemy) ?? new Map(),
-          eyeOf(soldier),
-          reach[soldier] ?? 0
-        )) {
+        for (const { looker, distance } of nearest(buckets[enemy], eyeOf(soldier), valueAt(reach, soldier))) {
           if (clearBetween(soldier, looker)) {
             seenAt(enemy, soldier)
             // The line runs both ways: the looker shows to the man he sees, if the light on him lets him be made out.
-            if (distance <= (reach[looker] ?? 0) ** 2) {
+            if (distance <= valueAt(reach, looker) ** 2) {
               seenAt(own, looker)
             }
             break
@@ -263,7 +260,8 @@ export function createSightCore(
         }
       }
       const sight = new Map<number, Set<EntityId>>()
-      for (const [by, seen] of lastSeen) {
+      for (const by of [Side.French, Side.German]) {
+        const seen = lastSeen[by]
         const now = new Set<EntityId>()
         for (const [soldier, at] of seen) {
           if (tick - at <= LINGER_SECONDS * TICK_RATE) {

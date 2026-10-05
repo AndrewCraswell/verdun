@@ -10,7 +10,7 @@ import {
   TICK_RATE
 } from "@verdun/sim"
 import { describe, expect, it, vi } from "vitest"
-import { createInlineSight, createSightCore, SIGHT_RANGE, sightFrame } from "./sight.ts"
+import { createInlineSight, createSightCore, SIGHT_RANGE, sightFrame, VISIBLE } from "./sight.ts"
 
 /** Sight lines clear everywhere but across a wall along z = 50. */
 const walled: LineOfSight = {
@@ -94,11 +94,38 @@ describe("each side's sight of the enemy", () => {
     rebuilt.mockRestore()
   })
 
+  it("casts lines again once they're old, and only men who can look see", () => {
+    const { sim, french, open } = battle()
+    const [frenchman = -1] = french
+    const casts = vi.spyOn(walled, "isClear")
+    const core = createSightCore(field(), walled, 1)
+    const frame = sightFrame(sim, [])
+    core.look(frame)
+    const first = casts.mock.calls.length
+    const later = { ...frame, tick: frame.tick + 3 * TICK_RATE }
+    core.look(later)
+    expect(casts.mock.calls.length).toBeGreaterThan(first)
+    casts.mockRestore()
+
+    // The Frenchman can't be made out in the dark: he sees the German, who doesn't see him.
+    const dark = { ...later, tick: later.tick + 3 * TICK_RATE, reach: later.reach.slice() }
+    dark.reach[frenchman] = 1
+    const seen = core.look(dark)
+    expect(seen.get(Side.French)?.has(open)).toBe(true)
+    expect([...(seen.get(Side.German) ?? [])]).toEqual([])
+    // Able to be seen but not to look, he no longer shows the German, once the last sighting has passed.
+    const blinded = { ...dark, tick: dark.tick + 3 * TICK_RATE, state: dark.state.slice() }
+    blinded.state[frenchman] = VISIBLE
+    expect(core.look(blinded).get(Side.French)?.has(open)).toBe(false)
+  })
+
   it("sees no one without sight lines, nor men down a dugout", () => {
     const { sim, open } = battle()
     sim.soldiers.stance.value[open] = Stance.Sheltering
     expect(createInlineSight(sim, 1).look([]).get(Side.French)?.size).toBe(0)
     sim.lineOfSight = null
-    expect(createInlineSight(sim, 1).look([]).get(Side.German)?.size).toBe(0)
+    const blind = createInlineSight(sim, 1)
+    expect(blind.look([]).get(Side.German)?.size).toBe(0)
+    blind.close()
   })
 })

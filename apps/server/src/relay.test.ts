@@ -123,5 +123,7 @@ describe("the relay", () => {
     const relay = createRelay(smallSector())
 
     expect(decodeJoined(relay.welcome(0), field()).sync.ground).toEqual([])
+    // A squad the battle doesn't have is welcomed as French.
+    expect(decodeJoined(relay.welcome(9), field()).playerSquad).toBe(9)
   })
 })
