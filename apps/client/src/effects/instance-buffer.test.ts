@@ -65,6 +65,27 @@ describe("instanceBuffer", () => {
     expect(box.thinInstanceCount).toBe(0)
   })
 
+  it("hides the mesh while it draws nothing, rather than have Babylon draw it once at the origin", () => {
+    const box = mesh()
+    const buffer = instanceBuffer(box, 8)
+    expect(box.isVisible).toBe(false)
+    // Never given an instance: hidden still.
+    buffer.commit(0)
+    expect(box.isVisible).toBe(false)
+
+    place(buffer.data, 0, 5)
+    buffer.commit(1)
+    expect(box.isVisible).toBe(true)
+    buffer.commit(0)
+    expect(box.isVisible).toBe(false)
+    // In whole buckets too, none live is none drawn.
+    bucketInstanceCounts(true)
+    buffer.commit(1)
+    expect(box.isVisible).toBe(true)
+    buffer.commit(0)
+    expect(box.isVisible).toBe(false)
+  })
+
   it("grows when more instances are wanted, keeping those written", () => {
     const box = mesh()
     const buffer = instanceBuffer(box, 2)

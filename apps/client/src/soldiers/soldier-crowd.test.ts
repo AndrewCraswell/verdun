@@ -1,3 +1,4 @@
+import { Buffer } from "@babylonjs/core/Buffers/buffer"
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
@@ -70,6 +71,7 @@ const engines: NullEngine[] = []
 
 afterEach(() => {
   parapet.over = null
+  vi.restoreAllMocks()
   for (const engine of engines.splice(0)) {
     engine.dispose()
   }
@@ -226,6 +228,59 @@ describe("createSoldierCrowd", () => {
     crowd.update()
     expect(bodies.thinInstanceCount).toBe(32)
     bucketInstanceCounts(false)
+  })
+
+  it("sends as many men as it draws, or drew last frame, once it has set the count, and hides a layer with none", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const men = [10, 14, 18].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 10 }))
+    const { crowd, kit, drawn } = harness(sim)
+    const bodies = kit.bodies[Side.French]
+    const layers = [bodies, kit.bodies[Side.German], kit.rifle, kit.mask, kit.guns[Side.French], kit.guns[Side.German]]
+    const owners = new Map<Buffer, Mesh>()
+    for (const mesh of layers) {
+      for (const kind of ["world0", "bakedVertexAnimationSettingsInstanced"]) {
+        const buffer = mesh.getVertexBuffer(kind)?.getWrapperBuffer()
+        if (buffer) {
+          owners.set(buffer, mesh)
+        }
+      }
+    }
+    // What went to the GPU, mesh by mesh: how many instances, and how many the mesh drew as they went.
+    let sent: string[] = []
+    const send = Buffer.prototype.updateDirectly
+    vi.spyOn(Buffer.prototype, "updateDirectly").mockImplementation(function (this: Buffer, ...args) {
+      const [, , count] = args
+      const mesh = owners.get(this)
+      sent.push(`${mesh?.name} ${count} of ${mesh?.thinInstanceCount}`)
+      send.apply(this, args)
+    })
+    const frame = () => {
+      sent = []
+      crowd.sync()
+      crowd.update()
+      return sent
+    }
+
+    // Matrices and baked-animation settings, for the bodies and the rifles; nothing for the layers with no one in them.
+    expect(frame()).toEqual(["french 3 of 3", "french 3 of 3", "rifle 3 of 3", "rifle 3 of 3"])
+    expect(layers.map((mesh) => mesh.isVisible)).toEqual([true, false, true, false, false, false])
+    // Two more come up: all five sent, not the three drawn last frame, which left the new two out for a frame.
+    const more = [22, 26].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 10 }))
+    expect(frame().slice(0, 2)).toEqual(["french 5 of 5", "french 5 of 5"])
+    // Two go down a dugout: the two places they leave are sent collapsed, for a recorded frame that still draws them.
+    for (const man of men.slice(0, 2)) {
+      sim.soldiers.stance.value[man] = Stance.Sheltering
+    }
+    expect(frame().slice(0, 2)).toEqual(["french 5 of 3", "french 5 of 3"])
+    expect(drawn(bodies)).toBe(3)
+    expect(frame().slice(0, 2)).toEqual(["french 3 of 3", "french 3 of 3"])
+    // And the rest: the last of them sent collapsed, then nothing.
+    for (const man of [...men.slice(2), ...more]) {
+      sim.soldiers.stance.value[man] = Stance.Sheltering
+    }
+    expect(frame()).toEqual(["french 3 of 0", "french 3 of 0", "rifle 3 of 0", "rifle 3 of 0"])
+    expect(bodies.isVisible).toBe(false)
+    expect(frame()).toEqual([])
   })
 
   it("draws each side's men standing on the ground, with rifles, and a machine gun before a still gunner", () => {

@@ -380,7 +380,9 @@ export async function startBattle(
   })
   // Rounds thud into the ground as their dirt is seen to fly, not when they're fired.
   tracers.onStrike.add(({ at, time, on }) => sounds?.strike(at.x, at.z, time, on))
-  const explosions = createExplosions(view.scene)
+  // The greybox draws shell bursts as spheres. The level draws them with the kit's flames, earth and smoke, so with it
+  // the spheres would never be given a burst, yet still cost their draws every frame.
+  const explosions = level ? null : createExplosions(view.scene)
   // Grenades on their way, from the thrower's hand to where they burst.
   const grenades = createGrenadeView(view.scene, { sim, tick: () => sim.tick + stepper.alpha })
   // Fog starts on: the player sees the enemy his squad sees, and the sight picture says which of them his man can shoot.
@@ -471,7 +473,7 @@ export async function startBattle(
             if (level) {
               level.aftermath.burst(event)
             } else {
-              explosions.add([event])
+              explosions?.add([event])
             }
             if (event.crater) {
               cratered = mergeAreas(cratered, event.crater)
@@ -490,7 +492,7 @@ export async function startBattle(
     }
     trace("effects", () => {
       tracers.update(frameSeconds)
-      explosions.update(frameSeconds)
+      explosions?.update(frameSeconds)
       grenades.update()
     })
     trace("hud", () => hud.update(frameSeconds))

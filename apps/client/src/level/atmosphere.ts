@@ -55,10 +55,12 @@ const SHADOW = { mapSize: 2048, cascades: 2, maxZ: 160, darkness: 0.42, offAbove
  * battle, planks, tiles and the railway's track), or, like the trench kit, already shadowed by the carved ground
  * beneath them, whose trench walls cast the same shadow. And the ground beyond the sector with its far woods (see
  * dress-battlefield.ts), further off than shadows reach: spread over three kilometres, they were seven tenths of every
- * cascade's triangles.
+ * cascade's triangles. And the see-through pieces of flares and gunfire (stars, glare, parachutes, streaks, flashes),
+ * which a shadow map leaves out however it's handed them: they were sorted for every cascade, every frame all the same,
+ * a dozen flares' worth burning or not.
  */
 const NO_SHADOW =
-  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|Railway_Track|^backdrop$|^backdrop-far-/
+  /Env_Trench_Deep|Sandbag_Wall_Long|Planks?_|Firestep|Wire_Fence|Gen_Prop|Iron_Sheet|Spade|Shards|Branch|Brick_Debris|Rubble|Crater_Water|Ladder|Barricade|Stump|Log|Pole|death-map|Grass|Helmet|Rifle|Prop_Shell|Env_Sandbag_0|Pack|Canteen|Stretcher|Tile|Gas_Curtain|RoadSign|Fireplace|Railway_Track|^backdrop$|^backdrop-far-|^flare-|^bullet-streaks|^tracer-rounds|^muzzle-flashes/
 
 /** Wind out of the west, carrying smoke and mist east, until the weather's wind takes over (see `environment/`). */
 const WIND = new Vector3(0.12, 0, 0.03)
@@ -117,6 +119,38 @@ const BEYOND_SHADOWS = /^backdrop-far-/
 /** Whether shadows can fall on a mesh. */
 export function receivesShadow(mesh: AbstractMesh): boolean {
   return !BEYOND_SHADOWS.test(mesh.name)
+}
+
+/**
+ * The scene's shadow casters, kept as meshes are added and removed, and every mesh, as it comes, set to receive shadows
+ * or not.
+ */
+export function shadowCasters(scene: Scene): AbstractMesh[] {
+  // The ground casts too: craters, the ravine and trench walls shade themselves.
+  const casters = scene.meshes.filter(castsShadow)
+  const onNewMesh = (mesh: AbstractMesh) => {
+    // Babylon tells of a mesh added only once the code adding it has run, but of one removed at once: a mesh made and
+    // disposed together, like the parts merged into a grenade, is told of as added after it has gone, and once taken in
+    // stayed among the casters for good.
+    if (mesh.isDisposed()) {
+      return
+    }
+    mesh.receiveShadows = receivesShadow(mesh)
+    if (castsShadow(mesh)) {
+      casters.push(mesh)
+    }
+  }
+  scene.meshes.forEach((mesh) => {
+    mesh.receiveShadows = receivesShadow(mesh)
+  })
+  scene.onNewMeshAddedObservable.add(onNewMesh)
+  scene.onMeshRemovedObservable.add((mesh) => {
+    const index = casters.indexOf(mesh)
+    if (index >= 0) {
+      casters.splice(index, 1)
+    }
+  })
+  return casters
 }
 
 /** What splitting the camera's view into slices takes: the shadow generator's figures, the camera's near and far. */
@@ -263,24 +297,7 @@ function createShadows(
   )
   shadows.freezeShadowCastersBoundingInfo = true
   const shadowMap = shadows.getShadowMap()
-  // The ground casts too: craters, the ravine and trench walls shade themselves.
-  const casters = scene.meshes.filter(castsShadow)
-  const onNewMesh = (mesh: AbstractMesh) => {
-    mesh.receiveShadows = receivesShadow(mesh)
-    if (castsShadow(mesh)) {
-      casters.push(mesh)
-    }
-  }
-  scene.meshes.forEach((mesh) => {
-    mesh.receiveShadows = receivesShadow(mesh)
-  })
-  scene.onNewMeshAddedObservable.add(onNewMesh)
-  scene.onMeshRemovedObservable.add((mesh) => {
-    const index = casters.indexOf(mesh)
-    if (index >= 0) {
-      casters.splice(index, 1)
-    }
-  })
+  const casters = shadowCasters(scene)
   if (shadowMap) {
     shadowMap.renderList = casters
     shadowMap.getCustomRenderList = castersInCascade(shadows)

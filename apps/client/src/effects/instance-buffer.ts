@@ -25,7 +25,8 @@ export function drawnCount(count: number, capacity: number): number {
 /**
  * A mesh's thin-instance matrices, given to Babylon once and rewritten in place: setting a new buffer every frame
  * remakes it on the GPU, which costs more than drawing what's in it. It grows, by setting a bigger buffer, when more
- * instances are wanted than it has room for.
+ * instances are wanted than it has room for. The mesh is hidden while it draws none: with no instances Babylon draws
+ * the mesh itself instead, once, at the origin, in the view and every shadow cascade.
  */
 export interface InstanceBuffer {
   /** The matrices, 16 numbers each. Write the first `count`, then `commit(count)`. */
@@ -43,6 +44,9 @@ export function instanceBuffer(mesh: Mesh, capacity: number): InstanceBuffer {
   let live = 0
   mesh.thinInstanceSetBuffer("matrix", data, 16, false)
   mesh.thinInstanceCount = 0
+  // Hidden, not switched off: a mesh switched off is taken for a template and casts no shadow (level/atmosphere.ts), and
+  // switching one on or off has the list of meshes Babylon is offered made again (render/active-meshes.ts).
+  mesh.isVisible = false
   return {
     get data() {
       return data
@@ -58,6 +62,7 @@ export function instanceBuffer(mesh: Mesh, capacity: number): InstanceBuffer {
     },
     commit(count) {
       const drawn = drawnCount(count, data.length / 16)
+      mesh.isVisible = drawn > 0
       if (drawn === 0 && mesh.thinInstanceCount === 0) {
         live = 0
         return

@@ -1,3 +1,4 @@
+import type { Buffer } from "@babylonjs/core/Buffers/buffer"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
@@ -157,6 +158,9 @@ interface Layer {
   readonly animated: boolean
   matrices: Float32Array
   settings: Float32Array
+  /** The GPU buffers Babylon made of `matrices` and `settings`, written straight to, as much of them as is drawn. */
+  matrixBuffer: Buffer | null
+  settingsBuffer: Buffer | null
   count: number
   /** Instances drawn last frame: the live ones, then the rest of their bucket collapsed to nothing. */
   drawn: number
@@ -166,6 +170,10 @@ interface Layer {
    */
   nearest: number
 }
+
+/** The vertex buffer Babylon reads a thin instance matrix's first column from: its wrapper holds the whole matrices. */
+const MATRIX_COLUMN = "world0"
+const SETTINGS = "bakedVertexAnimationSettingsInstanced"
 
 function createLayer(mesh: Mesh, animated: boolean): Layer {
   // Thin instances share one bounding box; soldiers are culled one by one in update() instead.
@@ -177,21 +185,27 @@ function createLayer(mesh: Mesh, animated: boolean): Layer {
     animated,
     matrices: new Float32Array(0),
     settings: new Float32Array(0),
+    matrixBuffer: null,
+    settingsBuffer: null,
     count: 0,
     drawn: 0,
     nearest: Number.POSITIVE_INFINITY
   }
   allocate(layer, 64)
   mesh.thinInstanceCount = 0
+  // With no instances Babylon draws the mesh itself, at the origin: hidden until there's a soldier to draw.
+  mesh.isVisible = false
   return layer
 }
 
 function allocate(layer: Layer, capacity: number): void {
   layer.matrices = new Float32Array(capacity * 16)
   layer.mesh.thinInstanceSetBuffer("matrix", layer.matrices, 16, false)
+  layer.matrixBuffer = layer.mesh.getVertexBuffer(MATRIX_COLUMN)?.getWrapperBuffer() ?? null
   if (layer.animated) {
     layer.settings = new Float32Array(capacity * 4)
-    layer.mesh.thinInstanceSetBuffer("bakedVertexAnimationSettingsInstanced", layer.settings, 4, false)
+    layer.mesh.thinInstanceSetBuffer(SETTINGS, layer.settings, 4, false)
+    layer.settingsBuffer = layer.mesh.getVertexBuffer(SETTINGS)?.getWrapperBuffer() ?? null
   }
 }
 
@@ -211,19 +225,31 @@ function claim(layer: Layer): number {
  * Sends the layer's instances to the GPU. It draws whole buckets of them (see effects/instance-buffer.ts), the bucket's
  * spare instances and any left over from last frame collapsed to nothing, so the count drawn changes only now and then
  * and a recorded frame stays good for longer.
+ *
+ * It sends as many as it draws, or drew last frame if that was more, once the count is set. Left to Babylon's update,
+ * the matrices went at the count still standing from last frame, so a growing layer's newest soldiers blinked out for a
+ * frame; and the settings went whole every frame, as did the matrices of a layer drawing no one.
  */
 function flush(layer: Layer): void {
   const drawn = drawnCount(layer.count, layer.matrices.length / 16)
-  layer.matrices.fill(0, layer.count * 16, Math.max(drawn, layer.drawn) * 16)
+  // Last frame's too, collapsed: a recorded frame replayed before it's recorded again still draws them.
+  const sent = Math.max(drawn, layer.drawn)
+  layer.matrices.fill(0, layer.count * 16, sent * 16)
   layer.drawn = drawn
-  layer.mesh.thinInstanceBufferUpdated("matrix")
-  if (layer.animated) {
-    layer.mesh.thinInstanceBufferUpdated("bakedVertexAnimationSettingsInstanced")
-  }
   if (layer.mesh.thinInstanceCount !== drawn) {
     layer.mesh.thinInstanceCount = drawn
   }
   recordNearestDepth(layer.mesh, layer.nearest)
+  layer.mesh.isVisible = drawn > 0
+  if (sent === 0) {
+    return
+  }
+  // Straight to the buffers: Babylon's partial update keeps the part sent as the buffer's data, which a lost context
+  // would remake the buffer from, too small for the layer.
+  layer.matrixBuffer?.updateDirectly(layer.matrices, 0, sent)
+  if (layer.animated) {
+    layer.settingsBuffer?.updateDirectly(layer.settings, 0, sent)
+  }
 }
 
 /** Shortest signed turn from one heading to another, in radians. */

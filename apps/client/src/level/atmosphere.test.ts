@@ -7,6 +7,7 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, type Scenery } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
@@ -18,6 +19,7 @@ import {
   createAtmosphere,
   nightness,
   receivesShadow,
+  shadowCasters,
   sunCastsShadows,
   switchSunShadows
 } from "./atmosphere.ts"
@@ -68,6 +70,38 @@ describe("castsShadow", () => {
     expect(castsShadow(CreateBox("backdrop", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("backdrop-far-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(false)
     expect(castsShadow(CreateBox("backdrop-Gen_Env_Tree_Dead_01", { size: 1 }, scene))).toBe(true)
+    // Flares and gunfire are drawn see-through, which a shadow map leaves out anyway.
+    expect(castsShadow(CreateBox("flare-canopy-0", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("flare-halo-11", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("bullet-streaks", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("tracer-rounds", { size: 1 }, scene))).toBe(false)
+    expect(castsShadow(CreateBox("muzzle-flashes", { size: 1 }, scene))).toBe(false)
+  })
+})
+
+describe("shadowCasters", () => {
+  /** Babylon tells of meshes added a moment after they're made. */
+  const told = () => new Promise((resolve) => setTimeout(resolve, 10))
+
+  it("follows the casters as meshes come and go, and never keeps one disposed before Babylon told of it", async () => {
+    const { scene } = field()
+    const tree = CreateBox("Env_Tree_Dead_04#1", { size: 1 }, scene)
+    const farWood = CreateBox("backdrop-far-Gen_Env_Tree_Dead_01", { size: 1 }, scene)
+    await told()
+    const casters = shadowCasters(scene)
+    expect(casters).toEqual([tree])
+    expect(farWood.receiveShadows).toBe(false)
+
+    const ruin = CreateBox("Bld_City_Destroyed_01#3", { size: 1 }, scene)
+    // A grenade's parts, merged as soon as they're made: gone before Babylon tells of them.
+    const parts = [CreateBox("f1-body", { size: 1 }, scene), CreateBox("f1-igniter", { size: 1 }, scene)]
+    const grenade = Mesh.MergeMeshes(parts, true)
+    await told()
+    expect(casters).toEqual([tree, ruin, grenade])
+    expect(ruin.receiveShadows).toBe(true)
+
+    tree.dispose()
+    expect(casters).toEqual([ruin, grenade])
   })
 })
 
