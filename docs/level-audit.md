@@ -117,3 +117,13 @@ In order, each verified in the browser and committed on its own:
   they use. With the machine quiet, the close view then ran at 51 fps, 17.6 ms of GPU a frame. Hand-offs to the
   simulation and the HUD (worker round trips, cached soldier lists, the aimed target worked out once a step) went to
   their owners.
+- **Performance, the night and the pipeline's targets**: by night every flare that tinted the fog moved the grade's
+  exposure, and Babylon had every material walk every mesh to mark it for checking again: an exposure change each frame
+  cost 27.4 ms of the page's time (`pnpm perf --ab`, paired, on a loaded machine), and nights ran at 15-16 fps. The
+  materials now keep image processing settings of their own (`render/material-grade.ts`): 0.0 ms, and 23-28 fps on the
+  same nights. The bloom's first pass had kept the four samples Babylon gave it while it was the pipeline's first, a
+  second multisampled target of 63 MB written and resolved every frame on High for an identical picture: without it, day
+  frames 1.0 ms faster, a barrage 0.6 ms, the picture identical to the bit (so the earlier 'bloom 2 ms' included it).
+  Drawing the scene in 11-11-10 floats instead of half floats measured 1.5-2.2 ms faster on High, but the Radeon 860M
+  truncates rather than rounds as it writes and blends the format: twelve thin layers of mist left blue at 0.31 rather
+  than 0.37, a visible darkening and tint. It's kept on the branch `perf/rg11b10`, for GPUs that round.

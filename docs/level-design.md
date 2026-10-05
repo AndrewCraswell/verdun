@@ -302,11 +302,11 @@ What a shell leaves once the flash and the column of earth have gone
 ## The miniature look
 
 [post-process.ts](../apps/client/src/level/post-process.ts) runs the image through Babylon's default rendering pipeline:
-4x multisampling, bloom on whatever burns brighter than lit chalk (flames, flashes, sparks), a little animated film
-grain, and a depth of field that makes the battlefield read as a model on a table: sharp where the camera looks, soft
-nearer and further off, which at the game's oblique angle is a tilt-shift band across the screen. No real lens blurs a
-field 60 m away, so its focal length scales with the camera's distance, keeping the same shallow focus at every zoom.
-The colour grade runs in the pipeline's image processing pass.
+4x multisampling of the scene's own target, bloom on whatever burns brighter than lit chalk (flames, flashes, sparks), a
+little animated film grain, and a depth of field that makes the battlefield read as a model on a table: sharp where the
+camera looks, soft nearer and further off, which at the game's oblique angle is a tilt-shift band across the screen. No
+real lens blurs a field 60 m away, so its focal length scales with the camera's distance, keeping the same shallow focus
+at every zoom. The colour grade runs in the pipeline's image processing pass.
 
 ## Light and air
 
