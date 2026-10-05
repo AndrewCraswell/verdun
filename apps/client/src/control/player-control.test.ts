@@ -308,6 +308,30 @@ describe("createPlayerControl", () => {
     expect(control.soldier).toBe(theirs[0])
   })
 
+  it("takes over the squad the player picks from those that can be handed over", () => {
+    const { sim, squad, members, actions, frame } = setup()
+    const near = createSquad(
+      sim,
+      Side.French,
+      [62, 65, 68, 71].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))
+    )
+    const far = createSquad(
+      sim,
+      Side.French,
+      [80, 83, 86, 89].map((x) => spawnSoldier(sim, { side: Side.French, x, z: 50 }))
+    )
+    for (const member of members) {
+      sim.pendingCommands.push({ type: "kill", soldier: member })
+    }
+    stepSimulation(sim)
+    const chosen = [...far.members]
+    actions.push({ kind: "take-over", squad: far.id })
+    frame()
+    frame()
+    expect(squad.members).toEqual(chosen)
+    expect(near.members).toHaveLength(4)
+  })
+
   it("does nothing once the whole squad has fallen", () => {
     const { sim, members, held, control } = setup()
     for (const member of members) {

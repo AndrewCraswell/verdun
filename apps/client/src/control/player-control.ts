@@ -48,8 +48,11 @@ export type PlayerAction =
   | { readonly kind: "grenade"; readonly x: number; readonly z: number }
   /** Dev builds only: kill the controlled soldier. */
   | { readonly kind: "debug-kill" }
-  /** With the squad wiped out, take over the men of the nearest bot squad that can be handed over. */
-  | { readonly kind: "take-over" }
+  /**
+   * With the squad wiped out, take over the men of a bot squad that can be handed over: the one with id `squad` if it's
+   * one of `takeOverCandidates`, otherwise the nearest.
+   */
+  | { readonly kind: "take-over"; readonly squad?: number }
 
 /** What the player is doing right now, independent of where it comes from (keyboard, gamepad, a test). */
 export interface PlayerInput {
@@ -207,9 +210,10 @@ export function createPlayerControl(
         }
         return
       case "take-over": {
-        const [nearest] = takeOverCandidates(sim, squad)
-        if (nearest) {
-          enqueueCommand(sim, { type: "take-over-squad", squad: squad.id, from: nearest.id })
+        const candidates = takeOverCandidates(sim, squad)
+        const chosen = candidates.find((candidate) => candidate.id === action.squad) ?? candidates[0]
+        if (chosen) {
+          enqueueCommand(sim, { type: "take-over-squad", squad: squad.id, from: chosen.id })
         }
         return
       }
