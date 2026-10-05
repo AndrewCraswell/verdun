@@ -1,7 +1,7 @@
 import { addComponent, type EntityId, entityExists, hasComponent, removeComponent } from "bitecs"
-import { type FireMissionPlan, orderFireMission, Shell } from "./artillery.ts"
+import { type FireMissionPlan, lineSpanBetween, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, throwGrenade } from "./combat.ts"
-import { type Side, Stance } from "./components.ts"
+import { Side, Stance } from "./components.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
 import { manGun } from "./man-gun.ts"
 import { joinSquad, takeOverSquad } from "./reinforcements.ts"
@@ -13,6 +13,17 @@ import { cutLane } from "./wire.ts"
 
 /** Half the width of the lane cut through a squad's own wire before it goes over, in metres. */
 const LANE_HALF_WIDTH = 3
+
+/**
+ * Where a squad's lane through its own wire ends: the middle of no man's land in front of it, between the two front
+ * lines where they pass its x. Null where either line doesn't. Only its own wire: the enemy's is for the guns to cut.
+ */
+function laneEnd(sim: Simulation, side: Side, x: number): number | null {
+  const enemy = side === Side.French ? Side.German : Side.French
+  const own = lineSpanBetween(sim.map.trenches, side, x - LANE_HALF_WIDTH, x + LANE_HALF_WIDTH)
+  const theirs = lineSpanBetween(sim.map.trenches, enemy, x - LANE_HALF_WIDTH, x + LANE_HALF_WIDTH)
+  return own === null || theirs === null ? null : (own.forward + theirs.forward) / 2
+}
 
 /** Orders a soldier to walk, or run, to a ground position. */
 export interface MoveToCommand {
@@ -433,6 +444,7 @@ export function applyCommand(sim: Simulation, command: Command): void {
         delay: command.delay,
         // Creeping barrages end when they reach their stop line; the duration is only a backstop. JSON has no Infinity.
         duration: 3600,
+        cutsWire: false,
         // Past the objective, jump to a protective barrage 150 m beyond it and hold for about five minutes while the
         // attackers consolidate.
         creep: {
@@ -455,7 +467,8 @@ export function applyCommand(sim: Simulation, command: Command): void {
           z: command.objectiveZ - (direction * depth) / 2,
           band: depth + 20,
           delay: command.delay,
-          duration: lifts * command.interval
+          duration: lifts * command.interval,
+          cutsWire: false
         }
         orderFireMission(sim, { ...target, shell: Shell.FieldHighExplosive, roundsPerMinute: standing })
         orderFireMission(sim, { ...target, shell: Shell.HeavyHighExplosive, roundsPerMinute: standing / 5 })
@@ -467,7 +480,13 @@ export function applyCommand(sim: Simulation, command: Command): void {
         const chosen = command.squads === undefined || command.squads.includes(squad.id)
         if (squad.side === command.side && squad.leader >= 0 && chosen) {
           const { x, z } = sim.soldiers.position
-          cutLane(sim, x[squad.leader], z[squad.leader], ownWireTo, LANE_HALF_WIDTH)
+          cutLane(
+            sim,
+            x[squad.leader],
+            z[squad.leader],
+            laneEnd(sim, command.side, x[squad.leader]) ?? ownWireTo,
+            LANE_HALF_WIDTH
+          )
           squad.order = {
             kind: "creep",
             mission,

@@ -190,6 +190,14 @@ whether or not the guns have cut the wire, so preparation matters too little; th
 the French, as on the whole front. Getting there took the counter-attack's delay up from three minutes to five, and one
 counter-attack retaking every break-in rather than only the longest.
 
+**The wire, 5 October 2026** (ten seeds each way): the operations' unprepared attacks got in because the wire in front
+of them was cut anyway: the creeping and standing barrages and the defenders' own SOS barrage cut it as they passed, and
+each attacking squad's lane through its own wire ran on into the enemy's where no man's land is narrow. Barrages no
+longer cut wire (only bombardments and calls for fire do), and the lanes stop at the middle of no man's land. Without a
+bombardment the French find their target's wire whole and don't get in. 13 of 15 checks now pass, and preparation counts
+for both sides: taken 20%/20% on the barrage alone, 30%/40% after one bombardment and 60%/30% after three
+(French/German). Only the German attack after three bombardments is under its band, by one seed in ten.
+
 **Latest** (on `3be231d` with the counter-thrust at 2.5 to 1, up to three squads a look, every 5 s, counting squads
 already on their way, and commanders' automatic counter-fire off): barrage-only attacks hold 4 in 10 from both sides,
 one bombardment 2 and 5 in 10, three bombardments 9 and 8 in 10 at 59% and 64% losses; guns cause 36–45% of an

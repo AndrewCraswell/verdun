@@ -196,6 +196,8 @@ export interface ShellInFlight {
   readonly x: number
   readonly z: number
   readonly landsAtTick: number
+  /** False for a shell that doesn't cut the wire it bursts on: see `FireMissionPlan.cutsWire`. */
+  readonly cutsWire?: false
   /** The soldier who threw or fired it, for a grenade: whom its casualties are put down to. */
   readonly thrower?: EntityId
 }
@@ -235,6 +237,13 @@ export interface FireMissionPlan {
    * goes uncorrected (`observation`), and every round misses the same way.
    */
   readonly observed?: boolean
+  /**
+   * Whether its shells cut the wire they burst on. Barrages don't: a creeping barrage passes over a belt in a lift or
+   * two, its shells fuzed to burst in the ground ahead of the infantry, an SOS barrage is there to catch men, and
+   * wire-cutting took days of deliberate shooting by observed batteries until the instantaneous fuze of 1917. Absent for
+   * yes.
+   */
+  readonly cutsWire?: boolean
 }
 
 export interface FireMission extends FireMissionPlan {
@@ -408,7 +417,8 @@ function fireRound(sim: Simulation, mission: FireMission): void {
     side: mission.side,
     x,
     z,
-    landsAtTick: sim.tick + Math.max(1, Math.round(flightSeconds * TICK_RATE))
+    landsAtTick: sim.tick + Math.max(1, Math.round(flightSeconds * TICK_RATE)),
+    ...(mission.cutsWire === false ? { cutsWire: false } : {})
   })
 }
 
@@ -517,7 +527,9 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
     releaseGas(sim.gas, landed.x, landed.z, stats.gasMass)
   }
   releaseGas(sim.smoke, landed.x, landed.z, stats.smokeMass)
-  cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
+  if (landed.cutsWire !== false) {
+    cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
+  }
   return { type: "burst", shell: landed.shell, at, crater }
 }
 
@@ -556,7 +568,9 @@ function airburst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   shake(sim, at, stats.suppressionRadius, landed.side)
   releaseGas(sim.smoke, landed.x, burstZ, stats.smokeMass)
   // Shrapnel balls snip a strand here and there where they come down.
-  cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
+  if (landed.cutsWire !== false) {
+    cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
+  }
   return { type: "burst", shell: landed.shell, at, crater: null }
 }
 
@@ -671,7 +685,8 @@ function callDefensiveBarrage(sim: Simulation): void {
       z,
       band: 40,
       delay: defensiveBarrageDelay(sim),
-      duration: DEFENSIVE_BARRAGE_DURATION
+      duration: DEFENSIVE_BARRAGE_DURATION,
+      cutsWire: false
     }
     orderFireMission(sim, { ...common, shell: Shell.FieldHighExplosive, roundsPerMinute: 40 })
     orderFireMission(sim, { ...common, shell: Shell.FieldShrapnel, roundsPerMinute: 20 })
