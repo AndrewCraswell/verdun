@@ -10,7 +10,7 @@ export const ZOOM_RANGE = { min: 8, max: 450 } as const
  * Angle down from straight overhead (ArcRotateCamera's beta), close in and far out. Close in, the view drops toward a
  * soldier's-eye angle; pulled back, it tips over toward a map view.
  */
-const PITCH = { close: 1.15, far: 0.5, curve: 1.6 } as const
+const PITCH = { close: 1.25, far: 0.5, curve: 1.6 } as const
 /** How far the player can tilt either side of the zoom's natural angle, in radians. */
 const TILT_RANGE = 0.3
 /** Never steeper than this from overhead, nor shallower: the ground stays in view. */
@@ -36,6 +36,19 @@ const WALK_LEAD = { share: 0.12, max: 20 } as const
  * rather than chasing itself.
  */
 const AIM_LEAN = { share: 0.45, max: 100 } as const
+/**
+ * Close in, the view looks past the soldier it follows: its middle sits ahead of him, the way the view faces, by this
+ * share of the zoom distance, so he stands low on the screen with the ground in front of him above. Fully so within
+ * `full` metres of zoom, fading to nothing by `none`, where the view is a map. Along the view rather than his facing,
+ * for the same reason the walking lead is: it mustn't slide the ground under the pointer as he turns.
+ */
+const LOOK_AHEAD = { share: 0.3, full: 25, none: 120 } as const
+
+/** How far ahead of the followed soldier the view looks, in metres, at a zoom distance. */
+export function lookAhead(distance: number): number {
+  const fade = clamp((LOOK_AHEAD.none - distance) / (LOOK_AHEAD.none - LOOK_AHEAD.full), 0, 1)
+  return LOOK_AHEAD.share * distance * fade
+}
 /** How quickly the lead swings round, per second: aiming answers faster than walking. */
 const LEAD_RATE = { walk: 2.5, aim: 4 } as const
 
@@ -238,6 +251,8 @@ export function createCameraRigModel(bounds: RigBounds, start: RigView): CameraR
           wantedLead = { x: moving.x * reach, z: moving.z * reach }
         }
         const swing = ease(aim ? LEAD_RATE.aim : LEAD_RATE.walk, seconds)
+        const ahead = lookAhead(view.distance)
+        wantedLead = { x: wantedLead.x + forward.x * ahead, z: wantedLead.z + forward.z * ahead }
         lead = { x: approach(lead.x, wantedLead.x, swing), z: approach(lead.z, wantedLead.z, swing) }
         target = { x: followed.x + lead.x, z: followed.z + lead.z }
         velocity = { x: 0, z: 0 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createCameraRigModel, pitchForDistance, type RigView, ZOOM_RANGE } from "./camera-rig-model.ts"
+import { createCameraRigModel, lookAhead, pitchForDistance, type RigView, ZOOM_RANGE } from "./camera-rig-model.ts"
 
 const flat = () => 0
 const bounds = { width: 600, depth: 400 }
@@ -11,6 +11,9 @@ const start: RigView = {
   yaw: -Math.PI / 2,
   pitch: pitchForDistance(60)
 }
+
+/** Close in, the view looks this far past the soldier, north (+z) in these tests' view. */
+const ahead = lookAhead(60)
 
 function settle(
   model: ReturnType<typeof createCameraRigModel>,
@@ -32,9 +35,9 @@ describe("camera rig", () => {
 
     expect(first.focusX).toBeGreaterThan(300)
     expect(first.focusX).toBeLessThan(310)
-    const settled = settle(model, 2)
+    const settled = settle(model, 4)
     expect(settled.focusX).toBeCloseTo(320, 1)
-    expect(settled.focusZ).toBeCloseTo(220, 1)
+    expect(settled.focusZ).toBeCloseTo(220 + ahead, 1)
     expect(model.following).toBe(true)
   })
 
@@ -44,12 +47,13 @@ describe("camera rig", () => {
     const walking = settle(model, 4)
     // 12% of the 60 m zoom ahead of him.
     expect(walking.focusX).toBeCloseTo(300, 1)
-    expect(walking.focusZ).toBeCloseTo(200 + 0.12 * 60, 0)
+    expect(walking.focusZ).toBeCloseTo(200 + 0.12 * 60 + ahead, 0)
 
     model.setDistance(400)
     expect(settle(model, 4).focusZ).toBeCloseTo(200 + 20, 0)
 
     model.follow(300, 200)
+    // Pulled back to a map view, it no longer looks past him.
     expect(settle(model, 4).focusZ).toBeCloseTo(200, 0)
   })
 
@@ -64,16 +68,16 @@ describe("camera rig", () => {
     // Settles at 45% of the zoom per unit of screen: the view moving doesn't move the lean.
     const leaning = settle(model, 4)
     expect(leaning.focusX).toBeCloseTo(300 + 0.5 * 0.45 * 60, 0)
-    expect(leaning.focusZ).toBeCloseTo(200 + 0.5 * 0.45 * 60, 0)
+    expect(leaning.focusZ).toBeCloseTo(200 + 0.5 * 0.45 * 60 + ahead, 0)
     expect(settle(model, 4)).toEqual(leaning)
 
     model.setAim({ right: 0, up: 2 })
-    expect(settle(model, 4).focusZ).toBeCloseTo(200 + 0.45 * 60, 0)
+    expect(settle(model, 4).focusZ).toBeCloseTo(200 + 0.45 * 60 + ahead, 0)
 
     model.setAim(null)
     const released = settle(model, 4)
     expect(released.focusX).toBeCloseTo(300, 0)
-    expect(released.focusZ).toBeCloseTo(200, 0)
+    expect(released.focusZ).toBeCloseTo(200 + ahead, 0)
   })
 
   it("goes back to the soldier when the player aims after panning away", () => {
@@ -89,7 +93,7 @@ describe("camera rig", () => {
     expect(settle(model, 3).focusX).toBeCloseTo(300, 0)
   })
 
-  it("pans freely with held keys, letting go of the soldier, and Space brings it back", () => {
+  it("pans freely with held keys, letting go of the soldier, and recentring brings it back", () => {
     const model = createCameraRigModel(bounds, start)
     model.follow(300, 200)
     // Looking north (yaw -90°): forward is +z, right is +x.
@@ -104,9 +108,9 @@ describe("camera rig", () => {
 
     model.setPan(0, 0)
     model.recenter()
-    const back = settle(model, 2)
+    const back = settle(model, 4)
     expect(back.focusX).toBeCloseTo(300, 1)
-    expect(back.focusZ).toBeCloseTo(200, 1)
+    expect(back.focusZ).toBeCloseTo(200 + ahead, 1)
   })
 
   it("pans faster the further back it is, so it feels the same at any zoom", () => {
@@ -196,7 +200,7 @@ describe("camera rig", () => {
     const after = model.step(1 / 60, flat)
 
     expect(settled.focusX).toBe(320)
-    expect(settled.focusZ).toBe(220)
+    expect(settled.focusZ).toBe(220 + ahead)
     expect(after).toEqual(settled)
   })
 
@@ -212,5 +216,12 @@ describe("camera rig", () => {
 
     expect(atThirty.focusX).toBeCloseTo(atOneFortyFour.focusX, 0)
     expect(atThirty.distance).toBeCloseTo(atOneFortyFour.distance, 0)
+  })
+
+  it("looks past the soldier close in, fading out as it pulls back to a map view", () => {
+    expect(lookAhead(ZOOM_RANGE.min)).toBeCloseTo(0.3 * ZOOM_RANGE.min)
+    expect(lookAhead(60)).toBeGreaterThan(5)
+    expect(lookAhead(120)).toBe(0)
+    expect(lookAhead(ZOOM_RANGE.max)).toBe(0)
   })
 })
