@@ -25,7 +25,15 @@ function createStats() {
   let messages = 0
   let bytes = 0
   let since = performance.now()
+  // Each of the step's systems, by name: its milliseconds in all since the last report.
+  let systems = new Map<string, number>()
   return {
+    /** Times one of the step's systems: the simulation's `systemTimer`. */
+    system(name: string, work: () => void) {
+      const started = performance.now()
+      work()
+      systems.set(name, (systems.get(name) ?? 0) + performance.now() - started)
+    },
     stepped(ms: number, count: number) {
       steps += count
       if (count > 0) {
@@ -48,7 +56,13 @@ function createStats() {
         `stats: ${players} players, ${(steps / seconds).toFixed(1)} steps/s, step ${mean.toFixed(1)} ms mean, ` +
         `${at(0.95)} p95, ${at(1)} max; ${messages} messages, ${(bytes / Math.max(1, messages) / 1024).toFixed(1)} KB each, ` +
         `${(bytes / seconds / 1024).toFixed(1)} KB/s a player, encode ${(encodeMs / Math.max(1, messages)).toFixed(1)} ms; ` +
-        `heap ${memory.toFixed(0)} MB`
+        `heap ${memory.toFixed(0)} MB; per step, ` +
+        [...systems]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([name, ms]) => `${name.replace("sim: ", "")} ${(ms / Math.max(1, steps)).toFixed(1)} ms`)
+          .join(", ")
+      systems = new Map()
       steps = 0
       stepMs = []
       encodeMs = 0
@@ -71,6 +85,9 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
   sector.onStep(() => players.stepped())
   const stats = createStats()
   let reported = performance.now()
+  if (statsEvery !== undefined) {
+    sector.sim.systemTimer = (name, work) => stats.system(name, work)
+  }
 
   return class SectorRoom extends Room {
     override autoDispose = false

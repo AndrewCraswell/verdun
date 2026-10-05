@@ -239,6 +239,21 @@ try {
     `  step: ${mean(numbers(/step ([\d.]+) ms mean/)).toFixed(1)} ms mean, ${Math.max(...numbers(/([\d.]+) p95/)).toFixed(1)} ms worst p95, ${Math.max(...numbers(/([\d.]+) max/)).toFixed(0)} ms longest (budget 50)`
   )
   print(`  encoding a message: ${mean(numbers(/encode ([\d.]+) ms/)).toFixed(1)} ms mean, once for every player`)
+  // The step's systems, by their milliseconds a step, over the steady stretch.
+  const systems = new Map()
+  for (const line of steady) {
+    for (const [, name, ms] of line.matchAll(/(?:per step, |, )([a-z ]+?) ([\d.]+) ms(?=,|$)/g)) {
+      systems.set(name, [...(systems.get(name) ?? []), Number(ms)])
+    }
+  }
+  print(
+    `  the step's costliest systems: ${[...systems]
+      .map(([name, values]) => [name, mean(values)])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name, ms]) => `${name} ${ms.toFixed(1)} ms`)
+      .join(", ")}`
+  )
   print(`  server heap: ${Math.max(...numbers(/heap ([\d.]+) MB/)).toFixed(0)} MB at most`)
   print(
     `  each player is sent: ${mean(rates).toFixed(1)} KB/s mean, ${percentile(rates, 1).toFixed(1)} KB/s most, ${(mean(records.map((record) => record.messages)) / seconds).toFixed(1)} messages a second`
