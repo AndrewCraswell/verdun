@@ -9,10 +9,11 @@ describe("banners", () => {
     const { sim, squad } = testBattle()
     planOperation(sim, PLAYTEST_OPERATION)
     const banners = createBannerQueue(sim, squad)
-    // Not a literal: the event carries its squads too, which the test doesn't need.
-    const zeroHour = { type: "zero-hour" as const, side: Side.French, squads: [] }
-    banners.record([zeroHour])
+    banners.record([{ type: "zero-hour", side: Side.French, squads: [squad.id] }])
     expect(banners.current(1)?.banner).toMatchObject({ kicker: "Zero hour", title: "Over the top!", tone: "attack" })
+    const holding = createBannerQueue(sim, squad)
+    holding.record([{ type: "zero-hour", side: Side.French, squads: [squad.id + 1] }])
+    expect(holding.current(1)?.banner).toMatchObject({ title: "The attack goes in" })
     banners.record([{ type: "operation-over", result: "footing" }])
     expect(banners.current(1 + BANNER_SECONDS + 0.01)?.banner).toMatchObject({
       kicker: "Operation over",
@@ -20,7 +21,7 @@ describe("banners", () => {
       tone: "won"
     })
     const defending = createBannerQueue(sim, { ...squad, side: Side.German })
-    defending.record([zeroHour])
+    defending.record([{ type: "zero-hour", side: Side.French, squads: [] }])
     expect(defending.current(1)?.banner).toMatchObject({ title: "They're coming over", tone: "alarm" })
   })
 

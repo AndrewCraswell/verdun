@@ -97,8 +97,11 @@ export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNa
         } else if (event.type === "counter-attack" && event.side === enemy) {
           raise("Alarm", "Counter-attack coming", "The enemy is shelling the lost trench", "alarm")
         } else if (event.type === "zero-hour") {
-          if (event.side === side) {
+          if (event.side === side && event.squads.includes(squad.id)) {
             raise("Zero hour", "Over the top!", ZERO_HOUR_DETAIL, "attack")
+          } else if (event.side === side) {
+            // The attack is on a stretch of the line; the player's squad holds its own.
+            raise("Zero hour", "The attack goes in", "Hold your ground: the first wave is going over", "attack")
           } else {
             raise("Alarm", "They're coming over", "Every man up on the fire step", "alarm")
           }

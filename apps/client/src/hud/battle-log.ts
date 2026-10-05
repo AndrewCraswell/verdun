@@ -201,6 +201,15 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
             event.side === side ? "sector" : "alarm",
             event.side !== side
           )
+        } else if (event.type === "second-wave") {
+          const count = event.squads.length
+          say(
+            event.side === side
+              ? `The second wave goes forward: ${count} ${count === 1 ? "squad" : "squads"}`
+              : "Enemy reserves are coming forward",
+            event.side === side ? "sector" : "alarm",
+            event.side !== side
+          )
         } else if (event.type === "operation-over") {
           const attacking = sim.operation?.plan.side === side
           say(`The operation is over: ${OUTCOMES[event.result][attacking ? 0 : 1]}`, "sector", false)

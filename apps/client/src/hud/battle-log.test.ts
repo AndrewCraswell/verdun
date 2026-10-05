@@ -32,11 +32,14 @@ describe("the battle log", () => {
   it("tells of zero hour and how the operation went", () => {
     const { sim, log } = logged()
     planOperation(sim, PLAYTEST_OPERATION)
-    // Not a literal: the event carries its squads too, which the test doesn't need.
-    const zeroHour = { type: "zero-hour" as const, side: Side.French, squads: [] }
-    log.record([zeroHour, { type: "operation-over", result: "taken" }])
+    log.record([
+      { type: "zero-hour", side: Side.French, squads: [] },
+      { type: "second-wave", side: Side.French, squads: [4, 5] },
+      { type: "operation-over", result: "taken" }
+    ])
     expect(log.messages.map((message) => message.text)).toEqual([
       "Zero hour: the first wave goes over",
+      "The second wave goes forward: 2 squads",
       "The operation is over: their line is taken"
     ])
   })
