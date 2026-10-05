@@ -56,6 +56,10 @@ class FakeServer implements SectorConnection {
     }
   }
 
+  acknowledge(applied: unknown): void {
+    this.handlers.get(MESSAGE.ack)?.(applied)
+  }
+
   onMessage(type: string, callback: (payload: unknown) => void): void {
     this.handlers.set(type, callback)
   }
@@ -131,7 +135,31 @@ describe("the battle on a server, as the page sees it", () => {
     host.update(1)
     host.update(1)
 
-    expect(server.received).toEqual([[{ type: "squad-order", squad: host.playerSquad.id, order: { kind: "follow" } }]])
+    expect(server.received).toEqual([
+      { step: 0, commands: [] },
+      {
+        step: expect.any(Number),
+        commands: [{ type: "squad-order", squad: host.playerSquad.id, order: { kind: "follow" } }]
+      }
+    ])
+  })
+
+  it("moves the player's soldier at once, ahead of the server's word, once the server has acknowledged a command", async () => {
+    const server = new FakeServer()
+    let now = 0
+    const host = await serverHost(map(), setup, server, () => now)
+    const leader = host.playerSquad.leader
+    const x = host.sim.soldiers.position.x[leader]
+    enqueueCommand(host.sim, { type: "steer", soldier: leader, x: 1, z: 0 })
+    host.update(0)
+    server.acknowledge({ step: 0, tick: server.sim.tick + 1 })
+    now += 1000
+    host.update(0)
+
+    // A second of walking, before the server has moved him at all.
+    expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
+    server.sync()
+    expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
   })
 
   it("stops sending once the server has gone, and leaves when done", async () => {
@@ -143,7 +171,7 @@ describe("the battle on a server, as the page sees it", () => {
     host.attachLineOfSight(host.sightLines)
     host.dispose()
 
-    expect(server.received).toEqual([])
+    expect(server.received).toEqual([{ step: 0, commands: [] }])
     expect(server.left).toBe(true)
   })
 

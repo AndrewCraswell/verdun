@@ -23,6 +23,7 @@ export interface SectorRoomOptions {
 export function sectorRoom({ sector, dev, log }: SectorRoomOptions) {
   const players = createPlayers(sector.sim, dev)
   const relay = createRelay(sector)
+  sector.onStep(() => players.stepped())
 
   return class SectorRoom extends Room {
     override autoDispose = false
@@ -46,6 +47,10 @@ export function sectorRoom({ sector, dev, log }: SectorRoomOptions) {
         const sync = relay.due(this.clients.length > 0)
         if (sync) {
           this.broadcastBytes(MESSAGE.sync, sync, {})
+        }
+        // After the sync, so a player's prediction starts again from the battle that has their commands in it.
+        for (const [player, acknowledgement] of players.acknowledgements()) {
+          this.clients.getById(player)?.send(MESSAGE.ack, acknowledgement)
         }
       }, LOOP_MS)
     }

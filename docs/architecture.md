@@ -115,9 +115,19 @@ before, for development and `pnpm perf`.
   pnpm's supply-chain policy (`blockExoticSubdeps`) refuses; swapping it in is one line in `main.ts` once that's
   settled.
 
+- **Client-side prediction** (`apps/client/src/sim/prediction.ts`): the soldier the player controls moves on the page at
+  once, not a round trip later. The page counts its own steps at the simulation's rate and sends each batch of commands
+  with its step (`CommandBatch`); the server acknowledges the tick that applied it (`MESSAGE.ack`), which ties the
+  page's steps to the server's ticks. From the server's last position for the soldier, the page replays the steering the
+  server hasn't applied yet with the simulation's own arithmetic (`steeredPosition`), and shows him facing where the
+  player last aimed. Each sync starts it afresh, so where the server moved him otherwise (a wall, the wire) the page
+  follows within a message. An empty batch on joining ties the steps together before the first move. Measured with 200
+  ms of round trip (`COLYSEUS_LATENCY=200`): the soldier moves the frame after the key, and stopping corrects him by
+  millimetres. Only the controlled soldier is predicted; his stance, fire and grenades wait for the server.
+
 In order, what comes next:
 
-1. Client-side prediction for the soldier the player controls (see [known risks](#known-risks)).
+1. The stage 2 load test, which decides whether relevance filtering is needed.
 2. Hosting on Railway, with the database on a volume.
 
 ### ECS decision
@@ -279,7 +289,7 @@ first candidate for Rust/WebAssembly if profiling demands it.
 
 | Entity                       | Per sector  | Networking                                                                                               |
 | ---------------------------- | ----------- | -------------------------------------------------------------------------------------------------------- |
-| Directly controlled soldiers | 300–500     | Colyseus client prediction and reconciliation; lag compensation (server rewind) for rifle shots          |
+| Directly controlled soldiers | 300–500     | Client prediction and reconciliation of movement; lag compensation (server rewind) for rifle shots       |
 | AI soldiers                  | 3,000–5,000 | Server-only; custom binary snapshots, interpolated on the client                                         |
 | Artillery, gas, craters      | many        | Server events; shells are slow, so no lag compensation. Craters replay through the shared stamp function |
 
@@ -314,8 +324,10 @@ first candidate for Rust/WebAssembly if profiling demands it.
 
 - **Replication budget is unmeasured.** Bandwidth and encode time for about 1,000 soldiers across 100 clients decide the
   snapshot rate, quantization and relevance rules. The stage 2 load test in the [roadmap](roadmap.md) measures it.
-- **Prediction works on Schema objects, not ECS.** Colyseus's reconciler predicts Schema state, so the player's soldier
-  needs a Schema mirror of its ECS components. Prove this seam early in stage 2.
+- **Prediction is hand-rolled, not Colyseus's.** Colyseus's reconciler predicts Schema state, which would need a Schema
+  mirror of the soldier's ECS components; predicting one soldier's steering with the simulation's own movement
+  arithmetic needed neither. Whatever moves a steered soldier must go through `steeredPosition`, or prediction and
+  server part ways (the movement test checks the two agree).
 - **Line-of-sight cost.** Thousands of soldiers casting sight rays at 2–5 Hz is the main physics load. Profile it at M4
   with 400 soldiers.
 - **Grid navigation is 2.5D.** Dugouts under trenches and fort interiors may need portal links between grid layers, or

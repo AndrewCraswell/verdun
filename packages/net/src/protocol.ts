@@ -11,9 +11,23 @@ export const MESSAGE = {
   joined: "joined",
   /** Server to every player, as bytes (`SyncEncoder.encode`): what changed in the battle since the last. */
   sync: "sync",
-  /** Player to server: commands for the player's squad, in Colyseus's own encoding. */
-  commands: "commands"
+  /** Player to server: commands for the player's squad, in Colyseus's own encoding (`CommandBatch`). */
+  commands: "commands",
+  /** Server to player: the player's commands have been applied (`Acknowledgement`), for client-side prediction. */
+  ack: "ack"
 } as const
+
+/** A player's commands, with the player's own step they were given at, which the server acknowledges. */
+export interface CommandBatch {
+  readonly step: number
+  readonly commands: readonly unknown[]
+}
+
+/** The server applied a player's commands of their step `step` at its own tick `tick`. */
+export interface Acknowledgement {
+  readonly step: number
+  readonly tick: number
+}
 
 /** What a player asks for in joining a sector. */
 export interface JoinOptions {
@@ -22,6 +36,13 @@ export interface JoinOptions {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
+
+/** An acknowledgement from the server, or null for anything else. */
+export function acknowledgement(value: unknown): Acknowledgement | null {
+  return isRecord(value) && Number.isFinite(value["step"]) && Number.isFinite(value["tick"])
+    ? { step: Number(value["step"]), tick: Number(value["tick"]) }
+    : null
+}
 
 /** The side a joining player asked for: French unless they asked for Germany. */
 export function joinSide(options: unknown): Side {

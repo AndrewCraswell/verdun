@@ -85,6 +85,26 @@ describe("players in a sector", () => {
     expect(french[2]?.controller).toBe("player")
   })
 
+  it("have each batch of their commands acknowledged with the tick that applied it", () => {
+    const { sim } = line()
+    const players = createPlayers(sim)
+    const squad = players.join("a", Side.French)
+    players.join("b", Side.French)
+    const leader = squad?.members[0] ?? -1
+    stepSimulation(sim)
+    expect(players.acknowledgements().size).toBe(0)
+
+    players.command("a", { step: 7, commands: [{ type: "steer", soldier: leader, x: 1, z: 0 }] })
+    players.command("a", { step: 8, commands: [] })
+    players.command("b", [{ type: "fire", soldier: leader }])
+    players.command("stranger", { step: 3, commands: [] })
+    stepSimulation(sim)
+    players.stepped()
+
+    expect(players.acknowledgements()).toEqual(new Map([["a", { step: 8, tick: sim.tick }]]))
+    expect(players.acknowledgements().size).toBe(0)
+  })
+
   it("on a dev server, let the dev keys through", () => {
     const { sim, german } = line()
     const players = createPlayers(sim, true)
