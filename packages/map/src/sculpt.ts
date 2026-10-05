@@ -53,16 +53,52 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return t * t * (3 - 2 * t)
 }
 
-function trenchDistance(segments: readonly (readonly [GroundPoint, GroundPoint])[], x: number, z: number): number {
-  let nearest = Infinity
-  for (const [a, b] of segments) {
-    const abx = b[0] - a[0]
-    const abz = b[1] - a[1]
-    const lengthSquared = abx * abx + abz * abz
-    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / lengthSquared))
-    nearest = Math.min(nearest, Math.hypot(x - (a[0] + abx * t), z - (a[1] + abz * t)))
+/** Squares of ground this many metres across, for finding the trenches near a point. */
+const GUARD_SQUARE = 8
+
+/**
+ * How much of its ground work a point takes, by how near it lies to a trench's centre line: none within the guard,
+ * fading in out to the fade, all of it beyond. Each trench leg is filed under every square of ground within the fade of
+ * it, and a point is measured against its own square's legs alone: the nearest of those is the nearest of all whenever
+ * that lies within the fade, and beyond the fade, near or far, the work is whole.
+ */
+function trenchGuard(map: BattlefieldMap): (x: number, z: number) => number {
+  // A metre's slack, so rounding in the measured distance can't leave out a leg near the fade.
+  const reach = TRENCH_FADE + 1
+  const across = Math.floor((map.columns * map.cellSize) / GUARD_SQUARE) + 1
+  const down = Math.floor((map.rows * map.cellSize) / GUARD_SQUARE) + 1
+  const squares = Array.from({ length: across * down }, (): (readonly [GroundPoint, GroundPoint])[] => [])
+  const square = (metres: number, count: number) => Math.max(0, Math.min(count - 1, Math.floor(metres / GUARD_SQUARE)))
+  for (const { points } of map.trenches) {
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1] ?? [0, 0]
+      const b = points[index] ?? a
+      const fromColumn = square(Math.min(a[0], b[0]) - reach, across)
+      const toColumn = square(Math.max(a[0], b[0]) + reach, across)
+      const fromRow = square(Math.min(a[1], b[1]) - reach, down)
+      const toRow = square(Math.max(a[1], b[1]) + reach, down)
+      for (let row = fromRow; row <= toRow; row++) {
+        for (let column = fromColumn; column <= toColumn; column++) {
+          squares[row * across + column]?.push([a, b])
+        }
+      }
+    }
   }
-  return nearest
+  return (x, z) => {
+    const column = Math.floor(x / GUARD_SQUARE)
+    const row = Math.floor(z / GUARD_SQUARE)
+    const legs = column >= 0 && column < across && row >= 0 && row < down ? squares[row * across + column] : undefined
+    let nearest = Infinity
+    for (const [a, b] of legs ?? []) {
+      const abx = b[0] - a[0]
+      const abz = b[1] - a[1]
+      const lengthSquared = abx * abx + abz * abz
+      const t =
+        lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / lengthSquared))
+      nearest = Math.min(nearest, Math.hypot(x - (a[0] + abx * t), z - (a[1] + abz * t)))
+    }
+    return smoothstep(TRENCH_GUARD, TRENCH_FADE, nearest)
+  }
 }
 
 /** The middle height of the ground within a circle: a median, so a shell hole on one side doesn't drag the level down. */
@@ -99,9 +135,7 @@ function angleBetween(a: number, b: number): number {
  * of a trench, so the trench keeps its profile.
  */
 export function sculptForScenery(map: BattlefieldMap, scenery: readonly Scenery[]): void {
-  const segments = map.trenches.flatMap((trench) =>
-    trench.points.slice(1).map((b, index): readonly [GroundPoint, GroundPoint] => [trench.points[index] ?? b, b])
-  )
+  const guardAt = trenchGuard(map)
   for (const item of scenery) {
     const work = GROUND_WORK[item.kind]
     if (!work) {
@@ -137,7 +171,7 @@ export function sculptForScenery(map: BattlefieldMap, scenery: readonly Scenery[
         if (distance > reach) {
           continue
         }
-        const guard = smoothstep(TRENCH_GUARD, TRENCH_FADE, trenchDistance(segments, x, z))
+        const guard = guardAt(x, z)
         if (guard <= 0) {
           continue
         }
@@ -254,9 +288,7 @@ function pointAlong(points: readonly GroundPoint[], along: number): GroundPoint 
  * couple of metres of a trench.
  */
 export function sculptForRailways(map: BattlefieldMap, railways: readonly Railway[]): void {
-  const segments = map.trenches.flatMap((trench) =>
-    trench.points.slice(1).map((b, index): readonly [GroundPoint, GroundPoint] => [trench.points[index] ?? b, b])
-  )
+  const guardAt = trenchGuard(map)
   const reach = RAILWAY_BED.halfWidth + RAILWAY_BED.blend
   for (const railway of railways) {
     const points = railwayCourse(railway)
@@ -312,7 +344,7 @@ export function sculptForRailways(map: BattlefieldMap, railways: readonly Railwa
       if (distance > reach) {
         continue
       }
-      const guard = smoothstep(TRENCH_GUARD, TRENCH_FADE, trenchDistance(segments, x, z))
+      const guard = guardAt(x, z)
       if (guard <= 0) {
         continue
       }

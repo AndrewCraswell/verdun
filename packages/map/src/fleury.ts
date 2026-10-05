@@ -209,29 +209,83 @@ function createRandom(seed: number): () => number {
   }
 }
 
-/** Distance from a point to a polyline, and how far along it (0 to 1) the nearest point lies. */
-function nearestOnLine(line: readonly GroundPoint[], x: number, z: number): { distance: number; along: number } {
-  let best = { distance: Infinity, along: 0 }
-  let total = 0
+/** A polyline's legs and bounds, measured once: the generator asks after the same few lines millions of times. */
+interface MeasuredLine {
+  readonly lengths: readonly number[]
+  readonly length: number
+  readonly minX: number
+  readonly maxX: number
+  readonly minZ: number
+  readonly maxZ: number
+}
+
+const measuredLines = new WeakMap<readonly GroundPoint[], MeasuredLine>()
+
+function measureLine(line: readonly GroundPoint[]): MeasuredLine {
+  const known = measuredLines.get(line)
+  if (known) {
+    return known
+  }
   const lengths = line.slice(1).map((b, index) => {
     const a = line[index]
     return Math.hypot(b[0] - a[0], b[1] - a[1])
   })
-  const lineLength = lengths.reduce((sum, length) => sum + length, 0)
-  for (const [index, length] of lengths.entries()) {
+  const xs = line.map(([x]) => x)
+  const zs = line.map(([, z]) => z)
+  const measured = {
+    lengths,
+    length: lengths.reduce((sum, length) => sum + length, 0),
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minZ: Math.min(...zs),
+    maxZ: Math.max(...zs)
+  }
+  measuredLines.set(line, measured)
+  return measured
+}
+
+/** Slack on the bounds test, so rounding in the measured distance can't put a point the test ruled out within reach. */
+const BOUNDS_SLACK = 1
+
+/**
+ * Distance from a point to a polyline, and how far along it (0 to 1) the nearest point lies. A point more than `within`
+ * beyond the line's bounds is farther than that from all of it, so isn't measured: it comes back infinitely far.
+ */
+function nearestOnLine(
+  line: readonly GroundPoint[],
+  x: number,
+  z: number,
+  within = Infinity
+): { distance: number; along: number } {
+  const { lengths, length: lineLength, minX, maxX, minZ, maxZ } = measureLine(line)
+  const reach = within + BOUNDS_SLACK
+  if (x < minX - reach || x > maxX + reach || z < minZ - reach || z > maxZ + reach) {
+    return { distance: Infinity, along: 0 }
+  }
+  let distance = Infinity
+  let along = 0
+  let total = 0
+  for (let index = 0; index < lengths.length; index++) {
+    const length = lengths[index]
     const a = line[index]
     const b = line[index + 1]
     const t =
       length === 0
         ? 0
         : Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) / (length * length)))
-    const distance = Math.hypot(x - (a[0] + (b[0] - a[0]) * t), z - (a[1] + (b[1] - a[1]) * t))
-    if (distance < best.distance) {
-      best = { distance, along: (total + t * length) / lineLength }
+    const away = Math.hypot(x - (a[0] + (b[0] - a[0]) * t), z - (a[1] + (b[1] - a[1]) * t))
+    if (away < distance) {
+      distance = away
+      along = (total + t * length) / lineLength
     }
     total += length
   }
-  return best
+  return { distance, along }
+}
+
+/** Whether a point lies within `within` of a polyline. */
+function nearLine(line: readonly GroundPoint[], x: number, z: number, within: number): boolean {
+  return nearestOnLine(line, x, z, within).distance < within
 }
 
 function riseAt(z: number): number {
@@ -276,7 +330,7 @@ function generatedGround(seed: number, x: number, z: number): number {
 function heightAtSample(seed: number, x: number, z: number, elevation: Elevation | undefined): number {
   let height = elevation ? elevationAt(elevation, x, z) : generatedGround(seed, x, z)
 
-  const ravine = nearestOnLine(RAVINE, x, z)
+  const ravine = nearestOnLine(RAVINE, x, z, RAVINE_HALF_WIDTH)
   if (ravine.distance < RAVINE_HALF_WIDTH) {
     const across = ravine.distance / RAVINE_HALF_WIDTH
     // A flat bed between steep banks.
@@ -285,7 +339,7 @@ function heightAtSample(seed: number, x: number, z: number, elevation: Elevation
     height -= depth * (1 - smoothstep(0.3, 1, across))
   }
 
-  const lane = nearestOnLine(SUNKEN_ROAD, x, z)
+  const lane = nearestOnLine(SUNKEN_ROAD, x, z, 4.5)
   if (lane.distance < 4.5) {
     height -= 2.3 * (1 - smoothstep(1.8, 4.5, lane.distance)) * window(lane.along, 0.08, 0.92, 0.08)
   }
@@ -315,7 +369,7 @@ function surfaceAtSample(seed: number, x: number, z: number, height: number, lev
   const intensity = shelling(seed, x, z)
   const grain = valueNoise(seed + SEEDS.surface, x, z, 9)
   const patch = valueNoise(seed + SEEDS.patch, x, z, 26)
-  if (nearestOnLine(RAVINE, x, z).distance < 5 || nearestOnLine(SUNKEN_ROAD, x, z).distance < 2.5) {
+  if (nearLine(RAVINE, x, z, 5) || nearLine(SUNKEN_ROAD, x, z, 2.5)) {
     return Surface.Mud
   }
   const village = Math.hypot(x - VILLAGE.x, z - VILLAGE.z) < VILLAGE.radius * 0.7
@@ -665,7 +719,7 @@ function createPlacer(segments: readonly [GroundPoint, GroundPoint][], random: (
   const footprints: { x: number; z: number; radius: number }[] = []
   let courses: GroundPoint[][] = []
   const onTrack = (x: number, z: number, radius: number) =>
-    courses.some((course) => nearestOnLine(course, x, z).distance < radius + RAILWAY_CLEARANCE)
+    courses.some((course) => nearLine(course, x, z, radius + RAILWAY_CLEARANCE))
   return {
     scenery,
     place(kind, x, z, heading, { variant = Math.floor(random() * 1_000), scale = 1 } = {}) {
@@ -961,7 +1015,7 @@ function placeCraters(
 ): Crater[] {
   const craters: Crater[] = [...MINE_CRATERS]
   const rearRoad = (x: number, z: number) =>
-    ROADS.some((road) => nearestOnLine(road, x, z).distance < ROAD_HALF_WIDTH + 2) &&
+    ROADS.some((road) => nearLine(road, x, z, ROAD_HALF_WIDTH + 2)) &&
     (z < REAR_ROAD_LIMITS.french || z > REAR_ROAD_LIMITS.german)
   for (let attempt = 0; attempt < 40_000 && craters.length < count; attempt++) {
     const x = random() * WIDTH
