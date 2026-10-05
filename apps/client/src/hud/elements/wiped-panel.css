@@ -1,14 +1,16 @@
-/* H17: the squad lost. A quiet roll of the men, and the replacements' countdown, below the middle of the screen. */
+/*
+ * H17: the squad lost. The squads that can be taken over, the replacements' countdown as the other way back, and a
+ * quiet roll of the men, in the middle of the screen over the battle going on.
+ */
 .wiped-panel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  /* The centre zone puts it in the middle of the screen. */
   display: grid;
   gap: 0.75em;
-  width: min(30em, 86vw);
+  width: min(34em, 92vw);
+  max-height: calc(100vh - 2 * var(--hud-margin));
+  overflow: auto;
   padding: 1.2em 1.4em 1.1em;
   box-sizing: border-box;
-  transform: translate(-50%, -30%);
   text-align: center;
   animation: wp-in 700ms var(--hud-ease) both;
 }
@@ -20,12 +22,7 @@
 @keyframes wp-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -26%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate(-50%, -30%);
+    transform: translateY(0.8em);
   }
 }
 
@@ -146,4 +143,148 @@
   font-size: 0.68em;
   font-style: italic;
   color: var(--hud-ink-3);
+}
+
+/* The squads on offer: a list to pick from, each a button. */
+.wp-take-over,
+.wp-wait {
+  display: grid;
+  gap: 0.5em;
+  text-align: left;
+}
+
+.wp-choices {
+  display: grid;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: auto;
+}
+
+.wp-choices[hidden],
+.wp-none[hidden],
+.wp-keys[hidden] {
+  display: none;
+}
+
+.wp-choice-row {
+  animation: wp-row-in var(--hud-med) var(--hud-ease) both;
+  transition:
+    opacity var(--hud-med) var(--hud-ease),
+    transform var(--hud-med) var(--hud-ease);
+}
+
+.wp-choice-row.is-leaving {
+  opacity: 0;
+  transform: translateX(0.6em);
+  pointer-events: none;
+}
+
+@keyframes wp-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.3em);
+  }
+}
+
+.wp-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.25fr) auto minmax(0, 1.4fr);
+  align-items: center;
+  gap: 0.75em;
+  width: 100%;
+  padding: 0.5em 0.7em;
+  border: 1px solid var(--hud-hairline);
+  border-radius: var(--hud-radius);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-shadow: inherit;
+  background: rgb(255 246 222 / 3%);
+  cursor: pointer;
+  transition:
+    background var(--hud-fast) var(--hud-ease),
+    border-color var(--hud-fast) var(--hud-ease);
+}
+
+.wp-choice:hover,
+.wp-choice:focus-visible {
+  border-color: var(--hud-brass-dim);
+  background: var(--hud-brass-glow);
+  outline: none;
+}
+
+.wp-choice:hover .hud-key,
+.wp-choice:focus-visible .hud-key {
+  color: var(--hud-brass-bright);
+  border-color: var(--hud-brass);
+}
+
+.wp-choice__who,
+.wp-choice__where {
+  display: grid;
+  gap: 0.1em;
+  min-width: 0;
+}
+
+.wp-choice__name {
+  overflow: hidden;
+  font-family: var(--hud-font-display);
+  font-size: 1.08em;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wp-choice__leader,
+.wp-choice__order {
+  font-size: 0.72em;
+  color: var(--hud-ink-3);
+}
+
+.wp-choice__strength {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.86em;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.wp-choice__kit {
+  display: flex;
+  gap: 0.2em;
+  color: var(--hud-brass-bright);
+}
+
+.wp-choice__icon {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.wp-choice__place {
+  overflow: hidden;
+  font-size: 0.8em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wp-none {
+  margin: 0;
+  font-size: 0.82em;
+  font-style: italic;
+  color: var(--hud-ink-2);
+}
+
+.wp-keys {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 0.72em;
+  color: var(--hud-ink-3);
+}
+
+.wp-wait .wp-replacements {
+  justify-content: flex-start;
 }

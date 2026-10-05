@@ -41,6 +41,7 @@ import {
 import { createSquadNames, type SoldierName, type SquadNames } from "./squad-names.ts"
 import { createOrderWatch, type OrderView } from "./squad-order.ts"
 import { createSuccessionWatch, type Succession } from "./succession.ts"
+import { type TakeOverChoice, takeOverChoices } from "./take-over.ts"
 import { type WarStatus, warStatus } from "./war-status.ts"
 
 /**
@@ -95,6 +96,8 @@ export interface WipedView {
   /** Men left in the side's pool after these, or null without a pool. */
   readonly reserves: number | null
   readonly fallen: readonly { readonly name: SoldierName; readonly status: RosterSlot["status"] }[]
+  /** Squads nearby the player can take over at once instead of waiting, nearest first. */
+  readonly choices: readonly TakeOverChoice[]
 }
 
 /** How strongly each screen effect shows, from 0 to 1 (E1-E8). */
@@ -164,7 +167,7 @@ export function createHudModel(
 ): HudModel {
   const names = createSquadNames()
   const log: BattleLog = createBattleLog(sim, squad, tickRate, names)
-  const banners = createBannerQueue(sim, squad)
+  const banners = createBannerQueue(sim, squad, names)
   const succession = createSuccessionWatch(sim, squad, names)
   const orders = createOrderWatch(sim, squad)
   const ledger = createShellLedger()
@@ -216,12 +219,25 @@ export function createHudModel(
     return { state: aimedTarget(sim, soldier.id) >= 0 ? "target" : "aim", ready: 1, shaken }
   }
 
+  // The order squads were first offered in, kept while the list is up, so none moves under the player's pointer.
+  let offered: number[] = []
+
+  /** The squads on offer, those already offered first in the order they came, new ones after. */
+  function inOfferedOrder(choices: readonly TakeOverChoice[]): TakeOverChoice[] {
+    const known = (choice: TakeOverChoice) => offered.indexOf(choice.squad)
+    const kept = choices.filter((choice) => known(choice) >= 0).sort((a, b) => known(a) - known(b))
+    const ordered = [...kept, ...choices.filter((choice) => known(choice) < 0)]
+    offered = ordered.map((choice) => choice.squad)
+    return ordered
+  }
+
   function wipedOf(
     soldier: SoldierView | null,
     roster: readonly RosterSlot[],
     reserves: number | null
   ): WipedView | null {
     if (soldier || roster.some((slot) => slot.fighting)) {
+      offered = []
       return null
     }
     const arrival = arrivalOf(sim, squad)
@@ -230,7 +246,8 @@ export function createHudModel(
       seconds: arrival >= 0 ? Math.max(0, (arrival - sim.tick) / tickRate) : null,
       men: coming?.men ?? 0,
       reserves,
-      fallen: roster.map((slot) => ({ name: slot.name, status: slot.status }))
+      fallen: roster.map((slot) => ({ name: slot.name, status: slot.status })),
+      choices: inOfferedOrder(takeOverChoices(sim, squad, names))
     }
   }
 

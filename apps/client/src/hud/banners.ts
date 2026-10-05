@@ -1,4 +1,5 @@
 import { isAlive, isStandTo, MaskState, Side, type SimEvent, type Simulation, type Squad } from "@verdun/sim"
+import type { SquadNames } from "./squad-names.ts"
 
 /**
  * Banners: big, rare, short messages across the top of the screen that change what everyone is doing (H15 in
@@ -30,7 +31,7 @@ export interface BannerQueue {
   current(now: number): { readonly banner: Banner; readonly progress: number } | null
 }
 
-export function createBannerQueue(sim: Simulation, squad: Squad): BannerQueue {
+export function createBannerQueue(sim: Simulation, squad: Squad, names?: SquadNames): BannerQueue {
   const side = squad.side
   const enemy = side === Side.French ? Side.German : Side.French
   let waiting: Banner[] = []
@@ -67,6 +68,14 @@ export function createBannerQueue(sim: Simulation, squad: Squad): BannerQueue {
           }
         } else if (event.type === "counter-attack" && event.side === enemy) {
           raise("Alarm", "Counter-attack coming", "The enemy is shelling the lost trench", "alarm")
+        } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
+          const leader = names && squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
+          raise(
+            "Squad taken over",
+            leader ? `You now command ${leader.surname}'s squad` : "You command a new squad",
+            `${event.men} men`,
+            "routine"
+          )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
           raise(
             "Replacements",

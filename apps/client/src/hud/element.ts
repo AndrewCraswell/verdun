@@ -51,6 +51,12 @@ export interface HudContext {
   positionOf(soldier: EntityId): { readonly x: number; readonly z: number }
   /** Take control of a man of the squad, as the number keys do. */
   takeSoldier(soldier: EntityId): void
+  /** With the player's squad wiped out, takes over a bot squad's men, if it can still be handed over. */
+  takeOverSquad(squad: number): void
+  /** Swings the camera to look at a point on the ground, as if following a man there. */
+  lookAt(x: number, z: number): void
+  /** Sets how far back the camera stands, in metres. */
+  setCameraDistance(distance: number): void
   /** The battlefield's canvas, for the pointer. */
   readonly canvas: HTMLCanvasElement | null
   /**

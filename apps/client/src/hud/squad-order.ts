@@ -26,7 +26,8 @@ const ARRIVED = 8
 
 const RAID_PHASES = { out: "crawling out to the wire", in: "in the enemy trench", home: "coming home" } as const
 
-function direction(from: { x: number; z: number }, to: { x: number; z: number }): string {
+/** How far and which way a point lies from another: "40 m north-east". */
+export function direction(from: { x: number; z: number }, to: { x: number; z: number }): string {
   const distance = Math.hypot(to.x - from.x, to.z - from.z)
   const bearing = (Math.atan2(to.x - from.x, to.z - from.z) * 180) / Math.PI
   const point = COMPASS[Math.round((((bearing % 360) + 360) % 360) / 45) % 8] ?? "north"

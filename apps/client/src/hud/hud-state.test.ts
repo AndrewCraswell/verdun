@@ -1,9 +1,11 @@
 import {
   allotReinforcements,
   casualty,
+  createSquad,
   MaskState,
   Shell,
   Side,
+  spawnSoldier,
   stepSimulation,
   TICK_RATE,
   type WarDay
@@ -82,6 +84,34 @@ describe("the HUD's state", () => {
     expect(state.wiped?.seconds).toBeGreaterThan(20)
     expect(state.wiped?.fallen.map((man) => man.status)).toEqual(Array.from({ length: 8 }, () => "killed"))
     expect(state.succession?.next).toBeNull()
+  })
+
+  it("keeps the squads on offer in the order they came, so none moves under the pointer", () => {
+    const { sim, squad, members } = testBattle()
+    const squadAt = (x: number) =>
+      createSquad(
+        sim,
+        Side.French,
+        Array.from({ length: 5 }, (_, index) => spawnSoldier(sim, { side: Side.French, x: x + index * 2, z: 20 })),
+        "ai"
+      )
+    const far = squadAt(200)
+    const near = squadAt(100)
+    const model = createHudModel(sim, squad, TICK_RATE)
+    for (const member of members) {
+      casualty(sim, member, 1)
+    }
+    stepSimulation(sim)
+    expect(model.read(1).wiped?.choices.map((choice) => choice.squad)).toEqual([near.id, far.id])
+    // A nearer squad turns up: it goes to the end, not the top.
+    const nearest = squadAt(60)
+    expect(model.read(2).wiped?.choices.map((choice) => choice.squad)).toEqual([near.id, far.id, nearest.id])
+    // One loses too many men: it drops out, the rest keep their places.
+    for (const member of near.members.slice(0, 2)) {
+      casualty(sim, member, 1)
+    }
+    stepSimulation(sim)
+    expect(model.read(3).wiped?.choices.map((choice) => choice.squad)).toEqual([far.id, nearest.id])
   })
 
   it("follows the war's calendar when the battle runs on it", () => {

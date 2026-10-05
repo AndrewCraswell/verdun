@@ -10,6 +10,7 @@ import {
   type Squad,
   type WarDay
 } from "@verdun/sim"
+import { cameraRigOf } from "../control/camera-rig.ts"
 import { groundUnderPointer } from "../control/ground-pick.ts"
 import type { HudContext, HudElement, HudElementFactory, HudZone } from "./element.ts"
 import { browserHintStore } from "./hints.ts"
@@ -162,6 +163,20 @@ export function createHud(
     takeSoldier(soldier) {
       if (squad.members.includes(soldier) && isAlive(sim, soldier)) {
         enqueueCommand(sim, { type: "take-command", squad: squad.id, soldier })
+      }
+    },
+    takeOverSquad(from) {
+      // The same command T sends, through the player's own: the simulation checks the squad can still be taken.
+      enqueueCommand(sim, { type: "take-over-squad", squad: squad.id, from })
+    },
+    lookAt(x, z) {
+      const rig = view ? cameraRigOf(view.camera) : undefined
+      rig?.recenter()
+      rig?.follow(x, z)
+    },
+    setCameraDistance(distance) {
+      if (view) {
+        view.camera.radius = distance
       }
     },
     canvas: canvas instanceof HTMLCanvasElement ? canvas : null,

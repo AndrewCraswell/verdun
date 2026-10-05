@@ -27,6 +27,40 @@ function logged() {
 }
 
 describe("the battle log", () => {
+  it("tells of squads taken over, guns spotted and manned, and the reserves going in", () => {
+    const { sim, squad, members, log, who } = logged()
+    const gunner = slot(members, 7)
+    const german = spawnSoldier(sim, { side: Side.German, x: 40, z: 120 })
+    log.record([
+      { type: "squad-taken-over", side: Side.French, squad: squad.id, from: 9, men: 6 },
+      { type: "gun-manned", squad: squad.id, soldier: gunner },
+      { type: "gun-spotted", side: Side.French, soldier: german, x: 40, z: 120 },
+      { type: "gun-spotted", side: Side.German, soldier: gunner, x: 61, z: 20 }
+    ])
+    expect(log.messages.map((message) => message.text)).toEqual(
+      expect.arrayContaining([
+        `You take over ${who(0)}'s squad: 6 men`,
+        `${who(7)} takes over the machine gun`,
+        "Enemy machine gun spotted, 100 m north",
+        "The enemy has spotted your machine gun: move it"
+      ])
+    )
+    log.record([
+      { type: "counter-thrust", side: Side.French, x: 150, squads: 2 },
+      { type: "counter-thrust", side: Side.German, x: 150, squads: 1 },
+      { type: "reserves-up", side: Side.French, squads: 1 },
+      { type: "reserves-up", side: Side.German, squads: 3 }
+    ])
+    expect(log.messages.map((message) => message.text)).toEqual(
+      expect.arrayContaining([
+        "Reserves counter-attack the break-in: 2 squads",
+        "The enemy's reserves are counter-attacking the break-in",
+        "Reserves going up to the line: 1 squad",
+        "Enemy reserves moving up"
+      ])
+    )
+  })
+
   it("reports changes of hands, counter-attacks and surrenders from the player's side", () => {
     const { sim, log } = logged()
     const germans = [0, 1].map((index) => spawnSoldier(sim, { side: Side.German, x: 150, z: 180 + index }))

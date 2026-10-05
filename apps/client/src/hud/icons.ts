@@ -42,6 +42,10 @@ const ICONS = {
   rifle: `<path d="M2.6 16.8 19.4 6.6M19.4 6.6l2.2-1.1M14.6 9.6l1.9 3.1M2.6 16.8l-.4 2.9 3.8-1.6 1-2.4"/>`,
   "machine-gun": `<path d="M2.8 9.4h12.4M15.2 7.8h5.6v3.2h-5.6ZM6.2 9.4v2.2M11 9.4 8 20.4M11 9.4l3 11M9.2 15.4h3.6"/>`,
   grenade: `<path d="M17.4 14.2a5.4 6.4 0 1 1-10.8 0 5.4 6.4 0 0 1 10.8 0Z"/><path d="M6.6 14.2h10.8M12 7.8v12.8M10 7.8V5.2h4v2.6M14 5.2l3.4 2.4"/>`,
+  // A rifle with a telescope on it, and its sight's cross.
+  sniper: `<path d="M2.6 18.4 19.4 8.2M19.4 8.2l2.2-1.1M3.6 20.6l-1.4-1.6 2.2-1M8.4 12.2l6.2-3.8"/><circle cx="17.6" cy="16.4" r="3.6"/><path d="M17.6 13.6v5.6M14.8 16.4h5.6"/>`,
+  // A rifle with the VB discharger's cup on its muzzle, and a grenade lobbed from it.
+  "rifle-grenade": `<path d="M2.6 19.4 13.4 12.8M2.6 19.4l-.4 1.8 2.6-1"/><path d="M13.4 12.8l2.4-1.5 1 1.7-2.4 1.5Z"/><path d="M15 9.6c1-3.8 3.4-5.6 6-5.2"/><circle class="f" cx="21" cy="4.6" r="1.6"/>`,
   // Orders.
   follow: `<circle cx="12" cy="4.8" r="2"/><path d="M12 7.4v5.8M9 9.8h6"/><circle class="f" cx="7.6" cy="17.6" r="1.25"/><circle class="f" cx="12" cy="19.4" r="1.25"/><circle class="f" cx="16.4" cy="17.6" r="1.25"/>`,
   hold: `<path d="M12 2.8l7 2.9v5.8c0 4.4-3 7.6-7 9.4-4-1.8-7-5-7-9.4V5.7Z"/><path d="M12 7v9.6"/>`,

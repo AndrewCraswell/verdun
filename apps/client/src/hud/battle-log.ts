@@ -14,6 +14,7 @@ import {
 } from "@verdun/sim"
 import { missionsOf } from "./fire-support.ts"
 import type { SquadNames } from "./squad-names.ts"
+import { direction } from "./squad-order.ts"
 
 /** What a line of the log is about, for its mark: bad news, the squad's own men, the sector, the guns, the sky. */
 export type LogKind = "alarm" | "squad" | "sector" | "fire" | "weather"
@@ -186,6 +187,52 @@ export function createBattleLog(sim: Simulation, squad: Squad, tickRate: number,
           )
         } else if (event.type === "reinforcement" && event.squad === squad.id) {
           say(`Replacements up in the rear trench: ${event.men} men`, "squad", false)
+        } else if (event.type === "squad-taken-over" && event.squad === squad.id) {
+          const leader = squad.leader >= 0 ? names.nameOf(sim, squad, squad.leader) : null
+          say(
+            leader
+              ? `You take over ${leader.rank} ${leader.surname}'s squad: ${event.men} men`
+              : `You take over a squad: ${event.men} men`,
+            "squad",
+            false
+          )
+        } else if (event.type === "gun-manned" && event.squad === squad.id) {
+          const gunner = names.nameOf(sim, squad, event.soldier)
+          say(`${gunner.rank} ${gunner.surname} takes over the machine gun`, "squad", false)
+        } else if (event.type === "gun-spotted") {
+          if (event.side === side) {
+            const leader = squad.leader
+            const where =
+              leader >= 0
+                ? `, ${direction({ x: sim.soldiers.position.x[leader], z: sim.soldiers.position.z[leader] }, event)}`
+                : ""
+            say(`Enemy machine gun spotted${where}`, "sector", false)
+          } else {
+            const ours = squad.members.includes(event.soldier)
+            say(
+              ours
+                ? "The enemy has spotted your machine gun: move it"
+                : "The enemy has spotted one of our machine guns",
+              "alarm",
+              ours
+            )
+          }
+        } else if (event.type === "counter-thrust") {
+          say(
+            event.side === side
+              ? `Reserves counter-attack the break-in: ${event.squads} ${event.squads === 1 ? "squad" : "squads"}`
+              : "The enemy's reserves are counter-attacking the break-in",
+            event.side === side ? "sector" : "alarm",
+            event.side !== side
+          )
+        } else if (event.type === "reserves-up") {
+          say(
+            event.side === side
+              ? `Reserves going up to the line: ${event.squads} ${event.squads === 1 ? "squad" : "squads"}`
+              : "Enemy reserves moving up",
+            "sector",
+            false
+          )
         } else if (event.type === "out-of-shells" && event.side === side) {
           const name = SHELL_NAMES.find(([shell]) => shell === event.shell)?.[1] ?? "artillery"
           say(`The batteries are out of ${name} shells`, "alarm", true)

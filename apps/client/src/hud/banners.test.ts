@@ -1,9 +1,23 @@
 import { enqueueCommand, MaskState, Side, stepSimulation } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { BANNER_SECONDS, createBannerQueue } from "./banners.ts"
+import { createSquadNames } from "./squad-names.ts"
 import { slot, testBattle } from "./test-battle.ts"
 
 describe("banners", () => {
+  it("says which squad the player now commands after taking one over", () => {
+    const { sim, squad, members } = testBattle()
+    const names = createSquadNames()
+    const banners = createBannerQueue(sim, squad, names)
+    banners.record([{ type: "squad-taken-over", side: Side.French, squad: squad.id, from: 9, men: 6 }])
+    const surname = names.nameOf(sim, squad, slot(members, 0)).surname
+    expect(banners.current(1)?.banner).toMatchObject({
+      kicker: "Squad taken over",
+      title: `You now command ${surname}'s squad`,
+      detail: "6 men"
+    })
+  })
+
   it("raises one banner at a time, each for its time, ground won after bad news", () => {
     const { sim, squad } = testBattle()
     const banners = createBannerQueue(sim, squad)
