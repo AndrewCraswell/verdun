@@ -108,12 +108,14 @@
   opacity: 0;
 }
 
+/* Unfolded at once under the pointer; folded away again slowly once it leaves. */
 .effects-list:hover .fx-chip.is-settled .fx-chip__reason {
   max-width: 20em;
   margin-left: 0.5em;
   padding: 0.3em 0.65em;
   border-left-width: 2px;
   opacity: 1;
+  transition-duration: var(--hud-fast);
 }
 
 .fx-more {
