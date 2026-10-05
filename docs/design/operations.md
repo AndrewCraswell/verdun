@@ -107,24 +107,45 @@ planning map, with the AI's scores shown as advice.
   or joined since the plan are counted as they stand then.
 - **The player's squad** is put in the first wave: if it isn't opposite the stretch, it swaps men with the nearest squad
   that is, the same swap as [joining the battle](soldier-and-squad.md#joining-the-battle). The briefing says where.
+- **The assembly**: the six front-line squads nearest the stretch, outside it, move along the trench into its bays
+  during the preparation, each to its own place between the squads already there. Packing the jump-off trench is what
+  gives a local attack its superiority: without it the first wave goes in man for man against the garrison and is ground
+  down by the counter-attack. They count as first wave from the plan.
 - **The second wave** is the two reserve squads nearest the stretch. Three minutes after zero hour they leave the
   support line and make for the enemy's front line on the stretch, to help hold what the first wave took.
 - **Everyone else holds** and fires on what they can see. The rest of the reserves stay back for the enemy's
-  counter-attack.
+  counter-attack: when his guns open on the stretch taken, those within 100 m of it go up to help hold it.
 
 ### The fire plan on the stretch
 
 The bombardments, the standing barrage and the creeping barrage cover the stretch and 20 m beyond each flank. They keep
 the same weight of fire per metre of front as the [balance](balance.md#battle-matrix-built) runs set for the whole
-sector, so a narrower attack uses fewer shells, not denser ones. The enemy's line either side of the stretch is not
-shelled, so his men there can fire into the attack's flanks: smoke on the flanks is the answer once it's built.
+sector, so a narrower attack uses fewer shells, not denser ones, and they are laid on the whole line's depth, as those
+runs were: on a stretch's shallower trench alone the standing barrage lifts with the attackers still 40 m out, and they
+are shot down in the open.
+
+Two more fire tasks belong to a local attack:
+
+- **Neutralising fire on the flanks**: from zero hour, ten minutes of fire at the standing barrage's weight on the
+  enemy's front line for 200 m either side of the stretch, so his men there keep below instead of firing into the
+  attack's flanks.
+- **The answer to the counter-attack**: when the enemy's guns open on the stretch taken, ours put a barrage on his
+  support line behind it, where his reserves wait and form up, after an SOS barrage's delay, at three times its weight,
+  for six minutes.
+
+### Holding the stretch
+
+Men in a trench taken from the enemy don't go down its dugouts: the entrances face the wrong way and the enemy knows
+where every one is. Under fire they crouch below its parapet, and stand to meet him only when he comes within 50 m. Down
+the dugouts they were taken prisoner wholesale by the counter-attack.
 
 ### The defender's answer
 
 The defender's counter-attack goes in where its line was lost: the commander finds the stretch held by the enemy (at
 least eight of them, outnumbering what's left of the garrison three to one, over any 100 m), joins it to any lost line
-next to it, shells it and sends the reserves nearest it in behind a barrage on that stretch alone. A whole-front attack
-loses the whole line, and the whole line is counter-attacked, as before.
+next to it, shells it and sends the reserves within 100 m of it in behind a barrage on that stretch alone, at the same
+weight per metre and over the whole line's depth. A whole-front attack loses the whole line, and the whole line is
+counter-attacked, as before.
 
 ## Where the men assemble
 
@@ -212,6 +233,11 @@ harness plays the same operation the player does.
 [the frontage and who goes](#the-frontage-and-who-goes)), behind three bombardments and a creeping barrage on that
 stretch. The player's squad goes in the first wave with the squads opposite it; two reserve squads follow as the second
 wave; the rest of the line holds and fires in support.
+
+In the balance harness ("playtest operation", ten seeds, the player's squad idle) the attack gets into the stretch on
+most seeds and holds it on three, a footing on none; the German counter-attack, about ten minutes after zero hour,
+decides it. The attackers lose half to two thirds of the men engaged. Raising the assembly to eight squads and the
+second wave to three changed nothing but the losses.
 
 | Clock | What happens                                                                                              |
 | ----- | --------------------------------------------------------------------------------------------------------- |

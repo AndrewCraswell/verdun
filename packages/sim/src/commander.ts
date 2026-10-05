@@ -211,17 +211,14 @@ function reservesOf(sim: Simulation, side: Side) {
   return sim.squads.filter((squad) => squad.side === side && squad.order.kind === "reserve" && squad.leader >= 0)
 }
 
-/** The lost stretch's own span of trench: its bays there, or the whole line's where it has none. */
-function lostSpan(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): LineSpan {
-  return lineSpanBetween(sim.map.trenches, side, state.lostFromX, state.lostToX) ?? front
-}
-
 /**
  * Opens the counter-attack: the guns pound the lost stretch while the reserves wait below, at the same weight of fire
  * per metre whatever its length.
  */
 function prepareCounterAttack(sim: Simulation, side: Side, front: LineSpan, state: CommanderState): void {
-  const span = lostSpan(sim, side, front, state)
+  // The whole line's depth, as for the attack's barrage (see operation.ts): the counter-attack's weight of fire was
+  // balanced on it, and on a stretch's shallower trench alone the same shells would fall twice as thick.
+  const span = front
   const { fromX, toX, share } = counterAttackFront(sim, state)
   const lostTrench = {
     side,
@@ -259,7 +256,7 @@ function assault(sim: Simulation, side: Side, front: LineSpan, state: CommanderS
   if (reserves.length === 0) {
     return
   }
-  const span = lostSpan(sim, side, front, state)
+  const span = front
   const { fromX, toX, share } = counterAttackFront(sim, state)
   const towardEnemy = side === Side.French ? 1 : -1
   const reserveZ = reserves.reduce((sum, squad) => sum + sim.soldiers.position.z[squad.leader], 0) / reserves.length

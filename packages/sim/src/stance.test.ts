@@ -193,6 +193,33 @@ describe("dugouts", () => {
     expect(sim.soldiers.position.z[soldier ?? -1]).toBeLessThan(100)
   })
 
+  it("keeps men out of the dugouts of a trench they've taken: they crouch, and stand when the enemy comes", async () => {
+    const sim = await field()
+    // A German line facing them at z = 200 puts the trench at z = 100 on the French side of no man's land.
+    const german: Trench = {
+      kind: "fire",
+      points: [
+        [10, 200],
+        [190, 200]
+      ],
+      facing: "south"
+    }
+    const taken = createSimulation({ map: { ...sim.map, trenches: [...sim.map.trenches, german] }, seed: 1 })
+    taken.lineOfSight = sim.lineOfSight
+    const men = garrison(taken)
+    shellNear(taken)
+    stepFor(taken, 1)
+
+    expect(men.slice(1).map((member) => taken.soldiers.stance.value[member])).toEqual([
+      Stance.Crouching,
+      Stance.Crouching,
+      Stance.Crouching
+    ])
+    spawnSoldier(taken, { side: Side.French, x: 95, z: 140 })
+    stepFor(taken, 5)
+    expect(taken.soldiers.stance.value[men[1] ?? -1]).toBe(Stance.Standing)
+  })
+
   it("hides men down a dugout from enemy rifles, and from all but close shells", async () => {
     const sim = await field()
     const [, sheltered] = garrison(sim)

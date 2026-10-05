@@ -55,6 +55,7 @@ const plan = (changes: Partial<OperationPlan> = {}): OperationPlan => ({
   holdSeconds: 600,
   frontage: 300,
   secondWave: 0,
+  assemble: 0,
   ...changes
 })
 
@@ -258,6 +259,49 @@ describe("operations", () => {
     stepFor(sim, 0.1)
     expect(reserveNear.order).toMatchObject({ kind: "advance" })
     expect(reserveFar.order.kind).toBe("reserve")
+  })
+
+  it("close squads from beside the stretch in on it before zero hour, to go with the first wave", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const opposite = squadAt(sim, Side.French, 140, depth * 0.25)
+    const beside = squadAt(sim, Side.French, 240, depth * 0.25)
+    const operation = planOperation(sim, plan({ frontage: 100, assemble: 1 }))
+
+    expect(operation.assembling).toEqual([beside.id])
+    expect(beside.order).toMatchObject({ kind: "advance" })
+    const goal = beside.order.kind === "advance" ? beside.order.x : -1
+    expect(goal >= operation.fromX && goal <= operation.toX).toBe(true)
+    expect(firstWave(sim, operation).map((squad) => squad.id)).toEqual([opposite.id, beside.id])
+    expect(copyOperation(operation)?.assembling).toEqual([beside.id])
+  })
+
+  it("keep the enemy's line either side of the stretch down, and answer his counter-attack", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    squadAt(sim, Side.French, 140, depth * 0.25)
+    const reserve = squadAt(sim, Side.French, 150, depth * 0.12)
+    reserve.order = { kind: "reserve" }
+    const operation = planOperation(sim, plan({ zeroHourIn: 0, bombardments: 0, frontage: 100 }))
+    stepFor(sim, 0.2)
+    const flanks = sim.artillery.missions.filter((mission) => mission.creep === undefined && mission.duration === 600)
+
+    expect(flanks.map((mission) => [mission.toX <= operation.fromX - 20, mission.fromX >= operation.toX + 20])).toEqual(
+      [
+        [true, false],
+        [false, true]
+      ]
+    )
+    const before = sim.artillery.missions.length
+    sim.events.length = 0
+    sim.events.push({ type: "counter-attack", side: Side.German })
+    operationSystem(sim)
+    stepSimulation(sim)
+    const answer = sim.artillery.missions.slice(before)
+
+    expect(answer.map((mission) => mission.shell)).toEqual([Shell.FieldHighExplosive, Shell.FieldShrapnel])
+    // On the German support line behind the stretch, at z = 176.
+    expect(answer.every((mission) => Math.abs(mission.z - depth * 0.88) <= 3)).toBe(true)
+    // Our reserves near the stretch go up to help hold it.
+    expect(reserve.order).toMatchObject({ kind: "advance" })
   })
 
   it("bombard only the stretch, at the whole front's weight of fire per metre", () => {

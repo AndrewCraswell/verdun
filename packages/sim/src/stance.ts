@@ -1,7 +1,7 @@
 import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { type EntityId, hasComponent } from "bitecs"
 import { PINNED, Weapon } from "./combat.ts"
-import { Stance } from "./components.ts"
+import { Side, Stance } from "./components.ts"
 import { EYE_HEIGHT, type WorldPoint } from "./line-of-sight.ts"
 import { restsTonight } from "./routine.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
@@ -86,6 +86,38 @@ function trenchGrid(map: BattlefieldMap): Uint8Array {
   }
   trenchGrids.set(map, grid)
   return grid
+}
+
+const noMansLandMiddles = new WeakMap<BattlefieldMap, number>()
+
+/**
+ * The z halfway between the two sides' fire trenches, each averaged over all its points: the French hold the ground
+ * south of it, the Germans north. NaN on a map without both.
+ */
+function noMansLandMiddle(map: BattlefieldMap): number {
+  const cached = noMansLandMiddles.get(map)
+  if (cached !== undefined) {
+    return cached
+  }
+  const middle = (facing: "north" | "south") => {
+    const zs = map.trenches
+      .filter((trench) => trench.kind === "fire" && trench.facing === facing)
+      .flatMap((trench) => trench.points.map(([, z]) => z))
+    return zs.reduce((sum, z) => sum + z, 0) / zs.length
+  }
+  const value = (middle("north") + middle("south")) / 2
+  noMansLandMiddles.set(map, value)
+  return value
+}
+
+/**
+ * Whether a soldier is in a trench on the enemy's side of no man's land: one his side has broken into. Its dugouts'
+ * entrances face the wrong way and the enemy knows where every one is, so he doesn't go down them.
+ */
+function inEnemyTrench(sim: Simulation, soldier: EntityId): boolean {
+  const middle = noMansLandMiddle(sim.map)
+  const beyond = sim.soldiers.position.z[soldier] - middle
+  return sim.soldiers.side.value[soldier] === Side.German ? beyond < 0 : beyond > 0
 }
 
 /** Whether a ground point is inside a trench. */
@@ -192,7 +224,8 @@ function climbSteps(sim: Simulation, soldier: EntityId): number {
 /**
  * How everyone not under a player's hand holds themselves, a few times a second:
  *
- * - In a trench under shellfire, everyone but the sentries goes down the dugouts. Once the shelling has stopped
+ * - In a trench under shellfire, everyone but the sentries goes down the dugouts. In a trench taken from the enemy they
+ *   crouch below its parapet instead, and stand only to meet him when he comes close. Once the shelling has stopped
  *   for a while, or a sentry sees attackers close and the shells have just lifted, they climb back up to the fire
  *   step. That climb against the attackers' last rush is the race to the parapet.
  * - In the open, soldiers lie down whenever they stop or are pinned, and get up to move.
@@ -231,7 +264,15 @@ export function stanceSystem(sim: Simulation): void {
       // Stances run before artillery each step, so a burst can be up to a whole interval old by now.
       const justShelled = sim.tick - shelter.lastShelled[soldier] <= STANCE_INTERVAL
       const goesDown = justShelled || inReserve(sim, soldier) || restsTonight(sim, soldier)
-      stance.value[soldier] = goesDown && !moving && !isSentry(sim, soldier) ? Stance.Sheltering : Stance.Standing
+      if (moving) {
+        stance.value[soldier] = Stance.Standing
+      } else if (inEnemyTrench(sim, soldier)) {
+        // In a trench just taken: heads below its parapet, which faces the wrong way, until the enemy comes close.
+        const comes = !justShelled && enemyWithin(sim, soldier, ALARM_RANGE)
+        stance.value[soldier] = comes ? Stance.Standing : Stance.Crouching
+      } else {
+        stance.value[soldier] = goesDown && !isSentry(sim, soldier) ? Stance.Sheltering : Stance.Standing
+      }
       continue
     }
     if (isCrawling(sim, soldier)) {
