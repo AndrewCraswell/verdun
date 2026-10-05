@@ -68,7 +68,8 @@ Several agents work in this checkout at once, all on `main`.
 - **Never commit vendor source files.** Raw purchases live in `vendor/` (git-ignored).
 - **The level kit and the soundtrack the game ships are committed**, through Git LFS: `.asset-cache/level` (what the
   asset pack is built from) and `.asset-cache/music`. Commit their files with the change that rebuilds them. The rest of
-  `.asset-cache/` and all of `vendor/` stay out of git, backed up to E: ([backup](docs/assets/backup.md)). The
+  `.asset-cache/` and all of `vendor/` stay out of git: they live in the asset library on E:, and the checkout holds
+  copies of only what's being worked on (`pnpm assets:fetch`; see [asset library](docs/assets/backup.md)). The
   repository must stay private.
 - **Never ship raw glTF/textures from paid stores.** Paid assets go through the [pipeline](docs/assets/pipeline.md) into
   the encrypted runtime pack. Only CC0 may ship raw; CC-BY ships raw with credit.

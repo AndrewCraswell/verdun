@@ -22,6 +22,7 @@
     "assets:unpack": "node scripts/extract-unitypackage.mjs",
     "assets:pack": "node scripts/build-asset-pack.mjs",
     "assets:backup": "node scripts/backup-assets.mjs",
+    "assets:fetch": "node scripts/backup-assets.mjs --fetch",
     "map:export-tiled": "node scripts/export-tiled.mjs",
     "prepare": "lefthook install",
     "map:analyze": "node scripts/analyze-sector.mjs",

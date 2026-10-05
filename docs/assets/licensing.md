@@ -35,8 +35,8 @@ Fab notes:
 
 ## How we protect shipped assets
 
-1. Never host or commit vendor source files (FBX, .blend, .uasset, source textures). They live in `vendor/`, which is
-   git-ignored and backed up to another drive by `pnpm assets:backup` ([asset backup](backup.md)). The converted level
+1. Never host or commit vendor source files (FBX, .blend, .uasset, source textures). They live in the asset library on
+   E: and, while they're being worked on, in the git-ignored `vendor/` ([asset library](backup.md)). The converted level
    kit the game ships (`.asset-cache/level`) is committed, through Git LFS, so builds and fresh clones have it. That
    holds only while the repository is private: the packs' licenses let us keep and use their files, not share them.
 2. Pack optimized runtime meshes and KTX2 textures into a custom binary container with a non-standard header. Babylon
