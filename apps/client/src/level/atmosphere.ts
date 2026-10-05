@@ -297,7 +297,7 @@ function createSmoke(scene: Scene, texture: Texture, sources: readonly Vector3[]
 }
 
 function createMist(scene: Scene, texture: Texture, spots: readonly Vector3[]): ParticleSystem {
-  const mist = new ParticleSystem("mist", 6 * Math.max(1, spots.length), scene)
+  const mist = new ParticleSystem("mist", 3 * Math.max(1, spots.length), scene)
   mist.particleTexture = texture
   mist.emitter = Vector3.Zero()
   emitFrom(mist, spots, 14, [0.6, 2])
@@ -306,11 +306,13 @@ function createMist(scene: Scene, texture: Texture, spots: readonly Vector3[]): 
   mist.color1 = new Color4(0.78, 0.79, 0.78, 0.09)
   mist.color2 = new Color4(0.7, 0.71, 0.7, 0.06)
   mist.colorDead = new Color4(0.75, 0.76, 0.75, 0)
-  mist.minSize = 10
-  mist.maxSize = 20
+  // Half as many puffs as it once had, each about 1.4 times the size, cover the hollows as well: some 500 lie there at
+  // all times, costing the page as much as a shell's burst.
+  mist.minSize = 14
+  mist.maxSize = 28
   mist.minLifeTime = 24
   mist.maxLifeTime = 40
-  mist.emitRate = 0.18 * spots.length
+  mist.emitRate = 0.09 * spots.length
   mist.direction1 = new Vector3(-0.1, 0, -0.1)
   mist.direction2 = new Vector3(0.1, 0.02, 0.1)
   mist.minEmitPower = 0.1

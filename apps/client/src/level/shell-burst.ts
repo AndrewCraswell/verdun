@@ -6,6 +6,7 @@ import "@babylonjs/core/Particles/particleSystemComponent"
 import type { Scene } from "@babylonjs/core/scene"
 import { type BattlefieldMap, heightAt } from "@verdun/map"
 import { type BurstEvent, Shell } from "@verdun/sim"
+import { thinned, thinning } from "./emission-lod.ts"
 
 /** The sprites a burst is drawn with, from the level kit. */
 export interface BurstSprites {
@@ -35,6 +36,8 @@ interface Emission {
   readonly speed: number
   /** Start heights spread over this many metres above `y`: smoke filling the column the earth went up in. */
   readonly rise?: number
+  /** How much larger than the system's own size its particles are drawn: a far burst's fewer particles (emission-lod.ts). */
+  readonly boost?: number
 }
 
 /**
@@ -66,10 +69,18 @@ function channel(
   system.maxEmitPower = 1
   const pending: Emission[] = []
   let current: Emission | undefined
+  // The system's own scales, which each emission's boost multiplies. Babylon sizes a particle after placing it, so a
+  // scale set here sizes the particle being placed.
+  let scales: readonly [number, number, number, number] = [1, 1, 1, 1]
   system.startPositionFunction = (_world, position) => {
     current = pending.shift()
     if (current) {
       const { spread } = current
+      const boost = current.boost ?? 1
+      system.minScaleX = scales[0] * boost
+      system.maxScaleX = scales[1] * boost
+      system.minScaleY = scales[2] * boost
+      system.maxScaleY = scales[3] * boost
       position.set(
         current.x + (Math.random() - 0.5) * spread,
         current.y + Math.random() * (current.rise ?? spread * 0.3),
@@ -94,6 +105,7 @@ function channel(
     }
   }
   setup(system)
+  scales = [system.minScaleX, system.maxScaleX, system.minScaleY, system.maxScaleY]
   system.start()
   return {
     system,
@@ -379,44 +391,48 @@ export function createShellBursts(
     burst(event) {
       const { x, z } = event.at
       const ground = heightAt(map, x, z)
-      const at = (y: number, spread: number, speed: number): Emission => ({ x, y, z, spread, speed })
+      const { share, boost } = thinning(scene.activeCamera?.globalPosition, x, ground, z)
+      const at = (y: number, spread: number, speed: number): Emission => ({ x, y, z, spread, speed, boost })
+      // Each channel's count, thinned for a far burst; a single particle, the flash, is never thinned, so never enlarged.
+      const emit = (target: Channel, from: Emission, count: number) =>
+        target.emit(count > 1 ? from : { ...from, boost: 1 }, thinned(count, share))
       switch (event.shell) {
         case Shell.FieldShrapnel: {
           const y = Math.max(ground + 4, event.at.y)
-          field.flash.emit(at(y, 0, 0), 1)
-          airburst.emit(at(y, 3, 1.6), 16)
+          emit(field.flash, at(y, 0, 0), 1)
+          emit(airburst, at(y, 3, 1.6), 16)
           // The balls fly on and down: dust kicked up over the ground ahead of and below the burst.
-          for (let index = 0; index < 18; index++) {
+          for (let index = thinned(18, share); index > 0; index--) {
             const sx = x + (Math.random() - 0.5) * 22
             const sz = z + (Math.random() - 0.5) * 22
-            strikes.emit({ x: sx, y: heightAt(map, sx, sz), z: sz, spread: 0.4, speed: 1.5 }, 1)
+            strikes.emit({ x: sx, y: heightAt(map, sx, sz), z: sz, spread: 0.4, speed: 1.5, boost }, 1)
           }
           return
         }
         case Shell.FieldGas:
-          field.flash.emit(at(ground + 0.5, 0, 0), 1)
-          gas.emit(at(ground + 0.6, 1.2, 1.5), 6)
-          field.column.emit(at(ground, 0.6, 5), 3)
-          field.earth.emit(at(ground, 0.6, 6), 6)
+          emit(field.flash, at(ground + 0.5, 0, 0), 1)
+          emit(gas, at(ground + 0.6, 1.2, 1.5), 6)
+          emit(field.column, at(ground, 0.6, 5), 3)
+          emit(field.earth, at(ground, 0.6, 6), 6)
           return
         case Shell.Grenade:
-          field.flash.emit(at(ground + 0.4, 0, 0), 1)
-          field.fireball.emit(at(ground + 0.4, 0.3, 1.2), 2)
-          field.column.emit(at(ground, 0.4, 5), 4)
-          field.earth.emit(at(ground, 0.5, 7), 9)
-          field.dust.emit(at(ground + 0.2, 0.5, 5), 6)
-          field.smoke.emit(at(ground + 0.5, 0.8, 1.1), 2)
+          emit(field.flash, at(ground + 0.4, 0, 0), 1)
+          emit(field.fireball, at(ground + 0.4, 0.3, 1.2), 2)
+          emit(field.column, at(ground, 0.4, 5), 4)
+          emit(field.earth, at(ground, 0.5, 7), 9)
+          emit(field.dust, at(ground + 0.2, 0.5, 5), 6)
+          emit(field.smoke, at(ground + 0.5, 0.8, 1.1), 2)
           return
         default: {
           const big = event.shell === Shell.HeavyHighExplosive
           const set = big ? heavy : field
-          set.flash.emit(at(ground + 1, 0, 0), 1)
-          set.fireball.emit(at(ground + (big ? 2 : 1), big ? 3 : 1.5, big ? 3.5 : 2.5), big ? 14 : 8)
-          set.column.emit(at(ground, big ? 2.5 : 1.3, big ? 30 : 19), big ? 44 : 22)
-          set.earth.emit(at(ground, big ? 3 : 1.6, big ? 26 : 18), big ? 70 : 34)
-          set.dust.emit(at(ground + 0.4, big ? 2.5 : 1.2, big ? 15 : 9), big ? 26 : 16)
-          set.smoke.emit({ ...at(ground + 1, big ? 5 : 3, big ? 3 : 2.2), rise: big ? 16 : 8 }, big ? 40 : 20)
-          sparks.emit(at(ground + 0.8, 0.5, big ? 18 : 12), big ? 30 : 16)
+          emit(set.flash, at(ground + 1, 0, 0), 1)
+          emit(set.fireball, at(ground + (big ? 2 : 1), big ? 3 : 1.5, big ? 3.5 : 2.5), big ? 14 : 8)
+          emit(set.column, at(ground, big ? 2.5 : 1.3, big ? 30 : 19), big ? 44 : 22)
+          emit(set.earth, at(ground, big ? 3 : 1.6, big ? 26 : 18), big ? 70 : 34)
+          emit(set.dust, at(ground + 0.4, big ? 2.5 : 1.2, big ? 15 : 9), big ? 26 : 16)
+          emit(set.smoke, { ...at(ground + 1, big ? 5 : 3, big ? 3 : 2.2), rise: big ? 16 : 8 }, big ? 40 : 20)
+          emit(sparks, at(ground + 0.8, 0.5, big ? 18 : 12), big ? 30 : 16)
         }
       }
     },

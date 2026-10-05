@@ -1,5 +1,7 @@
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
+import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap } from "@verdun/map"
 import { type BurstEvent, Shell } from "@verdun/sim"
@@ -28,7 +30,7 @@ function setup() {
     () => wind
   )
   const queued = (name: string) => bursts.systems.find((system) => system.name === name)?.manualEmitCount ?? -1
-  return { bursts, queued }
+  return { scene, bursts, queued }
 }
 
 const burst = (shell: Shell, y = 3): BurstEvent => ({ type: "burst", shell, at: { x: 50, y, z: 50 }, crater: null })
@@ -95,5 +97,20 @@ describe("createShellBursts", () => {
     const scene = smoke?.getScene()
     bursts.dispose()
     expect(scene?.particleSystems).toHaveLength(0)
+  })
+
+  it("throws fewer particles for a burst far from the camera, the flash still whole", () => {
+    const near = setup()
+    new FreeCamera("eye", new Vector3(50, 60, 0), near.scene).computeWorldMatrix()
+    const far = setup()
+    new FreeCamera("eye", new Vector3(50, 60, -600), far.scene).computeWorldMatrix()
+
+    near.bursts.burst(burst(Shell.HeavyHighExplosive))
+    far.bursts.burst(burst(Shell.HeavyHighExplosive))
+
+    expect(near.queued("burst-earth-heavy")).toBe(70)
+    expect(far.queued("burst-earth-heavy")).toBeGreaterThanOrEqual(17)
+    expect(far.queued("burst-earth-heavy")).toBeLessThanOrEqual(18)
+    expect(far.queued("burst-flash-heavy")).toBe(1)
   })
 })

@@ -240,11 +240,15 @@ export function createTrenchLife(
     return sprite
   })
 
+  // Only the braziers and stoves near the camera give off sparks and smoke: further off, a spark is less than a pixel
+  // and a wisp a smudge, yet each costs the page as much as a near one.
+  const eye = () => scene.activeCamera?.globalPosition
+  const nearBraziers = nearby(tops, SPARKS_SEEN, eye())
   const embers = new ParticleSystem("brazier-embers", 40 * Math.max(1, tops.length), scene)
   embers.particleTexture = sprites.ember
   embers.emitter = Vector3.Zero()
   embers.startPositionFunction = (_world, position) => {
-    const top = tops[Math.floor(Math.random() * tops.length)]
+    const top = nearBraziers[Math.floor(Math.random() * nearBraziers.length)]
     if (top) {
       position.set(top.x + (Math.random() - 0.5) * 0.4, top.y + 0.1, top.z + (Math.random() - 0.5) * 0.4)
     }
@@ -260,13 +264,15 @@ export function createTrenchLife(
   embers.direction2 = new Vector3(0.2, 1.4, 0.2)
   embers.minEmitPower = 0.5
   embers.maxEmitPower = 1.2
-  embers.emitRate = 2.5 * tops.length
+  embers.emitRate = EMBERS_PER_BRAZIER * nearBraziers.length
   embers.blendMode = ParticleSystem.BLENDMODE_ADD
   if (tops.length > 0) {
     embers.start()
   }
 
-  const smoke = createStoveSmoke(scene, stoves, sprites.puff)
+  const nearStoves = nearby(stoves, SMOKE_SEEN, eye())
+  const smoke = createStoveSmoke(scene, nearStoves, sprites.puff, stoves.length)
+  let sinceLook = 0
 
   const crows = createCrows(scene, map)
   return {
@@ -276,6 +282,14 @@ export function createTrenchLife(
     crows,
     update(frameSeconds) {
       crows.update(frameSeconds)
+      sinceLook += frameSeconds
+      if (sinceLook > LOOK_SECONDS) {
+        sinceLook = 0
+        replace(nearBraziers, nearby(tops, SPARKS_SEEN, eye()))
+        replace(nearStoves, nearby(stoves, SMOKE_SEEN, eye()))
+        embers.emitRate = EMBERS_PER_BRAZIER * nearBraziers.length
+        smoke.emitRate = WISPS_PER_STOVE * nearStoves.length
+      }
       // Light smoke rises a little, then goes with the wind.
       const { x, z } = wind()
       smoke.gravity.set(x * 0.2, 0.05, z * 0.2)
@@ -289,9 +303,44 @@ export function createTrenchLife(
   }
 }
 
-/** A stove's smoke: thin wisps from the pipe's mouth, a few metres up before they spread and drift away. */
-function createStoveSmoke(scene: Scene, stoves: readonly Vector3[], puff: Texture): ParticleSystem {
-  const smoke = new ParticleSystem("stove-smoke", 30 * Math.max(1, stoves.length), scene)
+/** Sparks a second from each brazier. */
+const EMBERS_PER_BRAZIER = 2.5
+/** Wisps of smoke a second from each stove. */
+const WISPS_PER_STOVE = 1.2
+/** Sparks are given off by braziers this near the camera's eye, metres; smoke by stoves this near. */
+const SPARKS_SEEN = 110
+const SMOKE_SEEN = 180
+/** Which braziers and stoves are near is looked at again this often, seconds. */
+const LOOK_SECONDS = 0.5
+
+/** The places within `range` of the eye; all of them with no eye to measure from. */
+function nearby(
+  places: readonly Vector3[],
+  range: number,
+  eye: { readonly x: number; readonly y: number; readonly z: number } | undefined
+): Vector3[] {
+  if (!eye) {
+    return [...places]
+  }
+  return places.filter((place) => Math.hypot(place.x - eye.x, place.y - eye.y, place.z - eye.z) <= range)
+}
+
+function replace<T>(target: T[], items: readonly T[]): void {
+  target.length = 0
+  target.push(...items)
+}
+
+/**
+ * A stove's smoke: thin wisps from the pipe's mouth, a few metres up before they spread and drift away. `stoves` are
+ * the ones smoking now, and change as the camera moves; the system is sized for all of them.
+ */
+function createStoveSmoke(
+  scene: Scene,
+  stoves: readonly Vector3[],
+  puff: Texture,
+  all = stoves.length
+): ParticleSystem {
+  const smoke = new ParticleSystem("stove-smoke", 30 * Math.max(1, all), scene)
   smoke.particleTexture = puff
   smoke.emitter = Vector3.Zero()
   smoke.startPositionFunction = (_world, position) => {
@@ -314,7 +363,7 @@ function createStoveSmoke(scene: Scene, stoves: readonly Vector3[], puff: Textur
   smoke.maxScaleY = 1.2
   smoke.minLifeTime = 6
   smoke.maxLifeTime = 10
-  smoke.emitRate = 1.2 * stoves.length
+  smoke.emitRate = WISPS_PER_STOVE * stoves.length
   smoke.direction1 = new Vector3(-0.05, 1, -0.05)
   smoke.direction2 = new Vector3(0.05, 1, 0.05)
   smoke.minEmitPower = 0.35
@@ -326,7 +375,7 @@ function createStoveSmoke(scene: Scene, stoves: readonly Vector3[], puff: Textur
   smoke.blendMode = ParticleSystem.BLENDMODE_STANDARD
   smoke.preWarmCycles = 150
   smoke.preWarmStepOffset = 5
-  if (stoves.length > 0) {
+  if (all > 0) {
     smoke.start()
   }
   return smoke

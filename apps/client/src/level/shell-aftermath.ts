@@ -13,6 +13,7 @@ import { SpriteManager } from "@babylonjs/core/Sprites/spriteManager"
 import "@babylonjs/core/Sprites/spriteSceneComponent"
 import { type BattlefieldMap, heightAt, type SceneryKind } from "@verdun/map"
 import { type BurstEvent, Shell } from "@verdun/sim"
+import { thinned, thinning } from "./emission-lod.ts"
 import type { ScorchMap } from "./scorch-map.ts"
 
 /** Effect sprites the aftermath draws with, from the level kit. */
@@ -103,20 +104,37 @@ interface Fire {
 
 /**
  * Places, each to emit a number of particles from: the particle system takes the next one as it emits. A place can
- * carry a throw speed, which then sets the particle's speed (the system sets its own direction): a system draws bursts
- * of every size, and the next one may come in the same frame.
+ * carry a throw speed, which then sets the particle's speed (the system sets its own direction), and a boost, how much
+ * larger than the system's own size its particles are drawn (a far burst's fewer particles, see emission-lod.ts): a
+ * system draws bursts of every size, and the next one may come in the same frame.
  */
 interface EmitQueue {
-  readonly pending: { x: number; y: number; z: number; spread: number; speed?: number }[]
-  add(system: ParticleSystem, x: number, y: number, z: number, spread: number, count: number, speed?: number): void
+  readonly pending: { x: number; y: number; z: number; spread: number; speed?: number; boost: number }[]
+  add(
+    system: ParticleSystem,
+    x: number,
+    y: number,
+    z: number,
+    spread: number,
+    count: number,
+    speed?: number,
+    boost?: number
+  ): void
 }
 
 function emitQueue(system: ParticleSystem): EmitQueue {
   const pending: EmitQueue["pending"] = []
   let current: EmitQueue["pending"][number] | undefined
+  // The system's own scales, which each place's boost multiplies. Babylon sizes a particle after placing it, so a scale
+  // set here sizes the particle being placed.
+  const scales = [system.minScaleX, system.maxScaleX, system.minScaleY, system.maxScaleY] as const
   system.startPositionFunction = (_world, position) => {
     current = pending.shift()
     if (current) {
+      system.minScaleX = scales[0] * current.boost
+      system.maxScaleX = scales[1] * current.boost
+      system.minScaleY = scales[2] * current.boost
+      system.maxScaleY = scales[3] * current.boost
       position.set(
         current.x + (Math.random() - 0.5) * current.spread,
         current.y + Math.random() * current.spread * 0.3,
@@ -136,9 +154,9 @@ function emitQueue(system: ParticleSystem): EmitQueue {
   }
   return {
     pending,
-    add(target, x, y, z, spread, count, speed) {
+    add(target, x, y, z, spread, count, speed, boost = 1) {
       for (let index = 0; index < count; index++) {
-        pending.push({ x, y, z, spread, speed })
+        pending.push({ x, y, z, spread, speed, boost })
       }
       target.manualEmitCount = Math.max(0, target.manualEmitCount) + count
     }
@@ -314,14 +332,18 @@ export function createShellAftermath(
       const ground = heightAt(map, x, z)
       const y = Math.max(ground, event.at.y)
       const inAir = y > ground + 1.5
+      // A far burst leaves fewer, larger puffs and clods.
+      const { share, boost } = thinning(camera.globalPosition, x, y, z)
       if (stats.scorch > 0 && !inAir) {
         scorch.scorch(x, z, stats.scorch, random)
       }
       if (stats.smoke > 0) {
-        smokeQueue.add(smoke, x, y + 1.5, z, Math.max(2, stats.scorch * 1.6), stats.smoke)
+        // The haze is faint and soft-edged, so fewer puffs don't read as blots: enlarged in full, it keeps all its cover.
+        const puffs = thinned(stats.smoke, share)
+        smokeQueue.add(smoke, x, y + 1.5, z, Math.max(2, stats.scorch * 1.6), puffs, undefined, boost * boost)
       }
       if (stats.clods > 0 && !inAir) {
-        clodQueue.add(clods, x, ground + 0.3, z, stats.scorch * 0.6, stats.clods, stats.throw)
+        clodQueue.add(clods, x, ground + 0.3, z, stats.scorch * 0.6, thinned(stats.clods, share), stats.throw, boost)
       }
       const chance = stats.fire * (burnable(x, z) ? 4 : 1)
       if (!inAir && random() < chance) {
@@ -355,7 +377,9 @@ export function createShellAftermath(
         const strength = Math.min(1, left / FIRE_SECONDS.dying)
         fire.sprite.size = fire.size * (0.4 + 0.6 * strength)
         fire.sprite.position.y = fire.y + fire.sprite.size * 0.42
-        if (Math.random() < frameSeconds * 7 * strength) {
+        // Sparks a few centimetres across, far fewer from a far fire: there they're less than a pixel.
+        const { share } = thinning(camera.globalPosition, fire.x, fire.y, fire.z)
+        if (Math.random() < frameSeconds * 7 * strength * share * share) {
           emberQueue.add(embers, fire.x, fire.y + fire.sprite.size * 0.5, fire.z, 0.6, 1)
         }
         if (puff) {

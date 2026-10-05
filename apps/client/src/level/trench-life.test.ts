@@ -1,3 +1,4 @@
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
@@ -186,5 +187,34 @@ describe("createCrows", () => {
     const crows = createCrows(scene(), bare)
 
     expect(crows.flocks.every((flock) => flock.perch.x === 20 && flock.perch.z === 20)).toBe(true)
+  })
+
+  it("gives off smoke and sparks only from the stoves and braziers near the camera, following it", () => {
+    const world = scene()
+    const camera = new FreeCamera("eye", new Vector3(20, 60, 0), world)
+    camera.computeWorldMatrix()
+    const sprite = new Texture(null, world)
+
+    const life = createTrenchLife(
+      world,
+      field,
+      {
+        braziers: [new Vector3(20, 3, 30), new Vector3(20, 3, 400)],
+        stoves: [new Vector3(20, 3, 30), new Vector3(20, 3, 400)]
+      },
+      { fire: sprite, ember: sprite, puff: sprite }
+    )
+    expect(life.smoke.emitRate).toBeCloseTo(1.2)
+    expect(life.embers.emitRate).toBeCloseTo(2.5)
+    expect(life.braziers).toHaveLength(2)
+
+    camera.position.set(20, 60, 900)
+    camera.computeWorldMatrix()
+    life.update(1)
+
+    expect(life.smoke.emitRate).toBe(0)
+    expect(life.embers.emitRate).toBe(0)
+    expect(life.smoke.isStarted()).toBe(true)
+    life.dispose()
   })
 })
