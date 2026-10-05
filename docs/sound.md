@@ -47,7 +47,8 @@ happen in the game but have no event or hook yet, or a hook that only plays a st
 - **Mix**: nobody has listened yet. Levels were set by measurement; the sound mixer panel (M, dev builds) is for setting
   them by ear, and its Copy button gives the values to ship in audio/tuning.ts. Battery reports under a heavy
   bombardment may be too dense, and the voice limit has no priority between kinds of sound beyond loudness.
-- **Close bullets**: rounds crack past and thud into the ground nearby (one recording, PMSFX), but there are no whizzes,
-  ricochets or hits on men, wood, stone or steel. The Warfare Library's downrange recordings gave none clean enough by
-  ear; The Recordist's Bullets 3 and BOOM's Silencers Construction Kit are the candidates
-  ([notes](research/notes/audio/whistles_and_bullets.md)). The flare and the incoming rush have no recording.
+- **Close bullets**: rounds crack, zip past, ricochet and strike earth, mud, snow, water, stone, wire and parapets (The
+  Recordist's Bullets 3), but nothing is heard of a round striking a man or a steel helmet: a flesh-impact library is
+  needed (SoundMorph "Gore" or 344 Audio's, [notes](research/notes/audio/whistles_and_bullets.md)). Bullets 3's rounds
+  are mostly subsonic, so the whizz plays only for the closest passes, under the supersonic crack. The flare and the
+  incoming rush have no recording.

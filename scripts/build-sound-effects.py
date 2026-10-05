@@ -47,6 +47,12 @@ WARFARE = "pole-position-warfare-library"
 DETONATIONS = f"{WARFARE}/Detonations and Explosions"
 SUPERTHUMP = "superthump-weapons-of-wwii"
 GDC = "sonniss-gdc"
+RECORDIST = "recordist-bullets-3"
+
+
+def bullets3(name, takes, number):
+    """A Bullets 3 recording: `takes` rounds striking or passing, a second or so apart."""
+    return (RECORDIST, f"BULLET {name} {takes}x BLT3_{number:03d}.wav")
 
 
 def boom_rifle(rifle, metres):
@@ -104,11 +110,89 @@ CUES = {
         tail=-30,
     ),
     # Rounds striking the ground close by.
+    # The rest of the bullets are The Recordist's real rounds, each recording several takes, chosen by ear.
     "bullet-impact": dict(
-        sources=[(GDC, "PM_BBI_Bullet_Impact_Dirt_3.wav")],
-        gap=0.5,
-        length=1.2,
-        take=1,
+        sources=[bullets3("Impact Dirt Soft Sand No Debris", 7, 125)],
+        gap=0.4,
+        length=1.5,
+        take=7,
+        floor=-40,
+    ),
+    # Rounds thumping into sodden ground.
+    "bullet-mud": dict(
+        sources=[bullets3("Impact Mud Hard Low End Thump", 8, 144)],
+        gap=0.4,
+        length=1.5,
+        take=8,
+        floor=-40,
+    ),
+    # Rounds glancing off the ground or a stone and whining away.
+    "bullet-ricochet": dict(
+        sources=[
+            bullets3("7.62x39mm Subsonic Impact Dirt Ricochet", 11, 59),
+            bullets3("Impact Dirt Ricochet Small Stone Debris", 8, 124),
+        ],
+        # Wide enough that a whine trailing off isn't taken for the next round.
+        gap=0.9,
+        length=2.5,
+        take=12,
+        floor=-40,
+    ),
+    # Rounds zipping past the listener close by.
+    "bullet-whizz": dict(
+        sources=[
+            bullets3("Incoming Projectile Pass By Fast Whiz Zip Rip", 5, 162),
+            bullets3("300 BLK Subsonic Pass By", 9, 24),
+        ],
+        gap=0.4,
+        length=1.5,
+        take=12,
+        floor=-40,
+    ),
+    # Rounds striking the stone and brick of Fleury's ruins.
+    "bullet-stone": dict(
+        sources=[
+            bullets3("223 Impact Rock Hard Snap No Debris", 12, 15),
+            bullets3("22 Cal Impact Rock Debris", 10, 1),
+        ],
+        gap=0.4,
+        length=1.5,
+        take=12,
+        floor=-40,
+    ),
+    # Rounds pinging off the wire and whining away.
+    "bullet-wire": dict(
+        sources=[bullets3("Incoming Projectile Pass By Sharp Whiz Ricochet", 5, 164)],
+        gap=0.4,
+        length=2.5,
+        take=5,
+        floor=-40,
+    ),
+    # Rounds striking a parapet's timber and sandbags.
+    "bullet-parapet": dict(
+        sources=[
+            bullets3("Impact Wood Wall Some Debris Scatter", 8, 154),
+            bullets3("Impact Wood Panel Debris Incoming Projectile", 9, 153),
+        ],
+        gap=0.4,
+        length=1.5,
+        take=12,
+        floor=-40,
+    ),
+    "bullet-snow": dict(
+        sources=[bullets3("22 Cal Subsonic Impact Snow Hard Some Soft Debris", 12, 13)],
+        gap=0.4,
+        length=1.5,
+        take=12,
+        floor=-40,
+    ),
+    # Rounds splashing into a flooded trench or a shell hole's pool.
+    "bullet-water": dict(
+        sources=[bullets3("7.62x39mm Subsonic Impact Water", 6, 72)],
+        gap=0.4,
+        length=1.5,
+        take=6,
+        floor=-40,
     ),
     # Field guns' shells outran their own sound: the crack of arrival and the burst come together, with no warning.
     "field-near": dict(

@@ -78,7 +78,13 @@ describe("createBattleSoundModel", () => {
       shot(french, { x: 100, z: 30 }, { x: 100, z: 190 }),
       shot(german, { x: 100, z: 190 }, { x: 100, z: 70 })
     )
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "bolt-fr", "rifle-de-far"])
+    // The German round flies on past its mark, straight over the listener.
+    expect(model.step(LISTENER).map((call) => call.cue)).toEqual([
+      "rifle-fr-near",
+      "bolt-fr",
+      "rifle-de-far",
+      "bullet-whizz"
+    ])
   })
 
   it("plays a nearby machine gun round by round, a distant one a burst at a time", () => {
@@ -103,10 +109,35 @@ describe("createBattleSoundModel", () => {
     const { sim, french, german } = battle()
     const model = createBattleSoundModel(sim, { soldier: () => french })
     happen(sim, shot(german, { x: 100, z: 190 }, { x: 102, z: 41 }))
-    expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-de-far", "crack"])
+    const calls = model.step(LISTENER)
+    // It cracks and zips past as it arrives, about 0.2 s after it's fired from 150 m off.
+    expect(calls.map((call) => call.cue)).toEqual(["rifle-de-far", "crack", "bullet-whizz"])
+    expect(calls[1]?.delay).toBeGreaterThan(0.19)
+    expect(calls[2]?.delay).toBeGreaterThan(0.19)
     sim.tick += TICK_RATE
     happen(sim, shot(french, { x: 100, z: 30 }, { x: 101, z: 41 }))
     expect(model.step(LISTENER).map((call) => call.cue)).toEqual(["rifle-fr-near", "bolt-fr"])
+  })
+
+  it("hears what each round strikes: the wire, a parapet, mud, snow, water, the ruins' stone, now and then a ricochet", () => {
+    const { sim, french } = battle()
+    const model = createBattleSoundModel(sim, { soldier: () => french, ruins: (x) => (x > 104 ? 1 : 0) })
+    let time = 0
+    const at = (x: number, on?: "ground" | "wire" | "parapet") =>
+      model.strike(LISTENER, x, LISTENER.z, (time += 1), on)?.cue
+    expect(at(101, "wire")).toBe("bullet-wire")
+    expect(at(101, "parapet")).toBe("bullet-parapet")
+    expect(at(106)).toBe("bullet-stone")
+    expect([at(101), at(101), at(101), at(101)]).toEqual([
+      "bullet-impact",
+      "bullet-impact",
+      "bullet-impact",
+      "bullet-ricochet"
+    ])
+    sim.environment.weather = { ...sim.environment.weather, wetness: 0.8, temperature: 10 }
+    expect(at(101)).toBe("bullet-mud")
+    sim.environment.weather = { ...sim.environment.weather, wetness: 0, snowCover: 10 }
+    expect(at(101)).toBe("bullet-snow")
   })
 
   it("hears rounds strike the ground nearby as they land, not one on top of another", () => {

@@ -31,6 +31,14 @@ export const SOUND_CUES = [
   "mg-far",
   "crack",
   "bullet-impact",
+  "bullet-mud",
+  "bullet-ricochet",
+  "bullet-whizz",
+  "bullet-stone",
+  "bullet-wire",
+  "bullet-parapet",
+  "bullet-snow",
+  "bullet-water",
   "field-near",
   "field-far",
   "heavy-near",
@@ -188,6 +196,14 @@ const LEVELS: Readonly<Record<SoundCue, { readonly volume: number; readonly refe
   "mg-far": { volume: 0.6, reference: 80 },
   crack: { volume: 0.45, reference: 10 },
   "bullet-impact": { volume: 0.5, reference: 8 },
+  "bullet-mud": { volume: 0.5, reference: 8 },
+  "bullet-ricochet": { volume: 0.5, reference: 12 },
+  "bullet-whizz": { volume: 0.5, reference: 4 },
+  "bullet-stone": { volume: 0.5, reference: 8 },
+  "bullet-wire": { volume: 0.45, reference: 10 },
+  "bullet-parapet": { volume: 0.5, reference: 8 },
+  "bullet-snow": { volume: 0.45, reference: 8 },
+  "bullet-water": { volume: 0.5, reference: 8 },
   "field-near": { volume: 1, reference: 40 },
   "field-far": { volume: 0.9, reference: 150 },
   "heavy-near": { volume: 1, reference: 60 },
@@ -270,6 +286,27 @@ const CRACK_INTERVAL = 0.1
  */
 const IMPACT_RADIUS = 15
 const IMPACT_INTERVAL = 0.08
+/** What a round struck, as the gunfire effect reports it (effects/tracers.ts). */
+export type StrikeSurface = "ground" | "wire" | "parapet"
+/** One round in RICOCHET_EVERY striking open ground glances off it and whines away. */
+const RICOCHET_EVERY = 4
+/** Ground this wet (weather wetness, 0 to 1) and not frozen takes a round with a muddy thump; a trench floor floods. */
+const MUDDY = 0.5
+const FROZEN = -2
+/** Snow lying this deep, in millimetres of water, takes a round with a soft crump. */
+const SNOWY = 3
+/** Ruins this dense where a round lands (0 to 1) have it strike stone and brick. */
+const STONY = 0.4
+/** A rifle or machine-gun round's speed, in m/s, as the gunfire effect flies it: cracks and whizzes wait for it. */
+const BULLET_SPEED = 750
+/**
+ * Rounds passing within WHIZZ_RADIUS of the listener, from further off than CRACK_MIN_RANGE, zip by, at most one this
+ * often (seconds). The gunfire effect
+ * flies misses on past their mark; this many metres beyond it are listened along.
+ */
+const WHIZZ_RADIUS = 4
+const WHIZZ_INTERVAL = 0.12
+const WHIZZ_BEYOND = 60
 /**
  * Heavy howitzer shells were slow enough to be heard coming. Their rush starts this many seconds before landing (the
  * length of the incoming-heavy recordings) for shells landing within INCOMING_RANGE. Field shells outran their sound.
@@ -408,10 +445,11 @@ export interface BattleSoundModel {
   /** The sounds of the step the simulation just took, heard from `listener`. Call after every step. */
   step(listener: Listener): SoundCall[]
   /**
-   * The thud of a round striking the ground at (x, z), heard from `listener`, or null when it lands too far off or
-   * too soon after the last. `time` is in seconds on the clock the strikes are reported on.
+   * The sound of a round striking `on` at (x, z), heard from `listener`, or null when it lands too far off or too soon
+   * after the last: a thud into earth, mud, snow or water, a crack off the ruins' stone, a ping off the wire, a thump
+   * into a parapet, and now and then a ricochet. `time` is in seconds on the clock the strikes are reported on.
    */
-  strike(listener: Listener, x: number, z: number, time: number): SoundCall | null
+  strike(listener: Listener, x: number, z: number, time: number, on?: StrikeSurface): SoundCall | null
   /** Whether the soldier the player controls has his mask on, so his breathing is heard through it. */
   breathingInMask(): boolean
   /** Whether the soldier the player controls is pinned down, breathing short and hard (and not in his mask). */
@@ -426,6 +464,8 @@ export interface BattleSoundModel {
 export interface BattleSoundOptions {
   /** The soldier the player controls, or null when there's none. */
   readonly soldier: () => EntityId | null
+  /** How dense the ruins are at a point, from 0 to 1, where rounds strike stone; open ground everywhere unless given. */
+  readonly ruins?: (x: number, z: number) => number
 }
 
 /**
@@ -438,7 +478,7 @@ export interface BattleSoundOptions {
  * they're hit, as they're pinned down, and as they break; leaders shout their orders and blow their whistles at
  * zero hour; men give themselves up, and a side cheers as it takes ground.
  */
-export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSoundOptions): BattleSoundModel {
+export function createBattleSoundModel(sim: Simulation, { soldier, ruins }: BattleSoundOptions): BattleSoundModel {
   const heardShells = new WeakSet<ShellInFlight>(sim.artillery.shells)
   const rushing = new WeakSet<ShellInFlight>()
   let fallen = new Set(fallenIds(sim))
@@ -449,6 +489,9 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
   let lastGasAlarm = -Infinity
   let masksNear = 0
   let lastImpact = -Infinity
+  let lastWhizz = -Infinity
+  let strikes = 0
+  const pools = sim.map.scenery.filter(({ kind }) => kind === "pool")
   let shock = 0
   let lastPain = -Infinity
   const health = Float32Array.from(sim.soldiers.health.value)
@@ -568,10 +611,16 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
           push(calls, place(listener, `bolt-${side}`, from.x, from.z, BOLT_DELAY))
         }
       }
+      // The round outruns the report: its crack comes first, as it arrives.
+      const flight = Math.hypot(to.x - from.x, to.z - from.z) / BULLET_SPEED
       if (crackPast(listener, from, to) && now - lastCrack >= CRACK_INTERVAL) {
         lastCrack = now
-        // The round outruns the report: its crack comes first.
-        push(calls, place(listener, "crack", to.x, to.z))
+        push(calls, place(listener, "crack", to.x, to.z, flight))
+      }
+      const pass = event.hit ? null : closestPass(listener, from, to)
+      if (pass && pass.miss < WHIZZ_RADIUS && pass.along > CRACK_MIN_RANGE && now - lastWhizz >= WHIZZ_INTERVAL) {
+        lastWhizz = now
+        push(calls, place(listener, "bullet-whizz", pass.x, pass.z, pass.along / BULLET_SPEED))
       }
     }
   }
@@ -824,6 +873,35 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
     masksNear = masked
   }
 
+  /** What a round sounds like striking `on` at (x, z): the wire, a parapet, or the ground as it lies there now. */
+  function strikeCue(x: number, z: number, on: StrikeSurface): SoundCue {
+    if (on === "wire") {
+      return "bullet-wire"
+    }
+    if (on === "parapet") {
+      return "bullet-parapet"
+    }
+    const { wetness, temperature, snowCover } = sim.environment.weather
+    const sodden = wetness >= MUDDY && temperature >= FROZEN
+    if (
+      pools.some((pool) => Math.hypot(pool.x - x, pool.z - z) < pool.scale) ||
+      (sodden && isInTrench(sim.map, x, z))
+    ) {
+      return "bullet-water"
+    }
+    if (snowCover >= SNOWY) {
+      return "bullet-snow"
+    }
+    if ((ruins?.(x, z) ?? 0) >= STONY) {
+      return "bullet-stone"
+    }
+    strikes++
+    if (strikes % RICOCHET_EVERY === 0) {
+      return "bullet-ricochet"
+    }
+    return sodden ? "bullet-mud" : "bullet-impact"
+  }
+
   return {
     step(listener) {
       occlusionChecks = 0
@@ -841,12 +919,12 @@ export function createBattleSoundModel(sim: Simulation, { soldier }: BattleSound
       gasAlarm(listener, calls)
       return calls
     },
-    strike(listener, x, z, time) {
+    strike(listener, x, z, time, on = "ground") {
       if (Math.hypot(x - listener.x, z - listener.z) >= IMPACT_RADIUS || time - lastImpact < IMPACT_INTERVAL) {
         return null
       }
       lastImpact = time
-      return place(listener, "bullet-impact", x, z, 0, 0)
+      return place(listener, strikeCue(x, z, on), x, z, 0, 0)
     },
     takeShock() {
       const taken = shock
@@ -875,6 +953,30 @@ function crackPast(listener: Listener, from: WorldPoint, to: WorldPoint): boolea
     Math.hypot(to.x - listener.x, to.z - listener.z) < CRACK_RADIUS &&
     Math.hypot(from.x - listener.x, from.z - listener.z) > CRACK_MIN_RANGE
   )
+}
+
+/**
+ * Where a round's flight from `from`, through `to` and on beyond it, passes nearest the listener: that point, how far
+ * it flew to get there, and how far it missed by. Null when it passes nearest before it was fired.
+ */
+function closestPass(
+  listener: Listener,
+  from: WorldPoint,
+  to: WorldPoint
+): { x: number; z: number; along: number; miss: number } | null {
+  const dx = to.x - from.x
+  const dz = to.z - from.z
+  const length = Math.hypot(dx, dz)
+  if (length === 0) {
+    return null
+  }
+  const along = Math.min(length + WHIZZ_BEYOND, ((listener.x - from.x) * dx + (listener.z - from.z) * dz) / length)
+  if (along <= 0) {
+    return null
+  }
+  const x = from.x + (dx / length) * along
+  const z = from.z + (dz / length) * along
+  return { x, z, along, miss: Math.hypot(listener.x - x, listener.z - z) }
 }
 
 function push(calls: SoundCall[], call: SoundCall | null): void {

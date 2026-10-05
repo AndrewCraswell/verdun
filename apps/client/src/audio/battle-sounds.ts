@@ -12,7 +12,8 @@ import {
   listenerSpace,
   type SoundCall,
   SOUND_CUES,
-  type SoundCue
+  type SoundCue,
+  type StrikeSurface
 } from "./battle-sound-model.ts"
 import { createFootstepModel } from "./footstep-model.ts"
 import { createLevelSoundModel, fireLevel, type LevelSources } from "./level-sound-model.ts"
@@ -90,8 +91,11 @@ export interface BattleSounds {
   step(): void
   /** Keeps continuous sounds, such as breathing in a gas mask, in step with the battle. Call every frame. */
   update(): void
-  /** Plays the thud of a round striking the ground at (x, z), as its dirt flies; `time` in seconds on the strikes' clock. */
-  strike(x: number, z: number, time: number): void
+  /**
+   * Plays the sound of a round striking `on` at (x, z) (the ground, the wire or a parapet) as its dirt or sparks fly;
+   * `time` in seconds on the strikes' clock.
+   */
+  strike(x: number, z: number, time: number, on?: StrikeSurface): void
   /** How heavy the fighting along the front is, 0 to 1. */
   fighting(): number
   dispose(): void
@@ -193,7 +197,6 @@ async function startBattleSounds(
     void import("../dev/sound-mixer.ts").then(({ installSoundMixer }) => installSoundMixer(mixer))
   }
   const decoded = await decodeAll(mixer.context, files)
-  const model = createBattleSoundModel(sim, options)
   const atmosphere = createAtmosphereModel(sim, { ownThunder: !options.lightning })
   const bed = (cue: keyof typeof BED_VOLUMES): Bed | null => {
     const buffer = decoded.get(cue)?.[0]
@@ -211,6 +214,7 @@ async function startBattleSounds(
   }
   const level = options.level ? createLevelSoundModel(options.level) : null
   const ruins = ambienceZones(sim.map).ruins
+  const model = createBattleSoundModel(sim, { ...options, ruins })
   const footsteps = createFootstepModel(sim, ruins)
   let breathing: AudioBufferSourceNode | null = null
   let panting: AudioBufferSourceNode | null = null
@@ -319,8 +323,8 @@ async function startBattleSounds(
         breathing = null
       }
     },
-    strike(x, z, time) {
-      const call = model.strike(listenerOf(camera), x, z, time)
+    strike(x, z, time, on) {
+      const call = model.strike(listenerOf(camera), x, z, time, on)
       if (call) {
         play(call)
       }
