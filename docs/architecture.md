@@ -93,9 +93,11 @@ before, for development and `pnpm perf`.
   centimetre and their facing, morale, suppression and breath to the hundredth, so a value that ebbs a little every step
   is sent only when it has changed enough to tell; other men's morale and suppression go in twentieths, which is all
   their poses and sounds use, and where they are by dead reckoning (below). Gas and smoke go as a byte a cell on a log
-  scale (about 7% a step), and a cell moves a step only once the cloud has moved it two, so cells on the edge between
-  steps don't flicker. The ground a late joiner gets is how far shells have moved each sample, in millimetres, against
-  the map they generate themselves. Commands go in Colyseus's own encoding.
+  scale (gas from 0.05 in steps of about 7%, smoke from 0.5, fainter than the page draws, in steps of about 14%), and a
+  cell moves a step only once the cloud has moved it two, so cells on the edge between steps don't flicker. Smoke goes
+  twice a second (`SMOKE_EVERY`), and the page eases it from one to the next (`cloud-easing.ts`). The ground a late
+  joiner gets is how far shells have moved each sample, in millimetres, against the map they generate themselves.
+  Commands go in Colyseus's own encoding.
 - **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
   their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
   keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
@@ -210,10 +212,11 @@ What it said, and what was done about it:
 - **Dead reckoning**, with facing as a byte, took it to 40 KB/s (positions and facing from 22 to 16 KB/s, though every
   bot in the test turns every second); letting other men drift 15 cm rather than 5, and sending their morale and
   suppression in twentieths, to 37 KB/s (39 at most).
-- **What players are sent now**, per message: soldiers' arrays about 42% (their anchors, paces and facing 30%), smoke 16
-  to 23%, events 12 to 14%. Smoke goes to everyone whole, in every message it drifts: sending it at a lower rate, or by
-  cells as the soldiers are, is the next saving.
-- **Hosting**: at 100 players a sector sends about 3.6 MB/s (30 Mbit/s), which matters for Railway's egress pricing.
+- **Smoke twice a second, from 0.5 in coarser steps**, took it to 29 KB/s (31 at most): smoke from 6 to 8 KB/s to 1.4.
+  Measured on a bombardment alone, sending it every fifth message halved it, and the coarser scale halved it again.
+- **What players are sent now**, per message: soldiers' arrays about 55% (their anchors, paces and facing 40%), events
+  17%, smoke 5%.
+- **Hosting**: at 100 players a sector sends about 2.8 MB/s (23 Mbit/s), which matters for Railway's egress pricing.
 - **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
   over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
   algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module

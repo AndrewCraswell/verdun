@@ -19,6 +19,7 @@ import {
   type WarSchedule
 } from "@verdun/sim"
 import { createTerrainSight } from "../fog/terrain-sight.ts"
+import { createCloudEasing } from "./cloud-easing.ts"
 import { createPrediction } from "./prediction.ts"
 import type { SimHost, StepTaken } from "./sim-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
@@ -101,6 +102,8 @@ export async function serverHost(
   let decoder: SyncDecoder | null = null
   const prediction = createPrediction(mirror)
   const smoothing = createSmoothing(mirror)
+  // The smoke comes twice a second: the page shows it drifting between.
+  const smoke = createCloudEasing(mirror.smoke)
   // The page's own steps, at the simulation's rate: what its commands are given at, and its prediction runs to.
   const clock = createFixedStepper(STEP_SECONDS, Number.MAX_SAFE_INTEGER)
   let step = 0
@@ -126,7 +129,9 @@ export async function serverHost(
       return
     }
     const sync = decoder.decode(bytesOf(payload))
+    smoke.synced(now(), sync.smoke.concentration)
     applySync(mirror, sync)
+    smoke.advance(now())
     smoothing.synced(now(), controlled())
     prediction.synced(sync.tick)
     prediction.predict(step, controlled())
@@ -173,6 +178,7 @@ export async function serverHost(
       }
       prediction.predict(step, playerSquad.leader)
       smoothing.advance(at, playerSquad.leader)
+      smoke.advance(at)
       const taken = arrived
       arrived = []
       return taken

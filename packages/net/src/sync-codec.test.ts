@@ -21,7 +21,7 @@ import { Packr } from "msgpackr"
 import { describe, expect, it } from "vitest"
 import { groundMovement } from "./ground-movement.ts"
 import { DRIFT } from "./reckoning.ts"
-import { createSyncEncoder, decodeJoined, FAR_EVERY } from "./sync-codec.ts"
+import { createSyncEncoder, decodeJoined, FAR_EVERY, SMOKE_EVERY } from "./sync-codec.ts"
 
 function battlefield() {
   const map = createFlatMap({ name: "field", cellSize: 0.5, columns: 300, rows: 300 }, 5, Surface.Grass)
@@ -106,12 +106,16 @@ function steps(sim: Simulation, source: SyncSource, count: number) {
   }
 }
 
-/** The clouds come to within a step and a half of their scale, about 11%, or clear air: see `settled`. */
-function closeCloud(mirrored: readonly number[], real: readonly number[]) {
+/**
+ * The clouds come to within a step and a half of their scale, or clear air below its floor (see `settled`): gas in
+ * steps of about 7% from 0.05, smoke in steps of about 14% from 0.5.
+ */
+function closeCloud(mirrored: readonly number[], real: readonly number[], share = 0.11, floor = 0.05) {
   real.forEach((value, cell) => {
-    expect(Math.abs((mirrored[cell] ?? 0) - value)).toBeLessThanOrEqual(value * 0.11 + 0.05)
+    expect(Math.abs((mirrored[cell] ?? 0) - value)).toBeLessThanOrEqual(value * share + floor)
   })
 }
+const closeSmoke = (mirrored: readonly number[], real: readonly number[]) => closeCloud(mirrored, real, 0.23, 0.5)
 
 const NOW = Date.UTC(2027, 5, 10, 18)
 const schedule = scheduleForWeek(Date.UTC(1916, 5, 20), NOW)
@@ -137,15 +141,21 @@ describe("the battle's messages", () => {
 
     let gas = 0
     let smoke = 0
+    // Messages with gas in them, and with smoke: smoke goes only every few.
+    let gasSent = 0
+    let smokeSent = 0
     for (let message = 0; message < 150; message++) {
       steps(sim, source, 2)
-      applySync(
-        mirror,
-        joined.decoder.decode(encoder.encode(source.take()).for("player", to(EVERY_CELL, soldierIds(sim))))
-      )
+      const sync = joined.decoder.decode(encoder.encode(source.take()).for("player", to(EVERY_CELL, soldierIds(sim))))
+      applySync(mirror, sync)
+      gasSent += sync.gas.concentration ? 1 : 0
+      smokeSent += sync.smoke.concentration ? 1 : 0
       gas = Math.max(gas, ...mirror.gas.concentration)
       smoke = Math.max(smoke, ...mirror.smoke.concentration)
     }
+    expect(smokeSent).toBeGreaterThan(0)
+    expect(smokeSent).toBeLessThanOrEqual(150 / SMOKE_EVERY)
+    expect(gasSent).toBeGreaterThan(smokeSent)
 
     const { gas: realGas, smoke: realSmoke, ...real } = comparable(sim)
     const { gas: mirroredGas, smoke: mirroredSmoke, ...mirrored } = comparable(mirror)
@@ -155,7 +165,7 @@ describe("the battle's messages", () => {
     expect(gas).toBeGreaterThan(0)
     expect(smoke).toBeGreaterThan(0)
     closeCloud(mirroredGas, realGas)
-    closeCloud(mirroredSmoke, realSmoke)
+    closeSmoke(mirroredSmoke, realSmoke)
   })
 
   it("send the cells near a player's men every message, and the rest every few, each building on what they have", () => {
@@ -259,7 +269,8 @@ describe("the battle's messages", () => {
     const source = createSyncSource(sim)
     const encoder = encoderFor(sim)
     const generated = { heights: sim.map.heights.slice(), surfaces: sim.map.surfaces.slice() }
-    for (let message = 0; message < 62; message++) {
+    // Through to a message the smoke goes in.
+    for (let message = 0; message < 64; message++) {
       steps(sim, source, 2)
       encoder.encode(source.take())
     }
@@ -280,7 +291,7 @@ describe("the battle's messages", () => {
     const { gas: mirroredGas, smoke: mirroredSmoke, ...mirrored } = comparable(mirror)
     expectClose(mirrored, real)
     closeCloud(mirroredGas, gas)
-    closeCloud(mirroredSmoke, smoke)
+    closeSmoke(mirroredSmoke, smoke)
     mirror.map.heights.forEach((height, sample) => expect(height).toBeCloseTo(sim.map.heights[sample] ?? 0, 3))
   })
 

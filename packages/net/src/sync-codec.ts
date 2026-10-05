@@ -136,25 +136,48 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
 /**
- * Gas and smoke go to players as a byte a cell, on a logarithmic scale: 0 is clear air (below `CLOUD_FLOOR`, which the
- * simulation counts as negligible), and each step above is about 7% more, up past anything a barrage makes. What a
- * player does with a cloud (draw it, warn of gas, judge what the smoke hides) needs no finer, and a cloud drifting
- * changes far fewer of these steps than of its exact values.
+ * Gas and smoke go to players as a byte a cell, on a logarithmic scale: 0 is clear air, below the scale's `floor`, and
+ * each level above is `step` (in natural log) more, up past anything a barrage makes. What a player does with a cloud
+ * (draw it, warn of gas, judge what the smoke hides) needs no finer, and a cloud drifting changes far fewer of these
+ * levels than of its exact values.
  */
-const CLOUD_FLOOR = 0.05
-const CLOUD_STEP = Math.log(2e7) / 254
-const CLOUD_LEVELS = Float32Array.from({ length: 256 }, (_, level) =>
-  level === 0 ? 0 : CLOUD_FLOOR * Math.exp((level - 1) * CLOUD_STEP)
-)
+interface CloudScale {
+  readonly floor: number
+  readonly step: number
+  /** Each level's concentration. */
+  readonly levels: Float32Array
+}
 
-function quantize(concentration: Float32Array): Uint8Array {
+function cloudScale(floor: number, step: number): CloudScale {
+  return {
+    floor,
+    step,
+    levels: Float32Array.from({ length: 256 }, (_, level) => (level === 0 ? 0 : floor * Math.exp((level - 1) * step)))
+  }
+}
+
+/** Gas from what the simulation counts as negligible (0.05), in steps of about 7%: a whiff can still be dangerous. */
+const GAS_SCALE = cloudScale(0.05, Math.log(2e7) / 254)
+/**
+ * Smoke from 0.5, in steps of about 14%. Fainter smoke isn't drawn (the page draws from 2), and across a whole 300 m
+ * sight line dims it to a quarter of what blinds a man; on the page's log scale of drawing a step is under 3%.
+ */
+const SMOKE_SCALE = cloudScale(0.5, (2 * Math.log(2e7)) / 254)
+const SCALES = { gas: GAS_SCALE, smoke: SMOKE_SCALE } as const
+/**
+ * Smoke goes to players every this many messages, twice a second: it drifts slowly, the page eases it from one to the
+ * next (server-host.ts), and sent every message it was the biggest single part of them.
+ */
+export const SMOKE_EVERY = 5
+
+function quantize(concentration: Float32Array, { floor, step }: CloudScale): Uint8Array {
   return Uint8Array.from(concentration, (value) =>
-    value < CLOUD_FLOOR ? 0 : Math.min(255, 1 + Math.round(Math.log(value / CLOUD_FLOOR) / CLOUD_STEP))
+    value < floor ? 0 : Math.min(255, 1 + Math.round(Math.log(value / floor) / step))
   )
 }
 
-function dequantize(levels: Uint8Array): Float32Array {
-  return Float32Array.from(levels, (level) => CLOUD_LEVELS[level] ?? 0)
+function dequantize(levels: Uint8Array, scale: CloudScale): Float32Array {
+  return Float32Array.from(levels, (level) => scale.levels[level] ?? 0)
 }
 
 /**
@@ -171,12 +194,20 @@ function settled(levels: Uint8Array, known: Uint8Array | null): Uint8Array {
   })
 }
 
-function cloud(sent: SimSync["gas"], known: CloudView | undefined): CloudView {
+/**
+ * A cloud as players are sent it, from what the simulation sent and what players were last sent. `due` is false
+ * between the messages the cloud's concentration goes in: only the ground under it, reshaped by craters, goes at once.
+ */
+function cloud(sent: SimSync["gas"], known: CloudView | undefined, scale: CloudScale, due: boolean): CloudView {
   const last = known?.concentration ?? null
+  const ground = sent.ground ?? known?.ground ?? null
+  if (known && !due) {
+    return { ...known, ground }
+  }
   return {
     active: sent.active,
-    concentration: sent.concentration ? settled(quantize(sent.concentration), last) : last,
-    ground: sent.ground ?? known?.ground ?? null
+    concentration: sent.concentration ? settled(quantize(sent.concentration, scale), last) : last,
+    ground
   }
 }
 
@@ -301,7 +332,8 @@ function packed(mirrored: Mirrored, layout: ArrayLayout, soldiers: number): Arra
   return bytes.buffer
 }
 
-function globalOf(sync: SimSync, known: GlobalView | null): GlobalView {
+/** The global view as of `sync`, the smoke's concentration only if `smokeDue`. */
+function globalOf(sync: SimSync, known: GlobalView | null, smokeDue: boolean): GlobalView {
   const members: Record<string, Uint8Array> = {}
   for (const [name, ids] of Object.entries(sync.members)) {
     const flags = new Uint8Array(sync.soldiers)
@@ -316,8 +348,8 @@ function globalOf(sync: SimSync, known: GlobalView | null): GlobalView {
     members,
     state: sync.state,
     wire: sync.wire ?? known?.wire ?? null,
-    gas: cloud(sync.gas, known?.gas),
-    smoke: cloud(sync.smoke, known?.smoke)
+    gas: cloud(sync.gas, known?.gas, GAS_SCALE, true),
+    smoke: cloud(sync.smoke, known?.smoke, SMOKE_SCALE, smokeDue)
   }
 }
 
@@ -365,7 +397,7 @@ function syncOf(
     const concentration = view[name].concentration
     return {
       active: view[name].active,
-      concentration: field(changed, "concentration") && concentration ? dequantize(concentration) : null,
+      concentration: field(changed, "concentration") && concentration ? dequantize(concentration, SCALES[name]) : null,
       ground: field(changed, "ground") ? view[name].ground : null
     }
   }
@@ -533,7 +565,7 @@ export function createSyncEncoder(
   return {
     grid,
     encode(sync, sight = null) {
-      const nextGlobal = globalOf(sync, global)
+      const nextGlobal = globalOf(sync, global, messages % SMOKE_EVERY === 0)
       const globalPart = pack({ v: diff(global, nextGlobal), s: sync.steps, g: sync.ground })
       global = nextGlobal
       const previous = arrays
