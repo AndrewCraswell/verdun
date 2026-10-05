@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import type { SoundCue } from "../audio/battle-sound-model.ts"
 import type { CaptionMode } from "../settings/play.ts"
+import { CAPTION_LINES } from "./caption-lines.ts"
 import { captionOf, createCaptions, type HeardSound } from "./captions.ts"
 
 describe("captions", () => {
@@ -23,6 +25,24 @@ describe("captions", () => {
       key: "voice-follow-fr:7"
     })
     expect(captionOf("voices", { ...call, speaker: 9 }, "fr", nameOf)?.who).toBe("Ours, ahead")
+  })
+
+  it("matches the take that played, word for word, and knows every line recorded", () => {
+    expect(
+      captionOf("voices", { cue: "voice-charge-fr", volume: 0.5, pan: 0, line: "fr-charge-4" }, "fr")
+    ).toMatchObject({ text: "On your feet, you dead!", words: "Debout les morts !" })
+    const recorded: unknown = JSON.parse(
+      readFileSync(new URL("../../../../scripts/voice-lines.json", import.meta.url), "utf8")
+    )
+    const lines =
+      typeof recorded === "object" && recorded !== null && "lines" in recorded && Array.isArray(recorded.lines)
+        ? recorded.lines
+        : []
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      const id: unknown = typeof line === "object" && line !== null && "id" in line ? line.id : null
+      expect(typeof id === "string" && id in CAPTION_LINES, `a caption for ${String(id)}`).toBe(true)
+    }
   })
 
   it("captions warning sounds only when asked, and nothing too faint or switched off", () => {

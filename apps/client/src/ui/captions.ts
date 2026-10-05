@@ -1,6 +1,7 @@
 import type { EntityId } from "@verdun/sim"
 import type { SoundCue } from "../audio/battle-sound-model.ts"
 import type { CaptionMode } from "../settings/play.ts"
+import { CAPTION_LINES } from "./caption-lines.ts"
 
 /**
  * Captions (docs/design/interface.md#accessibility): every shout heard, with who and where it comes from and what it
@@ -67,6 +68,8 @@ export interface HeardSound {
   readonly volume: number
   readonly pan: number
   readonly speaker?: EntityId
+  /** The take that played, by its id in scripts/voice-lines.json, so the caption matches it word for word. */
+  readonly line?: string
 }
 
 /**
@@ -90,12 +93,13 @@ export function captionOf(
       return null
     }
     const name = call.speaker === undefined ? null : nameOf(call.speaker)
+    const take = call.line === undefined ? undefined : CAPTION_LINES[call.line]
     const side = language === ourLanguage ? "Ours" : "The enemy"
     return {
       key: name ? `${call.cue}:${call.speaker}` : call.cue,
       who: `${name ?? side}, ${direction(call.pan)}`,
-      text: shout.text,
-      words: shout[language],
+      text: take?.meaning ?? shout.text,
+      words: take?.words ?? shout[language],
       kind: "voice"
     }
   }
