@@ -198,10 +198,10 @@ The crowd can't blend, so a change of stance snaps unless a clip carries it.
 ## Not in Mixamo
 
 - **Hands up** for a man giving himself up, and for prisoners standing and walking. Nothing in the catalogue raises both
-  arms. Pose the arms up in Blender and lay them over the idle and the walk, the way the bake fakes the crouched walk.
+  arms. Made: retarget-animations.py keys `hands_up` and `hands_up_walk`, the idle and the walk with the arms raised.
 - **Pulling on a gas mask.** Nothing close.
-- **Working a rifle's bolt.** Mixamo's firing clips have a modern rifle's kick and nothing more. The bolt could be added
-  by hand to the end of each firing clip.
+- **Working a rifle's bolt.** Mixamo's firing clips have a modern rifle's kick and nothing more. Made: the script keys
+  the bolt worked after each shot, standing, crouched and prone (`fire_bolt_*`), the rifle held in the left hand.
 - **A gunner behind a tripod machine gun**, sitting or lying. The kneeling idle stands in.
 
 ## What the game needs besides the clips
@@ -215,6 +215,11 @@ Mixamo bone map retargets them, and
 - **Turning on the spot**: a man still and at ease whose facing swings 36 degrees or more plays the turn that comes
   nearest, his drawn facing held until it's done; a man aiming turns smoothly to keep his sights on.
 - **Changing stance**: standing, crouching and lying go up and down by a kneel.
+- **Reloading**: Mixamo's reloads, standing, crouched and prone, while the simulation has him reloading, spread over its
+  reload time but no slower than 1/1.6 of their own pace. They're a box magazine's, not a Lebel's tube or a Gewehr 98's
+  charger clip. A machine gunner feeds his gun kneeling, as he fires it.
+- **Firing a bolt-action rifle**, **prisoners' hands up**, and the **fence vault**: Mixamo's vault with both hands
+  planted, over in the 1.25 s the simulation now takes on a fence.
 
 A scramble up a trench wall or a crater's lip plays Mixamo's climb up a slope. Its pull up onto a ledge is left out: it
 starts hanging from a ledge 2.2 m up while the simulation lifts the man as well, so it would need its own rise taken out

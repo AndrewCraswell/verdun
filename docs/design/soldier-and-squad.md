@@ -13,8 +13,8 @@ Built in M2–M3.
 - **Walls are walls.** A man slides along a trench wall he walks into rather than creeping up it (`body.ts`). A player's
   man climbs a ledge up to 1.3 m (the fire step, the parapet from the step, a crater lip) only by heading straight at
   it; a higher wall, or a wire fence, takes Space. Bots on an order climb what their route takes them over, and vault a
-  fence or wall their way would otherwise have them wade or scramble. Getting over a fence takes 3 s. Ruins, walls and
-  trees are solid, and men ease apart rather than stand inside each other.
+  fence or wall their way would otherwise have them wade or scramble. Getting over a fence takes 1.25 s, a bound with
+  both hands on the top wire. Ruins, walls and trees are solid, and men ease apart rather than stand inside each other.
 - **Follow files through trenches.** In a trench the squad follows its leader in single file, 2 m apart, up onto the
   fire step when he is; in the open it forms behind the way he walks and halts where it is when he stops.
 - **Switching is instant** (Tab, or 1–8 for a squad slot). The soldier you leave returns to the AI under the squad's

@@ -18,7 +18,16 @@ import type { Scene } from "@babylonjs/core/scene"
 import { Side } from "@verdun/sim"
 import { type KitFiles, openKitFiles } from "../level/kit-files.ts"
 import { marksSoldier } from "../render/marker-stencil.ts"
-import { AIM_LAYERS, AIMING, type BakedClip, CLIPS, type ClipName, DEATHS, IDLE } from "./soldier-animation.ts"
+import {
+  AIM_LAYERS,
+  AIMING,
+  type BakedClip,
+  BOLT_FIRES,
+  CLIPS,
+  type ClipName,
+  DEATHS,
+  IDLE
+} from "./soldier-animation.ts"
 
 /** The soldier models and their baked animation, as scripts/build-level-kit.py builds them into soldier.glb. */
 export interface SoldierKit {
@@ -332,6 +341,9 @@ export function bakeClips(
   const placed = new Matrix()
   const rifle = new Matrix()
   const heldBy = new Matrix()
+  // The rifle in the left hand, for a bolt worked: the right hand leaves the grip, the left holds on.
+  const heldByLeft = new Matrix()
+  const leftPlaced = new Matrix()
   const hipsAt = Vector3.Zero()
   const hipsFrom = Vector3.Zero()
   const joint = Vector3.Zero()
@@ -347,6 +359,7 @@ export function bakeClips(
   let row = 0
   for (const { name, group, frames, upper } of rows) {
     const oneHanded = ONE_HANDED.test(name) || DEATHS.has(name)
+    const leftHeld = BOLT_FIRES.has(name)
     // Where an aiming clip points the rifle, summed over its frames: the soldier is turned to put that ahead.
     let aimX = 0
     let aimZ = 0
@@ -387,7 +400,17 @@ export function bakeClips(
         const gripped = span >= GRIP_SPAN.min && span <= GRIP_SPAN.max
         // The right hand in the world: the rifle is carried by it whenever the left isn't on it.
         gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
-        if (gripped && (!oneHanded || frame === 0)) {
+        if (leftHeld) {
+          // Between the palms as the shot begins, then wherever the left hand takes it.
+          forendHand.wrist.getFinalMatrix().multiplyToRef(world, leftPlaced)
+          if (frame === 0) {
+            rifleBetween(grip, forend, rifle)
+            leftPlaced.invertToRef(bone)
+            rifle.multiplyToRef(bone, heldByLeft)
+          } else {
+            heldByLeft.multiplyToRef(leftPlaced, rifle)
+          }
+        } else if (gripped && (!oneHanded || frame === 0)) {
           rifleBetween(grip, forend, rifle)
           placed.invertToRef(bone)
           rifle.multiplyToRef(bone, heldBy)

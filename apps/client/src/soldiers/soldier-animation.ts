@@ -3,7 +3,9 @@ import { Stance, Weapon } from "@verdun/sim"
 /**
  * The soldiers' clips are Mixamo's, retargeted onto the Synty rig by scripts/retarget-animations.py from the files
  * scripts/soldier-clips.txt lists, each named after its file in snake case (docs/assets/mixamo-clips.md has them all).
- * `climb_over` is Mixamo's jump over an obstacle with both hands planted, renamed by the script.
+ * `climb_over` is Mixamo's jump over an obstacle with both hands planted, renamed by the script. The script keys some
+ * itself: `hands_up` and `hands_up_walk`, a prisoner's, since Mixamo has no one giving himself up, and the `BOLT_FIRES`,
+ * Mixamo's shots with the bolt worked after them, since its rifles are self-loading.
  */
 
 /** Walks clockwise from straight ahead, eighth turns apart, as `headingClip` picks them: Mixamo's Pro Rifle Pack. */
@@ -110,6 +112,18 @@ const DEATHS_CROUCHING = [
   "rifle_kneeling_getting_hit_to_back"
 ] as const
 const DEATH_PRONE = "dying_from_a_prone_position"
+/** A shot and the bolt worked after it, by stance: the right hand leaves the rifle, which the left holds on to. */
+export const BOLT_FIRES: ReadonlySet<ClipName> = new Set([
+  "fire_bolt_standing",
+  "fire_bolt_crouched",
+  "fire_bolt_prone"
+])
+/** Reloading, by stance: Mixamo's are a box magazine's, spread over the simulation's reload. */
+const RELOADS = {
+  standing: "reloading_rifle_while_standing",
+  crouching: "reload_rifle_while_in_crouch_position",
+  prone: "reloading_rifle_in_prone"
+} as const
 /** The clips a man dies in: he lets his rifle go partway through. */
 export const DEATHS: ReadonlySet<ClipName> = new Set([...DEATHS_STANDING, ...DEATHS_CROUCHING, DEATH_PRONE])
 
@@ -117,7 +131,7 @@ export const DEATHS: ReadonlySet<ClipName> = new Set([...DEATHS_STANDING, ...DEA
 export const CLIPS = [
   ...IDLES,
   "rifle_standing_aiming_idle",
-  "firing_a_rifle_while_standing",
+  "fire_bolt_standing",
   "hit_reaction_while_holding_a_rifle",
   "left_reaction_to_front_hit_holding_a_rifle",
   "throwing_something_holding_rifle_aimed",
@@ -131,7 +145,7 @@ export const CLIPS = [
   "hit_reaction_when_running_with_rifle",
   "rifle_crouched_idle",
   "rifle_crouched_idle_aiming",
-  "fire_rifle_while_crouched",
+  "fire_bolt_crouched",
   "hit_reaction_from_rifle_crouched",
   "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
   ...TURNS.crouching,
@@ -140,6 +154,7 @@ export const CLIPS = [
   "rifle_kneeling_idle",
   "lying_down_prone_with_rifle",
   "firing_a_rifle_while_prone",
+  "fire_bolt_prone",
   "moving_forward_while_in_prone_position",
   "moving_backward_in_prone_position_with_rifle",
   "rifle_prone_hit_reaction",
@@ -148,9 +163,14 @@ export const CLIPS = [
   "rifle_kneeling_to_standing",
   "rifle_kneeling_to_prone",
   "rifle_prone_to_kneeling",
+  RELOADS.standing,
+  RELOADS.crouching,
+  RELOADS.prone,
   "being_terrified_while_standing",
   "climbing_up_a_slope",
   "climb_over",
+  "hands_up",
+  "hands_up_walk",
   ...DEATHS_STANDING,
   ...DEATHS_CROUCHING,
   DEATH_PRONE
@@ -170,10 +190,11 @@ export const AIMING: ReadonlySet<ClipName> = new Set<ClipName>([
   ...AIM_WALKS,
   ...CROUCH_AIM_WALKS,
   "rifle_standing_aiming_idle",
-  "firing_a_rifle_while_standing",
+  "fire_bolt_standing",
   "rifle_crouched_idle_aiming",
-  "fire_rifle_while_crouched",
-  "firing_a_rifle_while_prone"
+  "fire_bolt_crouched",
+  "firing_a_rifle_while_prone",
+  "fire_bolt_prone"
 ])
 
 /** Below this ground speed, in metres per second, a soldier is standing still. A crawl is 0.35. */
@@ -221,6 +242,8 @@ export interface SoldierState {
   readonly action: Action | null
   /** Turning on the spot or changing stance: a clip the crowd started, played through once while he keeps still. */
   readonly shift: ClipName | null
+  /** Reloading: how many seconds to spread the reload's clip over, or null when he isn't. */
+  readonly reloading: number | null
   /** The entity id, for variety: not every man falls the same way. */
   readonly id: number
 }
@@ -258,17 +281,17 @@ export function movementOf(state: Pick<SoldierState, "speed" | "running">): Move
 }
 
 const STANDING_ACTIONS: Readonly<Record<Action, ClipName>> = {
-  fire: "firing_a_rifle_while_standing",
+  fire: "fire_bolt_standing",
   throw: "throwing_something_holding_rifle_aimed",
   hit: "hit_reaction_while_holding_a_rifle"
 }
 const CROUCHING_ACTIONS: Readonly<Record<Action, ClipName>> = {
-  fire: "fire_rifle_while_crouched",
+  fire: "fire_bolt_crouched",
   throw: "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
   hit: "hit_reaction_from_rifle_crouched"
 }
 const PRONE_ACTIONS: Readonly<Record<Action, ClipName>> = {
-  fire: "firing_a_rifle_while_prone",
+  fire: "fire_bolt_prone",
   throw: "throw_grenade_while_in_prone_position",
   hit: "rifle_prone_hit_reaction"
 }
@@ -308,6 +331,14 @@ export function actionClip(
     return "left_reaction_to_front_hit_holding_a_rifle"
   }
   return STANDING_ACTIONS[action]
+}
+
+/** The clip a man reloads with, standing, crouched or lying. */
+export function reloadClip(stance: Stance): ClipName {
+  if (stance === Stance.Prone) {
+    return RELOADS.prone
+  }
+  return stance === Stance.Crouching ? RELOADS.crouching : RELOADS.standing
 }
 
 /** The clip carrying a man from one stance to another, or null for none: standing, crouching and lying by a kneel. */
@@ -358,6 +389,9 @@ function prone(state: SoldierState, movement: Movement): Pose {
   if (state.shift) {
     return once(state.shift)
   }
+  if (state.reloading !== null && movement === "still") {
+    return { clip: RELOADS.prone, mode: "once", rate: 1, seconds: state.reloading }
+  }
   if (movement !== "still") {
     const back = Math.abs(state.heading) > Math.PI / 2
     const crawl = back ? "moving_backward_in_prone_position_with_rifle" : "moving_forward_while_in_prone_position"
@@ -375,8 +409,9 @@ export function choosePose(state: SoldierState): Pose {
   if (state.status === "fallen") {
     return once(deathClip(state.stance, state.id))
   }
+  // A prisoner keeps his hands up, standing or led to the rear.
   if (state.status === "captured") {
-    return movement === "still" ? loop(IDLE) : loop("rifle_walk_forward", rateFor(state.speed, CLIP_SPEED.walk))
+    return movement === "still" ? loop("hands_up") : loop("hands_up_walk", rateFor(state.speed, CLIP_SPEED.walk))
   }
   if (state.stance === Stance.Prone) {
     return prone(state, movement)
@@ -398,6 +433,11 @@ export function choosePose(state: SoldierState): Pose {
   }
   if (state.shift) {
     return once(state.shift)
+  }
+  // A machine gunner feeds his gun kneeling as he fires it.
+  if (state.reloading !== null && state.weapon !== Weapon.MachineGun) {
+    const stance = state.pinned ? Stance.Crouching : state.stance
+    return { clip: reloadClip(stance), mode: "once", rate: 1, seconds: state.reloading }
   }
   if (state.broken) {
     return loop("being_terrified_while_standing")

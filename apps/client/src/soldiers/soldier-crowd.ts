@@ -15,6 +15,7 @@ import {
   isInTrench,
   MaskState,
   PINNED,
+  reloadSeconds,
   seesOverParapet,
   Side,
   type Simulation,
@@ -38,6 +39,7 @@ import {
   type Pose,
   poseFrame,
   poseSeconds,
+  reloadClip,
   type SoldierState,
   stanceClip,
   TURNS
@@ -63,6 +65,11 @@ export interface SoldierCrowdOptions {
   readonly aimingSoldier?: () => EntityId
 }
 
+/**
+ * A reload's clip is spread over the simulation's reload, but played no slower than this many times its own length: a
+ * longer reload ends on its last frame, rifle ready, until he's done.
+ */
+const RELOAD_STRETCH = 1.6
 /** A man still and not aiming turns on the spot, with a clip, when he's to face round by this much or more, in radians. */
 const TURN_FROM = Math.PI / 5
 /** Faster than this between syncs is a jump, not a walk: snap there. */
@@ -128,7 +135,8 @@ interface Track {
   overFence: number | null
   /** Turns a lying body from level onto the slope beneath it, or null when standing. */
   tilt: Matrix | null
-  cooldown: number
+  /** The step his weapon last fired on: when it changes, he's fired again. */
+  firedAt: number
   grenades: number
   health: number
   action: Action | null
@@ -370,7 +378,7 @@ export function createSoldierCrowd(
       climbYaw: yaw,
       overFence: null,
       tilt: null,
-      cooldown: soldiers.weapon.cooldown[id],
+      firedAt: soldiers.weapon.firedAt[id],
       grenades: soldiers.grenades.count[id],
       health: soldiers.health.value[id],
       action: null,
@@ -623,7 +631,7 @@ export function createSoldierCrowd(
       track.stance = drawnStance(stance)
       if (soldiers.grenades.count[id] < track.grenades) {
         startAction(track, id, "throw", now)
-      } else if (soldiers.weapon.cooldown[id] > track.cooldown + 1e-3) {
+      } else if (soldiers.weapon.firedAt[id] !== track.firedAt) {
         startAction(track, id, "fire", now)
       } else if (soldiers.health.value[id] < track.health - WOUND) {
         startAction(track, id, "hit", now)
@@ -632,7 +640,7 @@ export function createSoldierCrowd(
     } else if (status === "captured") {
       track.targetYaw = Math.atan2(soldiers.facing.x[id], soldiers.facing.z[id])
     }
-    track.cooldown = soldiers.weapon.cooldown[id]
+    track.firedAt = soldiers.weapon.firedAt[id]
     track.grenades = soldiers.grenades.count[id]
     track.health = soldiers.health.value[id]
     track.masked = soldiers.mask.state[id] !== MaskState.Off
@@ -668,6 +676,10 @@ export function createSoldierCrowd(
       broken: soldiers.morale.value[id] < BROKEN_MORALE,
       action: track.action,
       shift: track.shift?.clip ?? null,
+      reloading:
+        status === "fighting" && soldiers.weapon.reloading[id] === 1
+          ? Math.min(reloadSeconds(sim, id), onceSeconds(reloadClip(track.stance)) * RELOAD_STRETCH)
+          : null,
       id
     })
     if (pose.clip !== track.pose.clip || pose.mode !== track.pose.mode) {

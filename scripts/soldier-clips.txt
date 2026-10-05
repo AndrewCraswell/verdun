@@ -78,9 +78,15 @@ rifle-kneeling-to-standing.fbx
 rifle-kneeling-to-prone.fbx
 rifle-prone-to-kneeling.fbx
 
-# Broken, scrambling up a bank (the climb over a fence, climb_over, the script keys itself: see CLIMB)
+# Reloading, standing, crouched and prone
+reloading-rifle-while-standing.fbx
+reload-rifle-while-in-crouch-position.fbx
+reloading-rifle-in-prone.fbx
+
+# Broken, scrambling up a bank, and over a fence: the vault with both hands planted, renamed climb_over (MIXAMO_NAMES)
 being-terrified-while-standing.fbx
 climbing-up-a-slope.fbx
+male-jumping-over-an-obstacle-with-2-hands-planted.fbx
 
 # Deaths: standing, crouching, prone
 rifle-death-from-the-front.fbx

@@ -300,6 +300,20 @@ describe("bakeClips", () => {
     expect(clips.get("rifle_standing_idle")?.turn).toBe(0)
   })
 
+  it("keeps the rifle in the left hand when the right leaves it to work the bolt", () => {
+    const target = scene()
+    const { skeleton, right, left } = hands(target)
+    // The right hand goes forward to the bolt, a little closer to the left: still within a rifle's grip of it.
+    const bolt = moves(target, "fire_bolt_standing", [[right, new Vector3(0.1, 1.1, 0.15)]])
+    const { data } = bakeClips(skeleton, [bolt], Matrix.Identity())
+
+    const first = rifleAt(data, 0)
+    const last = rifleAt(data, BAKE_FPS)
+    // The left hand hasn't moved, so neither has the rifle.
+    expect(last.equalsWithEpsilon(first, 1e-5)).toBe(true)
+    expect(left.position.asArray()).toEqual([-0.1, 1.1, 0.4])
+  })
+
   it("leaves the rifle in the right hand alone as a man falls, then lets it fall to the ground", () => {
     const target = scene()
     const { skeleton, right, left } = hands(target)

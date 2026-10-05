@@ -86,12 +86,16 @@ metal-roughness PBR. Limits and gotchas:
   3. Retarget the clips the game plays, `scripts/soldier-clips.txt` of all those in the folder:
 
      ```
-     blender -b --factory-startup -P scripts/retarget-animations.py --        ".asset-cache/unity/POLYGON - War Map WWI - Art by Synty/Synty/PolygonWarMap/Models/Characters_WW1.glb"        .asset-cache/animations/synty-soldier.glb vendor/mixamo scripts/soldier-clips.txt
+     blender -b --factory-startup -P scripts/retarget-animations.py -- \
+       ".asset-cache/unity/POLYGON - War Map WWI - Art by Synty/Synty/PolygonWarMap/Models/Characters_WW1.glb" \
+       .asset-cache/animations/synty-soldier.glb vendor/mixamo scripts/soldier-clips.txt
      ```
 
      Each clip is named after its file in snake case (`rifle_walk_forward`). Mixamo clips lose their travel across the
-     ground, since the simulation moves the man, but keep the hips' rise and fall and their turn. The script keys
-     `climb_over` itself, getting over a wire fence in three seconds: Mixamo's vaults are over in a second or so.
+     ground, since the simulation moves the man, but keep the hips' rise and fall and their turn. The vault with both
+     hands planted becomes `climb_over`, over a wire fence in the 1.25 s the simulation takes (vault.ts). The script
+     keys `hands_up` and `hands_up_walk` itself, a prisoner's, from the idle and the walk with the arms raised: Mixamo
+     has no one giving himself up.
 
   4. `blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level soldier`
      rebuilds `soldier.glb`; commit it.

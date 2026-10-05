@@ -1,8 +1,8 @@
 """Retargets humanoid soldier animations onto the Synty character rig: polyperfect's Low Poly War Pack and Mixamo.
 
 Imports the converted Synty characters GLB (from convert-unity-models.py), bakes every clip in the given FBX files onto
-its skeleton, makes the clips no source has (see `make_climb_over`), and exports one GLB holding the characters and one
-animation per clip, at 24 fps.
+its skeleton, makes the clips no source has (`make_climb_over`, `make_hands_up`, `make_bolt_fire`), and exports one
+GLB holding the characters and one animation per clip, at 24 fps.
 
 The rigs are humanoid but differ in bone names, proportions, rest pose (polyperfect A-pose, Synty and Mixamo T-pose)
 and bone axes. Bone axes from FBX import are arbitrary, so limbs are compared by joint-to-joint vectors instead: for
@@ -370,10 +370,10 @@ def resampled(start, end, rate):
     return [start + index * rate / FPS for index in range(count)]
 
 
-# The climb over a staked fence, made here. None of polyperfect's clips climbs over anything, and Mixamo's vault with
-# both hands planted (MIXAMO_NAMES) is over in 1.25 s: spread over the simulation's three seconds on a fence it plays
-# in slow motion, so the soldiers leave it out (scripts/soldier-clips.txt). This one starts and ends in the first frame
-# of `rifle_standing_idle`, standing at ease with the rifle, and takes the simulation's three seconds to cross a fence (vault.ts):
+# The climb over a staked fence, made here when Mixamo's isn't given: its vault with both hands planted, renamed
+# climb_over (MIXAMO_NAMES), is what the soldiers play, and the simulation's crossing takes as long (vault.ts). None of
+# polyperfect's clips climbs over anything. This one starts and ends in the first frame of `rifle_standing_idle`,
+# standing at ease with the rifle, and takes three seconds to cross a fence, as the simulation once had it:
 # a step in and both hands on the top wire, the left foot up onto a low strand, the right leg swung over and down, the
 # left after it, the hands back to the rifle. The simulation carries him across at a steady pace the whole time, so
 # hands and feet are keyed where they stand on the ground and the wire, and the clip takes his carrying back out.
@@ -381,7 +381,7 @@ CLIMB = {
     "name": "climb_over",
     "from": "rifle_standing_idle",
     "seconds": 3.0,
-    # Metres a second the simulation carries him: across the 1.2 m either side of the fence's line in three seconds.
+    # Metres a second he's carried: across the 1.2 m either side of the fence's line in three seconds.
     "carry": 0.4,
 }
 # Keys as (seconds, value), passing smoothly through each and still at any held twice running. Places are (left, ahead,
@@ -563,6 +563,159 @@ def make_climb_over(target_obj, base_action):
     return finish_clip(target_obj, action, CLIMB["name"]), frames
 
 
+# Giving up: hands raised, made here because Mixamo has no hands up. Each is a clip of the game's with the arms lifted
+# out of it every frame, the rest of the body as that clip has it: standing at ease, and walking, a prisoner led to the
+# rear. (made clip, the clip it's made from)
+HANDS_UP = {
+    "hands_up": "rifle_standing_idle",
+    "hands_up_walk": "rifle_walk_forward",
+}
+# Where a hand goes from its shoulder, in metres: out to its own side, ahead, and up. Short of the arm's reach, so the
+# elbow keeps a bend.
+HANDS_UP_REACH = (0.2, 0.06, 0.44)
+# Which way the elbow bends, from the hand's own side: out, a little ahead.
+HANDS_UP_ELBOW = (1, 0.25, 0)
+
+
+def make_hands_up(target_obj, base_action, name):
+    """Keys hands up onto the rig as a new action: the base clip frame by frame, both arms raised (see HANDS_UP)."""
+    scene = bpy.context.scene
+    world = target_obj.matrix_world
+    bones = sorted(target_obj.data.bones, key=lambda b: len(b.parent_recursive))
+    children = {b.name: [c.name for c in b.children] for b in bones}
+    start, end = (int(round(x)) for x in base_action.frame_range)
+    assign(target_obj, base_action)
+    poses = []
+    for frame in range(start, end + 1):
+        scene.frame_set(frame)
+        pose = {pb.name: world @ pb.matrix for pb in target_obj.pose.bones}
+        local = {b.name: pose[b.parent.name].inverted() @ pose[b.name] for b in bones if b.parent}
+        # The body's own axes this frame, from the line across its thighs.
+        left = pose["UpperLeg_L"].translation - pose["UpperLeg_R"].translation
+        left = Vector((left.x, left.y, 0)).normalized()
+        up = Vector((0, 0, 1))
+        ahead = left.cross(up)
+
+        def follow(bone):
+            for child in children[bone]:
+                pose[child] = pose[bone] @ local[child]
+                follow(child)
+
+        for side, way in (("L", 1), ("R", -1)):
+            upper, lower, hand = f"Shoulder_{side}", f"Elbow_{side}", f"Hand_{side}"
+            out, forward, rise = HANDS_UP_REACH
+            goal = pose[upper].translation + left * (way * out) + ahead * forward + up * rise
+            bend_out, bend_ahead, bend_up = HANDS_UP_ELBOW
+            bend = (left * (way * bend_out) + ahead * bend_ahead + up * bend_up).normalized()
+            pole = pose[lower].translation + bend * CLIMB_POLE
+            joint, reached = two_bone_ik(
+                pose[upper].translation, pose[lower].translation, pose[hand].translation, goal, pole
+            )
+            for bone, child, place in [(upper, lower, joint), (lower, hand, reached)]:
+                head = pose[bone].translation
+                swing = (pose[child].translation - head).rotation_difference(place - head)
+                pose[bone] = rotate_about(pose[bone], head, swing)
+                follow(bone)
+        poses.append(pose)
+    assign(target_obj, None)
+
+    action = bpy.data.actions.new(name)
+    action.use_fake_user = True
+    assign(target_obj, action)
+    for pose_bone in target_obj.pose.bones:
+        pose_bone.rotation_mode = "QUATERNION"
+    previous = {}
+    for frame, pose in enumerate(poses):
+        armature = {bone: world.inverted() @ matrix for bone, matrix in pose.items()}
+        for bone in bones:
+            parent = bone.parent
+            rest = (armature[parent.name] @ parent.matrix_local.inverted() if parent else Matrix()) @ bone.matrix_local
+            key_pose(target_obj.pose.bones[bone.name], rest.inverted() @ armature[bone.name], frame, previous)
+    return finish_clip(target_obj, action, name), len(poses)
+
+
+# A bolt-action rifle worked after each shot, made here because Mixamo's rifles are self-loading: each is a firing clip of
+# the game's, then the right hand off the grip to the bolt, the bolt up, back, forward and down, and the hand back,
+# the rest of the body held as the shot left it. (made clip, the shot it's made from)
+BOLT = {
+    "fire_bolt_standing": "firing_a_rifle_while_standing",
+    "fire_bolt_crouched": "fire_rifle_while_crouched",
+    "fire_bolt_prone": "firing_a_rifle_while_prone",
+}
+# Where the right wrist goes over the cycle, in seconds from the shot's end, from where it gripped: along the rifle (to
+# the muzzle), to the rifle's right and up, in metres. The bolt's handle is a hand's breadth forward of the grip, on the
+# right; lifted, drawn back a rifle cartridge's length, pushed home and turned down.
+BOLT_KEYS = [
+    (0.0, (0.0, 0.0, 0.0)),
+    (0.15, (0.1, 0.07, 0.05)),
+    (0.25, (0.1, 0.08, 0.09)),
+    (0.42, (0.02, 0.08, 0.09)),
+    (0.58, (0.1, 0.08, 0.09)),
+    (0.68, (0.1, 0.07, 0.05)),
+    (0.88, (0.0, 0.0, 0.0)),
+]
+# Which way the right elbow bends while it works the bolt: out to the right and down.
+BOLT_ELBOW = (0.0, 1.0, -1.0)
+
+
+def make_bolt_fire(target_obj, base_action, name):
+    """Keys a shot and the bolt worked after it onto the rig as a new action (see BOLT)."""
+    scene = bpy.context.scene
+    world = target_obj.matrix_world
+    bones = sorted(target_obj.data.bones, key=lambda b: len(b.parent_recursive))
+    children = {b.name: [c.name for c in b.children] for b in bones}
+    start, end = (int(round(x)) for x in base_action.frame_range)
+    assign(target_obj, base_action)
+    poses = []
+    for frame in range(start, end + 1):
+        scene.frame_set(frame)
+        poses.append({pb.name: world @ pb.matrix for pb in target_obj.pose.bones})
+    assign(target_obj, None)
+    last = poses[-1]
+    local = {b.name: last[b.parent.name].inverted() @ last[b.name] for b in bones if b.parent}
+    # The rifle's axes as the shot leaves it: from the right wrist through the left, its up, and its right.
+    grip = last["Hand_R"].translation.copy()
+    along = (last["Hand_L"].translation - grip).normalized()
+    up = Vector((0, 0, 1))
+    up = (up - along * up.dot(along)).normalized()
+    right = along.cross(up)
+    keys = [(at, along * a + right * r + up * u) for at, (a, r, u) in BOLT_KEYS]
+    bend = (along * BOLT_ELBOW[0] + right * BOLT_ELBOW[1] + up * BOLT_ELBOW[2]).normalized()
+    for frame in range(1, int(round(BOLT_KEYS[-1][0] * FPS)) + 1):
+        pose = {bone: matrix.copy() for bone, matrix in last.items()}
+
+        def follow(bone):
+            for child in children[bone]:
+                pose[child] = pose[bone] @ local[child]
+                follow(child)
+
+        goal = grip + keyed(keys, frame / FPS)
+        pole = pose["Elbow_R"].translation + bend * CLIMB_POLE
+        joint, reached = two_bone_ik(
+            pose["Shoulder_R"].translation, pose["Elbow_R"].translation, pose["Hand_R"].translation, goal, pole
+        )
+        for bone, child, place in [("Shoulder_R", "Elbow_R", joint), ("Elbow_R", "Hand_R", reached)]:
+            head = pose[bone].translation
+            swing = (pose[child].translation - head).rotation_difference(place - head)
+            pose[bone] = rotate_about(pose[bone], head, swing)
+            follow(bone)
+        poses.append(pose)
+
+    action = bpy.data.actions.new(name)
+    action.use_fake_user = True
+    assign(target_obj, action)
+    for pose_bone in target_obj.pose.bones:
+        pose_bone.rotation_mode = "QUATERNION"
+    previous = {}
+    for frame, pose in enumerate(poses):
+        armature = {bone: world.inverted() @ matrix for bone, matrix in pose.items()}
+        for bone in bones:
+            parent = bone.parent
+            rest = (armature[parent.name] @ parent.matrix_local.inverted() if parent else Matrix()) @ bone.matrix_local
+            key_pose(target_obj.pose.bones[bone.name], rest.inverted() @ armature[bone.name], frame, previous)
+    return finish_clip(target_obj, action, name), len(poses)
+
+
 def export_mixamo_upload(soldier, output):
     """Writes the French soldier from soldier.glb, body and helmet in their T-pose with the palette, as a mesh with no
     skeleton: what Mixamo's auto-rigger takes to fit its skeleton to our soldier's build."""
@@ -669,6 +822,16 @@ def main():
         made, count = make_climb_over(target_obj, clips[CLIMB["from"]][0])
         clips[CLIMB["name"]] = (made, "made")
         print(f"[retarget] {CLIMB['name']}: {count} frames, made here from {CLIMB['from']}", flush=True)
+    for name, base in HANDS_UP.items():
+        if name not in clips and base in clips:
+            made, count = make_hands_up(target_obj, clips[base][0], name)
+            clips[name] = (made, "made")
+            print(f"[retarget] {name}: {count} frames, made here from {base}", flush=True)
+    for name, base in BOLT.items():
+        if name not in clips and base in clips:
+            made, count = make_bolt_fire(target_obj, clips[base][0], name)
+            clips[name] = (made, "made")
+            print(f"[retarget] {name}: {count} frames, made here from {base}", flush=True)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=str(output), export_format="GLB", export_animation_mode="NLA_TRACKS")

@@ -32,6 +32,7 @@ const standing: SoldierState = {
   broken: false,
   action: null,
   shift: null,
+  reloading: null,
   id: 0
 }
 
@@ -90,7 +91,7 @@ describe("choosePose", () => {
   it("crouches: at ease or aiming when still, firing from the crouch, and walking bent", () => {
     expect(pose({ stance: Stance.Crouching }).clip).toBe("rifle_crouched_idle")
     expect(pose({ stance: Stance.Crouching, aiming: true }).clip).toBe("rifle_crouched_idle_aiming")
-    expect(pose({ stance: Stance.Crouching, aiming: true, action: "fire" }).clip).toBe("fire_rifle_while_crouched")
+    expect(pose({ stance: Stance.Crouching, aiming: true, action: "fire" }).clip).toBe("fire_bolt_crouched")
     const crouched = pose({ stance: Stance.Crouching, speed: 0.84, heading: Math.PI / 2 })
     expect(crouched.clip).toBe("rifle_crouched_walk_right")
     expect(crouched.rate).toBeCloseTo(0.84 / 1.1)
@@ -124,7 +125,7 @@ describe("choosePose", () => {
       rate: 1
     })
     expect(pose({ stance: Stance.Prone, action: "fire" })).toEqual({
-      clip: "firing_a_rifle_while_prone",
+      clip: "fire_bolt_prone",
       mode: "once",
       rate: 1
     })
@@ -139,7 +140,7 @@ describe("choosePose", () => {
 
   it("plays actions through once: recoil, a throw, a flinch, on the move too", () => {
     expect(pose({ action: "fire", aiming: true })).toEqual({
-      clip: "firing_a_rifle_while_standing",
+      clip: "fire_bolt_standing",
       mode: "once",
       rate: 1
     })
@@ -163,14 +164,30 @@ describe("choosePose", () => {
     expect(pose({ shift: "rifle_turn_90_degree_left_turn", speed: 1.4 }).clip).toBe("rifle_walk_forward")
   })
 
+  it("reloads standing, crouched or lying, spread over the reload, but not on the move nor at a machine gun", () => {
+    expect(pose({ reloading: 4 })).toEqual({
+      clip: "reloading_rifle_while_standing",
+      mode: "once",
+      rate: 1,
+      seconds: 4
+    })
+    expect(pose({ reloading: 4, pinned: true }).clip).toBe("reload_rifle_while_in_crouch_position")
+    expect(pose({ reloading: 4, stance: Stance.Crouching }).clip).toBe("reload_rifle_while_in_crouch_position")
+    expect(pose({ reloading: 4, stance: Stance.Prone }).clip).toBe("reloading_rifle_in_prone")
+    expect(pose({ reloading: 4, speed: 1.4 }).clip).toBe("rifle_walk_forward")
+    expect(pose({ reloading: 8, weapon: Weapon.MachineGun }).clip).toBe("rifle_kneeling_idle")
+    // A flinch cuts it off.
+    expect(pose({ reloading: 4, action: "hit" }).clip).toBe("hit_reaction_while_holding_a_rifle")
+  })
+
   it("keeps low when pinned, and kneels behind a machine gun", () => {
     expect(pose({ pinned: true }).clip).toBe("rifle_crouched_idle_aiming")
     expect(pose({ weapon: Weapon.MachineGun, aiming: true }).clip).toBe("rifle_kneeling_idle")
   })
 
-  it("walks prisoners to the rear", () => {
-    expect(pose({ status: "captured", speed: 1.2 }).clip).toBe("rifle_walk_forward")
-    expect(pose({ status: "captured" }).clip).toBe(IDLE)
+  it("walks prisoners to the rear, hands up", () => {
+    expect(pose({ status: "captured", speed: 1.2 }).clip).toBe("hands_up_walk")
+    expect(pose({ status: "captured", aiming: true }).clip).toBe("hands_up")
   })
 
   it("plays a death through once and holds it", () => {
@@ -181,7 +198,7 @@ describe("choosePose", () => {
 describe("actionClip", () => {
   it("has a clip for each action as a man is placed, but none for firing on the move", () => {
     expect(actionClip("fire", Stance.Standing, Weapon.Rifle, "walking", 0)).toBeNull()
-    expect(actionClip("fire", Stance.Prone, Weapon.Rifle, "walking", 0)).toBe("firing_a_rifle_while_prone")
+    expect(actionClip("fire", Stance.Prone, Weapon.Rifle, "walking", 0)).toBe("fire_bolt_prone")
     expect(actionClip("throw", Stance.Crouching, Weapon.Rifle, "still", 0)).toBe(
       "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth"
     )

@@ -477,9 +477,9 @@ describe("createSoldierCrowd", () => {
     crowd.sync()
     expect(AT_EASE.has(clipNow())).toBe(true)
 
-    sim.soldiers.weapon.cooldown[soldier] = 3
+    sim.soldiers.weapon.firedAt[soldier] = sim.tick
     crowd.sync()
-    expect(clipNow()).toBe("firing_a_rifle_while_standing")
+    expect(clipNow()).toBe("fire_bolt_standing")
     tick(1.1)
     crowd.sync()
     expect(AT_EASE.has(clipNow())).toBe(true)
@@ -802,6 +802,18 @@ describe("createSoldierCrowd", () => {
     }
     crowd.update()
     expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("aim_walk_right")
+  })
+
+  it("reloads while the simulation has him reloading, and takes no reload for a shot", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    const soldier = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const { crowd, kit, rows } = harness(sim)
+    crowd.sync()
+    sim.soldiers.weapon.reloading[soldier] = 1
+    sim.soldiers.weapon.cooldown[soldier] = 6
+    crowd.sync()
+    crowd.update()
+    expect(clipAt(rows(kit.bodies[Side.French])[0])).toBe("reloading_rifle_while_standing")
   })
 
   it("goes down to a crouch with a clip when still, and is crouched after it", () => {

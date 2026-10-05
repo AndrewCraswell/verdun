@@ -34,10 +34,10 @@ const WALL_RISE = 0.8
 /** Metres a second he makes on his way over: through the loose wire either side of a fence, or up a trench wall. */
 const VAULT_PACE = 1.2
 /**
- * The fence itself takes this long to get over, in seconds: a hand on a stake, a leg over, the barbs catching at his
- * coat and puttees, the other leg after. It's a barrier, and a man astride it is a mark for every rifle in reach.
+ * The fence itself takes this long to get over, in seconds: both hands on the top wire and over in a bound, as the
+ * soldiers' vault (Mixamo's) takes it. A man astride it is a mark for every rifle in reach while he is.
  */
-export const FENCE_CLIMB_SECONDS = 3
+export const FENCE_CLIMB_SECONDS = 1.25
 /** He's climbing the fence while within this far of its line either side, in metres: a stride before, a stride after. */
 export const FENCE_REACH = 0.6
 /** The breath a climb costs him at once, of 100. */
