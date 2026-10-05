@@ -501,8 +501,6 @@ export async function dressLevel(
   view.scene.onBeforeRenderObservable.add(() => {
     const target = view.camera.getTarget()
     const frameSeconds = view.scene.getEngine().getDeltaTime() / 1000
-    // The survey's full 0.5 m detail around where the camera looks, a chunk a frame.
-    view.terrain.refine(target.x, target.z)
     ambience?.update(target.x, target.z, frameSeconds)
     dressing.aftermath.update(frameSeconds)
     bursts.update()

@@ -2,7 +2,7 @@ import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera"
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine"
 import { Engine } from "@babylonjs/core/Engines/engine"
 import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine"
-import { type ChangedArea, decodeElevation, generateFleurySector, mergeAreas } from "@verdun/map"
+import { decodeElevation, generateFleurySector } from "@verdun/map"
 import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
 import surroundingsUrl from "@verdun/map/data/fleury-surroundings.bin?url"
 import {
@@ -437,7 +437,6 @@ export async function startBattle(
     installEnvironmentKeys(sim, weatherSeed, war)
   }
 
-  let cratered: ChangedArea | null = null
   // The player's frame-rate cap: a frame the screen offers early is skipped, and the next one drawn covers the time.
   let lastFrame = performance.now()
   engine.runRenderLoop(() => {
@@ -476,20 +475,22 @@ export async function startBattle(
               explosions?.add([event])
             }
             if (event.crater) {
-              cratered = mergeAreas(cratered, event.crater)
+              // Each crater marks only the chunks it reaches, not every chunk between it and the frame's others.
+              view.terrain.markChanged(event.crater)
+              environment?.reshape()
               level?.damage.blast(event.at.x, event.at.z, blastRadius(event.crater))
             }
           }
         }
       }
     })
-    // Craters reshape the ground: rebuild the terrain chunks they touched, once per frame however many landed.
-    const crater = cratered
-    if (crater) {
-      stats.time("terrain", () => view.terrain.rebuildRegion(crater.minX, crater.minZ, crater.maxX, crater.maxZ))
-      environment?.reshape()
-      cratered = null
-    }
+    // Rebuild a terrain chunk a frame, nearest where the camera looks first: one craters have reshaped, or one whose
+    // detail the camera's distance changes. A barrage's craters so come in over a few frames, under their smoke, rather
+    // than all in one long one.
+    stats.time("terrain", () => {
+      const target = view.camera.getTarget()
+      view.terrain.flush(target.x, target.z)
+    })
     trace("effects", () => {
       tracers.update(frameSeconds)
       explosions?.update(frameSeconds)

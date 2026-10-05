@@ -1,12 +1,21 @@
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer"
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
+import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Scene } from "@babylonjs/core/scene"
 import { createFlatMap, sampleIndex, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { surfaceColors } from "../palette.ts"
-import { CHUNK_SIZE_METERS, createTerrainChunks } from "./terrain-chunks.ts"
+import { CHUNK_SIZE_METERS, createTerrainChunks, WETNESS_ATTRIBUTE } from "./terrain-chunks.ts"
 
 const engines: NullEngine[] = []
+/** A point well off the map, to flush from without bringing any chunk into detail. */
+const FAR = 10_000
+
+/** The highest point of a chunk's ground. */
+function highest(mesh: Mesh | undefined): number {
+  return Math.max(...Array.from(mesh?.getVerticesData(VertexBuffer.PositionKind) ?? []).filter((_, i) => i % 3 === 1))
+}
 
 function setup(widthMeters: number, depthMeters: number, renderStep?: number, trenches: readonly Trench[] = []) {
   const engine = new NullEngine()
@@ -55,17 +64,114 @@ describe("createTerrainChunks", () => {
     expect(terrain.meshes[2]?.getTotalVertices()).toBe(65 * 65 + 4 * 65)
   })
 
-  it("rebuilds only the chunks a change touches", () => {
+  it("rebuilds a changed chunk when flushed, once however many changes it had", () => {
     const { map, terrain } = setup(256, 256)
-    const index = sampleIndex(map, 64, 64)
-    map.heights[index] = 5
+    map.heights[sampleIndex(map, 64, 64)] = 5
 
-    // A small change in the middle of the first chunk.
-    expect(terrain.rebuildRegion(30, 30, 34, 34)).toBe(1)
+    // Two small changes in the middle of the first chunk, further from its neighbours than any of their vertices read.
+    terrain.markChanged({ minX: 30, minZ: 30, maxX: 34, maxZ: 34 })
+    terrain.markChanged({ minX: 31, minZ: 31, maxX: 33, maxZ: 33 })
+    expect(highest(terrain.meshes[0])).toBe(0)
+    expect(terrain.flush(FAR, FAR, 16)).toBe(1)
+    expect(highest(terrain.meshes[0])).toBe(5)
+    expect(terrain.flush(FAR, FAR, 16)).toBe(0)
+
     // A change on the corner where four chunks meet.
-    expect(terrain.rebuildRegion(63, 63, 65, 65)).toBe(4)
-    const rebuilt = terrain.meshes[0]?.getVerticesData("position") ?? []
-    expect(Math.max(...Array.from(rebuilt).filter((_, i) => i % 3 === 1))).toBe(5)
+    terrain.markChanged({ minX: 63, minZ: 63, maxX: 65, maxZ: 65 })
+    expect(terrain.flush(FAR, FAR, 16)).toBe(4)
+  })
+
+  it("rebuilds the chunks round each crater, not every chunk between craters landing together", () => {
+    const { terrain } = setup(256, 256)
+
+    terrain.markChanged({ minX: 30, minZ: 30, maxX: 34, maxZ: 34 })
+    terrain.markChanged({ minX: 222, minZ: 222, maxX: 226, maxZ: 226 })
+
+    // One box round both would take in all sixteen.
+    expect(terrain.flush(FAR, FAR, 16)).toBe(2)
+  })
+
+  it("rebuilds the chunk beside a change as far away as its wetness reads the ground, and no further", () => {
+    // Two chunks side by side, flat mud, meeting at x = 64 m.
+    const { map, terrain } = setup(128, 64)
+    // The vertex on the seam at z = 32 m, the second chunk's first in its 33rd row.
+    const seamWetness = () => terrain.meshes[1]?.getVerticesData(WETNESS_ATTRIBUTE)?.[32 * 65] ?? 0
+
+    // A mound 10 m west of the seam: the seam now lies below the ground round it, and holds a little water.
+    map.heights[sampleIndex(map, 108, 64)] = 4
+    terrain.markChanged({ minX: 54, minZ: 32, maxX: 54, maxZ: 32 })
+    expect(terrain.flush(FAR, FAR, 16)).toBe(2)
+    expect(seamWetness()).toBeGreaterThan(0)
+
+    // 11 m west, it's out of every vertex's reach in the second chunk.
+    terrain.markChanged({ minX: 53, minZ: 32, maxX: 53, maxZ: 32 })
+    expect(terrain.flush(FAR, FAR, 16)).toBe(1)
+  })
+
+  it("builds due chunks nearest the point first, a budget a call, a changed chunk coming into detail once", () => {
+    // 384 m x 64 m: six chunks in a row, their middles at x = 32, 96, ... 352.
+    const { map, terrain } = setup(384, 64)
+    const vertices = () => terrain.meshes.map((mesh) => mesh.getTotalVertices())
+    const coarse = vertices()
+    const raised = () => terrain.meshes.map((mesh) => highest(mesh) > 0)
+    // Mounds in the middle of the first, third and last chunks.
+    for (const x of [32, 160, 352]) {
+      map.heights[sampleIndex(map, x * 2, 64)] = 1
+      terrain.markChanged({ minX: x, minZ: 32, maxX: x, maxZ: 32 })
+    }
+
+    // Looking at the last chunk: it changed and comes into detail, both in one build.
+    expect(terrain.flush(352, 32, 1)).toBe(1)
+    expect(raised()).toEqual([false, false, false, false, false, true])
+    expect(vertices()[5]).toBeGreaterThan(coarse[5] ?? 0)
+    // Its neighbour, 64 m away, comes into detail; then the changed chunks further off, nearest first.
+    expect(terrain.flush(352, 32, 1)).toBe(1)
+    expect(vertices()[4]).toBeGreaterThan(coarse[4] ?? 0)
+    expect(terrain.flush(352, 32, 1)).toBe(1)
+    expect(raised()).toEqual([false, false, true, false, false, true])
+    expect(terrain.flush(352, 32, 1)).toBe(1)
+    expect(raised()).toEqual([true, false, true, false, false, true])
+    expect(terrain.flush(352, 32, 1)).toBe(0)
+  })
+
+  it("rebuilds a chunk keeping its vertices in the buffers it has, its bounds following the ground", () => {
+    const { map, terrain } = setup(64, 64)
+    const [chunk] = terrain.meshes
+    const positions = chunk?.getVertexBuffer(VertexBuffer.PositionKind)
+    const indexBuffer = chunk?.geometry?.getIndexBuffer()
+    const triangles = Array.from(chunk?.getIndices() ?? [])
+
+    // A shell hole 3 m deep in the middle.
+    map.heights[sampleIndex(map, 64, 64)] = -3
+    terrain.markChanged({ minX: 32, minZ: 32, maxX: 32, maxZ: 32 })
+    terrain.flush(FAR, FAR)
+
+    expect(chunk?.getVertexBuffer(VertexBuffer.PositionKind)).toBe(positions)
+    expect(chunk?.geometry?.getIndexBuffer()).toBe(indexBuffer)
+    expect(chunk?.getBoundingInfo().minimum.y).toBeCloseTo(-3)
+    // The quads round the hole split along their other diagonal now, and picking sees it.
+    expect(Array.from(chunk?.getIndices() ?? [])).not.toEqual(triangles)
+    // Coming into detail needs new buffers, four times the size.
+    terrain.flush(32, 32)
+    expect(chunk?.getVertexBuffer(VertexBuffer.PositionKind)).not.toBe(positions)
+  })
+
+  it("drops the vertex colours once the level's textures cover the ground, and builds none after", () => {
+    const { map, terrain } = setup(128, 64)
+    const coloured = () =>
+      terrain.meshes.map((mesh) => mesh.useVertexColors || mesh.isVerticesDataPresent(VertexBuffer.ColorKind))
+    expect(coloured()).toEqual([true, true])
+
+    terrain.shapeForTrenchKit()
+    expect(coloured()).toEqual([false, false])
+
+    // Rebuilt in their buffers after a crater, or anew coming into detail: still none, and the crater shows.
+    map.heights[sampleIndex(map, 64, 64)] = -3
+    terrain.markChanged({ minX: 32, minZ: 32, maxX: 32, maxZ: 32 })
+    expect(terrain.flush(FAR, FAR, 2)).toBe(1)
+    expect(terrain.flush(32, 32, 2)).toBe(2)
+    expect(coloured()).toEqual([false, false])
+    expect(terrain.meshes[0]?.getBoundingInfo().minimum.y).toBeCloseTo(-3)
   })
 
   it("reshapes the ground around trenches for the trench kit on request", () => {
@@ -98,17 +204,17 @@ describe("createTerrainChunks", () => {
     const vertices = () => terrain.meshes.map((mesh) => mesh.getTotalVertices())
     const coarse = vertices()
 
-    expect(terrain.refine(32, 32, 1)).toBe(1)
+    expect(terrain.flush(32, 32, 1)).toBe(1)
     expect(vertices()[0]).toBeGreaterThan(coarse[0] ?? 0)
     // The second chunk, 64 m away, is within the 90 m detail radius; the third, 128 m away, isn't.
-    expect(terrain.refine(32, 32)).toBe(1)
-    expect(terrain.refine(32, 32)).toBe(0)
+    expect(terrain.flush(32, 32)).toBe(1)
+    expect(terrain.flush(32, 32)).toBe(0)
     expect(vertices().slice(2)).toEqual(coarse.slice(2))
 
     // Moving on a little keeps the first chunk detailed; moving well away lets it go.
-    terrain.refine(130, 32, 10)
+    terrain.flush(130, 32, 10)
     expect(vertices()[0]).toBeGreaterThan(coarse[0] ?? 0)
-    terrain.refine(300, 32, 10)
+    terrain.flush(300, 32, 10)
     expect(vertices().slice(0, 3)).toEqual(coarse.slice(0, 3))
   })
 
@@ -124,7 +230,7 @@ describe("createTerrainChunks", () => {
     const { terrain } = setup(256, 64, 2, [trench])
     const detailed = terrain.meshes[0]?.getTotalVertices()
 
-    terrain.refine(250, 32, 10)
+    terrain.flush(250, 32, 10)
 
     expect(terrain.meshes[0]?.getTotalVertices()).toBe(detailed)
   })

@@ -174,6 +174,30 @@ describe("buildChunkGeometry", () => {
     expect(shade).toBeLessThan(1.15)
   })
 
+  it("leaves the vertex colours out for a textured material, and never builds texture coordinates", () => {
+    const map = generateRollingTerrain({
+      name: "test",
+      widthMeters: 32,
+      depthMeters: 32,
+      cellSize: 0.5,
+      seed: 3,
+      amplitude: 6
+    })
+    const bounds = { firstColumn: 0, lastColumn: 64, firstRow: 0, lastRow: 64 }
+    const coloured = buildChunkGeometry(map, bounds, 2, surfaceColors, undefined, 1.5)
+    const textured = buildChunkGeometry(map, bounds, 2, null, undefined, 1.5)
+
+    expect(coloured.vertexData.colors).not.toBeNull()
+    expect(textured.vertexData.colors).toBeNull()
+    expect(coloured.vertexData.uvs ?? null).toBeNull()
+    // The same ground otherwise.
+    expect(textured.vertexData.positions).toEqual(coloured.vertexData.positions)
+    expect(textured.vertexData.normals).toEqual(coloured.vertexData.normals)
+    expect(textured.vertexData.indices).toEqual(coloured.vertexData.indices)
+    expect(textured.splat).toEqual(coloured.splat)
+    expect(textured.wetness).toEqual(coloured.wetness)
+  })
+
   it("draws the heights and shading it is given instead of the map's", () => {
     const map = createFlatMap({ name: "test", cellSize: 0.5, columns: 4, rows: 4 }, 2)
     const bounds = { firstColumn: 0, lastColumn: 4, firstRow: 0, lastRow: 4 }

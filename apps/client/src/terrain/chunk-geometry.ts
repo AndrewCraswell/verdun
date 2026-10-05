@@ -18,8 +18,6 @@ export interface ChunkBounds {
   readonly lastRow: number
 }
 
-/** Texture coordinates repeat every this many metres, in world space so textures line up across chunks. */
-const UV_TILE_METERS = 8
 /** Seeds for brightness variation: broad patches that hide texture tiling, plus a little per-vertex jitter. */
 const SHADE_SEED = 11
 const PATCH_SEED = 23
@@ -145,6 +143,13 @@ function cavityAt(map: BattlefieldMap, heights: Float32Array, column: number, ro
 /** How far around a sample the ground is compared with it to find hollows, in samples. */
 const HOLLOW_REACH = 20
 
+/**
+ * How far from a vertex building it reads the map, in samples, besides its normal, which looks one step away: its
+ * wetness compares the ground `HOLLOW_REACH` away, further than its cavity or its surface blend look. A change to the
+ * map reaches the drawing of every vertex this close to it.
+ */
+export const GROUND_READ_REACH = Math.max(HOLLOW_REACH, ...CAVITY_REACH, BLEND_RADIUS)
+
 /** Ground holds water where it lies well below the ground around it: 0 on level ground, 1 in a deep hollow. */
 function wetnessAt(map: BattlefieldMap, column: number, row: number): number {
   const here = heightOf(map, map.heights, column, row)
@@ -186,10 +191,12 @@ function chunkEdges(columnCount: number, rowCount: number): number[][] {
 }
 
 /**
- * Builds one terrain chunk: positions, height-field normals, world-space UVs, vertex colours that blend the surface
- * palette across patch edges with a gentle brightness variation, and the same blend as texture weights. `step` thins
- * the 0.5 m simulation grid for rendering. `ground` replaces the map's heights for drawing and darkens some samples;
- * see render-heights.ts.
+ * Builds one terrain chunk: positions, height-field normals, and texture weights that blend the surfaces across patch
+ * edges, with a gentle brightness variation. Given `surfaceColors`, it also colours each vertex with the same blend of
+ * the palette, for a plain material; null leaves the colours out, for a material that textures the ground from the
+ * weights (see ground-splat-plugin.ts), saving four floats a vertex to build and upload. There are no texture
+ * coordinates: the ground's textures are laid on by world position. `step` thins the 0.5 m simulation grid for
+ * rendering. `ground` replaces the map's heights for drawing and darkens some samples; see render-heights.ts.
  *
  * `skirtDepth` hangs a curtain of ground that deep below every edge of the chunk. A neighbour drawn at a coarser step
  * cuts its edge straight across where this one follows every sample, leaving slivers of sky between them, and the
@@ -199,7 +206,7 @@ export function buildChunkGeometry(
   map: BattlefieldMap,
   bounds: ChunkBounds,
   step: number,
-  surfaceColors: SurfaceColors,
+  surfaceColors: SurfaceColors | null,
   ground?: { readonly heights: Float32Array; readonly shade: Float32Array },
   skirtDepth = 0
 ): ChunkGeometry {
@@ -212,11 +219,12 @@ export function buildChunkGeometry(
   // Typed arrays filled in place: a detailed chunk is 17,000 vertices, rebuilt while the camera pans.
   const positions = new Float32Array(vertexCount * 3)
   const normals = new Float32Array(vertexCount * 3)
-  const uvs = new Float32Array(vertexCount * 2)
-  const colors = new Float32Array(vertexCount * 4)
   const splat = new Float32Array(vertexCount * 4)
   const wetness = new Float32Array(vertexCount)
-  const palette = [Surface.Grass, Surface.Mud, Surface.Chalk, Surface.Churned].map((surface) => surfaceColors[surface])
+  const palette = surfaceColors
+    ? [Surface.Grass, Surface.Mud, Surface.Chalk, Surface.Churned].map((surface) => surfaceColors[surface])
+    : null
+  const colors = palette ? new Float32Array(vertexCount * 4) : null
   const shares = surfaceShares(map, columns, rows)
   let vertex = 0
   for (const row of rows) {
@@ -228,26 +236,26 @@ export function buildChunkGeometry(
       positions[vertex * 3 + 1] = heights[index] ?? 0
       positions[vertex * 3 + 2] = z
       writeNormal(map, heights, column, row, step, normals, vertex * 3)
-      uvs[vertex * 2] = x / UV_TILE_METERS
-      uvs[vertex * 2 + 1] = z / UV_TILE_METERS
       const shade = shadeAt(column, row, x, z) * (ground?.shade[index] ?? 1) * cavityAt(map, heights, column, row)
       const shared = vertex * SURFACE_COUNT
-      let r = 0
-      let g = 0
-      let b = 0
-      for (let surface = 0; surface < SURFACE_COUNT; surface++) {
-        const color = palette[surface]
-        const weight = shares[shared + surface] ?? 0
-        if (color && weight > 0) {
-          r += color.r * weight
-          g += color.g * weight
-          b += color.b * weight
+      if (colors && palette) {
+        let r = 0
+        let g = 0
+        let b = 0
+        for (let surface = 0; surface < SURFACE_COUNT; surface++) {
+          const color = palette[surface]
+          const weight = shares[shared + surface] ?? 0
+          if (color && weight > 0) {
+            r += color.r * weight
+            g += color.g * weight
+            b += color.b * weight
+          }
         }
+        colors[vertex * 4] = r * shade
+        colors[vertex * 4 + 1] = g * shade
+        colors[vertex * 4 + 2] = b * shade
+        colors[vertex * 4 + 3] = 1
       }
-      colors[vertex * 4] = r * shade
-      colors[vertex * 4 + 1] = g * shade
-      colors[vertex * 4 + 2] = b * shade
-      colors[vertex * 4 + 3] = 1
       splat[vertex * 4] = shares[shared + Surface.Grass] ?? 0
       splat[vertex * 4 + 1] = shares[shared + Surface.Mud] ?? 0
       splat[vertex * 4 + 2] = shares[shared + Surface.Chalk] ?? 0
@@ -300,8 +308,7 @@ export function buildChunkGeometry(
       positions.set(positions.subarray(top * 3, top * 3 + 3), vertex * 3)
       positions[vertex * 3 + 1] = (positions[vertex * 3 + 1] ?? 0) - skirtDepth
       normals.set(normals.subarray(top * 3, top * 3 + 3), vertex * 3)
-      uvs.set(uvs.subarray(top * 2, top * 2 + 2), vertex * 2)
-      colors.set(colors.subarray(top * 4, top * 4 + 4), vertex * 4)
+      colors?.set(colors.subarray(top * 4, top * 4 + 4), vertex * 4)
       splat.set(splat.subarray(top * 4, top * 4 + 4), vertex * 4)
       wetness[vertex] = wetness[top] ?? 0
       vertex += 1
@@ -322,7 +329,6 @@ export function buildChunkGeometry(
   const vertexData = new VertexData()
   vertexData.positions = positions
   vertexData.normals = normals
-  vertexData.uvs = uvs
   vertexData.colors = colors
   vertexData.indices = indices
   return { vertexData, splat, wetness }

@@ -1,9 +1,10 @@
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer"
 import type { Material } from "@babylonjs/core/Materials/material"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { Observable } from "@babylonjs/core/Misc/observable"
 import type { Scene } from "@babylonjs/core/scene"
-import { type BattlefieldMap, TRENCH_PROFILE } from "@verdun/map"
-import { buildChunkGeometry, type ChunkBounds, type SurfaceColors } from "./chunk-geometry.ts"
+import { type BattlefieldMap, type ChangedArea, TRENCH_PROFILE } from "@verdun/map"
+import { buildChunkGeometry, type ChunkBounds, GROUND_READ_REACH, type SurfaceColors } from "./chunk-geometry.ts"
 import { createRenderHeights } from "./render-heights.ts"
 
 /** Vertex attribute holding each vertex's ground texture weights, read by the ground splat material plugin. */
@@ -15,7 +16,7 @@ export const WETNESS_ATTRIBUTE = "groundWetness"
 export const CHUNK_SIZE_METERS = 64
 
 export interface TerrainChunksOptions {
-  /** Ground material. Surface colours arrive as vertex colours. */
+  /** Ground material. Surface colours arrive as vertex colours, until the level's textures cover the ground. */
   readonly material: Material
   readonly surfaceColors: SurfaceColors
   /** Render one vertex every `renderStep` map samples: 2 gives 1 m vertices on the 0.5 m simulation grid. */
@@ -27,7 +28,7 @@ export interface TerrainChunksOptions {
   readonly trenchStep?: number
   /**
    * Chunks near the camera's target render every sample too, so the survey's 0.5 m detail shows up close: those whose
-   * middle lies within this many metres of the point given to `refine`. Defaults to 90.
+   * middle lies within this many metres of the point given to `flush`. Defaults to 90.
    */
   readonly detailRadius?: number
 }
@@ -35,21 +36,24 @@ export interface TerrainChunksOptions {
 export interface TerrainChunks {
   readonly meshes: readonly Mesh[]
   /**
-   * Rebuilds every chunk touching a world-space rectangle, after the map's heights or surfaces changed there (a shell
-   * crater, a dug trench). Returns how many chunks were rebuilt.
+   * Notes that the map's heights or surfaces changed in a world-space rectangle (a shell crater, a dug trench), so that
+   * every chunk drawn from the ground there is rebuilt by `flush`. A chunk changed again before then is rebuilt once.
    */
-  rebuildRegion(minX: number, minZ: number, maxX: number, maxZ: number): number
+  markChanged(area: ChangedArea): void
   /**
    * Shapes the ground around trenches to sit under the trench kit, once its pieces line the trenches, and rebuilds
-   * every chunk, trench chunks too at the coarser render step. See render-heights.ts.
+   * every chunk, trench chunks too at the coarser render step. See render-heights.ts. The kit comes with the level's
+   * ground textures, on the material by then, so from now on the chunks carry no vertex colours.
    */
   shapeForTrenchKit(): void
   /**
-   * Draws the chunks around a point, usually the camera's target, at every sample, and those further away at the render
-   * step again. Rebuilds at most `budget` chunks a call, nearest first, so panning spreads the work over frames.
+   * Rebuilds the chunks that are due, nearest a point (usually the camera's target) first and at most `budget` a call
+   * (one by default), so neither a barrage nor panning builds many in a frame: those the map changed under (see
+   * `markChanged`), and those whose detail the point's distance changes. Chunks around the point are drawn at every
+   * sample, and those further away at the render step again. A chunk both changed and changing detail is built once.
    * Returns how many chunks were rebuilt.
    */
-  refine(x: number, z: number, budget?: number): number
+  flush(x: number, z: number, budget?: number): number
   /**
    * Fires with each chunk's mesh as it's rebuilt, by any of the above: for what's drawn from the ground's shape alone,
    * such as the depth map (see post-process.ts), which is drawn again only when something in it changes.
@@ -68,6 +72,8 @@ interface Chunk {
   baseStep: number
   /** The step it's built at now. */
   step: number
+  /** The map has changed under it since it was built. */
+  changed: boolean
 }
 
 /** Deep enough to close the gap between a chunk's every-sample edge and its coarser neighbour's, in metres. */
@@ -124,59 +130,91 @@ export function createTerrainChunks(
         (box) => box.maxX >= minX && box.minX <= maxX && box.maxZ >= minZ && box.minZ <= maxZ
       )
       const step = hasTrench ? trenchStep : renderStep
-      chunks.push({ mesh, bounds, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, baseStep: step, step })
+      chunks.push({ mesh, bounds, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, baseStep: step, step, changed: false })
     }
   }
 
   let renderHeights = createRenderHeights(map, false)
   const onRebuilt = new Observable<Mesh>()
-  function build(chunk: Chunk): void {
+  // Vertex colours until the level's textures cover the ground (see shapeForTrenchKit).
+  let colors: SurfaceColors | null = surfaceColors
+  function build(chunk: Chunk, step: number): void {
     const { vertexData, splat, wetness } = buildChunkGeometry(
       map,
       chunk.bounds,
-      chunk.step,
-      surfaceColors,
+      step,
+      colors,
       renderHeights,
       SKIRT_DEPTH
     )
-    vertexData.applyToMesh(chunk.mesh, true)
-    chunk.mesh.setVerticesData(SPLAT_ATTRIBUTE, splat, true, 4)
-    chunk.mesh.setVerticesData(WETNESS_ATTRIBUTE, wetness, true, 1)
-    onRebuilt.notifyObservers(chunk.mesh)
+    const { mesh } = chunk
+    const { positions, normals, indices } = vertexData
+    chunk.changed = false
+    if (step === chunk.step && mesh.geometry && positions && normals && indices) {
+      // As many vertices and triangles as before: write into the chunk's GPU buffers rather than make new ones. Its
+      // bounds follow the ground, which a crater can lower.
+      mesh.updateVerticesData(VertexBuffer.PositionKind, positions, true)
+      mesh.updateVerticesData(VertexBuffer.NormalKind, normals)
+      if (vertexData.colors) {
+        mesh.updateVerticesData(VertexBuffer.ColorKind, vertexData.colors)
+      }
+      mesh.updateVerticesData(SPLAT_ATTRIBUTE, splat)
+      mesh.updateVerticesData(WETNESS_ATTRIBUTE, wetness)
+      mesh.updateIndices(indices)
+    } else {
+      chunk.step = step
+      vertexData.applyToMesh(mesh, true)
+      mesh.setVerticesData(SPLAT_ATTRIBUTE, splat, true, 4)
+      mesh.setVerticesData(WETNESS_ATTRIBUTE, wetness, true, 1)
+    }
+    onRebuilt.notifyObservers(mesh)
   }
-  chunks.forEach(build)
+  for (const chunk of chunks) {
+    build(chunk, chunk.step)
+  }
+  // How far a change to the map reaches into the drawing, in samples: a vertex reads the ground up to
+  // GROUND_READ_REACH away for its wetness, or a step away for its normal, and render heights reach one sample further
+  // than the change itself (see markChanged).
+  const reach = Math.max(GROUND_READ_REACH, renderStep, trenchStep) + 1
 
   return {
     meshes: chunks.map((chunk) => chunk.mesh),
-    rebuildRegion(minX, minZ, maxX, maxZ) {
-      // Normals read neighbouring samples one render step away, so a change just outside a chunk can still affect it.
-      const margin = Math.max(renderStep, trenchStep)
-      const minColumn = Math.floor(minX / map.cellSize) - margin
-      const maxColumn = Math.ceil(maxX / map.cellSize) + margin
-      const minRow = Math.floor(minZ / map.cellSize) - margin
-      const maxRow = Math.ceil(maxZ / map.cellSize) + margin
+    markChanged(area) {
+      const minColumn = Math.floor(area.minX / map.cellSize)
+      const maxColumn = Math.ceil(area.maxX / map.cellSize)
+      const minRow = Math.floor(area.minZ / map.cellSize)
+      const maxRow = Math.ceil(area.maxZ / map.cellSize)
       // Render heights near trenches take their neighbours' minimum, so they reach one sample past the change.
       renderHeights.update(minColumn - 1, minRow - 1, maxColumn + 1, maxRow + 1)
-      let rebuilt = 0
+      // The chunks beside a crater too, or their wetness and cavity shade would stay as they were up to the seam.
       for (const chunk of chunks) {
         const { firstColumn, lastColumn, firstRow, lastRow } = chunk.bounds
-        if (lastColumn >= minColumn && firstColumn <= maxColumn && lastRow >= minRow && firstRow <= maxRow) {
-          build(chunk)
-          rebuilt += 1
+        if (
+          lastColumn >= minColumn - reach &&
+          firstColumn <= maxColumn + reach &&
+          lastRow >= minRow - reach &&
+          firstRow <= maxRow + reach
+        ) {
+          chunk.changed = true
         }
       }
-      return rebuilt
     },
     shapeForTrenchKit() {
       renderHeights = createRenderHeights(map, true)
+      // The splat material colours the ground from the texture weights alone. Babylon keeps a vertex buffer until it's
+      // removed, and only notices it's gone through the flag.
+      colors = null
+      for (const chunk of chunks) {
+        chunk.mesh.removeVerticesData(VertexBuffer.ColorKind)
+        chunk.mesh.useVertexColors = false
+      }
       // The kit stands in for the trench's own shape, so trench chunks no longer need every sample.
       for (const chunk of chunks) {
         chunk.baseStep = renderStep
-        chunk.step = renderStep
-        build(chunk)
+        build(chunk, renderStep)
       }
     },
-    refine(x, z, budget = 1) {
+    flush(x, z, budget = 1) {
       const distanceTo = (chunk: Chunk) => Math.hypot(chunk.x - x, chunk.z - z)
       const wanted = (chunk: Chunk) => {
         const distance = distanceTo(chunk)
@@ -185,15 +223,14 @@ export function createTerrainChunks(
         }
         return distance > detailRadius + DETAIL_HYSTERESIS ? chunk.baseStep : chunk.step
       }
-      const stale = chunks
-        .filter((chunk) => wanted(chunk) !== chunk.step)
+      const due = chunks
+        .filter((chunk) => chunk.changed || wanted(chunk) !== chunk.step)
         .sort((a, b) => distanceTo(a) - distanceTo(b))
         .slice(0, budget)
-      for (const chunk of stale) {
-        chunk.step = wanted(chunk)
-        build(chunk)
+      for (const chunk of due) {
+        build(chunk, wanted(chunk))
       }
-      return stale.length
+      return due.length
     },
     onRebuilt,
     dispose() {
