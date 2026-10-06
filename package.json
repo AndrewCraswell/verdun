@@ -41,12 +41,12 @@
     "perf": "node scripts/perf.mjs --headed"
   },
   "devDependencies": {
-    "knip": "^6.38.0",
-    "lefthook": "^2.1.14",
+    "knip": "^6.39.0",
+    "lefthook": "^2.1.16",
     "npm-run-all2": "^9.0.3",
-    "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
-    "turbo": "2.11.4"
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "turbo": "2.11.7"
   },
   "packageManager": "pnpm@11.9.0"
 }
