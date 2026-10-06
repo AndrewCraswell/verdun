@@ -363,7 +363,7 @@ describe("createPlayerControl", () => {
     const whistles: number[] = []
     const engine = new NullEngine()
     engines.push(engine)
-    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 400 }), seed: 1 })
     // Still air: a gas shoot's drift then reaches nobody, so it goes without asking twice.
     sim.wind.x = 0
     sim.wind.z = 0
@@ -375,7 +375,7 @@ describe("createPlayerControl", () => {
       { kind: "whistle" },
       { kind: "bombard" },
       { kind: "call-fire", x: 1, z: 2 },
-      { kind: "call-gas", x: 3, z: 4 },
+      { kind: "call-gas", x: 3, z: 300 },
       { kind: "toggle-fog" },
       { kind: "toggle-prone" },
       { kind: "grenade", x: 50, z: 70 }
@@ -441,7 +441,7 @@ describe("createPlayerControl", () => {
     const calls: string[] = []
     const engine = new NullEngine()
     engines.push(engine)
-    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 100 }), seed: 1 })
+    const sim = createSimulation({ map: createFlatMap({ name: "m", cellSize: 1, columns: 100, rows: 400 }), seed: 1 })
     const squad = createSquad(sim, Side.French, [spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })], "player")
     const camera = new ArcRotateCamera("camera", LOOKING_NORTH, 0.6, 60, new Vector3(0, 0, 0), new Scene(engine))
     const actions: PlayerAction[] = []
@@ -466,8 +466,8 @@ describe("createPlayerControl", () => {
     actions.push({ kind: "call-fire", x: 50, z: 50 })
     control.update(0.05)
     expect(calls).toEqual(["fire 50"])
-    // Well clear of him: at once.
-    actions.push({ kind: "call-gas", x: 10, z: 95 })
+    // Well clear of him, beyond its shells' spread and the gas's drift: at once.
+    actions.push({ kind: "call-gas", x: 10, z: 300 })
     control.update(0.05)
     expect(calls).toEqual(["fire 50", "gas 10"])
   })
