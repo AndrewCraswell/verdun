@@ -245,6 +245,30 @@ function geoCache(): Plugin {
   }
 }
 
+/** Scans of dated battle maps (packages/map/data/battle-maps.json), fetched into the asset library. Git-ignored. */
+const BATTLE_MAPS_DIR = resolve(import.meta.dirname, "../../.asset-cache/battle-maps")
+const BATTLE_MAPS_ROUTE = "/battle-maps"
+
+/** Serves the battle maps' scans at /battle-maps/ in dev only, for the sector editor to lay over the ground. */
+function battleMaps(): Plugin {
+  return {
+    name: "verdun-battle-maps",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(BATTLE_MAPS_ROUTE, (request, response, next) => {
+        const file = resolve(BATTLE_MAPS_DIR, `.${decodeURIComponent(request.url?.split("?")[0] ?? "")}`)
+        const contentType = SECTOR_TYPES[extname(file)]
+        if (!file.startsWith(BATTLE_MAPS_DIR + sep) || !contentType || !existsSync(file)) {
+          next()
+          return
+        }
+        response.setHeader("Content-Type", contentType)
+        sendFile(file, response)
+      })
+    }
+  }
+}
+
 /** The build's name for the menu's footer: the commit it was built from, or "dev" where git can't say. */
 function buildName(): string {
   try {
@@ -255,7 +279,7 @@ function buildName(): string {
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [levelKit(), assetPack(), music(), sectorFiles(), geoCache()],
+  plugins: [levelKit(), assetPack(), music(), sectorFiles(), geoCache(), battleMaps()],
   define: {
     "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev"),
     // The sector server multiplayer is played on, as CI builds the live game: none here unless given, so a local

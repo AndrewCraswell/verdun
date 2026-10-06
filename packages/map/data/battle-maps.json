@@ -1,0 +1,32 @@
+{
+  "about": "Dated maps of the Battle of Verdun the sector editor lays over the ground. Each is a scan kept in the asset library (.asset-cache/battle-maps, fetched by pnpm map:battle-maps), fitted to the ground by its control points: a pixel of the scan, and where that place lies in Lambert-93 metres. The frame is the part of the scan that is map, in pixels; what lies outside it (margins, the legend) is left off.",
+  "maps": [
+    {
+      "id": "afgg-iv-1-carte-16",
+      "title": "Fronts français successifs au nord de Verdun, 21 au 26 février 1916",
+      "from": "1916-02-21",
+      "to": "1916-02-26",
+      "source": "Les armées françaises dans la Grande Guerre, tome IV, 1er volume, carte n° 16 (1:20 000)",
+      "credit": "Site Mémoire des hommes, ministère des Armées",
+      "licence": "Licence Ouverte 2.0 (Etalab)",
+      "image": "https://www.memoiredeshommes.defense.gouv.fr/_recherche-images/show/111535/image/56023/0?size=full",
+      "file": "afgg-iv-1-carte-16.jpg",
+      "size": [5000, 3467],
+      "frame": [190, 40, 4810, 3230],
+      "excluded": [[3900, 45, 4830, 738]],
+      "order": 2,
+      "controlPoints": [
+        { "name": "Fort de Douaumont", "pixel": [2530, 2132], "ground": [877685, 6904629] },
+        { "name": "Fort de Vaux", "pixel": [3045, 2580], "ground": [880008, 6902840] },
+        { "name": "Fort de Tavannes", "pixel": [2942, 3045], "ground": [879568, 6900755] },
+        { "name": "Fort de Belleville", "pixel": [1555, 3055], "ground": [873801, 6900492] },
+        { "name": "Bras", "pixel": [1480, 2292], "ground": [873180, 6903900] },
+        { "name": "Eix", "pixel": [3495, 3110], "ground": [882080, 6900590] },
+        { "name": "Damloup", "pixel": [3345, 2580], "ground": [881650, 6903050] },
+        { "name": "Samogneux", "pixel": [825, 1102], "ground": [870200, 6908580] },
+        { "name": "Brabant-sur-Meuse", "pixel": [405, 692], "ground": [868230, 6910570] },
+        { "name": "Ornes", "pixel": [3095, 1205], "ground": [879622, 6908699] }
+      ]
+    }
+  ]
+}

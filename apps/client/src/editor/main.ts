@@ -24,6 +24,8 @@ import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type CameraPose, createEditorCamera, initialPose } from "./editor-camera.ts"
 import { createMarkers, DEFAULT_KINDS, isPlaceKind, PLACE_KINDS, type Place } from "./markers.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
+import { createScaleBar } from "./scale-bar.ts"
+import { BATTLE_MAPS, type BattleMapDrape, drapeBattleMap } from "./theatre/battle-maps.ts"
 import { BASE_MAPS, BATTLE_BOUNDS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
 import { createWaterTexture } from "./theatre/water.ts"
 
@@ -35,6 +37,7 @@ const OVERLAY_KEY = "verdun.editor.overlay"
 const MARKERS_KEY = "verdun.editor.markers"
 const RIVERS_KEY = "verdun.editor.rivers"
 const RELIEF_KEY = "verdun.editor.relief"
+const BATTLE_MAP_KEY = "verdun.editor.battle-map"
 /**
  * Where the sector lies: its south-west corner in Lambert-93, the one scripts/fetch-elevation.mjs fetched its ground for.
  * The sector files will carry their own.
@@ -165,6 +168,7 @@ async function start(): Promise<void> {
     editorCamera.frame(0, 0, width, depth, groundY)
   )
   const needle = element("compass-needle", HTMLElement)
+  const scaleBar = createScaleBar(scene, camera, canvas)
   let keepAt = 0
   camera.onViewMatrixChangedObservable.add(() => {
     const now = performance.now()
@@ -202,6 +206,7 @@ async function start(): Promise<void> {
     }
     // The compass's needle points north as the camera turns.
     needle.style.transform = `rotate(${-editorCamera.yaw}rad)`
+    scaleBar.update()
     scene.render()
   })
 
@@ -321,6 +326,43 @@ async function start(): Promise<void> {
     editorCamera.frame(at.x - 600, at.z - 600, at.x + 600, at.z + 600, at.y)
   }
   const markers = createMarkers(scene, camera, canvas, [battleLabel, ...places()], toScene, flyTo)
+
+  // The battle maps: a dated map of the battle laid over the ground, at its own opacity.
+  const battleSelect = element("battle-map", HTMLSelectElement)
+  const battleOpacity = element("battle-map-opacity", HTMLInputElement)
+  const battleNote = element("battle-map-note", HTMLElement)
+  const dateOf = (iso: string) =>
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+  battleSelect.replaceChildren(
+    new Option("None", ""),
+    ...BATTLE_MAPS.map((battle) => {
+      const when = battle.from === battle.to ? dateOf(battle.from) : `${dateOf(battle.from)} to ${dateOf(battle.to)}`
+      return new Option(`${when}: ${battle.title}`, battle.id)
+    })
+  )
+  const keptBattle = readStored(BATTLE_MAP_KEY)
+  if (isRecord(keptBattle)) {
+    battleSelect.value = typeof keptBattle.id === "string" ? keptBattle.id : ""
+    battleOpacity.value = isNumber(keptBattle.opacity) ? String(keptBattle.opacity) : battleOpacity.value
+  }
+  let battleDrape: BattleMapDrape | null = null
+  const showBattleMap = () => {
+    store(BATTLE_MAP_KEY, { id: battleSelect.value, opacity: Number(battleOpacity.value) })
+    battleDrape?.dispose()
+    battleDrape = null
+    const chosen = BATTLE_MAPS.find((battle) => battle.id === battleSelect.value)
+    battleNote.textContent = ""
+    if (chosen) {
+      battleDrape = drapeBattleMap(scene, chosen, theatreFrame, ground.heightAt, Number(battleOpacity.value))
+      battleNote.textContent = `${chosen.source}. ${chosen.credit}. Fitted to within ${Math.round(battleDrape.rms)} m.`
+    }
+  }
+  battleSelect.addEventListener("change", showBattleMap)
+  battleOpacity.addEventListener("input", () => {
+    store(BATTLE_MAP_KEY, { id: battleSelect.value, opacity: Number(battleOpacity.value) })
+    battleDrape?.setOpacity(Number(battleOpacity.value))
+  })
+  showBattleMap()
 
   // Seeing the lie of the land: the hillshade multiplied into the map, the ground round the sector raised by a factor
   // (about the sector's own height, so the sector stays where it is), and the labels thinned where they'd overlap.

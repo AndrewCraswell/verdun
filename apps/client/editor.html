@@ -41,7 +41,7 @@
         left: 12px;
         width: 270px;
         padding: 12px 14px;
-        max-height: calc(100% - 50px);
+        max-height: calc(100% - 90px);
         overflow-y: auto;
       }
       #panel h1 {
@@ -135,6 +135,43 @@
       }
       #view-controls button:not(#compass) {
         width: 100%;
+      }
+      .scale-bar {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
+        padding: 8px 22px 22px 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        pointer-events: none;
+      }
+      .scale-bar-ruler {
+        position: relative;
+        height: 6px;
+        border: 1px solid var(--text);
+      }
+      .scale-bar-stretch {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        background: var(--text);
+      }
+      .scale-bar-stretch-light {
+        background: transparent;
+      }
+      .scale-bar-tick {
+        position: absolute;
+        top: -4px;
+        height: 12px;
+        border-left: 1px solid var(--text);
+      }
+      .scale-bar-label {
+        position: absolute;
+        top: 10px;
+        transform: translateX(-50%);
+        font-size: 11px;
+        white-space: nowrap;
       }
       .markers {
         position: absolute;
@@ -238,6 +275,15 @@
           ></label
         >
         <div class="muted">Ground and maps: IGN, Licence Ouverte 2.0. Places: Wikidata.</div>
+      </section>
+      <section>
+        <h2>Battle maps</h2>
+        <label
+          >Map
+          <select id="battle-map"></select
+        ></label>
+        <label>Opacity <input id="battle-map-opacity" type="range" min="0" max="1" step="0.05" value="0.85" /></label>
+        <div id="battle-map-note" class="muted"></div>
       </section>
       <section>
         <h2>Markers</h2>

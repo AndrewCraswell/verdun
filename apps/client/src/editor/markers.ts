@@ -79,9 +79,8 @@ export function createMarkers(
     const label = document.createElement("div")
     label.className = `marker marker-${place.kind}`
     label.textContent = place.name
-    // Clicking a label takes the camera to its place.
-    label.addEventListener("click", () => onPick(place))
-    // How many labels this one hides where they'd overlap; clicking it spreads them out under it, and again folds them.
+    // How many labels this one hides where they'd overlap. Clicking a label that hides others spreads them out under it,
+    // and again folds them; clicking one that hides none takes the camera to its place.
     const covers = document.createElement("span")
     covers.className = "marker-covers"
     label.append(covers)
@@ -93,12 +92,13 @@ export function createMarkers(
   /** The labels spread out, by their place. */
   const spread = new Set<Place>()
   for (const entry of labels) {
-    entry.covers.addEventListener("click", (event) => {
-      event.stopPropagation()
+    entry.label.addEventListener("click", () => {
       if (spread.has(entry.place)) {
         spread.delete(entry.place)
-      } else {
+      } else if (entry.hidden.length > 0) {
         spread.add(entry.place)
+      } else {
+        onPick(entry.place)
       }
     })
   }
