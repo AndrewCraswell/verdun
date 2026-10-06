@@ -148,6 +148,18 @@ In order, each verified in the browser and committed on its own:
   module's compilation report: in a stutter hunt nightfall's worst frame went from 2,944 ms to 143 ms. It costs the
   first load some 2-4 s on a cold shader cache (14-17.7 s to 16.4-18.5 s on this machine, quiet). Waiting for quick
   frames let the battle start before the browser had finished (a 2-10 s freeze just after loading); waiting for the
-  GPU's queue took ten seconds more. Zooming out to the overview still builds a soldier layer's shader once, without the
-  sun's shadows: about 0.8 s. The flares' shadows were taken out: they never showed, since a material takes a light's
-  shadows only if its shadow map has casters when the light comes on, and night always fell before the first flare.
+  GPU's queue took ten seconds more. The flares' shadows were taken out: they never showed, since a material takes a
+  light's shadows only if its shadow map has casters when the light comes on, and night always fell before the first
+  flare.
+- **Stutters, the first climb to the overview**: still a stall, once a session for each: a worst frame of 0.7-0.9 s by
+  day and 2.6-3.1 s by night, and a few hundred milliseconds more in the frames after (two quiet hunts). Mostly not
+  shaders but WebGPU pipelines: from high up some 170 more meshes come into view, their combinations of material, vertex
+  layout and pass need 10 new pipelines by day and 22 by night, and the browser compiles each in its GPU process as the
+  next frame waits. Three ways round it were measured and dropped: building at load every shader for the night and the
+  day, with the sun's shadows and without, left the overview no shader to build but cost the first load 5-7 s and only
+  halved the night's stall, its pipelines still to make; every layer of the soldiers held through the frame without the
+  sun's shadows still left the day's overview a shader to build; and drawing every mesh, unculled, in that frame made
+  pipelines the loading screen doesn't wait for, so the battle froze for 1.7 s just after loading, and the day's
+  overview stalled about as long as before. What would cover it is a frame drawn from the overview itself while the
+  battle loads (by day, likely under a second's load), or pipelines built off the GPU process's main thread
+  (`createRenderPipelineAsync`), which Babylon doesn't use.
