@@ -34,6 +34,8 @@ Thumbs.db
 
 # The built client CI copies in to deploy (deploy/Dockerfile).
 deploy/site/
+# What the sector server's image is built from, put together by deploy/server/assemble.sh.
+deploy/server/context/
 
 # What pnpm map:check draws of a sector as generated, for its Tiled file.
 packages/map/sectors/*-generated.png

@@ -45,8 +45,9 @@ jobs:
       - name: Pack the level kit
         run: pnpm assets:pack
       - run: pnpm verify
-      # Every push to main that passes goes live: the client just built, served by Caddy (deploy/), on Railway. Needs
-      # the RAILWAY_TOKEN secret, a project token for the verdun project's production environment.
+      # Every push to main that passes goes live: the client just built, served by Caddy (deploy/), and the sector
+      # server (deploy/server/), on Railway. Needs the RAILWAY_TOKEN secret, a project token for the verdun project's
+      # production environment.
       - name: Deploy to Railway
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -58,3 +59,5 @@ jobs:
           fi
           cp -r apps/client/dist deploy/site
           npx --yes @railway/cli@5 up deploy --path-as-root --no-gitignore --service client --environment production --ci --message "${GITHUB_SHA::7}"
+          bash deploy/server/assemble.sh
+          npx --yes @railway/cli@5 up deploy/server/context --path-as-root --no-gitignore --service server --environment production --ci --message "${GITHUB_SHA::7}"

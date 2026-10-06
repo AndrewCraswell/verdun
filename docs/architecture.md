@@ -155,6 +155,12 @@ before, for development and `pnpm perf`.
 - **Transport**: Colyseus's `ws` transport. `@colyseus/uwebsockets-transport` installs uWebSockets.js from GitHub, which
   pnpm's supply-chain policy (`blockExoticSubdeps`) refuses; swapping it in is one line in `main.ts` once that's
   settled.
+- **Hosting**: the `server` service in the verdun project on Railway, at server-production-ff62.up.railway.app, beside
+  the `client`. CI deploys it on every push to main that passes: `deploy/server/assemble.sh` puts the workspace's
+  manifests and lockfile together with the server and the packages it runs on, and Railway builds the image from
+  `deploy/server/Dockerfile`, Node running the TypeScript as it is. The battle is kept in SQLite on the service's volume
+  (`VERDUN_DB=/data/verdun.db`); a deploy gives the server 10 s to save it before it's stopped, and the new one takes it
+  up where it left off. One instance, as the battle is one process's.
 
 - **Client-side prediction** (`apps/client/src/sim/prediction.ts`): the soldier the player controls moves on the page at
   once, not a round trip later. The page counts its own steps at the simulation's rate and sends each batch of commands
@@ -173,7 +179,6 @@ In order, what comes next:
 
 1. The squads' and combat systems under many players (see [the load test](#the-load-test)): the route search now runs
    three times as fast, and the straight walks' checks faster too.
-2. Hosting on Railway, with the database on a volume.
 
 ### The load test
 
