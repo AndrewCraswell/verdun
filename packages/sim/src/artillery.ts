@@ -189,6 +189,14 @@ const UNCORRECTED = { range: 70, deflection: 30 } as const
 const DEFENSIVE_BARRAGE_DURATION = 240
 /** Ahead of the defenders' wire, where the defensive barrage drops, as a fraction of the gap between the lines. */
 const DEFENSIVE_BARRAGE_LINE = 0.35
+/**
+ * The defensive barrage falls in front of the attack, out to this far either side of the attackers seen, in metres:
+ * each battery had its own SOS lines in front of the stretch it covered, and fired them when that stretch's rockets
+ * went up. Its weight per metre is the whole front's.
+ */
+const DEFENSIVE_BARRAGE_BEYOND = 100
+/** The defensive barrage's rounds a minute, of each kind, along the whole front: thinned in proportion along a stretch. */
+const DEFENSIVE_BARRAGE_RATE = { explosive: 40, shrapnel: 20 } as const
 
 /** A shell fired and still in the air. */
 export interface ShellInFlight {
@@ -679,50 +687,71 @@ export function lineSpanBetween(trenches: readonly Trench[], side: Side, fromX: 
 
 /**
  * The defenders' answer to an attack: as soon as one of a side's soldiers sees an enemy out in no man's land, they call
- * for a barrage ahead of their own wire. It lands after the historical delay and fires field HE and shrapnel.
+ * for a barrage ahead of their own wire, in front of the attackers seen. It lands after the historical delay and fires
+ * field HE and shrapnel.
  */
 function callDefensiveBarrage(sim: Simulation): void {
   for (const side of [Side.French, Side.German]) {
     if (sim.artillery.sosCalledAt[side] >= 0) {
       continue
     }
+    const enemySide = side === Side.French ? Side.German : Side.French
     const own = frontLineSpan(sim.map.trenches, side)
-    const enemy = frontLineSpan(sim.map.trenches, side === Side.French ? Side.German : Side.French)
+    const enemy = frontLineSpan(sim.map.trenches, enemySide)
     if (own === null || enemy === null) {
       continue
     }
-    // Between the bays each side has pushed furthest forward.
+    // Seen between the bays each side has pushed furthest forward.
     const ownLine = own.forward
     const enemyLine = enemy.forward
     // Out of every trench and between the lines. Front lines zigzag, so a man in a forward bay isn't in the open.
     const inNoMansLand = (x: number, z: number) =>
       !isInTrench(sim.map, x, z) &&
       (side === Side.German ? z > enemyLine + 10 && z < ownLine - 5 : z < enemyLine - 10 && z > ownLine + 5)
-    const spotted = soldierIds(sim).some((soldier) => {
+    let seenFrom = Infinity
+    let seenTo = -Infinity
+    for (const soldier of soldierIds(sim)) {
       const target = sim.soldiers.target.id[soldier]
-      return (
+      if (
         sim.soldiers.side.value[soldier] === side &&
         target >= 0 &&
         inNoMansLand(sim.soldiers.position.x[target], sim.soldiers.position.z[target])
-      )
-    })
-    if (!spotted) {
+      ) {
+        seenFrom = Math.min(seenFrom, sim.soldiers.position.x[target])
+        seenTo = Math.max(seenTo, sim.soldiers.position.x[target])
+      }
+    }
+    if (seenFrom > seenTo) {
       continue
     }
     sim.artillery.sosCalledAt[side] = sim.tick
-    const z = ownLine + (enemyLine - ownLine) * DEFENSIVE_BARRAGE_LINE
+    const width = mapWidth(sim.map)
+    const fromX = Math.max(0, seenFrom - DEFENSIVE_BARRAGE_BEYOND)
+    const toX = Math.min(width, seenTo + DEFENSIVE_BARRAGE_BEYOND)
+    // Between the bays each side holds along that stretch.
+    const ownHere = lineSpanBetween(sim.map.trenches, side, fromX, toX) ?? own
+    const enemyHere = lineSpanBetween(sim.map.trenches, enemySide, fromX, toX) ?? enemy
+    const share = width > 0 ? (toX - fromX) / width : 1
     const common = {
       side,
-      fromX: 0,
-      toX: mapWidth(sim.map),
-      z,
+      fromX,
+      toX,
+      z: ownHere.forward + (enemyHere.forward - ownHere.forward) * DEFENSIVE_BARRAGE_LINE,
       band: 40,
       delay: defensiveBarrageDelay(sim),
       duration: DEFENSIVE_BARRAGE_DURATION,
       cutsWire: false
     }
-    orderFireMission(sim, { ...common, shell: Shell.FieldHighExplosive, roundsPerMinute: 40 })
-    orderFireMission(sim, { ...common, shell: Shell.FieldShrapnel, roundsPerMinute: 20 })
+    orderFireMission(sim, {
+      ...common,
+      shell: Shell.FieldHighExplosive,
+      roundsPerMinute: DEFENSIVE_BARRAGE_RATE.explosive * share
+    })
+    orderFireMission(sim, {
+      ...common,
+      shell: Shell.FieldShrapnel,
+      roundsPerMinute: DEFENSIVE_BARRAGE_RATE.shrapnel * share
+    })
   }
 }
 

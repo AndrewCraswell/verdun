@@ -128,14 +128,17 @@ export function attackBehindBarrage(sim: Simulation, side: Side, stretch?: Stret
 /**
  * A preparatory bombardment of the enemy front line, along a stretch or the whole front: heavy howitzers to smash the
  * trench, field guns to keep the defenders down and to cut lanes through the wire in front of it, for two minutes. Real
- * bombardments lasted days; this is the last, most intense stretch.
+ * bombardments lasted days; this is the last, most intense stretch. Along a stretch it is laid on the trench and wire
+ * there, observed and registered shoots on what the gunners could see, not on the line's depth along the whole front.
  */
 export function bombardEnemyLine(sim: Simulation, side: Side, stretch?: Stretch): void {
-  const front = lines(sim, side)
-  if (!front) {
+  const whole = lines(sim, side)
+  if (!whole) {
     return
   }
   const { fromX, toX, share } = fireFront(sim, stretch)
+  const here = stretch ? lineSpanBetween(sim.map.trenches, enemyOf(side), fromX, toX) : null
+  const front = here === null ? whole : { ...whole, enemy: here, enemyMiddle: (here.forward + here.rear) / 2 }
   const depth = Math.abs(front.enemy.rear - front.enemy.forward)
   const target = {
     side,

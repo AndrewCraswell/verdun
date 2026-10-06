@@ -452,6 +452,9 @@ describe("defensive barrage", () => {
     expect((explosive?.startTick ?? 0) - sim.artillery.sosCalledAt[Side.German]).toBe(
       DEFENSIVE_BARRAGE_DELAY * TICK_RATE
     )
+    // In front of the attacker seen, 100 m either side, at the whole front's weight per metre.
+    expect([explosive?.fromX, explosive?.toX]).toEqual([50, 250])
+    expect(explosive?.roundsPerMinute).toBeCloseTo((40 * 200) / 300)
     // In front of the German wire, between the lines.
     expect(explosive?.z).toBeLessThan(germanLine)
     expect(explosive?.z).toBeGreaterThan(frenchLine)
