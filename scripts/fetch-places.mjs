@@ -21,8 +21,8 @@ const print = (line) => process.stdout.write(`${line}\n`)
  * The theatre round Verdun in Lambert-93 (apps/client/src/editor/theatre/ground.ts), and a box of latitude and
  * longitude a little beyond it, for Wikidata.
  */
-const THEATRE = { west: 852_000, south: 6_892_000, east: 890_000, north: 6_917_000 }
-const BOX = { south: 49.07, west: 5.07, north: 49.34, east: 5.6 }
+const THEATRE = { west: 846_000, south: 6_880_000, east: 896_000, north: 6_918_000 }
+const BOX = { south: 48.98, west: 4.99, north: 49.35, east: 5.71 }
 /** Wikidata classes, by the kind of place the editor marks them as. */
 const KINDS = {
   fort: ["Q1785071", "Q57821", "Q57831", "Q20202269"],

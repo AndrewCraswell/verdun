@@ -196,10 +196,38 @@
       "wikidata": "Q61640757"
     },
     {
+      "name": "À Roblet",
+      "kind": "hill",
+      "x": 862752,
+      "y": 6917491,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Abancourt",
+      "kind": "hill",
+      "x": 848291,
+      "y": 6898313,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Beau Regard",
       "kind": "hill",
       "x": 858110,
       "y": 6910365,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Billaumont",
+      "kind": "hill",
+      "x": 892697,
+      "y": 6893764,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Blanc Mont",
+      "kind": "hill",
+      "x": 857624,
+      "y": 6883900,
       "source": "BD TOPO"
     },
     {
@@ -210,10 +238,32 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Butte de Vauquois",
+      "kind": "hill",
+      "x": 850850,
+      "y": 6902628,
+      "source": "BD TOPO",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Butte_de_Vauquois"
+    },
+    {
       "name": "Buzaumont",
       "kind": "hill",
       "x": 856412,
       "y": 6915763,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Chivremont",
+      "kind": "hill",
+      "x": 893837,
+      "y": 6893199,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Corrois",
+      "kind": "hill",
+      "x": 890589,
+      "y": 6887135,
       "source": "BD TOPO"
     },
     {
@@ -239,6 +289,69 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte à Laudin",
+      "kind": "hill",
+      "x": 880009,
+      "y": 6891842,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte à Ornel",
+      "kind": "hill",
+      "x": 858857,
+      "y": 6888371,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Alaudin",
+      "kind": "hill",
+      "x": 882077,
+      "y": 6885560,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Amarante",
+      "kind": "hill",
+      "x": 891128,
+      "y": 6886570,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte aux Cerfs",
+      "kind": "hill",
+      "x": 848293,
+      "y": 6883031,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte aux Pierres",
+      "kind": "hill",
+      "x": 847763,
+      "y": 6888798,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Blanche",
+      "kind": "hill",
+      "x": 848571,
+      "y": 6916489,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Bossue",
+      "kind": "hill",
+      "x": 890816,
+      "y": 6881634,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Chandelle",
+      "kind": "hill",
+      "x": 895307,
+      "y": 6883547,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte Châtillon",
       "kind": "hill",
       "x": 852525,
@@ -260,10 +373,94 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte Colas",
+      "kind": "hill",
+      "x": 889616,
+      "y": 6885769,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Colin",
+      "kind": "hill",
+      "x": 880568,
+      "y": 6889951,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte d'Acémont",
+      "kind": "hill",
+      "x": 876346,
+      "y": 6884842,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte d'Aventure",
+      "kind": "hill",
+      "x": 848850,
+      "y": 6882495,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte d'Hadrimont",
+      "kind": "hill",
+      "x": 863872,
+      "y": 6890679,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte d'Horgne",
+      "kind": "hill",
+      "x": 876148,
+      "y": 6917931,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte d'Orvaux",
+      "kind": "hill",
+      "x": 880839,
+      "y": 6885876,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Dame Marie",
+      "kind": "hill",
+      "x": 849729,
+      "y": 6915827,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Baulny",
+      "kind": "hill",
+      "x": 849057,
+      "y": 6912783,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte de Béthincourt",
       "kind": "hill",
       "x": 862100,
       "y": 6909799,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Brémont",
+      "kind": "hill",
+      "x": 849120,
+      "y": 6882053,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Busy",
+      "kind": "hill",
+      "x": 866784,
+      "y": 6917658,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Châtillon",
+      "kind": "hill",
+      "x": 847468,
+      "y": 6917784,
       "source": "BD TOPO"
     },
     {
@@ -302,6 +499,41 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte de Maujouy",
+      "kind": "hill",
+      "x": 859296,
+      "y": 6880437,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Mesnil",
+      "kind": "hill",
+      "x": 887604,
+      "y": 6890604,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Morimont",
+      "kind": "hill",
+      "x": 877492,
+      "y": 6917121,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Moucherey",
+      "kind": "hill",
+      "x": 860058,
+      "y": 6887767,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Nixéville",
+      "kind": "hill",
+      "x": 864706,
+      "y": 6891093,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte de Ramon",
       "kind": "hill",
       "x": 879883,
@@ -313,6 +545,20 @@
       "kind": "hill",
       "x": 879079,
       "y": 6915431,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Rupt",
+      "kind": "hill",
+      "x": 880011,
+      "y": 6889532,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte de Sât",
+      "kind": "hill",
+      "x": 888896,
+      "y": 6886002,
       "source": "BD TOPO"
     },
     {
@@ -330,10 +576,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte de Waly",
+      "kind": "hill",
+      "x": 853126,
+      "y": 6883509,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Binois",
+      "kind": "hill",
+      "x": 851630,
+      "y": 6886155,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte des Bois Secs",
       "kind": "hill",
       "x": 876597,
       "y": 6892283,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Fontaines Brillantes",
+      "kind": "hill",
+      "x": 880026,
+      "y": 6891232,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Fourches",
+      "kind": "hill",
+      "x": 860869,
+      "y": 6891044,
       "source": "BD TOPO"
     },
     {
@@ -348,6 +622,62 @@
       "kind": "hill",
       "x": 876229,
       "y": 6895616,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Masets",
+      "kind": "hill",
+      "x": 847274,
+      "y": 6907442,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Ocas",
+      "kind": "hill",
+      "x": 863446,
+      "y": 6889186,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Oies",
+      "kind": "hill",
+      "x": 860491,
+      "y": 6882575,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Vaches",
+      "kind": "hill",
+      "x": 862769,
+      "y": 6891699,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Vignes",
+      "kind": "hill",
+      "x": 865532,
+      "y": 6891540,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte des Vignes",
+      "kind": "hill",
+      "x": 878151,
+      "y": 6889033,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte du Bras",
+      "kind": "hill",
+      "x": 858138,
+      "y": 6882394,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte du Fayet",
+      "kind": "hill",
+      "x": 890579,
+      "y": 6883687,
       "source": "BD TOPO"
     },
     {
@@ -372,6 +702,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte Ferrée",
+      "kind": "hill",
+      "x": 858158,
+      "y": 6882713,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Gaillot",
+      "kind": "hill",
+      "x": 880574,
+      "y": 6883626,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte Gilpin",
       "kind": "hill",
       "x": 863694,
@@ -383,6 +727,20 @@
       "kind": "hill",
       "x": 860854,
       "y": 6896395,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte la Gravière",
+      "kind": "hill",
+      "x": 894467,
+      "y": 6884081,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte la Hairesse",
+      "kind": "hill",
+      "x": 875584,
+      "y": 6887553,
       "source": "BD TOPO"
     },
     {
@@ -407,10 +765,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte le Lièvre",
+      "kind": "hill",
+      "x": 887852,
+      "y": 6890133,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte le Manier",
+      "kind": "hill",
+      "x": 860759,
+      "y": 6888168,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte le Meunier",
       "kind": "hill",
       "x": 854421,
       "y": 6895700,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte le Roi",
+      "kind": "hill",
+      "x": 847656,
+      "y": 6883125,
       "source": "BD TOPO"
     },
     {
@@ -421,10 +800,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte Montignon",
+      "kind": "hill",
+      "x": 849873,
+      "y": 6914653,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Oyée",
+      "kind": "hill",
+      "x": 889412,
+      "y": 6890604,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Paquette",
+      "kind": "hill",
+      "x": 846433,
+      "y": 6912065,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côte Patin",
       "kind": "hill",
       "x": 862524,
       "y": 6897238,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Pont Levis",
+      "kind": "hill",
+      "x": 880770,
+      "y": 6891659,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Roquille",
+      "kind": "hill",
+      "x": 881431,
+      "y": 6887976,
       "source": "BD TOPO"
     },
     {
@@ -484,6 +898,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte Sauvage",
+      "kind": "hill",
+      "x": 890859,
+      "y": 6885784,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Côtes de Meuse",
       "kind": "hill",
       "x": 880561,
@@ -492,10 +913,73 @@
       "wikipedia": "https://fr.wikipedia.org/wiki/C%C3%B4tes_de_Meuse"
     },
     {
+      "name": "Côtes des Hures",
+      "kind": "hill",
+      "x": 889591,
+      "y": 6889520,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut de Blanchard",
+      "kind": "hill",
+      "x": 894830,
+      "y": 6890401,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut de Bussy",
+      "kind": "hill",
+      "x": 895372,
+      "y": 6889529,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut de Mortrieux",
+      "kind": "hill",
+      "x": 859365,
+      "y": 6887152,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut de Viller",
+      "kind": "hill",
+      "x": 892268,
+      "y": 6890053,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut de Villers",
+      "kind": "hill",
+      "x": 895143,
+      "y": 6902523,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Haut des Sorts",
       "kind": "hill",
       "x": 888458,
       "y": 6915606,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut des Terres",
+      "kind": "hill",
+      "x": 888944,
+      "y": 6891238,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut des Vignes",
+      "kind": "hill",
+      "x": 866393,
+      "y": 6886442,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Haut du Trice",
+      "kind": "hill",
+      "x": 892199,
+      "y": 6908761,
       "source": "BD TOPO"
     },
     {
@@ -513,10 +997,52 @@
       "source": "BD TOPO"
     },
     {
+      "name": "l'Épinée",
+      "kind": "hill",
+      "x": 850437,
+      "y": 6882382,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Bastille",
+      "kind": "hill",
+      "x": 846313,
+      "y": 6880842,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Cardine",
+      "kind": "hill",
+      "x": 846506,
+      "y": 6891163,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Citadelle",
+      "kind": "hill",
+      "x": 847450,
+      "y": 6891208,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Côte Baillet",
+      "kind": "hill",
+      "x": 851530,
+      "y": 6902189,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Fête",
       "kind": "hill",
       "x": 866446,
       "y": 6895857,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Grande Keskomme",
+      "kind": "hill",
+      "x": 846004,
+      "y": 6884299,
       "source": "BD TOPO"
     },
     {
@@ -531,6 +1057,34 @@
       "kind": "hill",
       "x": 858225,
       "y": 6912058,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Hayette",
+      "kind": "hill",
+      "x": 846052,
+      "y": 6880657,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Hazette",
+      "kind": "hill",
+      "x": 849151,
+      "y": 6896438,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Ronde Côte",
+      "kind": "hill",
+      "x": 863777,
+      "y": 6917777,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Tête de Saule",
+      "kind": "hill",
+      "x": 847185,
+      "y": 6891436,
       "source": "BD TOPO"
     },
     {
@@ -555,10 +1109,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Champ de Bataille",
+      "kind": "hill",
+      "x": 891058,
+      "y": 6887948,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Champ Roie",
       "kind": "hill",
       "x": 855735,
       "y": 6912246,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Chantelin",
+      "kind": "hill",
+      "x": 847157,
+      "y": 6909331,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Château",
+      "kind": "hill",
+      "x": 847238,
+      "y": 6882543,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Gros Cerisier",
+      "kind": "hill",
+      "x": 849251,
+      "y": 6914434,
       "source": "BD TOPO"
     },
     {
@@ -619,6 +1201,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Tour",
+      "kind": "hill",
+      "x": 851340,
+      "y": 6897580,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Jumelles d'Ornes",
       "kind": "hill",
       "x": 880983,
@@ -654,10 +1243,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Mont la Parfard",
+      "kind": "hill",
+      "x": 846233,
+      "y": 6915578,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Mont Lard",
       "kind": "hill",
       "x": 866744,
       "y": 6892291,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Mont les Charmes",
+      "kind": "hill",
+      "x": 861528,
+      "y": 6891531,
       "source": "BD TOPO"
     },
     {
@@ -675,6 +1278,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Montgirmont",
+      "kind": "hill",
+      "x": 890346,
+      "y": 6888715,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Mormont",
       "kind": "hill",
       "x": 883034,
@@ -689,6 +1299,41 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Quimont",
+      "kind": "hill",
+      "x": 850843,
+      "y": 6916500,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Rond des Côtes",
+      "kind": "hill",
+      "x": 849114,
+      "y": 6897252,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Saint-Maxe",
+      "kind": "hill",
+      "x": 851573,
+      "y": 6882386,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Sainte-Anne",
+      "kind": "hill",
+      "x": 851023,
+      "y": 6891178,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Sérimont",
+      "kind": "hill",
+      "x": 852253,
+      "y": 6882673,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Thorimont",
       "kind": "hill",
       "x": 883276,
@@ -700,6 +1345,13 @@
       "kind": "ravine",
       "x": 866062,
       "y": 6907865,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond d'Hinvaux",
+      "kind": "ravine",
+      "x": 881965,
+      "y": 6891781,
       "source": "BD TOPO"
     },
     {
@@ -738,10 +1390,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de Bivaux",
+      "kind": "ravine",
+      "x": 891777,
+      "y": 6883385,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Bonzée",
+      "kind": "ravine",
+      "x": 885563,
+      "y": 6888208,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de Bourvaux",
       "kind": "ravine",
       "x": 870224,
       "y": 6913587,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Bousravaux",
+      "kind": "ravine",
+      "x": 883130,
+      "y": 6884111,
       "source": "BD TOPO"
     },
     {
@@ -759,6 +1432,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de Cheppy",
+      "kind": "ravine",
+      "x": 850221,
+      "y": 6906505,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de Côtelette",
       "kind": "ravine",
       "x": 871127,
@@ -773,10 +1453,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de Cuny",
+      "kind": "ravine",
+      "x": 886792,
+      "y": 6883186,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de Fargevaux",
       "kind": "ravine",
       "x": 864173,
       "y": 6907487,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Fravau",
+      "kind": "ravine",
+      "x": 867737,
+      "y": 6890030,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Fresnes",
+      "kind": "ravine",
+      "x": 884644,
+      "y": 6888537,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Génévaux",
+      "kind": "ravine",
+      "x": 880155,
+      "y": 6883117,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Germévau",
+      "kind": "ravine",
+      "x": 857228,
+      "y": 6889084,
       "source": "BD TOPO"
     },
     {
@@ -791,6 +1506,13 @@
       "kind": "ravine",
       "x": 874740,
       "y": 6905656,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Hubervau",
+      "kind": "ravine",
+      "x": 875815,
+      "y": 6884568,
       "source": "BD TOPO"
     },
     {
@@ -815,10 +1537,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de la Cave",
+      "kind": "ravine",
+      "x": 866968,
+      "y": 6890592,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de la Corbe",
       "kind": "ravine",
       "x": 861424,
       "y": 6896655,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de la Côte Saint-Martin",
+      "kind": "ravine",
+      "x": 879752,
+      "y": 6891581,
       "source": "BD TOPO"
     },
     {
@@ -836,6 +1572,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de la Haute Fourchie",
+      "kind": "ravine",
+      "x": 858914,
+      "y": 6889945,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de la Horgne",
       "kind": "ravine",
       "x": 880363,
@@ -847,6 +1590,20 @@
       "kind": "ravine",
       "x": 873526,
       "y": 6912275,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de la Louvière",
+      "kind": "ravine",
+      "x": 882135,
+      "y": 6887657,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de la Nivolette",
+      "kind": "ravine",
+      "x": 875562,
+      "y": 6886680,
       "source": "BD TOPO"
     },
     {
@@ -864,6 +1621,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de la Rue",
+      "kind": "ravine",
+      "x": 851900,
+      "y": 6915021,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de la Vau",
+      "kind": "ravine",
+      "x": 875667,
+      "y": 6885307,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de la Vaux Clairson",
+      "kind": "ravine",
+      "x": 871447,
+      "y": 6917298,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de la Voltigneux",
       "kind": "ravine",
       "x": 862081,
@@ -875,6 +1653,34 @@
       "kind": "ravine",
       "x": 856887,
       "y": 6914558,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Lavau",
+      "kind": "ravine",
+      "x": 887945,
+      "y": 6890323,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Mouilly",
+      "kind": "ravine",
+      "x": 882926,
+      "y": 6886496,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Mourainvaux",
+      "kind": "ravine",
+      "x": 878587,
+      "y": 6887562,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Nacrillon",
+      "kind": "ravine",
+      "x": 881288,
+      "y": 6887206,
       "source": "BD TOPO"
     },
     {
@@ -892,10 +1698,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de Raivau",
+      "kind": "ravine",
+      "x": 883142,
+      "y": 6888086,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Ravau",
+      "kind": "ravine",
+      "x": 846417,
+      "y": 6917998,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de Saillancourt",
       "kind": "ravine",
       "x": 870561,
       "y": 6911733,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Saint-Brice",
+      "kind": "ravine",
+      "x": 887868,
+      "y": 6889767,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Satel",
+      "kind": "ravine",
+      "x": 889162,
+      "y": 6880896,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond de Senoncourt",
+      "kind": "ravine",
+      "x": 874445,
+      "y": 6886608,
       "source": "BD TOPO"
     },
     {
@@ -941,6 +1782,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond de Vionlut",
+      "kind": "ravine",
+      "x": 884726,
+      "y": 6884989,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond de Voillon Fies",
       "kind": "ravine",
       "x": 886289,
@@ -948,10 +1796,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond des Baves",
+      "kind": "ravine",
+      "x": 847892,
+      "y": 6910271,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond des Cailloux",
       "kind": "ravine",
       "x": 854004,
       "y": 6912804,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond des Fèves",
+      "kind": "ravine",
+      "x": 849982,
+      "y": 6909075,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond des Fosses",
+      "kind": "ravine",
+      "x": 859924,
+      "y": 6889560,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond des Harivaux",
+      "kind": "ravine",
+      "x": 877122,
+      "y": 6880505,
       "source": "BD TOPO"
     },
     {
@@ -976,6 +1852,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fond Dine",
+      "kind": "ravine",
+      "x": 854722,
+      "y": 6917855,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond du Cuveau",
+      "kind": "ravine",
+      "x": 879331,
+      "y": 6888639,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Fond du Loup",
       "kind": "ravine",
       "x": 879277,
@@ -987,6 +1877,27 @@
       "kind": "ravine",
       "x": 881246,
       "y": 6893785,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond du Pauvre Jean",
+      "kind": "ravine",
+      "x": 875923,
+      "y": 6883523,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond du Rat",
+      "kind": "ravine",
+      "x": 894589,
+      "y": 6890462,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Fond la Grâce",
+      "kind": "ravine",
+      "x": 851357,
+      "y": 6906251,
       "source": "BD TOPO"
     },
     {
@@ -1025,10 +1936,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin d'Hadimel",
+      "kind": "ravine",
+      "x": 890015,
+      "y": 6888398,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin d'Hassoule",
       "kind": "ravine",
       "x": 878406,
       "y": 6905991,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin d'Orvau",
+      "kind": "ravine",
+      "x": 855086,
+      "y": 6880135,
       "source": "BD TOPO"
     },
     {
@@ -1043,6 +1968,27 @@
       "kind": "ravine",
       "x": 878269,
       "y": 6903382,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Bouage",
+      "kind": "ravine",
+      "x": 848607,
+      "y": 6908736,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Brassa",
+      "kind": "ravine",
+      "x": 862643,
+      "y": 6883759,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Cheppe",
+      "kind": "ravine",
+      "x": 846279,
+      "y": 6900618,
       "source": "BD TOPO"
     },
     {
@@ -1116,6 +2062,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin de la Fausse Cheppe",
+      "kind": "ravine",
+      "x": 846038,
+      "y": 6901030,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin de la Fausse Côte",
       "kind": "ravine",
       "x": 878697,
@@ -1179,6 +2132,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin de la Pultière",
+      "kind": "ravine",
+      "x": 852902,
+      "y": 6917962,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin de la Sortelle",
       "kind": "ravine",
       "x": 875112,
@@ -1197,6 +2157,13 @@
       "kind": "ravine",
       "x": 858842,
       "y": 6916489,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Malvau",
+      "kind": "ravine",
+      "x": 848548,
+      "y": 6909408,
       "source": "BD TOPO"
     },
     {
@@ -1225,6 +2192,13 @@
       "kind": "ravine",
       "x": 867349,
       "y": 6899295,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Napré",
+      "kind": "ravine",
+      "x": 849893,
+      "y": 6912824,
       "source": "BD TOPO"
     },
     {
@@ -1260,6 +2234,13 @@
       "kind": "ravine",
       "x": 865422,
       "y": 6910266,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin de Saupré",
+      "kind": "ravine",
+      "x": 849058,
+      "y": 6907662,
       "source": "BD TOPO"
     },
     {
@@ -1319,6 +2300,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin des Feuilles",
+      "kind": "ravine",
+      "x": 889253,
+      "y": 6885876,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin des Fontaines",
       "kind": "ravine",
       "x": 878437,
@@ -1330,6 +2318,13 @@
       "kind": "ravine",
       "x": 879747,
       "y": 6904286,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin des Haouis",
+      "kind": "ravine",
+      "x": 850072,
+      "y": 6913616,
       "source": "BD TOPO"
     },
     {
@@ -1424,6 +2419,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin du Fond Sommelet",
+      "kind": "ravine",
+      "x": 848654,
+      "y": 6907966,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin du Four des Moines",
+      "kind": "ravine",
+      "x": 846433,
+      "y": 6898638,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin du Helly",
       "kind": "ravine",
       "x": 876623,
@@ -1466,10 +2475,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ravin du Trou de Mesnil",
+      "kind": "ravine",
+      "x": 863326,
+      "y": 6917707,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ravin Hadimé",
       "kind": "ravine",
       "x": 876306,
       "y": 6908816,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ravin le Niveau",
+      "kind": "ravine",
+      "x": 850718,
+      "y": 6917246,
       "source": "BD TOPO"
     },
     {
@@ -1511,6 +2534,54 @@
       "wikipedia": "https://fr.wikipedia.org/wiki/Abaucourt-l%C3%A8s-Souppleville"
     },
     {
+      "name": "Ambly-sur-Meuse",
+      "kind": "village",
+      "x": 878627,
+      "y": 6882712,
+      "wikidata": "Q1021082",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ambly-sur-Meuse"
+    },
+    {
+      "name": "Amel-sur-l'Étang",
+      "kind": "village",
+      "x": 892753,
+      "y": 6910648,
+      "wikidata": "Q59688",
+      "wikipedia": "https://en.wikipedia.org/wiki/Amel-sur-l%27%C3%89tang"
+    },
+    {
+      "name": "Ancemont",
+      "kind": "village",
+      "x": 875812,
+      "y": 6888374,
+      "wikidata": "Q472924",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ancemont"
+    },
+    {
+      "name": "Aubréville",
+      "kind": "village",
+      "x": 851861,
+      "y": 6895729,
+      "wikidata": "Q1021049",
+      "wikipedia": "https://en.wikipedia.org/wiki/Aubr%C3%A9ville"
+    },
+    {
+      "name": "Autrécourt-sur-Aire",
+      "kind": "village",
+      "x": 856341,
+      "y": 6883796,
+      "wikidata": "Q1021122",
+      "wikipedia": "https://en.wikipedia.org/wiki/Autr%C3%A9court-sur-Aire"
+    },
+    {
+      "name": "Auzéville-en-Argonne",
+      "kind": "village",
+      "x": 853260,
+      "y": 6891161,
+      "wikidata": "Q2873217",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Auz%C3%A9ville-en-Argonne"
+    },
+    {
       "name": "Avocourt",
       "kind": "village",
       "x": 856127,
@@ -1525,6 +2596,30 @@
       "y": 6913001,
       "wikidata": "Q227629",
       "wikipedia": "https://en.wikipedia.org/wiki/Azannes-et-Soumazannes"
+    },
+    {
+      "name": "Baulny",
+      "kind": "village",
+      "x": 846620,
+      "y": 6908822,
+      "wikidata": "Q228779",
+      "wikipedia": "https://en.wikipedia.org/wiki/Baulny"
+    },
+    {
+      "name": "Baulny-Charpentry",
+      "kind": "village",
+      "x": 846620,
+      "y": 6908822,
+      "wikidata": "Q2892025",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Baulny-Charpentry"
+    },
+    {
+      "name": "Beaulieu-en-Argonne",
+      "kind": "village",
+      "x": 851133,
+      "y": 6883287,
+      "wikidata": "Q1047760",
+      "wikipedia": "https://en.wikipedia.org/wiki/Beaulieu-en-Argonne"
     },
     {
       "name": "Beaumont-en-Verdunois",
@@ -1583,6 +2678,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Bezonvaux"
     },
     {
+      "name": "Billy-sous-Mangiennes",
+      "kind": "village",
+      "x": 887218,
+      "y": 6917854,
+      "wikidata": "Q59536",
+      "wikipedia": "https://en.wikipedia.org/wiki/Billy-sous-Mangiennes"
+    },
+    {
       "name": "Blanzée",
       "kind": "village",
       "x": 885092,
@@ -1597,6 +2700,38 @@
       "y": 6892551,
       "wikidata": "Q28040520",
       "wikipedia": "https://fr.wikipedia.org/wiki/Blercourt"
+    },
+    {
+      "name": "Boinville-en-Woëvre",
+      "kind": "village",
+      "x": 894817,
+      "y": 6901690,
+      "wikidata": "Q550100",
+      "wikipedia": "https://en.wikipedia.org/wiki/Boinville-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Bonzée",
+      "kind": "village",
+      "x": 889330,
+      "y": 6891677,
+      "wikidata": "Q227991",
+      "wikipedia": "https://en.wikipedia.org/wiki/Bonz%C3%A9e"
+    },
+    {
+      "name": "Bonzée-en-Woëvre",
+      "kind": "village",
+      "x": 889330,
+      "y": 6891677,
+      "wikidata": "Q107919768",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Bonz%C3%A9e-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Boureuilles",
+      "kind": "village",
+      "x": 848872,
+      "y": 6901555,
+      "wikidata": "Q584112",
+      "wikipedia": "https://en.wikipedia.org/wiki/Boureuilles"
     },
     {
       "name": "Brabant-en-Argonne",
@@ -1622,12 +2757,43 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Brabant-sur-Meuse"
     },
     {
+      "name": "Braquis",
+      "kind": "village",
+      "x": 891589,
+      "y": 6898212,
+      "wikidata": "Q1047415",
+      "wikipedia": "https://en.wikipedia.org/wiki/Braquis"
+    },
+    {
       "name": "Bras-sur-Meuse",
       "kind": "village",
       "x": 873195,
       "y": 6903781,
       "wikidata": "Q1049872",
       "wikipedia": "https://en.wikipedia.org/wiki/Bras-sur-Meuse"
+    },
+    {
+      "name": "Brieulles-sur-Meuse",
+      "kind": "village",
+      "x": 858564,
+      "y": 6917331,
+      "wikidata": "Q1385109",
+      "wikipedia": "https://en.wikipedia.org/wiki/Brieulles-sur-Meuse"
+    },
+    {
+      "name": "Brizeaux",
+      "kind": "village",
+      "x": 850476,
+      "y": 6880395,
+      "wikidata": "Q1049392",
+      "wikipedia": "https://en.wikipedia.org/wiki/Brizeaux"
+    },
+    {
+      "name": "Brocourt-en-Argonne",
+      "kind": "village",
+      "x": 858148,
+      "y": 6892746,
+      "wikidata": "Q84591761"
     },
     {
       "name": "Brocourt-en-Argonne",
@@ -1638,11 +2804,12 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Brocourt-en-Argonne"
     },
     {
-      "name": "Brocourt-en-Argonne",
+      "name": "Champlon",
       "kind": "village",
-      "x": 858148,
-      "y": 6892746,
-      "wikidata": "Q84591761"
+      "x": 892963,
+      "y": 6889819,
+      "wikidata": "Q25397950",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Champlon_(Meuse)"
     },
     {
       "name": "Champneuville",
@@ -1659,6 +2826,14 @@
       "y": 6903442,
       "wikidata": "Q1060021",
       "wikipedia": "https://en.wikipedia.org/wiki/Charny-sur-Meuse"
+    },
+    {
+      "name": "Charpentry",
+      "kind": "village",
+      "x": 847805,
+      "y": 6908389,
+      "wikidata": "Q724251",
+      "wikipedia": "https://en.wikipedia.org/wiki/Charpentry"
     },
     {
       "name": "Châtillon-sous-les-Côtes",
@@ -1685,12 +2860,43 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Chaumont-devant-Damvillers"
     },
     {
+      "name": "Cheppy",
+      "kind": "village",
+      "x": 849903,
+      "y": 6905507,
+      "wikidata": "Q194089",
+      "wikipedia": "https://en.wikipedia.org/wiki/Cheppy"
+    },
+    {
       "name": "Cierges-sous-Montfaucon",
       "kind": "village",
       "x": 852278,
       "y": 6912895,
       "wikidata": "Q649455",
       "wikipedia": "https://en.wikipedia.org/wiki/Cierges-sous-Montfaucon"
+    },
+    {
+      "name": "Clermont-en-Argonne",
+      "kind": "village",
+      "x": 851200,
+      "y": 6891571,
+      "wikidata": "Q1095706",
+      "wikipedia": "https://en.wikipedia.org/wiki/Clermont-en-Argonne"
+    },
+    {
+      "name": "Clermont-en-Argonne",
+      "kind": "village",
+      "x": 851200,
+      "y": 6891571,
+      "wikidata": "Q123186722"
+    },
+    {
+      "name": "Combres-sous-les-Côtes",
+      "kind": "village",
+      "x": 891782,
+      "y": 6887523,
+      "wikidata": "Q1160924",
+      "wikipedia": "https://en.wikipedia.org/wiki/Combres-sous-les-C%C3%B4tes"
     },
     {
       "name": "Consenvoye",
@@ -1725,6 +2931,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Cumi%C3%A8res-le-Mort-Homme"
     },
     {
+      "name": "Cunel",
+      "kind": "village",
+      "x": 853880,
+      "y": 6917235,
+      "wikidata": "Q1161644",
+      "wikipedia": "https://en.wikipedia.org/wiki/Cunel"
+    },
+    {
       "name": "Damloup",
       "kind": "village",
       "x": 881563,
@@ -1741,6 +2955,13 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Dannevoux"
     },
     {
+      "name": "Deuxnouds-aux-Bois",
+      "kind": "village",
+      "x": 891431,
+      "y": 6880959,
+      "wikidata": "Q52383011"
+    },
+    {
       "name": "Dieppe-sous-Douaumont",
       "kind": "village",
       "x": 882871,
@@ -1749,12 +2970,59 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Dieppe-sous-Douaumont"
     },
     {
+      "name": "Dieue",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q64515857",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Dieue"
+    },
+    {
+      "name": "Dieue",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q84239641"
+    },
+    {
+      "name": "Dieue-sur-Meuse",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q740367",
+      "wikipedia": "https://en.wikipedia.org/wiki/Dieue-sur-Meuse"
+    },
+    {
       "name": "Dombasle-en-Argonne",
       "kind": "village",
       "x": 859863,
       "y": 6895266,
       "wikidata": "Q227585",
       "wikipedia": "https://en.wikipedia.org/wiki/Dombasle-en-Argonne"
+    },
+    {
+      "name": "Dommartin-la-Montagne",
+      "kind": "village",
+      "x": 890706,
+      "y": 6884428,
+      "wikidata": "Q221898",
+      "wikipedia": "https://en.wikipedia.org/wiki/Dommartin-la-Montagne"
+    },
+    {
+      "name": "Dompierre-aux-Bois",
+      "kind": "village",
+      "x": 889134,
+      "y": 6880327,
+      "wikidata": "Q1096997",
+      "wikipedia": "https://en.wikipedia.org/wiki/Dompierre-aux-Bois"
+    },
+    {
+      "name": "Domremy-la-Canne",
+      "kind": "village",
+      "x": 895910,
+      "y": 6914187,
+      "wikidata": "Q59726",
+      "wikipedia": "https://en.wikipedia.org/wiki/Domremy-la-Canne"
     },
     {
       "name": "Douaumont",
@@ -1789,12 +3057,59 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Eix"
     },
     {
+      "name": "Épinonville",
+      "kind": "village",
+      "x": 851389,
+      "y": 6910553,
+      "wikidata": "Q1410549",
+      "wikipedia": "https://en.wikipedia.org/wiki/%C3%89pinonville"
+    },
+    {
       "name": "Esnes-en-Argonne",
       "kind": "village",
       "x": 861143,
       "y": 6903153,
       "wikidata": "Q939685",
       "wikipedia": "https://en.wikipedia.org/wiki/Esnes-en-Argonne"
+    },
+    {
+      "name": "Étain",
+      "kind": "village",
+      "x": 892083,
+      "y": 6904659,
+      "wikidata": "Q59724",
+      "wikipedia": "https://en.wikipedia.org/wiki/%C3%89tain,_Meuse"
+    },
+    {
+      "name": "Éton",
+      "kind": "village",
+      "x": 894944,
+      "y": 6911681,
+      "wikidata": "Q1453322",
+      "wikipedia": "https://en.wikipedia.org/wiki/%C3%89ton"
+    },
+    {
+      "name": "Étraye",
+      "kind": "village",
+      "x": 872360,
+      "y": 6917420,
+      "wikidata": "Q214398",
+      "wikipedia": "https://en.wikipedia.org/wiki/%C3%89traye"
+    },
+    {
+      "name": "Étraye",
+      "kind": "village",
+      "x": 872360,
+      "y": 6917420,
+      "wikidata": "Q84230719"
+    },
+    {
+      "name": "Étraye-Wavrille",
+      "kind": "village",
+      "x": 872360,
+      "y": 6917420,
+      "wikidata": "Q3592552",
+      "wikipedia": "https://fr.wikipedia.org/wiki/%C3%89traye-Wavrille"
     },
     {
       "name": "Flabas",
@@ -1813,12 +3128,59 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Fleury-devant-Douaumont"
     },
     {
+      "name": "Fleury-sur-Aire",
+      "kind": "village",
+      "x": 857993,
+      "y": 6882041,
+      "wikidata": "Q28040512",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Fleury-sur-Aire"
+    },
+    {
+      "name": "Foameix",
+      "kind": "village",
+      "x": 889801,
+      "y": 6906933,
+      "wikidata": "Q52381018"
+    },
+    {
+      "name": "Foameix",
+      "kind": "village",
+      "x": 889799,
+      "y": 6906894,
+      "wikidata": "Q52376854",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Foameix"
+    },
+    {
+      "name": "Foameix-Ornel",
+      "kind": "village",
+      "x": 889781,
+      "y": 6906932,
+      "wikidata": "Q724326",
+      "wikipedia": "https://en.wikipedia.org/wiki/Foameix-Ornel"
+    },
+    {
       "name": "Forges-sur-Meuse",
       "kind": "village",
       "x": 866834,
       "y": 6909435,
       "wikidata": "Q602475",
       "wikipedia": "https://en.wikipedia.org/wiki/Forges-sur-Meuse"
+    },
+    {
+      "name": "Fresnes-en-Woëvre",
+      "kind": "village",
+      "x": 892171,
+      "y": 6891709,
+      "wikidata": "Q223691",
+      "wikipedia": "https://en.wikipedia.org/wiki/Fresnes-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Froidos",
+      "kind": "village",
+      "x": 855149,
+      "y": 6886576,
+      "wikidata": "Q724470",
+      "wikipedia": "https://en.wikipedia.org/wiki/Froidos"
     },
     {
       "name": "Fromeréville-les-Vallons",
@@ -1837,12 +3199,43 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Fromezey"
     },
     {
+      "name": "Futeau",
+      "kind": "village",
+      "x": 846291,
+      "y": 6888323,
+      "wikidata": "Q614526",
+      "wikipedia": "https://en.wikipedia.org/wiki/Futeau"
+    },
+    {
+      "name": "Génicourt-sur-Meuse",
+      "kind": "village",
+      "x": 878185,
+      "y": 6884522,
+      "wikidata": "Q1098222",
+      "wikipedia": "https://en.wikipedia.org/wiki/G%C3%A9nicourt-sur-Meuse"
+    },
+    {
+      "name": "Génicourt-sur-Meuse",
+      "kind": "village",
+      "x": 878185,
+      "y": 6884522,
+      "wikidata": "Q84240040"
+    },
+    {
       "name": "Gercourt-et-Drillancourt",
       "kind": "village",
       "x": 862842,
       "y": 6911794,
       "wikidata": "Q217293",
       "wikipedia": "https://en.wikipedia.org/wiki/Gercourt-et-Drillancourt"
+    },
+    {
+      "name": "Gesnes-en-Argonne",
+      "kind": "village",
+      "x": 849829,
+      "y": 6913789,
+      "wikidata": "Q223485",
+      "wikipedia": "https://en.wikipedia.org/wiki/Gesnes-en-Argonne"
     },
     {
       "name": "Gibercy",
@@ -1861,6 +3254,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Gincrey"
     },
     {
+      "name": "Gouraincourt",
+      "kind": "village",
+      "x": 893721,
+      "y": 6913742,
+      "wikidata": "Q59231",
+      "wikipedia": "https://en.wikipedia.org/wiki/Gouraincourt"
+    },
+    {
       "name": "Gremilly",
       "kind": "village",
       "x": 880247,
@@ -1875,6 +3276,22 @@
       "y": 6900143,
       "wikidata": "Q216686",
       "wikipedia": "https://en.wikipedia.org/wiki/Grimaucourt-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Gussainville",
+      "kind": "village",
+      "x": 895337,
+      "y": 6900100,
+      "wikidata": "Q213653",
+      "wikipedia": "https://en.wikipedia.org/wiki/Gussainville"
+    },
+    {
+      "name": "Hannonville-sous-les-Côtes",
+      "kind": "village",
+      "x": 894348,
+      "y": 6885538,
+      "wikidata": "Q1161127",
+      "wikipedia": "https://en.wikipedia.org/wiki/Hannonville-sous-les-C%C3%B4tes"
     },
     {
       "name": "Haucourt",
@@ -1917,6 +3334,22 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Hautecourt-l%C3%A8s-Broville"
     },
     {
+      "name": "Hennemont",
+      "kind": "village",
+      "x": 894545,
+      "y": 6895931,
+      "wikidata": "Q775320",
+      "wikipedia": "https://en.wikipedia.org/wiki/Hennemont"
+    },
+    {
+      "name": "Herbeuville",
+      "kind": "village",
+      "x": 892725,
+      "y": 6886071,
+      "wikidata": "Q223583",
+      "wikipedia": "https://en.wikipedia.org/wiki/Herbeuville"
+    },
+    {
       "name": "Herméville-en-Woëvre",
       "kind": "village",
       "x": 889032,
@@ -1925,12 +3358,155 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Herm%C3%A9ville-en-Wo%C3%ABvre"
     },
     {
+      "name": "Houdelaucourt-sur-Othain",
+      "kind": "village",
+      "x": 894996,
+      "y": 6916624,
+      "wikidata": "Q1996051",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Houdelaucourt-sur-Othain"
+    },
+    {
+      "name": "Ippécourt",
+      "kind": "village",
+      "x": 861638,
+      "y": 6884035,
+      "wikidata": "Q1159561",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ipp%C3%A9court"
+    },
+    {
       "name": "Jouy-en-Argonne",
       "kind": "village",
       "x": 862184,
       "y": 6894960,
       "wikidata": "Q1611588",
       "wikipedia": "https://en.wikipedia.org/wiki/Jouy-en-Argonne"
+    },
+    {
+      "name": "Jubécourt",
+      "kind": "village",
+      "x": 858074,
+      "y": 6890241,
+      "wikidata": "Q3009360",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Jub%C3%A9court"
+    },
+    {
+      "name": "Julvécourt",
+      "kind": "village",
+      "x": 860092,
+      "y": 6887020,
+      "wikidata": "Q1410386",
+      "wikipedia": "https://en.wikipedia.org/wiki/Julv%C3%A9court"
+    },
+    {
+      "name": "Landrecourt",
+      "kind": "village",
+      "x": 871364,
+      "y": 6891833,
+      "wikidata": "Q52383306",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Landrecourt"
+    },
+    {
+      "name": "Landrecourt-Lempire",
+      "kind": "village",
+      "x": 871524,
+      "y": 6891892,
+      "wikidata": "Q680194",
+      "wikipedia": "https://en.wikipedia.org/wiki/Landrecourt-Lempire"
+    },
+    {
+      "name": "Lavoye",
+      "kind": "village",
+      "x": 856249,
+      "y": 6884937,
+      "wikidata": "Q786331",
+      "wikipedia": "https://en.wikipedia.org/wiki/Lavoye"
+    },
+    {
+      "name": "Lemmes",
+      "kind": "village",
+      "x": 866999,
+      "y": 6887649,
+      "wikidata": "Q59339",
+      "wikipedia": "https://en.wikipedia.org/wiki/Lemmes"
+    },
+    {
+      "name": "Lempire-aux-Bois",
+      "kind": "village",
+      "x": 869209,
+      "y": 6891113,
+      "wikidata": "Q52383226",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Lempire-aux-Bois"
+    },
+    {
+      "name": "Lempire-aux-Bois",
+      "kind": "village",
+      "x": 869190,
+      "y": 6891100,
+      "wikidata": "Q52383174"
+    },
+    {
+      "name": "Les Éparges",
+      "kind": "village",
+      "x": 889528,
+      "y": 6888129,
+      "wikidata": "Q1386845",
+      "wikipedia": "https://en.wikipedia.org/wiki/Les_%C3%89parges"
+    },
+    {
+      "name": "Les Islettes",
+      "kind": "village",
+      "x": 846260,
+      "y": 6891938,
+      "wikidata": "Q1613078",
+      "wikipedia": "https://en.wikipedia.org/wiki/Les_Islettes"
+    },
+    {
+      "name": "Les Monthairons",
+      "kind": "village",
+      "x": 876207,
+      "y": 6886068,
+      "wikidata": "Q1415836",
+      "wikipedia": "https://en.wikipedia.org/wiki/Les_Monthairons"
+    },
+    {
+      "name": "Les Quatre-Vents",
+      "kind": "village",
+      "x": 866999,
+      "y": 6887649,
+      "wikidata": "Q3234997",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Les_Quatre-Vents"
+    },
+    {
+      "name": "Les Souhesmes",
+      "kind": "village",
+      "x": 864512,
+      "y": 6889432,
+      "wikidata": "Q123186759",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Les_Souhesmes"
+    },
+    {
+      "name": "Les Souhesmes-Rampont",
+      "kind": "village",
+      "x": 864512,
+      "y": 6889432,
+      "wikidata": "Q219826",
+      "wikipedia": "https://en.wikipedia.org/wiki/Les_Souhesmes-Rampont"
+    },
+    {
+      "name": "Les Tilleuls-Vaudoncourt",
+      "kind": "village",
+      "x": 892582,
+      "y": 6916362,
+      "wikidata": "Q3235748",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Les_Tilleuls-Vaudoncourt"
+    },
+    {
+      "name": "Loison",
+      "kind": "village",
+      "x": 889982,
+      "y": 6915534,
+      "wikidata": "Q59481",
+      "wikipedia": "https://en.wikipedia.org/wiki/Loison"
     },
     {
       "name": "Louvemont-Côte-du-Poivre",
@@ -1957,6 +3533,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Manheulles"
     },
     {
+      "name": "Marchéville-en-Woëvre",
+      "kind": "village",
+      "x": 895826,
+      "y": 6891090,
+      "wikidata": "Q216806",
+      "wikipedia": "https://en.wikipedia.org/wiki/March%C3%A9ville-en-Wo%C3%ABvre"
+    },
+    {
       "name": "Marre",
       "kind": "village",
       "x": 867729,
@@ -1973,6 +3557,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Maucourt-sur-Orne"
     },
     {
+      "name": "Mesnil-sous-les-Côtes",
+      "kind": "village",
+      "x": 888387,
+      "y": 6890633,
+      "wikidata": "Q28040485",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Mesnil-sous-les-C%C3%B4tes"
+    },
+    {
       "name": "Mogeville",
       "kind": "village",
       "x": 884230,
@@ -1987,6 +3579,30 @@
       "y": 6914494,
       "wikidata": "Q1386664",
       "wikipedia": "https://en.wikipedia.org/wiki/Moirey-Flabas-Cr%C3%A9pion"
+    },
+    {
+      "name": "Mont-sous-les-Côtes",
+      "kind": "village",
+      "x": 887502,
+      "y": 6891409,
+      "wikidata": "Q107920333",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Mont-sous-les-C%C3%B4tes"
+    },
+    {
+      "name": "Mont-Villers",
+      "kind": "village",
+      "x": 887502,
+      "y": 6891409,
+      "wikidata": "Q3321627",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Mont-Villers"
+    },
+    {
+      "name": "Montblainville",
+      "kind": "village",
+      "x": 846541,
+      "y": 6907182,
+      "wikidata": "Q892426",
+      "wikipedia": "https://en.wikipedia.org/wiki/Montblainville"
     },
     {
       "name": "Montfaucon-d'Argonne",
@@ -2021,6 +3637,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Morgemoulin"
     },
     {
+      "name": "Mouilly",
+      "kind": "village",
+      "x": 885136,
+      "y": 6886379,
+      "wikidata": "Q892371",
+      "wikipedia": "https://en.wikipedia.org/wiki/Mouilly"
+    },
+    {
       "name": "Moulainville",
       "kind": "village",
       "x": 881984,
@@ -2035,6 +3659,14 @@
       "y": 6913139,
       "wikidata": "Q981855",
       "wikipedia": "https://en.wikipedia.org/wiki/Nantillois"
+    },
+    {
+      "name": "Neuvilly-en-Argonne",
+      "kind": "village",
+      "x": 850168,
+      "y": 6897694,
+      "wikidata": "Q961030",
+      "wikipedia": "https://en.wikipedia.org/wiki/Neuvilly-en-Argonne"
     },
     {
       "name": "Nixéville",
@@ -2053,6 +3685,14 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Nix%C3%A9ville-Blercourt"
     },
     {
+      "name": "Ornel",
+      "kind": "village",
+      "x": 890676,
+      "y": 6908694,
+      "wikidata": "Q52381144",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Ornel"
+    },
+    {
       "name": "Ornes",
       "kind": "village",
       "x": 879967,
@@ -2061,12 +3701,68 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Ornes,_Meuse"
     },
     {
+      "name": "Osches",
+      "kind": "village",
+      "x": 864691,
+      "y": 6885295,
+      "wikidata": "Q981862",
+      "wikipedia": "https://en.wikipedia.org/wiki/Osches"
+    },
+    {
       "name": "Parois",
       "kind": "village",
       "x": 854492,
       "y": 6895181,
       "wikidata": "Q13104482",
       "wikipedia": "https://fr.wikipedia.org/wiki/Parois"
+    },
+    {
+      "name": "Passavant-en-Argonne",
+      "kind": "village",
+      "x": 846607,
+      "y": 6882243,
+      "wikidata": "Q338008",
+      "wikipedia": "https://en.wikipedia.org/wiki/Passavant-en-Argonne"
+    },
+    {
+      "name": "Pintheville",
+      "kind": "village",
+      "x": 894594,
+      "y": 6893305,
+      "wikidata": "Q217349",
+      "wikipedia": "https://en.wikipedia.org/wiki/Pintheville"
+    },
+    {
+      "name": "Rambluzin-et-Benoite-Vaux",
+      "kind": "village",
+      "x": 870860,
+      "y": 6880035,
+      "wikidata": "Q1410120",
+      "wikipedia": "https://en.wikipedia.org/wiki/Rambluzin-et-Benoite-Vaux"
+    },
+    {
+      "name": "Rampont",
+      "kind": "village",
+      "x": 862041,
+      "y": 6891371,
+      "wikidata": "Q83261246",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Rampont"
+    },
+    {
+      "name": "Ranzières",
+      "kind": "village",
+      "x": 882284,
+      "y": 6882765,
+      "wikidata": "Q1159478",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ranzi%C3%A8res"
+    },
+    {
+      "name": "Rarécourt",
+      "kind": "village",
+      "x": 855140,
+      "y": 6888399,
+      "wikidata": "Q193810",
+      "wikipedia": "https://en.wikipedia.org/wiki/Rar%C3%A9court"
     },
     {
       "name": "Récicourt",
@@ -2091,12 +3787,36 @@
       "wikidata": "Q84591755"
     },
     {
+      "name": "Récourt-le-Creux",
+      "kind": "village",
+      "x": 874858,
+      "y": 6880959,
+      "wikidata": "Q673039",
+      "wikipedia": "https://en.wikipedia.org/wiki/R%C3%A9court-le-Creux"
+    },
+    {
       "name": "Regnéville-sur-Meuse",
       "kind": "village",
       "x": 869331,
       "y": 6908457,
       "wikidata": "Q1388020",
       "wikipedia": "https://en.wikipedia.org/wiki/Regn%C3%A9ville-sur-Meuse"
+    },
+    {
+      "name": "Riaville",
+      "kind": "village",
+      "x": 894865,
+      "y": 6892480,
+      "wikidata": "Q215524",
+      "wikipedia": "https://en.wikipedia.org/wiki/Riaville"
+    },
+    {
+      "name": "Romagne-Gesnes",
+      "kind": "village",
+      "x": 851370,
+      "y": 6916642,
+      "wikidata": "Q3440566",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Romagne-Gesnes"
     },
     {
       "name": "Romagne-sous-les-Côtes",
@@ -2107,12 +3827,60 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Romagne-sous-les-C%C3%B4tes"
     },
     {
+      "name": "Romagne-sous-Montfaucon",
+      "kind": "village",
+      "x": 851370,
+      "y": 6916642,
+      "wikidata": "Q229239",
+      "wikipedia": "https://en.wikipedia.org/wiki/Romagne-sous-Montfaucon"
+    },
+    {
       "name": "Ronvaux",
       "kind": "village",
       "x": 886414,
       "y": 6895229,
       "wikidata": "Q981879",
       "wikipedia": "https://en.wikipedia.org/wiki/Ronvaux"
+    },
+    {
+      "name": "Rouvres-en-Woëvre",
+      "kind": "village",
+      "x": 895924,
+      "y": 6905469,
+      "wikidata": "Q1157853",
+      "wikipedia": "https://en.wikipedia.org/wiki/Rouvres-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Rupt-en-Woëvre",
+      "kind": "village",
+      "x": 881842,
+      "y": 6886460,
+      "wikidata": "Q59793",
+      "wikipedia": "https://en.wikipedia.org/wiki/Rupt-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Saint-André-en-Barrois",
+      "kind": "village",
+      "x": 863109,
+      "y": 6881604,
+      "wikidata": "Q59330",
+      "wikipedia": "https://en.wikipedia.org/wiki/Saint-Andr%C3%A9-en-Barrois"
+    },
+    {
+      "name": "Saint-Maurice-sous-les-Côtes",
+      "kind": "village",
+      "x": 895882,
+      "y": 6882839,
+      "wikidata": "Q193984",
+      "wikipedia": "https://en.wikipedia.org/wiki/Saint-Maurice-sous-les-C%C3%B4tes"
+    },
+    {
+      "name": "Saint-Remy-la-Calonne",
+      "kind": "village",
+      "x": 890143,
+      "y": 6886109,
+      "wikidata": "Q1617460",
+      "wikipedia": "https://en.wikipedia.org/wiki/Saint-Remy-la-Calonne"
     },
     {
       "name": "Samogneux",
@@ -2123,12 +3891,44 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Samogneux"
     },
     {
+      "name": "Saulx-lès-Champlon",
+      "kind": "village",
+      "x": 893907,
+      "y": 6888985,
+      "wikidata": "Q1379661",
+      "wikipedia": "https://en.wikipedia.org/wiki/Saulx-l%C3%A8s-Champlon"
+    },
+    {
+      "name": "Senon",
+      "kind": "village",
+      "x": 892203,
+      "y": 6911990,
+      "wikidata": "Q59325",
+      "wikipedia": "https://en.wikipedia.org/wiki/Senon"
+    },
+    {
+      "name": "Senoncourt-les-Maujouy",
+      "kind": "village",
+      "x": 870477,
+      "y": 6886792,
+      "wikidata": "Q961742",
+      "wikipedia": "https://en.wikipedia.org/wiki/Senoncourt-l%C3%A8s-Maujouy"
+    },
+    {
       "name": "Septsarges",
       "kind": "village",
       "x": 857723,
       "y": 6911156,
       "wikidata": "Q981848",
       "wikipedia": "https://en.wikipedia.org/wiki/Septsarges"
+    },
+    {
+      "name": "Seuzey-Vaux",
+      "kind": "village",
+      "x": 885337,
+      "y": 6880760,
+      "wikidata": "Q3480763",
+      "wikipedia": "https://fr.wikipedia.org/wiki/Seuzey-Vaux"
     },
     {
       "name": "Sivry-la-Perche",
@@ -2147,11 +3947,42 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Sivry-sur-Meuse"
     },
     {
+      "name": "Sommedieue",
+      "kind": "village",
+      "x": 879922,
+      "y": 6890047,
+      "wikidata": "Q975286",
+      "wikipedia": "https://en.wikipedia.org/wiki/Sommedieue"
+    },
+    {
+      "name": "Souilly",
+      "kind": "village",
+      "x": 867186,
+      "y": 6883297,
+      "wikidata": "Q1377718",
+      "wikipedia": "https://en.wikipedia.org/wiki/Souilly"
+    },
+    {
       "name": "Soumazannes",
       "kind": "village",
       "x": 879882,
       "y": 6915301,
       "wikidata": "Q109574029"
+    },
+    {
+      "name": "Spincourt",
+      "kind": "village",
+      "x": 893771,
+      "y": 6917670,
+      "wikidata": "Q59387",
+      "wikipedia": "https://en.wikipedia.org/wiki/Spincourt"
+    },
+    {
+      "name": "Spincourt",
+      "kind": "village",
+      "x": 893771,
+      "y": 6917670,
+      "wikidata": "Q123186775"
     },
     {
       "name": "Thierville-sur-Meuse",
@@ -2162,12 +3993,76 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Thierville-sur-Meuse"
     },
     {
+      "name": "Thillot",
+      "kind": "village",
+      "x": 895091,
+      "y": 6883987,
+      "wikidata": "Q217611",
+      "wikipedia": "https://en.wikipedia.org/wiki/Thillot"
+    },
+    {
+      "name": "Tilly-sur-Meuse",
+      "kind": "village",
+      "x": 878471,
+      "y": 6881162,
+      "wikidata": "Q216496",
+      "wikipedia": "https://en.wikipedia.org/wiki/Tilly-sur-Meuse"
+    },
+    {
+      "name": "Trésauvaux",
+      "kind": "village",
+      "x": 890414,
+      "y": 6889580,
+      "wikidata": "Q1386540",
+      "wikipedia": "https://en.wikipedia.org/wiki/Tr%C3%A9sauvaux"
+    },
+    {
+      "name": "Troyon",
+      "kind": "village",
+      "x": 880268,
+      "y": 6880940,
+      "wikidata": "Q1157849",
+      "wikipedia": "https://en.wikipedia.org/wiki/Troyon"
+    },
+    {
       "name": "Vacherauville",
       "kind": "village",
       "x": 871905,
       "y": 6904948,
       "wikidata": "Q209800",
       "wikipedia": "https://en.wikipedia.org/wiki/Vacherauville"
+    },
+    {
+      "name": "Vadelaincourt",
+      "kind": "village",
+      "x": 865382,
+      "y": 6888097,
+      "wikidata": "Q59322",
+      "wikipedia": "https://en.wikipedia.org/wiki/Vadelaincourt"
+    },
+    {
+      "name": "Varennes-en-Argonne",
+      "kind": "village",
+      "x": 848295,
+      "y": 6905063,
+      "wikidata": "Q59220",
+      "wikipedia": "https://en.wikipedia.org/wiki/Varennes-en-Argonne"
+    },
+    {
+      "name": "Vaudoncourt",
+      "kind": "village",
+      "x": 892582,
+      "y": 6916362,
+      "wikidata": "Q59484",
+      "wikipedia": "https://en.wikipedia.org/wiki/Vaudoncourt,_Meuse"
+    },
+    {
+      "name": "Vauquois",
+      "kind": "village",
+      "x": 851038,
+      "y": 6902353,
+      "wikidata": "Q181256",
+      "wikipedia": "https://en.wikipedia.org/wiki/Vauquois"
     },
     {
       "name": "Vaux-devant-Damloup",
@@ -2178,12 +4073,44 @@
       "wikipedia": "https://en.wikipedia.org/wiki/Vaux-devant-Damloup"
     },
     {
+      "name": "Vaux-lès-Palameix",
+      "kind": "village",
+      "x": 885698,
+      "y": 6882812,
+      "wikidata": "Q1157855",
+      "wikipedia": "https://en.wikipedia.org/wiki/Vaux-l%C3%A8s-Palameix"
+    },
+    {
+      "name": "Véry",
+      "kind": "village",
+      "x": 850560,
+      "y": 6907471,
+      "wikidata": "Q59380",
+      "wikipedia": "https://en.wikipedia.org/wiki/V%C3%A9ry"
+    },
+    {
       "name": "Ville-devant-Chaumont",
       "kind": "village",
       "x": 876572,
       "y": 6913189,
       "wikidata": "Q1379732",
       "wikipedia": "https://en.wikipedia.org/wiki/Ville-devant-Chaumont"
+    },
+    {
+      "name": "Ville-en-Woëvre",
+      "kind": "village",
+      "x": 891702,
+      "y": 6895434,
+      "wikidata": "Q1378554",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ville-en-Wo%C3%ABvre"
+    },
+    {
+      "name": "Ville-sur-Cousances",
+      "kind": "village",
+      "x": 858917,
+      "y": 6889120,
+      "wikidata": "Q662675",
+      "wikipedia": "https://en.wikipedia.org/wiki/Ville-sur-Cousances"
     },
     {
       "name": "Villers-sous-Bonchamp",
@@ -2194,12 +4121,36 @@
       "wikipedia": "https://fr.wikipedia.org/wiki/Villers-sous-Bonchamp"
     },
     {
+      "name": "Villers-sur-Meuse",
+      "kind": "village",
+      "x": 876841,
+      "y": 6882626,
+      "wikidata": "Q227560",
+      "wikipedia": "https://en.wikipedia.org/wiki/Villers-sur-Meuse"
+    },
+    {
       "name": "Vilosnes-Haraumont",
       "kind": "village",
       "x": 862258,
       "y": 6916723,
       "wikidata": "Q194260",
       "wikipedia": "https://en.wikipedia.org/wiki/Vilosnes-Haraumont"
+    },
+    {
+      "name": "Waly",
+      "kind": "village",
+      "x": 854073,
+      "y": 6882005,
+      "wikidata": "Q194184",
+      "wikipedia": "https://en.wikipedia.org/wiki/Waly,_Meuse"
+    },
+    {
+      "name": "Warcq",
+      "kind": "village",
+      "x": 893291,
+      "y": 6902474,
+      "wikidata": "Q59575",
+      "wikipedia": "https://en.wikipedia.org/wiki/Warcq,_Meuse"
     },
     {
       "name": "Watronville",
@@ -2214,15 +4165,15 @@
       "kind": "village",
       "x": 873691,
       "y": 6916842,
-      "wikidata": "Q84230898"
+      "wikidata": "Q1377352",
+      "wikipedia": "https://en.wikipedia.org/wiki/Wavrille"
     },
     {
       "name": "Wavrille",
       "kind": "village",
       "x": 873691,
       "y": 6916842,
-      "wikidata": "Q1377352",
-      "wikipedia": "https://en.wikipedia.org/wiki/Wavrille"
+      "wikidata": "Q84230898"
     },
     {
       "name": "À Chopéhant",
@@ -2246,6 +4197,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "À Saulmont",
+      "kind": "wood",
+      "x": 862159,
+      "y": 6917600,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Ancien Étang de la Gorgia",
+      "kind": "wood",
+      "x": 848031,
+      "y": 6898350,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Au Chêne Brûlé",
+      "kind": "wood",
+      "x": 850412,
+      "y": 6912453,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Aux Prêles",
       "kind": "wood",
       "x": 873174,
@@ -2253,10 +4225,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bagegrin",
+      "kind": "wood",
+      "x": 863575,
+      "y": 6884990,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Ballomont",
       "kind": "wood",
       "x": 859195,
       "y": 6914228,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Batinvaux",
+      "kind": "wood",
+      "x": 863181,
+      "y": 6884885,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bel Affût",
+      "kind": "wood",
+      "x": 873917,
+      "y": 6885998,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Belhaiebois",
+      "kind": "wood",
+      "x": 893270,
+      "y": 6884938,
       "source": "BD TOPO"
     },
     {
@@ -2271,6 +4271,27 @@
       "kind": "wood",
       "x": 876186,
       "y": 6905291,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Barbier",
+      "kind": "wood",
+      "x": 869880,
+      "y": 6890787,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Bas",
+      "kind": "wood",
+      "x": 861947,
+      "y": 6881994,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Bouquin",
+      "kind": "wood",
+      "x": 860926,
+      "y": 6885546,
       "source": "BD TOPO"
     },
     {
@@ -2316,6 +4337,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Chaillot",
+      "kind": "wood",
+      "x": 850255,
+      "y": 6882893,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Chardin",
+      "kind": "wood",
+      "x": 866526,
+      "y": 6881125,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Châtel",
+      "kind": "wood",
+      "x": 865695,
+      "y": 6881174,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Chéhémin",
       "kind": "wood",
       "x": 853770,
@@ -2330,10 +4372,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Conti",
+      "kind": "wood",
+      "x": 889973,
+      "y": 6882265,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Cuny",
+      "kind": "wood",
+      "x": 881414,
+      "y": 6917307,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Ambly",
+      "kind": "wood",
+      "x": 883028,
+      "y": 6885103,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Ancemont",
+      "kind": "wood",
+      "x": 873313,
+      "y": 6886054,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois d'Arc",
       "kind": "wood",
       "x": 887728,
       "y": 6910940,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Autrey",
+      "kind": "wood",
+      "x": 892962,
+      "y": 6900382,
       "source": "BD TOPO"
     },
     {
@@ -2351,6 +4428,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois d'en haut",
+      "kind": "wood",
+      "x": 895371,
+      "y": 6881372,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois d'Esnes",
       "kind": "wood",
       "x": 858733,
@@ -2365,10 +4449,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois d'Hannoncelles",
+      "kind": "wood",
+      "x": 893095,
+      "y": 6894251,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Hannonville",
+      "kind": "wood",
+      "x": 893228,
+      "y": 6883731,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois d'Hardaumont",
       "kind": "wood",
       "x": 879297,
       "y": 6905034,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Hargueule",
+      "kind": "wood",
+      "x": 867515,
+      "y": 6886004,
       "source": "BD TOPO"
     },
     {
@@ -2381,8 +4486,22 @@
     {
       "name": "Bois d'Hennemont",
       "kind": "wood",
+      "x": 893408,
+      "y": 6898580,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Hennemont",
+      "kind": "wood",
       "x": 889667,
       "y": 6898243,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Herméville",
+      "kind": "wood",
+      "x": 891088,
+      "y": 6899779,
       "source": "BD TOPO"
     },
     {
@@ -2393,10 +4512,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois d'Hinvaux",
+      "kind": "wood",
+      "x": 882407,
+      "y": 6891320,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois d'Orgevaux",
+      "kind": "wood",
+      "x": 889776,
+      "y": 6889975,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois d'Ormont",
       "kind": "wood",
       "x": 872299,
       "y": 6913459,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Baugny",
+      "kind": "wood",
+      "x": 887466,
+      "y": 6882519,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Beauchamp",
+      "kind": "wood",
+      "x": 850525,
+      "y": 6889519,
       "source": "BD TOPO"
     },
     {
@@ -2463,6 +4610,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Bonchamp",
+      "kind": "wood",
+      "x": 886505,
+      "y": 6891640,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Braquis",
+      "kind": "wood",
+      "x": 892220,
+      "y": 6899371,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Brieulles",
       "kind": "wood",
       "x": 857659,
@@ -2477,10 +4638,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Buzy",
+      "kind": "wood",
+      "x": 893123,
+      "y": 6899696,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Champlon",
+      "kind": "wood",
+      "x": 887159,
+      "y": 6889593,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Champneuville",
       "kind": "wood",
       "x": 875910,
       "y": 6911028,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Châtillon",
+      "kind": "wood",
+      "x": 860652,
+      "y": 6917926,
       "source": "BD TOPO"
     },
     {
@@ -2512,6 +4694,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Chauvignon",
+      "kind": "wood",
+      "x": 849962,
+      "y": 6917787,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Cheppy",
       "kind": "wood",
       "x": 852913,
@@ -2519,10 +4708,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Cierges",
+      "kind": "wood",
+      "x": 850749,
+      "y": 6911972,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Claire Fontaine",
       "kind": "wood",
       "x": 867538,
       "y": 6901323,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Colonchamp",
+      "kind": "wood",
+      "x": 873356,
+      "y": 6882650,
       "source": "BD TOPO"
     },
     {
@@ -2547,10 +4750,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Darmont",
+      "kind": "wood",
+      "x": 895331,
+      "y": 6898590,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Demangelieu",
+      "kind": "wood",
+      "x": 867825,
+      "y": 6885687,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Dommartin",
+      "kind": "wood",
+      "x": 889445,
+      "y": 6883024,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Fayel",
       "kind": "wood",
       "x": 856734,
       "y": 6910301,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Fer",
+      "kind": "wood",
+      "x": 863130,
+      "y": 6885402,
       "source": "BD TOPO"
     },
     {
@@ -2568,6 +4799,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Fravule",
+      "kind": "wood",
+      "x": 868858,
+      "y": 6885796,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Fresnes",
       "kind": "wood",
       "x": 888797,
@@ -2579,6 +4817,13 @@
       "kind": "wood",
       "x": 883811,
       "y": 6893516,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Froidos",
+      "kind": "wood",
+      "x": 852767,
+      "y": 6885615,
       "source": "BD TOPO"
     },
     {
@@ -2603,10 +4848,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Gesnes",
+      "kind": "wood",
+      "x": 849004,
+      "y": 6916121,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Gillaumont",
+      "kind": "wood",
+      "x": 885681,
+      "y": 6888639,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Gincrey",
       "kind": "wood",
       "x": 887338,
       "y": 6909432,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Grand Fouchère",
+      "kind": "wood",
+      "x": 857679,
+      "y": 6888611,
       "source": "BD TOPO"
     },
     {
@@ -2631,6 +4897,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Housse",
+      "kind": "wood",
+      "x": 890252,
+      "y": 6910257,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de l'Hôpital Saint-Hippolyte",
+      "kind": "wood",
+      "x": 885069,
+      "y": 6888092,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de l'Hôte",
       "kind": "wood",
       "x": 884326,
@@ -2649,6 +4929,13 @@
       "kind": "wood",
       "x": 857129,
       "y": 6894554,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de la Côte",
+      "kind": "wood",
+      "x": 863456,
+      "y": 6887280,
       "source": "BD TOPO"
     },
     {
@@ -2680,10 +4967,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de la Dame Agnès",
+      "kind": "wood",
+      "x": 893637,
+      "y": 6880527,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de la Fourchette",
       "kind": "wood",
       "x": 868866,
       "y": 6898986,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de la Grange",
+      "kind": "wood",
+      "x": 895476,
+      "y": 6881840,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de la Hoche",
+      "kind": "wood",
+      "x": 869140,
+      "y": 6917804,
       "source": "BD TOPO"
     },
     {
@@ -2701,6 +5009,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de la Maise",
+      "kind": "wood",
+      "x": 873436,
+      "y": 6881698,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de la Morine",
+      "kind": "wood",
+      "x": 848512,
+      "y": 6913479,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de la Plume",
       "kind": "wood",
       "x": 880873,
@@ -2712,6 +5034,13 @@
       "kind": "wood",
       "x": 869079,
       "y": 6899297,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de la Queue",
+      "kind": "wood",
+      "x": 869471,
+      "y": 6917161,
       "source": "BD TOPO"
     },
     {
@@ -2729,6 +5058,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Lacroix",
+      "kind": "wood",
+      "x": 886433,
+      "y": 6880554,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Lambéchamp",
       "kind": "wood",
       "x": 859691,
@@ -2736,10 +5072,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Landrecourt",
+      "kind": "wood",
+      "x": 869812,
+      "y": 6889087,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Landres",
+      "kind": "wood",
+      "x": 846744,
+      "y": 6916476,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Lavoye",
+      "kind": "wood",
+      "x": 853357,
+      "y": 6884675,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Lemmes",
+      "kind": "wood",
+      "x": 868777,
+      "y": 6888609,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Longchamp",
       "kind": "wood",
       "x": 859100,
       "y": 6903922,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Longeau",
+      "kind": "wood",
+      "x": 891654,
+      "y": 6882217,
       "source": "BD TOPO"
     },
     {
@@ -2796,6 +5167,20 @@
       "kind": "wood",
       "x": 870382,
       "y": 6914142,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Moncy",
+      "kind": "wood",
+      "x": 847729,
+      "y": 6914613,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Montgarny",
+      "kind": "wood",
+      "x": 852778,
+      "y": 6886474,
       "source": "BD TOPO"
     },
     {
@@ -2890,6 +5275,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Peu de Faux",
+      "kind": "wood",
+      "x": 856045,
+      "y": 6917311,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Pierreville",
       "kind": "wood",
       "x": 886278,
@@ -2904,10 +5296,52 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Pontoux",
+      "kind": "wood",
+      "x": 872553,
+      "y": 6881344,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Prêtre",
       "kind": "wood",
       "x": 873692,
       "y": 6893673,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Rambluzin",
+      "kind": "wood",
+      "x": 872731,
+      "y": 6880430,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Romagne",
+      "kind": "wood",
+      "x": 848598,
+      "y": 6917314,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Rupt",
+      "kind": "wood",
+      "x": 880350,
+      "y": 6887307,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Saint-Maurice",
+      "kind": "wood",
+      "x": 894055,
+      "y": 6881961,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Saint-Remy",
+      "kind": "wood",
+      "x": 888293,
+      "y": 6884161,
       "source": "BD TOPO"
     },
     {
@@ -2918,10 +5352,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Saulx",
+      "kind": "wood",
+      "x": 883565,
+      "y": 6888676,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Saulx",
+      "kind": "wood",
+      "x": 895293,
+      "y": 6881585,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Senon",
       "kind": "wood",
       "x": 889448,
       "y": 6913076,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Senoncourt",
+      "kind": "wood",
+      "x": 871303,
+      "y": 6888933,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Senoncourt",
+      "kind": "wood",
+      "x": 870988,
+      "y": 6885227,
       "source": "BD TOPO"
     },
     {
@@ -2939,6 +5401,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Tabor",
+      "kind": "wood",
+      "x": 855308,
+      "y": 6884652,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Thierville",
       "kind": "wood",
       "x": 870859,
@@ -2953,6 +5422,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Thillot",
+      "kind": "wood",
+      "x": 894470,
+      "y": 6883126,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Tilly",
+      "kind": "wood",
+      "x": 892832,
+      "y": 6907317,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Trégibuceau",
       "kind": "wood",
       "x": 881639,
@@ -2960,10 +5443,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Tremblois",
+      "kind": "wood",
+      "x": 890310,
+      "y": 6917766,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Trésauvaux",
+      "kind": "wood",
+      "x": 887276,
+      "y": 6889176,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Troyon",
+      "kind": "wood",
+      "x": 884281,
+      "y": 6881465,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Val Loup",
+      "kind": "wood",
+      "x": 850175,
+      "y": 6915223,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Vaux Chapitre",
       "kind": "wood",
       "x": 878252,
       "y": 6902888,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Vaux-lès-Palameix",
+      "kind": "wood",
+      "x": 886643,
+      "y": 6883310,
       "source": "BD TOPO"
     },
     {
@@ -2988,6 +5506,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois de Villers",
+      "kind": "wood",
+      "x": 874345,
+      "y": 6882861,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois de Watlemont",
+      "kind": "wood",
+      "x": 890412,
+      "y": 6916386,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois de Wavrille",
       "kind": "wood",
       "x": 872464,
@@ -2999,6 +5531,20 @@
       "kind": "wood",
       "x": 879879,
       "y": 6898883,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Bercettes",
+      "kind": "wood",
+      "x": 847463,
+      "y": 6896118,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Boudières",
+      "kind": "wood",
+      "x": 854745,
+      "y": 6880514,
       "source": "BD TOPO"
     },
     {
@@ -3087,6 +5633,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois des Fourches",
+      "kind": "wood",
+      "x": 850247,
+      "y": 6899966,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois des Haies",
       "kind": "wood",
       "x": 883553,
@@ -3101,6 +5654,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois des Jonchières",
+      "kind": "wood",
+      "x": 855326,
+      "y": 6883773,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois des Malades",
       "kind": "wood",
       "x": 878208,
@@ -3108,10 +5668,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois des Mantes",
+      "kind": "wood",
+      "x": 860123,
+      "y": 6891705,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Monthairons",
+      "kind": "wood",
+      "x": 872633,
+      "y": 6883557,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois des Noires",
       "kind": "wood",
       "x": 856166,
       "y": 6895589,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Royettes",
+      "kind": "wood",
+      "x": 855561,
+      "y": 6884277,
       "source": "BD TOPO"
     },
     {
@@ -3126,6 +5707,27 @@
       "kind": "wood",
       "x": 867865,
       "y": 6896340,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Sœurs",
+      "kind": "wood",
+      "x": 846299,
+      "y": 6904857,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Souhesmes",
+      "kind": "wood",
+      "x": 862675,
+      "y": 6887587,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois des Têtes",
+      "kind": "wood",
+      "x": 891730,
+      "y": 6883650,
       "source": "BD TOPO"
     },
     {
@@ -3178,6 +5780,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois du Chêne Sec",
+      "kind": "wood",
+      "x": 848532,
+      "y": 6913873,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois du Chevalet",
       "kind": "wood",
       "x": 874133,
@@ -3199,6 +5808,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois du Four",
+      "kind": "wood",
+      "x": 860455,
+      "y": 6886268,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois du Four",
+      "kind": "wood",
+      "x": 861129,
+      "y": 6888109,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois du Geai",
       "kind": "wood",
       "x": 878222,
@@ -3213,10 +5836,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois du Gué des Cerfs",
+      "kind": "wood",
+      "x": 860628,
+      "y": 6917218,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois du Hazard",
       "kind": "wood",
       "x": 869196,
       "y": 6892334,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois du Parois",
+      "kind": "wood",
+      "x": 848115,
+      "y": 6893127,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois du Rouvroi",
+      "kind": "wood",
+      "x": 861521,
+      "y": 6917987,
       "source": "BD TOPO"
     },
     {
@@ -3234,6 +5878,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Dufour",
+      "kind": "wood",
+      "x": 886554,
+      "y": 6888865,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois en F",
       "kind": "wood",
       "x": 875066,
@@ -3241,10 +5892,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Fabry",
+      "kind": "wood",
+      "x": 892055,
+      "y": 6903155,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Fumin",
       "kind": "wood",
       "x": 879165,
       "y": 6903107,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Gand",
+      "kind": "wood",
+      "x": 854966,
+      "y": 6883302,
       "source": "BD TOPO"
     },
     {
@@ -3262,10 +5927,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Haut",
+      "kind": "wood",
+      "x": 887811,
+      "y": 6888085,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Hauts",
       "kind": "wood",
       "x": 857990,
       "y": 6900679,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Hémont",
+      "kind": "wood",
+      "x": 851935,
+      "y": 6911785,
       "source": "BD TOPO"
     },
     {
@@ -3290,6 +5969,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Jean Frappe",
+      "kind": "wood",
+      "x": 851551,
+      "y": 6882071,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Juré",
       "kind": "wood",
       "x": 874780,
@@ -3301,6 +5987,13 @@
       "kind": "wood",
       "x": 862381,
       "y": 6912784,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois l'Abbé",
+      "kind": "wood",
+      "x": 855369,
+      "y": 6881658,
       "source": "BD TOPO"
     },
     {
@@ -3334,8 +6027,29 @@
     {
       "name": "Bois la Dame",
       "kind": "wood",
+      "x": 893990,
+      "y": 6897761,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois la Dame",
+      "kind": "wood",
+      "x": 850966,
+      "y": 6900381,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois la Dame",
+      "kind": "wood",
       "x": 860542,
       "y": 6892569,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois la Dame",
+      "kind": "wood",
+      "x": 871785,
+      "y": 6888676,
       "source": "BD TOPO"
     },
     {
@@ -3374,6 +6088,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois la Ville",
+      "kind": "wood",
+      "x": 890229,
+      "y": 6881400,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois la Ville et Plainfaye",
+      "kind": "wood",
+      "x": 892876,
+      "y": 6882779,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois le Baron",
       "kind": "wood",
       "x": 886238,
@@ -3385,6 +6113,13 @@
       "kind": "wood",
       "x": 865391,
       "y": 6899103,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois le Chapitre",
+      "kind": "wood",
+      "x": 893154,
+      "y": 6880966,
       "source": "BD TOPO"
     },
     {
@@ -3402,6 +6137,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois le Comte",
+      "kind": "wood",
+      "x": 874302,
+      "y": 6885550,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois le Comte",
+      "kind": "wood",
+      "x": 855175,
+      "y": 6882874,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois le Monsieur",
       "kind": "wood",
       "x": 878390,
@@ -3411,8 +6160,29 @@
     {
       "name": "Bois le Prêtre",
       "kind": "wood",
+      "x": 891724,
+      "y": 6914424,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois le Prêtre",
+      "kind": "wood",
       "x": 880450,
       "y": 6900133,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois le Prêtre",
+      "kind": "wood",
+      "x": 865723,
+      "y": 6881693,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois le Sire",
+      "kind": "wood",
+      "x": 855187,
+      "y": 6882466,
       "source": "BD TOPO"
     },
     {
@@ -3472,6 +6242,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Notre-Dame",
+      "kind": "wood",
+      "x": 885346,
+      "y": 6890925,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Patin",
       "kind": "wood",
       "x": 864142,
@@ -3483,6 +6260,13 @@
       "kind": "wood",
       "x": 869691,
       "y": 6902939,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Raquatet",
+      "kind": "wood",
+      "x": 894459,
+      "y": 6880235,
       "source": "BD TOPO"
     },
     {
@@ -3521,6 +6305,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bois Saint-Michel",
+      "kind": "wood",
+      "x": 862021,
+      "y": 6891723,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Bois Saint-Nicolas",
       "kind": "wood",
       "x": 882534,
@@ -3546,6 +6337,13 @@
       "kind": "wood",
       "x": 869746,
       "y": 6894329,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bois Secs",
+      "kind": "wood",
+      "x": 877602,
+      "y": 6891448,
       "source": "BD TOPO"
     },
     {
@@ -3577,6 +6375,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Bouez",
+      "kind": "wood",
+      "x": 885300,
+      "y": 6891440,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bouillon Pré",
+      "kind": "wood",
+      "x": 893686,
+      "y": 6893931,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Bouquot",
+      "kind": "wood",
+      "x": 884969,
+      "y": 6882542,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Brichabeaux",
       "kind": "wood",
       "x": 862620,
@@ -3598,10 +6417,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Champ Renard",
+      "kind": "wood",
+      "x": 852062,
+      "y": 6887973,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Champvaux",
+      "kind": "wood",
+      "x": 892306,
+      "y": 6884445,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Chaté",
       "kind": "wood",
       "x": 880655,
       "y": 6898497,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Chevillemont",
+      "kind": "wood",
+      "x": 867740,
+      "y": 6890323,
       "source": "BD TOPO"
     },
     {
@@ -3619,6 +6459,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Corne d'Abancourt",
+      "kind": "wood",
+      "x": 847347,
+      "y": 6898117,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Cote 378",
       "kind": "wood",
       "x": 876280,
@@ -3633,10 +6480,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Côte de Mont",
+      "kind": "wood",
+      "x": 886763,
+      "y": 6891178,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Côte Senoux",
+      "kind": "wood",
+      "x": 886992,
+      "y": 6886203,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Cul le Loup",
       "kind": "wood",
       "x": 858754,
       "y": 6913435,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Culée le Meunier",
+      "kind": "wood",
+      "x": 851817,
+      "y": 6899966,
       "source": "BD TOPO"
     },
     {
@@ -3668,6 +6536,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "En Enfer",
+      "kind": "wood",
+      "x": 877574,
+      "y": 6880018,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Entre Deux Rus",
       "kind": "wood",
       "x": 853647,
@@ -3682,6 +6557,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fontaine à la Pierre",
+      "kind": "wood",
+      "x": 848751,
+      "y": 6895730,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Forêt Communale d'Azannes",
       "kind": "wood",
       "x": 880892,
@@ -3693,6 +6575,13 @@
       "kind": "wood",
       "x": 879684,
       "y": 6899120,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Communale de Beaulieu",
+      "kind": "wood",
+      "x": 852409,
+      "y": 6885310,
       "source": "BD TOPO"
     },
     {
@@ -3878,6 +6767,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Forêt Communale de Réville",
+      "kind": "wood",
+      "x": 869453,
+      "y": 6917612,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Forêt Communale de Romagne-sous-les-Côtes",
       "kind": "wood",
       "x": 878580,
@@ -3948,12 +6844,47 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Forêt de Bonzée",
+      "kind": "wood",
+      "x": 886234,
+      "y": 6890771,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Forêt de Hesse",
       "kind": "wood",
       "x": 856438,
       "y": 6899870,
       "source": "BD TOPO",
       "wikipedia": "https://fr.wikipedia.org/wiki/For%C3%AAt_de_Hesse"
+    },
+    {
+      "name": "Forêt de Mangiennes",
+      "kind": "wood",
+      "x": 883406,
+      "y": 6917409,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt de Mont",
+      "kind": "wood",
+      "x": 885761,
+      "y": 6891405,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt de Rarécourt",
+      "kind": "wood",
+      "x": 851323,
+      "y": 6887443,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt derrière Beauchamp",
+      "kind": "wood",
+      "x": 849202,
+      "y": 6888245,
+      "source": "BD TOPO"
     },
     {
       "name": "Forêt des Hospices de Verdun",
@@ -3963,10 +6894,94 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Forêt Domaniale d'Amblonville",
+      "kind": "wood",
+      "x": 884733,
+      "y": 6889674,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale d'Ariétal",
+      "kind": "wood",
+      "x": 846841,
+      "y": 6914874,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Baulmy",
+      "kind": "wood",
+      "x": 849348,
+      "y": 6911883,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Beaulieu",
+      "kind": "wood",
+      "x": 850266,
+      "y": 6884671,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de la Contrôlerie",
+      "kind": "wood",
+      "x": 847433,
+      "y": 6889588,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de la Grande Montagne",
+      "kind": "wood",
+      "x": 870342,
+      "y": 6917150,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de la Montagne",
+      "kind": "wood",
+      "x": 892453,
+      "y": 6880893,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Montfaucon",
+      "kind": "wood",
+      "x": 848504,
+      "y": 6914983,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Pontoux",
+      "kind": "wood",
+      "x": 872465,
+      "y": 6881665,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Ranzières",
+      "kind": "wood",
+      "x": 883716,
+      "y": 6883908,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Forêt Domaniale de Sommedieue",
       "kind": "wood",
       "x": 880679,
       "y": 6897443,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Sommedieue",
+      "kind": "wood",
+      "x": 879991,
+      "y": 6888210,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale de Souilly",
+      "kind": "wood",
+      "x": 870627,
+      "y": 6883602,
       "source": "BD TOPO"
     },
     {
@@ -3984,10 +6999,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Forêt Domaniale des Éparges",
+      "kind": "wood",
+      "x": 888264,
+      "y": 6886137,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale du Grand Pays",
+      "kind": "wood",
+      "x": 847205,
+      "y": 6894426,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Forêt Domaniale du Mort-Homme",
       "kind": "wood",
       "x": 862522,
       "y": 6907368,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Forêt Domaniale du Prieuré",
+      "kind": "wood",
+      "x": 865830,
+      "y": 6881566,
       "source": "BD TOPO"
     },
     {
@@ -4012,10 +7048,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Fourimont",
+      "kind": "wood",
+      "x": 850890,
+      "y": 6899925,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Franc Bois",
       "kind": "wood",
       "x": 886097,
       "y": 6911691,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Frasey",
+      "kind": "wood",
+      "x": 889202,
+      "y": 6881930,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Froide Fontaine",
+      "kind": "wood",
+      "x": 852387,
+      "y": 6880738,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Gétremai",
+      "kind": "wood",
+      "x": 863808,
+      "y": 6882775,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Gironcelle",
+      "kind": "wood",
+      "x": 861769,
+      "y": 6886283,
       "source": "BD TOPO"
     },
     {
@@ -4030,6 +7101,20 @@
       "kind": "wood",
       "x": 864547,
       "y": 6894751,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Gros Navet",
+      "kind": "wood",
+      "x": 882865,
+      "y": 6880216,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Grosse Haut",
+      "kind": "wood",
+      "x": 865456,
+      "y": 6882228,
       "source": "BD TOPO"
     },
     {
@@ -4061,6 +7146,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Haut de Néclibeau",
+      "kind": "wood",
+      "x": 879286,
+      "y": 6884601,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Haute Charrière",
       "kind": "wood",
       "x": 886500,
@@ -4082,10 +7174,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Herbillon",
+      "kind": "wood",
+      "x": 893839,
+      "y": 6894416,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Horgne",
       "kind": "wood",
       "x": 879896,
       "y": 6908023,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Huchémont",
+      "kind": "wood",
+      "x": 851786,
+      "y": 6905633,
       "source": "BD TOPO"
     },
     {
@@ -4100,6 +7206,20 @@
       "kind": "wood",
       "x": 879590,
       "y": 6904647,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "l'Affut",
+      "kind": "wood",
+      "x": 877043,
+      "y": 6880034,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "l'Épaisse",
+      "kind": "wood",
+      "x": 854546,
+      "y": 6884138,
       "source": "BD TOPO"
     },
     {
@@ -4131,10 +7251,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Belle Enceinte",
+      "kind": "wood",
+      "x": 850478,
+      "y": 6887752,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Belle Épine",
       "kind": "wood",
       "x": 878722,
       "y": 6896525,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Belle Épine",
+      "kind": "wood",
+      "x": 849265,
+      "y": 6894100,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Belle Étoile",
+      "kind": "wood",
+      "x": 884394,
+      "y": 6890925,
       "source": "BD TOPO"
     },
     {
@@ -4201,6 +7342,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Châtelaine",
+      "kind": "wood",
+      "x": 883605,
+      "y": 6886057,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Chaulade",
+      "kind": "wood",
+      "x": 895355,
+      "y": 6883234,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Chéture",
+      "kind": "wood",
+      "x": 849563,
+      "y": 6917455,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Claire Côte",
       "kind": "wood",
       "x": 879902,
@@ -4247,6 +7409,27 @@
       "kind": "wood",
       "x": 878943,
       "y": 6897877,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Côte Suzanne",
+      "kind": "wood",
+      "x": 849535,
+      "y": 6887011,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Couleuvre",
+      "kind": "wood",
+      "x": 891347,
+      "y": 6884714,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Coupe Ronde",
+      "kind": "wood",
+      "x": 882180,
+      "y": 6889647,
       "source": "BD TOPO"
     },
     {
@@ -4313,6 +7496,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Folie",
+      "kind": "wood",
+      "x": 846106,
+      "y": 6904306,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Fontaine à la Pierre",
+      "kind": "wood",
+      "x": 848880,
+      "y": 6894731,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Fontaine aux Charmes",
       "kind": "wood",
       "x": 852582,
@@ -4348,10 +7545,52 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Fourmilière d'Herbeuville",
+      "kind": "wood",
+      "x": 889178,
+      "y": 6882718,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Frapouille",
+      "kind": "wood",
+      "x": 861272,
+      "y": 6881895,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Friche",
+      "kind": "wood",
+      "x": 863177,
+      "y": 6886782,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Gaille",
+      "kind": "wood",
+      "x": 881393,
+      "y": 6885254,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Gaille",
+      "kind": "wood",
+      "x": 875958,
+      "y": 6880563,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Galavaux",
       "kind": "wood",
       "x": 878957,
       "y": 6914620,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Garenne",
+      "kind": "wood",
+      "x": 892925,
+      "y": 6894947,
       "source": "BD TOPO"
     },
     {
@@ -4369,10 +7608,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Gorgia",
+      "kind": "wood",
+      "x": 847222,
+      "y": 6897487,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Goulotte",
+      "kind": "wood",
+      "x": 873636,
+      "y": 6884331,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Grande Charmont",
       "kind": "wood",
       "x": 854867,
       "y": 6897849,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Grande Charrière",
+      "kind": "wood",
+      "x": 868944,
+      "y": 6889099,
       "source": "BD TOPO"
     },
     {
@@ -4390,6 +7650,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Gruerie",
+      "kind": "wood",
+      "x": 887040,
+      "y": 6885553,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Haie",
       "kind": "wood",
       "x": 853486,
@@ -4397,10 +7664,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Haie",
+      "kind": "wood",
+      "x": 884690,
+      "y": 6880535,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Haie Beaumont",
       "kind": "wood",
       "x": 874740,
       "y": 6910412,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Haie Gonne",
+      "kind": "wood",
+      "x": 877971,
+      "y": 6890225,
       "source": "BD TOPO"
     },
     {
@@ -4418,6 +7699,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Haute Justice",
+      "kind": "wood",
+      "x": 851438,
+      "y": 6906100,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Haye Roquemette",
       "kind": "wood",
       "x": 870150,
@@ -4429,6 +7717,13 @@
       "kind": "wood",
       "x": 861129,
       "y": 6905449,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Horgne",
+      "kind": "wood",
+      "x": 893930,
+      "y": 6883987,
       "source": "BD TOPO"
     },
     {
@@ -4453,10 +7748,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Malette",
+      "kind": "wood",
+      "x": 848427,
+      "y": 6915251,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Mamelle",
       "kind": "wood",
       "x": 872466,
       "y": 6910566,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Marne",
+      "kind": "wood",
+      "x": 852899,
+      "y": 6883027,
       "source": "BD TOPO"
     },
     {
@@ -4502,6 +7811,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Panthère",
+      "kind": "wood",
+      "x": 848820,
+      "y": 6895141,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Parcelle",
       "kind": "wood",
       "x": 854627,
@@ -4527,6 +7843,13 @@
       "kind": "wood",
       "x": 880592,
       "y": 6910210,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Petite Fin",
+      "kind": "wood",
+      "x": 851867,
+      "y": 6899587,
       "source": "BD TOPO"
     },
     {
@@ -4565,10 +7888,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Queue d'Orvaux",
+      "kind": "wood",
+      "x": 850101,
+      "y": 6891652,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Queue de Mala",
+      "kind": "wood",
+      "x": 866616,
+      "y": 6889522,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Râpe",
       "kind": "wood",
       "x": 881165,
       "y": 6913805,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Rappe",
+      "kind": "wood",
+      "x": 882027,
+      "y": 6885033,
       "source": "BD TOPO"
     },
     {
@@ -4590,6 +7934,20 @@
       "kind": "wood",
       "x": 873535,
       "y": 6907241,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Robinette",
+      "kind": "wood",
+      "x": 849318,
+      "y": 6915350,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Sainte-Germaine",
+      "kind": "wood",
+      "x": 849981,
+      "y": 6917225,
       "source": "BD TOPO"
     },
     {
@@ -4621,10 +7979,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Vau Mourin",
+      "kind": "wood",
+      "x": 870156,
+      "y": 6890312,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Vau Warin",
+      "kind": "wood",
+      "x": 864493,
+      "y": 6883609,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Vauche",
       "kind": "wood",
       "x": 878315,
       "y": 6906774,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Vermine",
+      "kind": "wood",
+      "x": 883165,
+      "y": 6880602,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Viécourt",
+      "kind": "wood",
+      "x": 891679,
+      "y": 6915397,
       "source": "BD TOPO"
     },
     {
@@ -4635,10 +8021,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Vignotte",
+      "kind": "wood",
+      "x": 883348,
+      "y": 6888982,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Violonne",
+      "kind": "wood",
+      "x": 862128,
+      "y": 6890899,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Voie d'Embliace",
+      "kind": "wood",
+      "x": 885037,
+      "y": 6883210,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Voie de Dieue",
+      "kind": "wood",
+      "x": 880979,
+      "y": 6886972,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Voie des Blouches",
       "kind": "wood",
       "x": 855040,
       "y": 6900934,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "la Voie des Loups",
+      "kind": "wood",
+      "x": 879970,
+      "y": 6887917,
       "source": "BD TOPO"
     },
     {
@@ -4649,10 +8070,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "la Warge",
+      "kind": "wood",
+      "x": 867984,
+      "y": 6881310,
+      "source": "BD TOPO"
+    },
+    {
       "name": "la Wavrille",
       "kind": "wood",
       "x": 876403,
       "y": 6909773,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Lahome",
+      "kind": "wood",
+      "x": 886935,
+      "y": 6880443,
       "source": "BD TOPO"
     },
     {
@@ -4663,10 +8098,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Lanisseau",
+      "kind": "wood",
+      "x": 873453,
+      "y": 6886489,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Larat",
+      "kind": "wood",
+      "x": 890587,
+      "y": 6881586,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Laumont",
       "kind": "wood",
       "x": 863456,
       "y": 6893302,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Laviou",
+      "kind": "wood",
+      "x": 893487,
+      "y": 6891374,
       "source": "BD TOPO"
     },
     {
@@ -4698,6 +8154,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Bausset",
+      "kind": "wood",
+      "x": 852314,
+      "y": 6880082,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Blossier",
+      "kind": "wood",
+      "x": 854804,
+      "y": 6885057,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Bochet",
       "kind": "wood",
       "x": 879570,
@@ -4712,10 +8182,66 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Bois Brûlé",
+      "kind": "wood",
+      "x": 872569,
+      "y": 6886067,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Bois Noiret",
+      "kind": "wood",
+      "x": 849381,
+      "y": 6890947,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Bouchot",
+      "kind": "wood",
+      "x": 892093,
+      "y": 6884953,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Bouvret",
       "kind": "wood",
       "x": 863214,
       "y": 6905749,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Breusson",
+      "kind": "wood",
+      "x": 894858,
+      "y": 6881368,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Brûlis",
+      "kind": "wood",
+      "x": 850664,
+      "y": 6881461,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Brûly",
+      "kind": "wood",
+      "x": 849478,
+      "y": 6891305,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Brûly",
+      "kind": "wood",
+      "x": 868518,
+      "y": 6889694,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Buisson",
+      "kind": "wood",
+      "x": 849040,
+      "y": 6896364,
       "source": "BD TOPO"
     },
     {
@@ -4747,10 +8273,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Champ l'Andouille",
+      "kind": "wood",
+      "x": 872550,
+      "y": 6889468,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Champ la Gaille",
       "kind": "wood",
       "x": 872460,
       "y": 6893464,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Chana",
+      "kind": "wood",
+      "x": 883306,
+      "y": 6881459,
       "source": "BD TOPO"
     },
     {
@@ -4796,10 +8336,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Chêdevigne",
+      "kind": "wood",
+      "x": 872058,
+      "y": 6889523,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Chemin de Verdun",
       "kind": "wood",
       "x": 878572,
       "y": 6908343,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Chêne Gossin",
+      "kind": "wood",
+      "x": 872471,
+      "y": 6888582,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Chêne Pédonculé",
+      "kind": "wood",
+      "x": 892947,
+      "y": 6908150,
       "source": "BD TOPO"
     },
     {
@@ -4810,10 +8371,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Coroy",
+      "kind": "wood",
+      "x": 871539,
+      "y": 6887016,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Couchot",
+      "kind": "wood",
+      "x": 894554,
+      "y": 6882502,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Cul de Chaudron",
+      "kind": "wood",
+      "x": 849289,
+      "y": 6887272,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Culot",
       "kind": "wood",
       "x": 883015,
       "y": 6915699,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Deffoy",
+      "kind": "wood",
+      "x": 885941,
+      "y": 6890027,
       "source": "BD TOPO"
     },
     {
@@ -4838,10 +8427,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Faîte",
+      "kind": "wood",
+      "x": 889633,
+      "y": 6881459,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Fardain",
+      "kind": "wood",
+      "x": 866137,
+      "y": 6889490,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Faux Croisé",
+      "kind": "wood",
+      "x": 851223,
+      "y": 6881302,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Fayel",
       "kind": "wood",
       "x": 887344,
       "y": 6896323,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Fayet",
+      "kind": "wood",
+      "x": 892763,
+      "y": 6885155,
       "source": "BD TOPO"
     },
     {
@@ -4866,10 +8483,45 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Fays",
+      "kind": "wood",
+      "x": 885770,
+      "y": 6881662,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Fays",
+      "kind": "wood",
+      "x": 870857,
+      "y": 6882140,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Ferjus",
+      "kind": "wood",
+      "x": 870891,
+      "y": 6881436,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Feuilla",
       "kind": "wood",
       "x": 882459,
       "y": 6902583,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Fréty",
+      "kind": "wood",
+      "x": 863432,
+      "y": 6883695,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Grand Chana",
+      "kind": "wood",
+      "x": 880389,
+      "y": 6885197,
       "source": "BD TOPO"
     },
     {
@@ -4891,6 +8543,13 @@
       "kind": "wood",
       "x": 889508,
       "y": 6912019,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Grand Fratré",
+      "kind": "wood",
+      "x": 849611,
+      "y": 6893652,
       "source": "BD TOPO"
     },
     {
@@ -4922,6 +8581,34 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Haut des Chambres",
+      "kind": "wood",
+      "x": 894384,
+      "y": 6894688,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Hoyaux",
+      "kind": "wood",
+      "x": 883649,
+      "y": 6888282,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Larry",
+      "kind": "wood",
+      "x": 881074,
+      "y": 6883790,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Liat",
+      "kind": "wood",
+      "x": 894069,
+      "y": 6881519,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Loyer",
       "kind": "wood",
       "x": 878243,
@@ -4943,10 +8630,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Ménard",
+      "kind": "wood",
+      "x": 852429,
+      "y": 6887388,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Miroir",
       "kind": "wood",
       "x": 874454,
       "y": 6912390,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Mollu",
+      "kind": "wood",
+      "x": 846883,
+      "y": 6899675,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Mont d'Osches",
+      "kind": "wood",
+      "x": 865752,
+      "y": 6884939,
       "source": "BD TOPO"
     },
     {
@@ -4968,6 +8676,13 @@
       "kind": "wood",
       "x": 878953,
       "y": 6901394,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Muniel",
+      "kind": "wood",
+      "x": 862629,
+      "y": 6888947,
       "source": "BD TOPO"
     },
     {
@@ -5003,6 +8718,27 @@
       "kind": "wood",
       "x": 886458,
       "y": 6909499,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Pas des Bêtes",
+      "kind": "wood",
+      "x": 879115,
+      "y": 6891154,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Pénard",
+      "kind": "wood",
+      "x": 891576,
+      "y": 6908343,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Petit Bois",
+      "kind": "wood",
+      "x": 846096,
+      "y": 6914882,
       "source": "BD TOPO"
     },
     {
@@ -5055,6 +8791,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Placy",
+      "kind": "wood",
+      "x": 863063,
+      "y": 6891059,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Plan des Jolis",
+      "kind": "wood",
+      "x": 846846,
+      "y": 6913308,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Pois",
       "kind": "wood",
       "x": 858294,
@@ -5066,6 +8816,13 @@
       "kind": "wood",
       "x": 860986,
       "y": 6912918,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Prieuré",
+      "kind": "wood",
+      "x": 865112,
+      "y": 6881571,
       "source": "BD TOPO"
     },
     {
@@ -5118,6 +8875,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Rouvre",
+      "kind": "wood",
+      "x": 893270,
+      "y": 6907015,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Rozelier",
       "kind": "wood",
       "x": 880411,
@@ -5132,10 +8896,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Soff",
+      "kind": "wood",
+      "x": 883586,
+      "y": 6887070,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Taillandier",
+      "kind": "wood",
+      "x": 850378,
+      "y": 6916079,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Termy",
       "kind": "wood",
       "x": 852662,
       "y": 6897797,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "le Tilla",
+      "kind": "wood",
+      "x": 882625,
+      "y": 6888496,
       "source": "BD TOPO"
     },
     {
@@ -5181,6 +8966,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "le Vionlut",
+      "kind": "wood",
+      "x": 883738,
+      "y": 6884824,
+      "source": "BD TOPO"
+    },
+    {
       "name": "le Warinterme",
       "kind": "wood",
       "x": 854048,
@@ -5188,10 +8980,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Acacias",
+      "kind": "wood",
+      "x": 864536,
+      "y": 6887328,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Accensements",
       "kind": "wood",
       "x": 881041,
       "y": 6912010,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Affouages de Lochères",
+      "kind": "wood",
+      "x": 847234,
+      "y": 6893722,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Allieux",
+      "kind": "wood",
+      "x": 848821,
+      "y": 6915639,
       "source": "BD TOPO"
     },
     {
@@ -5216,6 +9029,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Bas Bois",
+      "kind": "wood",
+      "x": 848934,
+      "y": 6896106,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Bélois",
       "kind": "wood",
       "x": 855368,
@@ -5223,10 +9043,52 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Binois",
+      "kind": "wood",
+      "x": 850650,
+      "y": 6887415,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Blanches Terres",
+      "kind": "wood",
+      "x": 851284,
+      "y": 6881596,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Blossiers",
+      "kind": "wood",
+      "x": 864012,
+      "y": 6891774,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Blusses",
       "kind": "wood",
       "x": 885723,
       "y": 6894471,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Bouleaux",
+      "kind": "wood",
+      "x": 849381,
+      "y": 6910390,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Bouleaux",
+      "kind": "wood",
+      "x": 895969,
+      "y": 6898703,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Boulées",
+      "kind": "wood",
+      "x": 888868,
+      "y": 6881367,
       "source": "BD TOPO"
     },
     {
@@ -5258,6 +9120,27 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Cent Arpents",
+      "kind": "wood",
+      "x": 894862,
+      "y": 6898065,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Charonneries",
+      "kind": "wood",
+      "x": 851350,
+      "y": 6887280,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Charrières",
+      "kind": "wood",
+      "x": 870084,
+      "y": 6889803,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Chênes",
       "kind": "wood",
       "x": 859816,
@@ -5265,10 +9148,66 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Chênes",
+      "kind": "wood",
+      "x": 890005,
+      "y": 6880340,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Chênots",
+      "kind": "wood",
+      "x": 884215,
+      "y": 6881803,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Chevaliers",
+      "kind": "wood",
+      "x": 885447,
+      "y": 6880112,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Chiens Pendus",
+      "kind": "wood",
+      "x": 872983,
+      "y": 6884298,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Cinq Frères",
+      "kind": "wood",
+      "x": 872844,
+      "y": 6887474,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Clairs Chênes",
+      "kind": "wood",
+      "x": 890372,
+      "y": 6913776,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Clairs Chênes",
       "kind": "wood",
       "x": 881472,
       "y": 6911010,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Clairs Chênes",
+      "kind": "wood",
+      "x": 850782,
+      "y": 6911773,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Clairs Chênes",
+      "kind": "wood",
+      "x": 890681,
+      "y": 6908083,
       "source": "BD TOPO"
     },
     {
@@ -5293,10 +9232,59 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Clairs Cors",
+      "kind": "wood",
+      "x": 880497,
+      "y": 6889000,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Corbettes",
       "kind": "wood",
       "x": 856681,
       "y": 6898035,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Cores",
+      "kind": "wood",
+      "x": 885965,
+      "y": 6885785,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Coucherons",
+      "kind": "wood",
+      "x": 852520,
+      "y": 6888387,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Damzelles",
+      "kind": "wood",
+      "x": 872082,
+      "y": 6884257,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Devises",
+      "kind": "wood",
+      "x": 884858,
+      "y": 6890191,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Douzains",
+      "kind": "wood",
+      "x": 884718,
+      "y": 6890671,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Écoupettes",
+      "kind": "wood",
+      "x": 861370,
+      "y": 6881293,
       "source": "BD TOPO"
     },
     {
@@ -5307,10 +9295,66 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Épinettes",
+      "kind": "wood",
+      "x": 850468,
+      "y": 6911370,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Étots",
+      "kind": "wood",
+      "x": 890497,
+      "y": 6898257,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Étots",
+      "kind": "wood",
+      "x": 868632,
+      "y": 6887668,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Fontenelles",
+      "kind": "wood",
+      "x": 852068,
+      "y": 6888636,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Fontenelles",
+      "kind": "wood",
+      "x": 875497,
+      "y": 6882831,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Fosses",
       "kind": "wood",
       "x": 858791,
       "y": 6907738,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Frémis",
+      "kind": "wood",
+      "x": 890765,
+      "y": 6881092,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Frivaux",
+      "kind": "wood",
+      "x": 891285,
+      "y": 6880784,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Goulettes",
+      "kind": "wood",
+      "x": 851964,
+      "y": 6886974,
       "source": "BD TOPO"
     },
     {
@@ -5356,10 +9400,38 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Houys",
+      "kind": "wood",
+      "x": 862871,
+      "y": 6886551,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Huit Chevaux",
+      "kind": "wood",
+      "x": 870794,
+      "y": 6889221,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Lichettes",
       "kind": "wood",
       "x": 854059,
       "y": 6903607,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Loges",
+      "kind": "wood",
+      "x": 869916,
+      "y": 6884513,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Logettes",
+      "kind": "wood",
+      "x": 882510,
+      "y": 6890234,
       "source": "BD TOPO"
     },
     {
@@ -5391,6 +9463,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Oviaux",
+      "kind": "wood",
+      "x": 878251,
+      "y": 6885584,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Pâquis de Ronvaux",
       "kind": "wood",
       "x": 885657,
@@ -5419,6 +9498,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Petites Rappes",
+      "kind": "wood",
+      "x": 882854,
+      "y": 6884186,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Piloux",
       "kind": "wood",
       "x": 876883,
@@ -5433,6 +9519,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Portions",
+      "kind": "wood",
+      "x": 871304,
+      "y": 6884946,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Quartiers",
       "kind": "wood",
       "x": 873948,
@@ -5444,6 +9537,13 @@
       "kind": "wood",
       "x": 853629,
       "y": 6900201,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Quatre Vents",
+      "kind": "wood",
+      "x": 849408,
+      "y": 6904035,
       "source": "BD TOPO"
     },
     {
@@ -5468,6 +9568,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Rayis de la Vigneulle",
+      "kind": "wood",
+      "x": 882633,
+      "y": 6884674,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Réserves",
+      "kind": "wood",
+      "x": 892344,
+      "y": 6907285,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Réunis",
       "kind": "wood",
       "x": 880962,
@@ -5479,6 +9593,13 @@
       "kind": "wood",
       "x": 870804,
       "y": 6909041,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Sâtes",
+      "kind": "wood",
+      "x": 873915,
+      "y": 6884903,
       "source": "BD TOPO"
     },
     {
@@ -5496,6 +9617,41 @@
       "source": "BD TOPO"
     },
     {
+      "name": "les Taillis de Saulx",
+      "kind": "wood",
+      "x": 886812,
+      "y": 6887871,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Terres Blanches",
+      "kind": "wood",
+      "x": 894576,
+      "y": 6881820,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Trois Jurés",
+      "kind": "wood",
+      "x": 887003,
+      "y": 6890097,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Trois Monts",
+      "kind": "wood",
+      "x": 882452,
+      "y": 6885794,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "les Vanneaux",
+      "kind": "wood",
+      "x": 864839,
+      "y": 6917144,
+      "source": "BD TOPO"
+    },
+    {
       "name": "les Vignes",
       "kind": "wood",
       "x": 873522,
@@ -5507,6 +9663,27 @@
       "kind": "wood",
       "x": 870905,
       "y": 6905870,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Lion Bois",
+      "kind": "wood",
+      "x": 854693,
+      "y": 6885255,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Loclont",
+      "kind": "wood",
+      "x": 885849,
+      "y": 6884671,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Longeau",
+      "kind": "wood",
+      "x": 893081,
+      "y": 6907714,
       "source": "BD TOPO"
     },
     {
@@ -5545,6 +9722,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Moineville",
+      "kind": "wood",
+      "x": 864524,
+      "y": 6881740,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Molachena",
       "kind": "wood",
       "x": 880286,
@@ -5556,6 +9740,27 @@
       "kind": "wood",
       "x": 854427,
       "y": 6897492,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Monplaisir",
+      "kind": "wood",
+      "x": 878189,
+      "y": 6886791,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Monte Étot",
+      "kind": "wood",
+      "x": 883646,
+      "y": 6880322,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Morémont",
+      "kind": "wood",
+      "x": 888177,
+      "y": 6881055,
       "source": "BD TOPO"
     },
     {
@@ -5573,6 +9778,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Nacrillon",
+      "kind": "wood",
+      "x": 880873,
+      "y": 6887317,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Nalimont",
       "kind": "wood",
       "x": 858977,
@@ -5587,6 +9799,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Ninvalette",
+      "kind": "wood",
+      "x": 874996,
+      "y": 6885505,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Nivolette",
+      "kind": "wood",
+      "x": 880907,
+      "y": 6889288,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Noire Fontaine",
       "kind": "wood",
       "x": 857118,
@@ -5594,10 +9820,24 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Orvaux",
+      "kind": "wood",
+      "x": 849110,
+      "y": 6892294,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Parquois",
       "kind": "wood",
       "x": 855015,
       "y": 6898168,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Petit Bois",
+      "kind": "wood",
+      "x": 874765,
+      "y": 6885066,
       "source": "BD TOPO"
     },
     {
@@ -5622,6 +9862,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Pierrelieu",
+      "kind": "wood",
+      "x": 857676,
+      "y": 6880402,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Plateau des Islettes",
+      "kind": "wood",
+      "x": 850950,
+      "y": 6885822,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Quart en Réserve",
       "kind": "wood",
       "x": 857457,
@@ -5629,10 +9883,31 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Rabuselle",
+      "kind": "wood",
+      "x": 879356,
+      "y": 6883910,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Rebauvaux",
+      "kind": "wood",
+      "x": 884102,
+      "y": 6882867,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Remichamp",
       "kind": "wood",
       "x": 856329,
       "y": 6904938,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Renapré",
+      "kind": "wood",
+      "x": 863043,
+      "y": 6886195,
       "source": "BD TOPO"
     },
     {
@@ -5657,6 +9932,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Rond Bois",
+      "kind": "wood",
+      "x": 868504,
+      "y": 6890354,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Rozière",
       "kind": "wood",
       "x": 874797,
@@ -5668,6 +9950,20 @@
       "kind": "wood",
       "x": 877249,
       "y": 6910104,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Saint-Martin",
+      "kind": "wood",
+      "x": 886619,
+      "y": 6890389,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Saint-Vanne",
+      "kind": "wood",
+      "x": 894084,
+      "y": 6894013,
       "source": "BD TOPO"
     },
     {
@@ -5706,6 +10002,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Sur l'Orbière",
+      "kind": "wood",
+      "x": 863198,
+      "y": 6887666,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Taille Christophe",
       "kind": "wood",
       "x": 880439,
@@ -5734,6 +10037,13 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Tête du Petit Pendage",
+      "kind": "wood",
+      "x": 881313,
+      "y": 6888816,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Tillat",
       "kind": "wood",
       "x": 878946,
@@ -5748,6 +10058,20 @@
       "source": "BD TOPO"
     },
     {
+      "name": "Vauzel Jotel",
+      "kind": "wood",
+      "x": 869215,
+      "y": 6885393,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Vérine",
+      "kind": "wood",
+      "x": 887716,
+      "y": 6880491,
+      "source": "BD TOPO"
+    },
+    {
       "name": "Vermonchamp",
       "kind": "wood",
       "x": 871062,
@@ -5759,6 +10083,27 @@
       "kind": "wood",
       "x": 884483,
       "y": 6911971,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Vieille Tuilerie",
+      "kind": "wood",
+      "x": 852368,
+      "y": 6887648,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Vitecôte et Grand Rupt",
+      "kind": "wood",
+      "x": 846128,
+      "y": 6895623,
+      "source": "BD TOPO"
+    },
+    {
+      "name": "Wadrivaux",
+      "kind": "wood",
+      "x": 863947,
+      "y": 6884123,
       "source": "BD TOPO"
     },
     {

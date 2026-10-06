@@ -16,10 +16,12 @@ import type { TileBox } from "./tile-mesh.ts"
 import { createTileThread } from "./tile-thread.ts"
 
 /**
- * The theatre: the ground round Verdun the editor's theatre view draws, in Lambert-93 (EPSG:2154) metres. Its local
- * frame puts the south-west corner at x 0, z 0, with z north and heights above `base`, as the sectors' frames do.
+ * The theatre: the ground round Verdun the editor's theatre view draws, in Lambert-93 (EPSG:2154) metres: the whole
+ * front the French Second Army held in 1916, from the Argonne by Vauquois across both banks of the Meuse, and down the
+ * Côtes de Meuse past Les Éparges to Mouilly. Its local frame puts the south-west corner at x 0, z 0, with z north and
+ * heights above `base`, as the sectors' frames do.
  */
-export const THEATRE = { west: 852_000, south: 6_892_000, width: 38_000, depth: 25_000, base: 170 } as const
+export const THEATRE = { west: 846_000, south: 6_880_000, width: 50_000, depth: 38_000, base: 170 } as const
 
 /**
  * Where the Battle of Verdun was fought, February to December 1916, roughly: from the Bois d'Avocourt on the left bank
