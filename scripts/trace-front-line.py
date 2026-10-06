@@ -8,7 +8,7 @@ Breaks too long to join are kept as separate pieces and reported with where they
 Usage:
   python scripts/trace-front-line.py MAP_ID --ink blue --out pieces.json [--exclude x0,y0,x1,y1 ...] [--join 80]
 
-  --ink: blue (B - R > 35, B - G > 5) or red (R - G > 45, R - B > 35). --exclude: boxes of the scan to leave out
+  --ink: blue (B - R > 35, B - G > 5), teal (a dark blue-green), dark (near black; with --via only) or red (R - G > 45, R - B > 35). --exclude: boxes of the scan to leave out
   (the legend's samples of the ink). --join: the longest break to bridge, in scan pixels. Needs numpy, pillow, opencv.
 """
 import argparse
@@ -24,7 +24,7 @@ Image.MAX_IMAGE_PIXELS = None
 ROOT = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser()
 parser.add_argument("map")
-parser.add_argument("--ink", choices=["blue", "red"], default="blue")
+parser.add_argument("--ink", choices=["blue", "teal", "dark", "red"], default="blue")
 parser.add_argument("--out", required=True)
 parser.add_argument("--exclude", action="append", default=[])
 parser.add_argument("--join", type=float, default=80)
@@ -39,7 +39,15 @@ catalogue = json.loads((ROOT / "packages/map/data/battle-maps.json").read_text(e
 entry = next(m for m in catalogue["maps"] if m["id"] == args.map)
 rgb = np.asarray(Image.open(ROOT / ".asset-cache/battle-maps" / entry["file"]).convert("RGB")).astype(np.int16)
 R, G, B = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-mask = ((B - R > 35) & (B - G > 5)) if args.ink == "blue" else ((R - G > 45) & (R - B > 35))
+INKS = {
+    "blue": lambda: (B - R > 35) & (B - G > 5),
+    # Some sheets print the German line in a dark blue-green: blue and green alike, red low.
+    "teal": lambda: (B - R > 20) & (G - R > 18) & (R < 120),
+    "red": lambda: (R - G > 45) & (R - B > 35),
+    # A line printed near black (the slate blue of some sheets): followed only between waypoints read by eye.
+    "dark": lambda: (R + G + B) < 300,
+}
+mask = INKS[args.ink]()
 left, top, right, bottom = entry["frame"]
 keep = np.zeros_like(mask)
 keep[top:bottom, left:right] = True
@@ -168,6 +176,10 @@ if args.chain:
     # cheapest path along the ink (where the line is printed too dark for the colour test, or crossed by a label).
     if args.ink == "blue":
         inkiness = np.clip((B - R).astype(float) / 60, 0, 1)
+    elif args.ink == "dark":
+        inkiness = np.clip((420 - (R + G + B)).astype(float) / 200, 0, 1)
+    elif args.ink == "teal":
+        inkiness = np.clip((np.minimum(B, G) - R).astype(float) / 30, 0, 1) * (R < 130)
     else:
         inkiness = np.clip((R - G).astype(float) / 70, 0, 1)
     cost_map = 1 + 25 * (1 - inkiness) ** 2
@@ -210,6 +222,15 @@ if args.chain:
 
     H, W = cost_map.shape
     if args.via:
+        # A waypoint read by eye can sit a few pixels off the line: each is moved to the inkiest pixel within 15 px,
+        # so the path doesn't spike out to it and back.
+        def snap(point):
+            x, y = int(point[0]), int(point[1])
+            box = inkiness[max(0, y - 15) : y + 16, max(0, x - 15) : x + 16]
+            dy, dx = np.unravel_index(int(np.argmax(box)), box.shape)
+            return np.array([max(0, x - 15) + dx, max(0, y - 15) + dy], float) if box.max() > 0.3 else point
+
+        waypoints = [snap(point) for point in waypoints]
         line = waypoints[0][None]
         for a_point, b_point in zip(waypoints, waypoints[1:]):
             bridge, on_ink = cheapest(a_point, b_point)
