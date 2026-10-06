@@ -12,6 +12,8 @@ import { WIRE_CELL, wireAt } from "./wire.ts"
 export const CUT_SECONDS = 4
 /** He cuts the wire within arm's reach ahead of him, in metres. */
 const REACH = 1
+/** He sets to cutting wire this near ahead of him, in metres, edging up to it: as near as he climbs a fence from. */
+const START = 2
 /** Wire this far ahead is the belt he's cutting through still, in metres: he edges on into his lane to reach it. */
 const LOOK = 2.5
 /** Metres a second he edges forward into the lane he's cut. */
@@ -83,7 +85,7 @@ export function canCut(sim: Simulation, soldier: EntityId): boolean {
   const heading = facingOf(sim, soldier)
   return (
     heading !== null &&
-    wireAhead(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier], heading, REACH) !== null
+    wireAhead(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier], heading, START) !== null
   )
 }
 

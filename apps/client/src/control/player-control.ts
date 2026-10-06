@@ -15,7 +15,6 @@ import {
   soldierEye,
   soldierIds,
   takeOverCandidates,
-  vaultLanding,
   Weapon
 } from "@verdun/sim"
 import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
@@ -120,16 +119,16 @@ const STEER_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD"] as const
 /** How many times a weapon's sights magnify in the aim view: a scoped rifle's five, a machine gun's one and a half. */
 /**
  * What the action key does for a man, as the HUD's prompt says it (hud/soldier-state.ts): take over or hand back a
- * machine gun beside him; stop cutting wire; climb the fence or wall ahead; else cut the wire ahead he can't climb.
+ * machine gun beside him; stop cutting wire; down at the wire, crouched or prone, cut a lane through it, as wire
+ * cutters went up to it; else climb the fence or wall ahead.
  */
 function actionCommand(sim: Simulation, soldier: EntityId): "man-gun" | "vault" | "cut-wire" {
   if (gunPartner(sim, soldier) >= 0) {
     return "man-gun"
   }
-  if (isCutting(sim, soldier)) {
-    return "cut-wire"
-  }
-  return vaultLanding(sim, soldier, undefined, true) || !canCut(sim, soldier) ? "vault" : "cut-wire"
+  return isCutting(sim, soldier) || (sim.soldiers.stance.value[soldier] !== Stance.Standing && canCut(sim, soldier))
+    ? "cut-wire"
+    : "vault"
 }
 
 function sightsMagnify(weapon: number): number {
@@ -308,8 +307,7 @@ export function createPlayerControl(
         }
         return
       case "act":
-        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire. Wire
-        // he can't climb (tangled coils, a knife rest, a belt too deep) he cuts, as he stops cutting.
+        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire.
         if (squad.leader >= 0) {
           enqueueCommand(sim, { type: actionCommand(sim, squad.leader), soldier: squad.leader })
         }

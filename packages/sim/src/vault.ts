@@ -161,7 +161,9 @@ function wallLanding(
  * fence, where the fence stands within reach, the belt is shallow enough to climb in one go and no tangle of loose
  * coils lies in his way; or else a trench wall, onto its top. Null where there's nothing he can vault. A man on an
  * order goes the way his route takes him, given as `toward` (a unit vector), rather than the way he faces. A bot won't
- * climb a belt still more than `INTACT`; a player's man (`player`) climbs any fence.
+ * climb a belt still more than `INTACT`, nor through a tangle. A player's man (`player`) always gets over the fence,
+ * however whole the belt and whatever coils lie by it; a belt too deep to clear in one go he climbs `SPAN` metres into,
+ * and on from there with another go.
  */
 export function vaultLanding(
   sim: Simulation,
@@ -198,7 +200,11 @@ export function vaultLanding(
     }
     thickest = Math.max(thickest, density)
   }
-  if (exit < 0 || (!player && thickest > INTACT)) {
+  if (player) {
+    const landing = exit < 0 ? at(entry + SPAN) : at(exit + LANDING)
+    return onMap(sim, landing) ? landing : null
+  }
+  if (exit < 0 || thickest > INTACT) {
     return null
   }
   const from = at(entry)

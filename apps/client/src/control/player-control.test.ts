@@ -10,6 +10,7 @@ import {
   createSquad,
   CRAWL_FACTOR,
   isAlive,
+  isCutting,
   PLAYTEST_OPERATION,
   planOperation,
   shotEvents,
@@ -706,5 +707,25 @@ describe("the action key and the trigger", () => {
     // No wire ahead on this field, so there's nothing to climb either: he stays a rifleman where he is.
     expect(sim.soldiers.weapon.kind[leader]).toBe(Weapon.Rifle)
     expect(sim.soldiers.position.x[leader]).toBeCloseTo(50)
+  })
+
+  it("cuts the wire ahead when crouched at it, and stops on the action key again", () => {
+    const { sim, leader, gunner, actions, frame } = atTheGun()
+    sim.soldiers.position.x[gunner] = 80
+    sim.soldiers.position.z[leader] = 47.5
+    sim.soldiers.facing.x[leader] = 0
+    sim.soldiers.facing.z[leader] = 1
+    for (let column = 40; column < 60; column++) {
+      for (let row = 48; row < 52; row++) {
+        sim.wire.density[row * sim.wire.columns + column] = 1
+      }
+    }
+    sim.soldiers.stance.value[leader] = Stance.Crouching
+    actions.push({ kind: "act" })
+    frame()
+    expect(isCutting(sim, leader)).toBe(true)
+    actions.push({ kind: "act" })
+    frame()
+    expect(isCutting(sim, leader)).toBe(false)
   })
 })

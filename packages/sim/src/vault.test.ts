@@ -99,13 +99,18 @@ describe("vaulting a wire fence", () => {
     expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(true)
   })
 
-  it("won't climb where a tangle of coils lies across his way, nor with no wire ahead", () => {
+  it("leaves a bot short of a tangle of coils across his way, a player's man climbing on over it", () => {
     const sim = field()
     const snared = facingTheWire(sim, tangled?.x ?? 0)
     expect(vaultLanding(sim, snared)).toBeNull()
+    expect(startVault(sim, snared)).toBe(false)
     enqueueCommand(sim, { type: "vault", soldier: snared })
     stepSimulation(sim)
-    expect(hasComponent(sim.world, snared, sim.soldiers.vault)).toBe(false)
+    expect(hasComponent(sim.world, snared, sim.soldiers.vault)).toBe(true)
+  })
+
+  it("won't climb with no wire ahead", () => {
+    const sim = field()
 
     const away = spawnSoldier(sim, { side: Side.French, x: 50, z: 20 })
     sim.soldiers.facing.z[away] = 1
@@ -124,6 +129,8 @@ describe("vaulting a wire fence", () => {
     const sim = brokenUp(createSimulation({ map: { ...map, wire: deep }, seed: 1 }))
     const soldier = facingTheWire(sim, 50)
     expect(vaultLanding(sim, soldier)).toBeNull()
+    // A player's man gets over the first fence and into the wire behind it, to climb on with another go.
+    expect(vaultLanding(sim, soldier, undefined, true)?.z).toBeCloseTo(52, 1)
 
     const fresh = field()
     const winded = facingTheWire(fresh, bare?.x ?? 0)
