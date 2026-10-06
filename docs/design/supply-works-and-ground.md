@@ -275,11 +275,10 @@ Decided (5 October 2026):
 - **Art**: the War Pack's WW2 lorries stand in, retextured so their markings match the era.
 - **Surface mines** are built; when each weapon becomes available is for a tech tree, deferred.
 - **Public leaderboards** are planned.
+- **Merit's deeds and values** are a good start, kills at 5 merit included: the starting values, to tune from telemetry.
 
 Still open:
 
 1. **Holdings on the HUD**: how much to show, given the battle should stay light on text: a mark and a few words on the
    map, nothing in the battle view?
 2. Should supply count on the **Balance** directly, or only through its effects, as proposed?
-3. **Kills**: 5 merit for each enemy put out of the fight, against 10 for an hour in the line, 15 for a wounded man
-   carried back and 10 for a prisoner. Keep it small, as proposed, or raise it?
