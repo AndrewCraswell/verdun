@@ -149,6 +149,10 @@ export async function serverHost(
       reading--
     }
   })
+  // A dev server says which commands it refused: whatever the page sends that the server doesn't take shows here.
+  connection.onMessage(MESSAGE.refused, (payload) => {
+    console.warn(`The server refused the page's ${Array.isArray(payload) ? payload.join(", ") : "commands"}`)
+  })
   connection.onMessage(MESSAGE.ack, (payload) => {
     const applied = acknowledgement(payload)
     if (applied && reading > 0) {

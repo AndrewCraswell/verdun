@@ -12,7 +12,7 @@ import {
   stepSimulation,
   type SyncSource
 } from "@verdun/sim"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createInlineDecoding, type Decoding } from "./decoding.ts"
 import { type SectorConnection, serverHost } from "./server-host.ts"
 import type { BattleSetup } from "./sim-protocol.ts"
@@ -59,6 +59,10 @@ class FakeServer implements SectorConnection {
     if (type === MESSAGE.commands) {
       this.received.push(message)
     }
+  }
+
+  refuse(types: unknown): void {
+    this.handlers.get(MESSAGE.refused)?.(types)
   }
 
   acknowledge(applied: unknown): void {
@@ -208,6 +212,19 @@ describe("the battle on a server, as the page sees it", () => {
     }
     host.update(0)
     expect(host.sim.soldiers.position.x[leader] - x).toBeGreaterThan(0.5)
+    host.dispose()
+  })
+
+  it("says in the console which commands a dev server refused", async () => {
+    const server = new FakeServer()
+    const host = await serverHost(map(), setup, server)
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    server.refuse(["forecast", "flare"])
+    server.refuse("nonsense")
+
+    expect(warn).toHaveBeenNthCalledWith(1, "The server refused the page's forecast, flare")
+    expect(warn).toHaveBeenNthCalledWith(2, "The server refused the page's commands")
+    warn.mockRestore()
     host.dispose()
   })
 

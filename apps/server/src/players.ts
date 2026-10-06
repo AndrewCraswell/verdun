@@ -14,9 +14,9 @@ export interface Players {
   leave(player: string): void
   /**
    * Queues what the player's squad may do of what they sent (see `playerCommand`): a `CommandBatch`, or commands bare.
-   * Returns how many were refused.
+   * Returns the types of those refused, as sent, or "?" for what had none.
    */
-  command(player: string, sent: unknown): number
+  command(player: string, sent: unknown): string[]
   /** After every step the battle takes: the batches it has just applied are acknowledged. */
   stepped(): void
   /** The acknowledgements since the last asked, by player: each player's latest. */
@@ -84,13 +84,14 @@ export function createPlayers(sim: Simulation, dev = false): Players {
           waiting.set(player, sent.step)
         }
       }
-      let refused = 0
+      const refused: string[] = []
       for (const value of commands) {
         const command = squad ? playerCommand(sim, squad, value, dev) : null
         if (command) {
           enqueueCommand(sim, command)
         } else {
-          refused++
+          const type = typeof value === "object" && value !== null && "type" in value ? value.type : null
+          refused.push(typeof type === "string" ? type : "?")
         }
       }
       return refused

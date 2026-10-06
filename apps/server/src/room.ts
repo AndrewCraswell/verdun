@@ -122,8 +122,12 @@ export function sectorRoom({ sector, dev, log, statsEvery }: SectorRoomOptions) 
       })
       this.onMessage(MESSAGE.commands, (client: Client, commands: unknown) => {
         const refused = players.command(client.sessionId, commands)
-        if (refused > 0) {
-          log(`Refused ${refused} of ${client.sessionId}'s commands`)
+        if (refused.length > 0) {
+          log(`Refused ${client.sessionId}'s ${refused.join(", ")}`)
+          // On a dev server the page says so, so a command the server doesn't take is seen the first time it's tried.
+          if (dev) {
+            client.send(MESSAGE.refused, refused)
+          }
         }
       })
       this.setSimulationInterval(() => {

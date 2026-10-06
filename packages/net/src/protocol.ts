@@ -14,7 +14,9 @@ export const MESSAGE = {
   /** Player to server: commands for the player's squad, in Colyseus's own encoding (`CommandBatch`). */
   commands: "commands",
   /** Server to player: the player's commands have been applied (`Acknowledgement`), for client-side prediction. */
-  ack: "ack"
+  ack: "ack",
+  /** Server to player, on a dev server only: the types of the player's commands it refused (see `playerCommand`). */
+  refused: "refused"
 } as const
 
 /** A player's commands, with the player's own step they were given at, which the server acknowledges. */

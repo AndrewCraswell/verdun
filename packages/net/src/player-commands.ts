@@ -4,11 +4,15 @@ import {
   type Command,
   type Creep,
   type FireMissionPlan,
+  type ForecastSpec,
   Shell,
   type Side,
   type Simulation,
   type Squad,
-  type SquadOrder
+  type SquadOrder,
+  WEATHER_REGIONS,
+  type Weather,
+  WeatherPattern
 } from "@verdun/sim"
 
 type Fields = Readonly<Record<string, unknown>>
@@ -120,6 +124,63 @@ function barrageAttack(value: Fields, side: Side): BarrageAttackCommand | null {
   }
 }
 
+const PATTERNS: readonly WeatherPattern[] = Object.values(WeatherPattern)
+
+/** Weather held steady by the dev keys, made afresh from its fields. */
+function steadyWeather(value: unknown): Weather | null {
+  if (!isRecord(value) || !isRecord(value["wind"])) {
+    return null
+  }
+  const pattern = PATTERNS.find((each) => each === value["pattern"])
+  const { cloudCover, precipitation, snowFraction, temperature, visibility, wetness, snowCover } = value
+  const { x, z } = value["wind"]
+  if (
+    !pattern ||
+    !finite(cloudCover) ||
+    !finite(precipitation) ||
+    !finite(snowFraction) ||
+    !finite(temperature) ||
+    !finite(visibility) ||
+    !finite(wetness) ||
+    !finite(snowCover) ||
+    !finite(x) ||
+    !finite(z)
+  ) {
+    return null
+  }
+  return {
+    pattern,
+    cloudCover,
+    precipitation,
+    snowFraction,
+    temperature,
+    visibility,
+    wind: { x, z },
+    wetness,
+    snowCover
+  }
+}
+
+/** Where the dev keys have the weather come from: a seeded cycle, the records of a region, or one weather held. */
+function forecast(value: unknown): ForecastSpec | null {
+  if (!isRecord(value)) {
+    return null
+  }
+  const { kind, seed, region } = value
+  if (kind === "cycle" && finite(seed)) {
+    return { kind, seed }
+  }
+  if (kind === "records" && finite(seed)) {
+    const known = WEATHER_REGIONS.find((each) => each === region)
+    if (region === undefined) {
+      return { kind, seed }
+    }
+    return known ? { kind, seed, region: known } : null
+  }
+  const weather = kind === "steady" ? steadyWeather(value["weather"]) : null
+  return weather ? { kind: "steady", weather } : null
+}
+
 /** The dev keys' clock: an hour, a week, or a day's length moved on. */
 function clock(value: Fields): ClockCommand | null {
   const fields = { week: value["week"], at: value["at"], shift: value["shift"], minutesPerDay: value["minutesPerDay"] }
@@ -131,11 +192,49 @@ function clock(value: Fields): ClockCommand | null {
 }
 
 /**
+ * Who may send each of the simulation's commands from a player's client: `player`, of their own men and squad (checked
+ * by `playerCommand`); `dev`, only the dev keys, on a server started with `--dev`; `server`, no one, being the
+ * server's own (a scenario's ammunition, who controls a squad) or the tests' and dev tools' in a battle on the page.
+ *
+ * Every command the simulation has must be here, and `playerCommand` must make each of them, so a new one can't be
+ * dropped by the server unnoticed: the type check fails until it's been decided, and the tests until it's been tried.
+ */
+export const COMMAND_ACCESS: { readonly [Type in Command["type"]]: "player" | "dev" | "server" } = {
+  "move-to": "player",
+  steer: "player",
+  face: "player",
+  "throw-grenade": "player",
+  fire: "player",
+  reload: "player",
+  "man-gun": "player",
+  vault: "player",
+  "cut-wire": "player",
+  stance: "player",
+  "squad-order": "player",
+  "take-command": "player",
+  "join-squad": "player",
+  "take-over-squad": "player",
+  "fire-mission": "player",
+  "barrage-attack": "player",
+  kill: "dev",
+  clock: "dev",
+  wind: "dev",
+  forecast: "dev",
+  ammunition: "server",
+  flare: "server",
+  "squad-controller": "server"
+}
+
+const isCommandType = (type: unknown): type is Command["type"] =>
+  typeof type === "string" && Object.hasOwn(COMMAND_ACCESS, type)
+
+/**
  * A command from a player, kept to what they may do: move, aim and fire the men of their own squad, give it orders,
  * choose which squad to lead, and call on their side's guns. It is made afresh from the fields it should have, so
  * nothing else a client sends reaches the battle. Null for anything else, including another player's squad.
  *
- * With `dev`, the dev keys' commands go through too: killing a man, and moving the clock or the wind.
+ * With `dev`, the dev keys' commands go through too: killing a man, moving the clock, the wind or the weather. See
+ * `COMMAND_ACCESS`.
  */
 export function playerCommand(sim: Simulation, squad: Squad, value: unknown, dev = false): Command | null {
   if (!isRecord(value)) {
@@ -148,21 +247,25 @@ export function playerCommand(sim: Simulation, squad: Squad, value: unknown, dev
   // A squad to join or take over must be one no other player leads.
   const from = value["from"]
   const free = typeof from === "number" && sim.squads[from]?.controller === "ai"
-  switch (value["type"]) {
+  const type = value["type"]
+  if (!isCommandType(type) || COMMAND_ACCESS[type] === "server" || (COMMAND_ACCESS[type] === "dev" && !dev)) {
+    return null
+  }
+  switch (type) {
     case "move-to":
     case "steer":
-      return ours && point ? { type: value["type"], soldier, x, z, run: value["run"] === true } : null
+      return ours && point ? { type, soldier, x, z, run: value["run"] === true } : null
     case "face":
     case "throw-grenade":
-      return ours && point ? { type: value["type"], soldier, x, z } : null
+      return ours && point ? { type, soldier, x, z } : null
     case "fire":
     case "reload":
     case "man-gun":
-      return ours ? { type: value["type"], soldier } : null
+      return ours ? { type, soldier } : null
     // The action key: over the fence or wall ahead, or cutting the wire, the way given or else the way he faces.
     case "vault":
     case "cut-wire":
-      return ours ? { type: value["type"], soldier, ...(point ? { x, z } : {}) } : null
+      return ours ? { type, soldier, ...(point ? { x, z } : {}) } : null
     case "stance": {
       const stance = STANCES.find((each) => each === value["stance"])
       return ours && stance ? { type: "stance", soldier, stance } : null
@@ -175,7 +278,7 @@ export function playerCommand(sim: Simulation, squad: Squad, value: unknown, dev
       return ownSquad && ours ? { type: "take-command", squad: squad.id, soldier } : null
     case "join-squad":
     case "take-over-squad":
-      return ownSquad && free ? { type: value["type"], squad: squad.id, from } : null
+      return ownSquad && free ? { type, squad: squad.id, from } : null
     case "fire-mission": {
       const plan = fireMission(value["plan"], squad.side)
       return plan ? { type: "fire-mission", plan } : null
@@ -183,12 +286,18 @@ export function playerCommand(sim: Simulation, squad: Squad, value: unknown, dev
     case "barrage-attack":
       return barrageAttack(value, squad.side)
     case "kill":
-      return dev && typeof soldier === "number" ? { type: "kill", soldier } : null
+      return typeof soldier === "number" ? { type: "kill", soldier } : null
     case "clock":
-      return dev ? clock(value) : null
+      return clock(value)
     case "wind":
-      return dev && point ? { type: "wind", x, z } : null
-    default:
+      return point ? { type: "wind", x, z } : null
+    case "forecast": {
+      const spec = forecast(value["forecast"])
+      return spec ? { type: "forecast", forecast: spec } : null
+    }
+    case "ammunition":
+    case "flare":
+    case "squad-controller":
       return null
   }
 }

@@ -74,9 +74,10 @@ describe("players in a sector", () => {
         { type: "steer", soldier: leader, x: 1, z: 0 },
         { type: "kill", soldier: foe }
       ])
-    ).toBe(1)
-    expect(players.command("a", { type: "fire", soldier: foe })).toBe(1)
-    expect(players.command("stranger", [{ type: "steer", soldier: leader, x: 1, z: 0 }])).toBe(1)
+    ).toEqual(["kill"])
+    expect(players.command("a", { type: "fire", soldier: foe })).toEqual(["fire"])
+    expect(players.command("a", [3])).toEqual(["?"])
+    expect(players.command("stranger", [{ type: "steer", soldier: leader, x: 1, z: 0 }])).toEqual(["steer"])
     const x = sim.soldiers.position.x[leader]
     stepSimulation(sim)
 
@@ -111,6 +112,6 @@ describe("players in a sector", () => {
     players.join("a", Side.French)
     const foe = german[0]?.members[0] ?? -1
 
-    expect(players.command("a", [{ type: "kill", soldier: foe }])).toBe(0)
+    expect(players.command("a", [{ type: "kill", soldier: foe }])).toEqual([])
   })
 })

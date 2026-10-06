@@ -1,7 +1,7 @@
 import { createFlatMap } from "@verdun/map"
-import { createSimulation, createSquad, Shell, Side, spawnSoldier } from "@verdun/sim"
+import { type Command, createSimulation, createSquad, Shell, Side, spawnSoldier, WeatherPattern } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
-import { playerCommand } from "./player-commands.ts"
+import { COMMAND_ACCESS, playerCommand } from "./player-commands.ts"
 
 /** The player's French squad, a French squad of bots beside it, another player's, and a German squad. */
 function line() {
@@ -186,9 +186,123 @@ describe("what a player may command", () => {
   it("ignores anything else", () => {
     const { sim, ours } = line()
 
-    expect(playerCommand(sim, ours, { type: "forecast", forecast: { kind: "cycle", seed: 1 } }, true)).toBeNull()
     expect(playerCommand(sim, ours, { type: "ammunition", side: Side.French, shell: 0, rounds: 1e6 }, true)).toBeNull()
+    expect(playerCommand(sim, ours, { type: "surrender" }, true)).toBeNull()
     expect(playerCommand(sim, ours, "fire")).toBeNull()
     expect(playerCommand(sim, ours, [{ type: "fire" }])).toBeNull()
+  })
+
+  it("takes the dev keys' weather on a dev server: a cycle, a region's records, or one weather held", () => {
+    const { sim, ours } = line()
+    const steady = {
+      pattern: WeatherPattern.Overcast,
+      cloudCover: 0.9,
+      precipitation: 0,
+      snowFraction: 0,
+      temperature: 8,
+      visibility: 2000,
+      wind: { x: 2, z: 0 },
+      wetness: 0.3,
+      snowCover: 0
+    }
+    const forecast = (spec: unknown) => playerCommand(sim, ours, { type: "forecast", forecast: spec }, true)
+
+    expect(forecast({ kind: "cycle", seed: 1, extra: 2 })).toEqual({
+      type: "forecast",
+      forecast: { kind: "cycle", seed: 1 }
+    })
+    expect(forecast({ kind: "records", seed: 2 })).toEqual({ type: "forecast", forecast: { kind: "records", seed: 2 } })
+    expect(forecast({ kind: "records", seed: 2, region: "somme" })?.type).toBe("forecast")
+    expect(forecast({ kind: "steady", weather: steady })).toEqual({
+      type: "forecast",
+      forecast: { kind: "steady", weather: steady }
+    })
+    expect(forecast({ kind: "records", seed: 2, region: "mars" })).toBeNull()
+    expect(forecast({ kind: "steady", weather: { ...steady, pattern: "plague of frogs" } })).toBeNull()
+    expect(forecast({ kind: "steady", weather: { ...steady, wind: null } })).toBeNull()
+    expect(forecast({ kind: "steady", weather: { ...steady, visibility: "far" } })).toBeNull()
+    expect(forecast({ kind: "cycle" })).toBeNull()
+    expect(forecast(null)).toBeNull()
+    expect(playerCommand(sim, ours, { type: "forecast", forecast: { kind: "cycle", seed: 1 } })).toBeNull()
+  })
+})
+
+describe("every command the simulation has", () => {
+  /**
+   * A command of each type, as the page would send it for the player's own squad. Every type in `COMMAND_ACCESS` needs
+   * one: a command added to the simulation is tried here, so the server can't drop it unnoticed.
+   */
+  function examples(): Record<Command["type"], Command> {
+    const { ours, bots } = line()
+    const man = ours.members[0] ?? -1
+    return {
+      "move-to": { type: "move-to", soldier: man, x: 5, z: 6, run: false },
+      steer: { type: "steer", soldier: man, x: 1, z: 0, run: true },
+      face: { type: "face", soldier: man, x: 5, z: 6 },
+      "throw-grenade": { type: "throw-grenade", soldier: man, x: 5, z: 30 },
+      fire: { type: "fire", soldier: man },
+      reload: { type: "reload", soldier: man },
+      "man-gun": { type: "man-gun", soldier: man },
+      vault: { type: "vault", soldier: man, x: 0, z: 1 },
+      "cut-wire": { type: "cut-wire", soldier: man },
+      stance: { type: "stance", soldier: man, stance: "prone" },
+      "squad-order": { type: "squad-order", squad: ours.id, order: { kind: "hold" } },
+      "take-command": { type: "take-command", squad: ours.id, soldier: man },
+      "join-squad": { type: "join-squad", squad: ours.id, from: bots.id },
+      "take-over-squad": { type: "take-over-squad", squad: ours.id, from: bots.id },
+      "fire-mission": { type: "fire-mission", plan },
+      "barrage-attack": {
+        type: "barrage-attack",
+        side: Side.French,
+        fromX: 0,
+        toX: 100,
+        startZ: 40,
+        objectiveZ: 80,
+        roundsPerMinute: 200,
+        lift: 25,
+        interval: 60,
+        standoff: 50,
+        delay: 5
+      },
+      kill: { type: "kill", soldier: man },
+      clock: { type: "clock", shift: 3_600_000 },
+      wind: { type: "wind", x: 1, z: 2 },
+      forecast: { type: "forecast", forecast: { kind: "cycle", seed: 4 } },
+      ammunition: { type: "ammunition", side: Side.French, shell: Shell.FieldHighExplosive, rounds: 10 },
+      flare: { type: "flare", side: Side.French, fromX: 0, fromZ: 0, x: 10, z: 10 },
+      "squad-controller": { type: "squad-controller", squad: ours.id, controller: "ai" }
+    }
+  }
+
+  it("is a player's to give, the dev keys', or the server's alone, and goes through as it should", () => {
+    const { sim, ours } = line()
+    const each = examples()
+    const tried: Record<string, unknown> = {}
+    const meant: Record<string, unknown> = {}
+    for (const [type, access] of Object.entries(COMMAND_ACCESS)) {
+      const example = Object.entries(each).find(([name]) => name === type)?.[1]
+      if (!example) {
+        throw new Error(`No example of a ${type} command to try`)
+      }
+      tried[type] = { player: playerCommand(sim, ours, example), dev: playerCommand(sim, ours, example, true) }
+      meant[type] = {
+        player: access === "player" ? example : null,
+        dev: access === "server" ? null : example
+      }
+    }
+
+    expect(Object.keys(meant).sort()).toEqual(Object.keys(each).sort())
+    expect(tried).toEqual(meant)
+  })
+
+  it("of a player's own men goes through for no one else's", () => {
+    const { sim, ours, theirs } = line()
+    const stranger = theirs.members[0] ?? -1
+    const theirMen = Object.values(examples())
+      .filter((example) => "soldier" in example && COMMAND_ACCESS[example.type] === "player")
+      .map((example) => [example.type, playerCommand(sim, ours, { ...example, soldier: stranger })])
+
+    expect(theirMen.length).toBeGreaterThan(8)
+    expect(theirMen).toEqual(theirMen.map(([type]) => [type, null]))
   })
 })

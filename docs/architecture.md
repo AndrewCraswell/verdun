@@ -102,8 +102,12 @@ before, for development and `pnpm perf`.
   Commands go in Colyseus's own encoding.
 - **Commands are checked** (`playerCommand`): a player moves, aims and fires only their own squad's men, orders only
   their squad, and calls only their own side's guns; each command is rebuilt from the fields it should have. The dev
-  keys' commands (kill, clock, wind) go through only on a server started with `--dev`, as `pnpm server` does. Ranges
-  aren't checked yet (a call for fire could ask for any number of rounds a minute; the side's ammunition still caps it).
+  keys' commands (kill, clock, wind, weather) go through only on a server started with `--dev`, as `pnpm server` does.
+  Ranges aren't checked yet (a call for fire could ask for any number of rounds a minute; the side's ammunition still
+  caps it). Every command the simulation has is a player's, the dev keys' or the server's alone (`COMMAND_ACCESS`): a
+  new one fails the type check until it's been put in one, and the tests until there's an example of it, so the server
+  can't drop it unnoticed, as it once did the action key and reloading. A dev server tells the page which commands it
+  refused, and the page says so in the console.
 - **Bandwidth**, measured over the battle's first six minutes, bombardments and all: about 16 KB/s a player (25 KB/s at
   the worst minute), no message over about 6 KB, and a late joiner's welcome about 220 KB. Sending the whole battle
   every time, it was 1.4 to 2.8 MB/s and 1.75 MB. Encoding takes about 4 ms a message, once for every player. What's
