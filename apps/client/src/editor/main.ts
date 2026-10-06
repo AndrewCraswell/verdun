@@ -2,7 +2,6 @@
 // LiDAR survey and historical maps laid over the ground to place things by. A dev tool (editor.html), served only by
 // the dev server, which also hands it the sector files. Saving the sector in Tiled reloads the page, which keeps its
 // view.
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
@@ -19,12 +18,13 @@ import { palette, surfaceColors } from "../palette.ts"
 import { selectEnabledMeshes } from "../render/active-meshes.ts"
 import { createEngine } from "../render/create-engine.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
+import { type CameraPose, createEditorCamera, initialPose } from "./editor-camera.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
 
 /** The sector file the editor shows. Only Fleury generates as yet. */
 const SECTOR = "fleury"
 /** Where the view is kept across the reloads that saving the sector brings. */
-const VIEW_KEY = "verdun.editor.view"
+const VIEW_KEY = "verdun.editor.camera"
 const OVERLAY_KEY = "verdun.editor.overlay"
 
 function element<T extends HTMLElement>(id: string, type: new () => T): T {
@@ -91,6 +91,24 @@ function store(key: string, value: unknown): void {
   }
 }
 
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+/** The camera's pose as last kept, if there is one. */
+function keptPose(): CameraPose | null {
+  const kept = readStored(VIEW_KEY)
+  if (!isRecord(kept) || !Array.isArray(kept.position) || !kept.position.every(isNumber)) {
+    return null
+  }
+  const [x, y, z] = kept.position
+  const { yaw, pitch, speed } = kept
+  if (!isNumber(x) || !isNumber(y) || !isNumber(z) || !isNumber(yaw) || !isNumber(pitch) || !isNumber(speed)) {
+    return null
+  }
+  return { position: [x, y, z], yaw, pitch, speed }
+}
+
 async function start(): Promise<void> {
   status.textContent = "Generating the sector"
   const [elevationData, surroundingsData] = await Promise.all([download(elevationUrl), download(surroundingsUrl)])
@@ -104,31 +122,17 @@ async function start(): Promise<void> {
   scene.clearColor = palette.sky
   const width = mapWidth(map)
   const depth = mapDepth(map)
-  const middle = new Vector3(width / 2, heightAt(map, width / 2, depth / 2), depth / 2)
-  const camera = new ArcRotateCamera("editor", -Math.PI / 2, 0.75, 260, middle, scene)
-  const kept = readStored(VIEW_KEY)
-  if (isRecord(kept) && Array.isArray(kept.target) && kept.target.every((value) => typeof value === "number")) {
-    const [x = middle.x, y = middle.y, z = middle.z] = kept.target
-    camera.target = new Vector3(x, y, z)
-    camera.alpha = typeof kept.alpha === "number" ? kept.alpha : camera.alpha
-    camera.beta = typeof kept.beta === "number" ? kept.beta : camera.beta
-    camera.radius = typeof kept.radius === "number" ? kept.radius : camera.radius
-  }
-  camera.lowerRadiusLimit = 4
-  camera.upperRadiusLimit = 900
-  camera.upperBetaLimit = Math.PI / 2 - 0.02
-  camera.minZ = 0.3
-  camera.maxZ = 4000
-  camera.wheelDeltaPercentage = 0.02
-  camera.panningSensibility = 40
-  camera.attachControl(canvas, true)
+  const groundY = heightAt(map, width / 2, depth / 2)
+  const editorCamera = createEditorCamera(scene, canvas, keptPose() ?? initialPose(width, groundY), () =>
+    editorCamera.frame(0, 0, width, depth, groundY)
+  )
+  const camera = editorCamera.camera
   let keepAt = 0
   camera.onViewMatrixChangedObservable.add(() => {
     const now = performance.now()
     if (now - keepAt > 250) {
       keepAt = now
-      const { x, y, z } = camera.target
-      store(VIEW_KEY, { target: [x, y, z], alpha: camera.alpha, beta: camera.beta, radius: camera.radius })
+      store(VIEW_KEY, editorCamera.pose())
     }
   })
 
@@ -146,7 +150,11 @@ async function start(): Promise<void> {
   // Drawing from the start: the level's warm-up waits on frames.
   addEventListener("resize", () => engine.resize())
   engine.runRenderLoop(() => {
-    terrain.flush(camera.target.x, camera.target.z)
+    editorCamera.update(engine.getDeltaTime() / 1000)
+    // The ground's detail follows where the camera looks: the point straight ahead, or below it when looking up.
+    const ahead = camera.getDirection(Vector3.Forward())
+    const reach = ahead.y < -0.05 ? Math.min(600, (camera.position.y - groundY) / -ahead.y) : 0
+    terrain.flush(camera.position.x + ahead.x * reach, camera.position.z + ahead.z * reach)
     scene.render()
   })
 
@@ -163,6 +171,14 @@ async function start(): Promise<void> {
   void Promise.resolve(level?.sfx).finally(() => files?.close?.())
   // Shadows and the sky compile as they come; the editor needn't wait on them.
   void level?.atmosphere?.warmUp()
+  // The ground beyond the sector is there for its lie, not its woods: those only crowd the view.
+  for (const wood of level?.woods ?? []) {
+    wood.setEnabled(false)
+  }
+  // The game's miniature focus follows its camera's target; an editor wants the whole view sharp.
+  if (level?.postProcess) {
+    level.postProcess.pipeline.depthOfFieldEnabled = false
+  }
   installInspectorToggle(scene)
   // For inspecting the editor from the console, as window.verdun is for the game.
   Object.assign(window, { editor: { engine, scene, camera, map, level } })
