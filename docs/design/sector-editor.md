@@ -54,6 +54,14 @@ size and place can be changed, and the editing UX level editors generally have.
 - Placed models: a layer of kit pieces with position, heading, scale, and whether they block movement and sight.
 - Trench kinds, once their profiles are agreed.
 - Front lines and events by date: a data file of lines and points in Lambert-93, each with its date and source.
+- The maps to trace them from: `packages/map/data/battle-map-library.json` lists the scans gathered, fetched into the
+  asset library by `pnpm map:battle-maps` (one request at a time, a few seconds apart on each archive). French: the
+  official history's 1916 maps (AFGG, Mémoire des hommes, Licence Ouverte), the 1917–18 plans directeurs at 1:20 000
+  (Texas, Leventhal, Truman: public domain), dated sketch maps on Commons, and the Marne archives' cleaner plans
+  directeurs, for reference only (their scans need a licence to trace for the game). German: the Bavarian Kriegsarchiv's
+  Alpenkorps files (CC0) for Fleury, Thiaumont, Souville and Vaux in 1916. No 1916 plans directeurs are online; the
+  Bundesarchiv's German position maps (PH 3-KART) aren't scanned and have to be ordered. Maps are fitted to the ground
+  one by one into `battle-maps.json`.
 
 ## Order
 
