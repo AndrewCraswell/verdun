@@ -206,11 +206,11 @@ describe("generateFleurySector", () => {
     expect(stumps.length).toBeGreaterThan(0)
   })
 
-  it("closes the short gaps in the wire with knife rests at stand-to, leaving no way through", () => {
-    // Every half metre between one belt's end and the next belt's start in its row lies within a knife rest's wire, a
+  it("closes the short gaps in the wire with wooden fences at stand-to, leaving no way through", () => {
+    // Every half metre between one belt's end and the next belt's start in its row lies within a wooden fence's reach, a
     // belt end's, a trench (the sap through it) or something standing in it.
-    const rests = map.scenery.filter((item) => item.kind === "knife-rest")
-    const loose = ["knife-rest", "tree", "fruit-tree", "stump", "log", "rubble", "pool", "bridge"]
+    const rests = map.scenery.filter((item) => item.kind === "wooden-fence")
+    const loose = ["wooden-fence", "tree", "fruit-tree", "stump", "log", "rubble", "pool", "bridge"]
     const solid = map.scenery.filter((item) => !loose.includes(item.kind))
     const starts = map.wire.map((belt) => belt.points[0] ?? [0, 0])
     let gaps = 0
@@ -260,6 +260,26 @@ describe("generateFleurySector", () => {
     }
   })
 
+  it("serves each side's lorries with the roads behind its lines, and sets their men down well behind the front, off the trenches", () => {
+    const french = meanZ(frontLine("north"))
+    const german = meanZ(frontLine("south"))
+    expect(map.roads.some((road) => road.behind === "french")).toBe(true)
+    expect(map.roads.some((road) => road.behind === "german")).toBe(true)
+    expect(
+      map.roads.filter((road) => road.behind === "french").every((road) => road.points.every(([, z]) => z < french))
+    ).toBe(true)
+    expect(
+      map.roads.filter((road) => road.behind === "german").every((road) => road.points.every(([, z]) => z > german))
+    ).toBe(true)
+    expect(map.debus.map((point) => point.side)).toEqual(["french", "german"])
+    const [frenchStop, germanStop] = map.debus
+    expect(frenchStop?.z).toBeLessThan(french - 60)
+    expect(germanStop?.z).toBeGreaterThan(german + 60)
+    for (const stop of map.debus) {
+      expect(distanceToTrenches(stop.x, stop.z)).toBeGreaterThan(TRENCH_PROFILE.parapetOuter)
+    }
+  })
+
   it("keeps to the trench kit's rules everywhere", () => {
     expect(checkTrenchKit(map.trenches)).toEqual([])
   })
@@ -272,10 +292,10 @@ describe("generateFleurySector", () => {
     expect(map.objectives.every((objective) => objective.z > 150 && objective.z < 300)).toBe(true)
   })
 
-  it("closes the wire's patrol gaps and the saps' mouths with knife rests", () => {
-    const knifeRests = map.scenery.filter((item) => item.kind === "knife-rest")
+  it("closes the wire's patrol gaps and the saps' mouths with wooden fences", () => {
+    const fences = map.scenery.filter((item) => item.kind === "wooden-fence")
 
-    expect(knifeRests.length).toBeGreaterThan(8)
+    expect(fences.length).toBeGreaterThan(8)
   })
 
   it("throws up chalk around craters on the ridge", () => {

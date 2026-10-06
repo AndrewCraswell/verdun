@@ -35,7 +35,7 @@ export const SCENERY_KINDS = [
    * A wooden rail fence about 3.6 m long, running across its heading, closing a gap in a belt or the mouth of a sap: no
    * wire on it, so men climb over it, as they do a low wall, where the belt's barbed wire can only be waded or cut.
    */
-  "knife-rest",
+  "wooden-fence",
   /** Crates, barrels and sacks in a supply dump. */
   "stores",
   /** A plank bridge carrying a road over a trench. Its heading runs along the trench. */
@@ -94,7 +94,7 @@ export const SCENERY_FOOTPRINTS: Readonly<Record<SceneryKind, SceneryFootprint>>
   bunker: { radius: 3, sightHeight: 2.4, walkCost: Infinity },
   "machine-gun": { radius: 1.5, sightHeight: 0.9, walkCost: 4 },
   // Open rails: no cover from sight.
-  "knife-rest": { radius: 1.2, sightHeight: 0, walkCost: 3, climbed: true },
+  "wooden-fence": { radius: 1.2, sightHeight: 0, walkCost: 3, climbed: true },
   stores: { radius: 2, sightHeight: 1.8, walkCost: Infinity },
   bridge: { radius: 1, sightHeight: 0, walkCost: 1 },
   // Wading through a flooded shell hole: possible, but slow and cold.
@@ -127,6 +127,33 @@ export interface WireBelt {
  */
 export interface Railway {
   readonly points: readonly GroundPoint[]
+}
+
+/** The side whose rear a road serves. */
+export type RoadSide = "french" | "german"
+
+/**
+ * A road: the line along its middle, and whose rear it serves. Behind each side's lines its lorries can drive it;
+ * between the lines the shelling has left only fragments of it, and it serves no one.
+ */
+export interface Road {
+  readonly points: readonly GroundPoint[]
+  /** The side whose lorries can drive it, or null where it runs between the lines. */
+  readonly behind: RoadSide | null
+}
+
+/** Where a side's lorries set down its men: a spot on one of its roads hidden from the enemy's lines. */
+export interface Debus {
+  readonly side: RoadSide
+  readonly x: number
+  readonly z: number
+  /** Radians clockwise from north: the way a lorry faces as it stops there, along the road toward the front. */
+  readonly heading: number
+  /**
+   * How many places along the enemy's trench lines, 20 m apart, see some part of a lorry stopped there: 0 where it is
+   * hidden. Where the enemy overlooks a side's whole rear, this is the least-seen spot, and lorries are best sent by night.
+   */
+  readonly seenBy: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -183,4 +210,28 @@ export function isWireBelt(value: unknown): value is WireBelt {
 
 export function isRailway(value: unknown): value is Railway {
   return isLine(value)
+}
+
+function isRoadSide(value: unknown): value is RoadSide {
+  return value === "french" || value === "german"
+}
+
+export function isRoad(value: unknown): value is Road {
+  return isLine(value) && "behind" in value && (value.behind === null || isRoadSide(value.behind))
+}
+
+export function isDebus(value: unknown): value is Debus {
+  if (!isRecord(value)) {
+    return false
+  }
+  const { side, x, z, heading, seenBy } = value
+  return (
+    isRoadSide(side) &&
+    isFiniteNumber(x) &&
+    isFiniteNumber(z) &&
+    isFiniteNumber(heading) &&
+    typeof seenBy === "number" &&
+    Number.isInteger(seenBy) &&
+    seenBy >= 0
+  )
 }

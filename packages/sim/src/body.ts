@@ -225,7 +225,7 @@ const FENCE_HALF_DEPTH = 0.1
  * sight shapes measure them (sight-shapes.ts). A stretch no higher than a step is walked over.
  */
 export function climbedShapes(item: Scenery): Climbed[] {
-  if (item.kind === "knife-rest") {
+  if (item.kind === "wooden-fence") {
     return [
       {
         x: item.x,

@@ -358,7 +358,7 @@ describe("moving like men in a trench", () => {
       }
     ]
     const fences = [97.4, 100, 102.6].map((x): Scenery => ({
-      kind: "knife-rest",
+      kind: "wooden-fence",
       x,
       z: 100,
       heading: 0,
@@ -381,7 +381,7 @@ describe("moving like men in a trench", () => {
   it("climbs straight over a fence he's pressed against when where he's going lies past it at a slant", () => {
     // A long row of fences: going round is a long way.
     const fences = [88, 91, 94, 97, 100, 103, 106, 109, 112].map((x): Scenery => ({
-      kind: "knife-rest",
+      kind: "wooden-fence",
       x,
       z: 100,
       heading: 0,

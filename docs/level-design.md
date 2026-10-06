@@ -41,10 +41,10 @@ still makes its synthetic ground, which the tests use.
 | Batteries                 | Behind both reserve lines     | Field guns in sandbagged pits                                                    |
 
 Each side has three crenellated fire trenches (front, support, reserve), zigzag communication trenches between them,
-saps pushed out to listening posts with machine guns and knife rests at their mouths, more machine guns on the
+saps pushed out to listening posts with machine guns and wooden fences across their mouths, more machine guns on the
 front-line parapet, supply dumps, and belts of wire: two French belts at about 22 m and 33 m in front of the line, three
 German belts at 18, 30 and 42 m. Belts have staggered patrol gaps and gaps at the sap heads, closed as every attack
-found them, at stand-to: wooden rail fences (the `knife-rest` kind, which the art draws as Synty's barricade, with no
+found them, at stand-to: wooden rail fences (the `wooden-fence` kind, which the art draws as Synty's barricade, with no
 wire on it) set side by side across each gap of a post or two, overlapping the belts' ends so there's no way through but
 over them (`closeGaps`): men climb a fence in 1.25 s, while the belts' barbed wire is never climbed. A shell that cuts
 the wire flattens the fences it bursts by, opening the gap, so a bombardment opens them and a barrage fired to leave the
@@ -179,11 +179,22 @@ forward, so the layout keeps every front line spanning the map from west to east
 ## Map format
 
 The map stores what the simulation will need: heights, surfaces, trench polylines, and since format version 4,
-**scenery** (ruins, trees, stumps, logs, guns, wrecks, bunkers, machine guns, knife rests, stores, bridges and pools,
+**scenery** (ruins, trees, stumps, logs, guns, wrecks, bunkers, machine guns, wooden fences, stores, bridges and pools,
 each with a position, heading, variant and scale), **wire belts** (polylines) and **objectives** (named points with a
-radius). Version 5 added the **weather region**, and version 6 the **railways** (polylines) and **fruit trees**. The
-client picks the art; the map never names a Synty model. Pure decoration that follows from geometry, such as the trench
-kit pieces, fire steps, duckboards and ladders, is derived by the client and isn't stored.
+radius). Version 5 added the **weather region**, version 6 the **railways** (polylines) and **fruit trees**, and version
+7 the **roads** and **debus points**, for lorries bringing up replacements ([roads.ts](../packages/map/src/roads.ts)).
+
+Each road is a polyline marked with whose rear it serves: the sector file's roads and streets are cut where they cross
+each side's rear limit (the `roads` layer's `frenchRear` and `germanRear`), and a piece behind a side's limit is that
+side's to drive, while a piece between the limits, shelled to nothing, is no one's. A debus point is where a side's
+lorries set down their men, one a side: the spot on its own roads, at least 60 m behind its front line and off the
+bridges over its trenches, that the fewest eyes along the enemy's trench lines see any part of a lorry 2.6 m high and 6
+m long, taking the nearest to the front among the least seen. `seenBy` says how many eyes, 20 m apart along the enemy's
+front, support and reserve lines, still see it: 0 where it is hidden. At Fleury the German heights overlook the whole
+French rear, as they did in 1916, so the French point (on the lateral road near the south-west corner) is seen from
+about a dozen places and is a stop for the night, while the German point, behind their reserve line in the north-east,
+is seen from one or two. The client picks the art; the map never names a Synty model. Pure decoration that follows from
+geometry, such as the trench kit pieces, fire steps, duckboards and ladders, is derived by the client and isn't stored.
 
 ## Trenches and the trench kit
 

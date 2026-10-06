@@ -713,7 +713,7 @@ describe("the action key and the trigger", () => {
   it("climbs the fence he's walked up to, the way the view looks, whichever way he's aiming", () => {
     // A wooden fence across his way north, its rails running east-west.
     const { sim, leader, gunner, actions, input, frame } = atTheGun([
-      { kind: "knife-rest", x: 50, z: 47, heading: 0, variant: 0, scale: 1 }
+      { kind: "wooden-fence", x: 50, z: 47, heading: 0, variant: 0, scale: 1 }
     ])
     sim.soldiers.position.x[gunner] = 80
     sim.soldiers.position.z[leader] = 46

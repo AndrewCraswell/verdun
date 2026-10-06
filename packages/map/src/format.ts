@@ -1,8 +1,8 @@
-import type { Objective, Railway, Scenery, WireBelt } from "./scenery.ts"
+import type { Debus, Objective, Railway, Road, Scenery, WireBelt } from "./scenery.ts"
 import type { Trench } from "./trenches.ts"
 
 /** Bump when the shape of a saved map changes, and add a migration for older files in serialization.ts. */
-export const MAP_FORMAT_VERSION = 6
+export const MAP_FORMAT_VERSION = 7
 
 /** Ground surface types. Stored per height sample, so terrain materials blend smoothly between them. */
 export const Surface = {
@@ -49,6 +49,10 @@ export interface BattlefieldMap {
   readonly weatherRegion?: string
   /** Narrow-gauge field railways behind the lines. Added in version 6. */
   readonly railways: readonly Railway[]
+  /** Roads, each with whose rear it serves. Added in version 7. */
+  readonly roads: readonly Road[]
+  /** Where each side's lorries set down its men, one or none a side. Added in version 7. */
+  readonly debus: readonly Debus[]
 }
 
 interface MapDimensions {
@@ -86,7 +90,9 @@ export function createFlatMap(
     scenery: [],
     wire: [],
     objectives: [],
-    railways: []
+    railways: [],
+    roads: [],
+    debus: []
   }
 }
 

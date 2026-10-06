@@ -200,7 +200,7 @@ describe("climbing out of a shell hole", () => {
 
 describe("fences and low walls", () => {
   // A wooden fence at (50, 50) whose rails run east-west, and a low wall at (50, 80) turned a quarter, running north-south.
-  const fence: Scenery = { kind: "knife-rest", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
+  const fence: Scenery = { kind: "wooden-fence", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
   const wall: Scenery = { kind: "wall", x: 50, z: 80, heading: Math.PI / 2, variant: 0, scale: 1 }
   const map = {
     ...createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass),

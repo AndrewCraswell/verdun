@@ -26,7 +26,7 @@ function wired() {
   return {
     ...map,
     wire: belts,
-    scenery: [{ kind: "knife-rest" as const, x: 50, z: 150, heading: 0, variant: 0, scale: 1 }]
+    scenery: [{ kind: "wooden-fence" as const, x: 50, z: 150, heading: 0, variant: 0, scale: 1 }]
   }
 }
 

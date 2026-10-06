@@ -28,8 +28,8 @@ describe("the fences' art", () => {
     // A tree, then two fences: the map's scenery, by index.
     const items: Scenery[] = [
       { kind: "tree", x: 0, z: 0, heading: 0, variant: 0, scale: 1 },
-      { kind: "knife-rest", x: 10, z: 20, heading: 0, variant: 0, scale: 1 },
-      { kind: "knife-rest", x: 13, z: 20, heading: 0, variant: 2, scale: 1 }
+      { kind: "wooden-fence", x: 10, z: 20, heading: 0, variant: 0, scale: 1 },
+      { kind: "wooden-fence", x: 13, z: 20, heading: 0, variant: 2, scale: 1 }
     ]
     const placements: Placement[] = [
       { piece: "Prop_Barricade_03", x: 10, y: 0.15, z: 20, yaw: 0 },

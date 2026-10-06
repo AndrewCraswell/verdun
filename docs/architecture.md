@@ -171,8 +171,7 @@ before, for development and `pnpm perf`.
 
 In order, what comes next:
 
-1. The squads' and combat systems under many players (see [the load test](#the-load-test)): the route search now runs
-   three times as fast, and the straight walks' checks faster too.
+1. The navigation's route searches under many players' goals (see [the load test](#the-load-test)).
 2. Hosting on Railway, with the database on a volume.
 
 ### The load test
@@ -210,14 +209,8 @@ What it said, and what was done about it:
   (`MAX_FIELDS`), with the squads moving as ordered. After it, per step: squads 8 to 11 ms, navigation 8 to 10, combat 5
   to 7, movement 2. In a CPU profile the route search (`settle`) is still the costliest single function, then the
   straight-line walk checks (`clearLine`): a barrage's craters rebuild the costs every 10 s, which drops every field,
-  and every new advance order is a new search.
-- **The route search and the straight-walk checks made cheaper**, to exactly the same routes: the search's inner loop no
-  longer unpacks each neighbour's direction afresh, and a straight walk looks at a cell's obstacles once rather than
-  every quarter metre, and for wire only where there's some in or beside the cell. On a headless four minutes of the
-  battle (1,000 men, the playtest's bombardments, thirty squads sent somewhere new every 20 s), navigation fell from 4.3
-  to 4.9 ms a step to 2.3, the squads' system from 4.7 to 3.2, and every man ended where and as hurt as before. A full
-  search of the map went from about 0.5 µs a cell to 0.15. Mending fields after craters, rather than dropping them, was
-  tried and left out: the shells fall where squads are sent, so a mended field kept only 11% of itself.
+  and every new advance order is a new search. Sharing fields between nearby goals, and keeping fields through a
+  rebuild, are the next things to try, in the navigation's own terms.
 - **Relevance filtering is done by map cells** (see [the sector server](#the-sector-server)): encoded once for everyone,
   each player sent the cells within 120 m of their men every message and the rest twice a second, with positions in 16
   bits. It brought each player's share from 95 to 127 KB/s to about 75 KB/s, less than hoped, because in this test
@@ -247,11 +240,10 @@ What it said, and what was done about it:
 - **What players are sent now**, per message: soldiers' arrays about 60% (their anchors, paces and facing 45%), smoke
   6%, shots 5%, the other events 4%.
 - **Hosting**: at 100 players a sector sends about 2.5 MB/s (21 Mbit/s), which matters for Railway's egress pricing.
-- **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields) and in how hot loops are
-  written, not in what JavaScript costs over native code, and the simulation is shared with the browser's worker; a
-  rewrite isn't warranted. Writing the route search's loop tightly made it three times as fast in JavaScript. If it's
-  still the bottleneck, that one function could become a Rust/WebAssembly module behind the same call, as the sight
-  lines already are (Rapier).
+- **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields), not in what JavaScript costs
+  over native code, and the simulation is shared with the browser's worker; a rewrite isn't warranted. If, once its
+  algorithm is right, the route search is still the bottleneck, that one function could become a Rust/WebAssembly module
+  behind the same call, as the sight lines already are (Rapier).
 
 ### ECS decision
 

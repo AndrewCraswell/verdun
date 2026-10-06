@@ -121,7 +121,7 @@ describe("predicting the player's soldier", () => {
 
   it("leaves him where the server has him while he climbs a fence, whatever the steering", () => {
     // A wooden fence running east-west at z = 50.
-    const fence: Scenery = { kind: "knife-rest", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
+    const fence: Scenery = { kind: "wooden-fence", x: 50, z: 50, heading: 0, variant: 0, scale: 1 }
     const fenced = () => ({ ...field(), scenery: [fence] })
     const server = createSimulation({ map: fenced(), seed: 3 })
     // Facing the fence from where it stops him.

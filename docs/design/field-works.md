@@ -128,7 +128,7 @@ commander AI's working parties, and the race between a bombardment and the repai
 | Listening post             | 30 man-minutes                 | Sandbags         | At a sap head in no man's land: hears movement and digging at night                                                                           |
 | Wire belt                  | 10 man-minutes per 10 m        | Wire, stakes     | Built today as map data; at runtime laid by night in front of a line                                                                          |
 | Wire repair                | 3 man-minutes per cut cell     | Wire             | Closes lanes cut by shellfire                                                                                                                 |
-| Knife rest                 | Carried, 1 man-minute to place | —                | Plugs a gap in the wire fast                                                                                                                  |
+| Wooden fence               | Carried, 1 man-minute to place | —                | Plugs a gap in the wire fast                                                                                                                  |
 | Tank trap                  | 1 man-hour per 5 m             | —                | A ditch too wide for tanks to cross                                                                                                           |
 
 ### Shelters

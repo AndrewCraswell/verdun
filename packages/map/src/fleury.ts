@@ -4,6 +4,7 @@ import { type Elevation, elevationAt } from "./elevation.ts"
 import { type BattlefieldMap, createFlatMap, sampleIndex, Surface } from "./format.ts"
 import { valueNoise } from "./noise.ts"
 import { railwayCourse } from "./railways.ts"
+import { findDebus, roadsBehindLines, type SideLines } from "./roads.ts"
 import { heightAt } from "./sampling.ts"
 import {
   footprintRadius,
@@ -72,7 +73,7 @@ const SEEDS = {
   craters: 7_951,
   scenery: 7_963,
   orchard: 7_993,
-  knifeRests: 8_009
+  fences: 8_009
 } as const
 
 /** Ground height across the sector from south to north, before local landforms: a valley between two rises. */
@@ -527,7 +528,7 @@ interface WireGap {
 
 /**
  * Belts of wire in front of a side's front line, staked out from the bays nearest each point so they clear the line
- * where it bends, and broken by gaps for patrols and the saps' listening posts. `gaps` are where the knife rest that
+ * where it bends, and broken by gaps for patrols and the saps' listening posts. `gaps` are where the wooden fence that
  * stood ready in each patrol gap was placed; `closed` every gap of a post or two, closed at stand-to (see closeGaps).
  */
 function wireBelts(
@@ -562,7 +563,7 @@ function wireBelts(
       // Staggered patrol gaps, so no lane runs straight through every belt.
       const patrolGap = (x + beltIndex * 31) % 90 < 6
       const nearSap = own.sapHeads.some(([sapX]) => Math.abs(sapX - x) < 5)
-      // A knife rest stands ready in each patrol gap, to be dragged across it at night.
+      // A wooden fence stands ready in each patrol gap, to be dragged across it at night.
       if (patrolGap && points.length > 0) {
         gaps.push([x + 2, z])
       }
@@ -570,7 +571,7 @@ function wireBelts(
         flush()
         missing += 1
       } else {
-        // Where the lines close up the belt breaks off for tens of metres: no knife rests close that.
+        // Where the lines close up the belt breaks off for tens of metres: no fences close that.
         if (last && missing > 0 && missing <= CLOSED_GAP_POSTS) {
           closed.push({ from: last, to: [x, z] })
         }
@@ -585,20 +586,20 @@ function wireBelts(
 }
 
 /**
- * The simulation stamps a belt's wire this far either side of its line, past its end posts too (sim/wire.ts). A knife
- * rest (a wooden fence 3.64 m long, which men climb) clears the small stuff this far round it, and rests go this far
+ * The simulation stamps a belt's wire this far either side of its line, past its end posts too (sim/wire.ts). A wooden
+ * fence (3.64 m long, which men climb) clears the small stuff this far round it, and fences go this far
  * apart at most, so their rails overlap and leave no way through but over them.
  */
-const WIRE_STAMP = { belt: 1.7, knifeRest: 1.5, apart: 2.9 } as const
-/** What a knife rest is dragged over or pushes aside: the small stuff of the ground. Anything else blocks the gap itself. */
+const WIRE_STAMP = { belt: 1.7, fence: 1.5, apart: 2.9 } as const
+/** What a wooden fence is dragged over or pushes aside: the small stuff of the ground. Anything else blocks the gap itself. */
 const UNDERFOOT: ReadonlySet<SceneryKind> = new Set(["tree", "fruit-tree", "stump", "log", "rubble"])
 
 /**
- * Closes the gaps in the wire, as every attack found them: at stand-to the knife rests stood ready in the patrol gaps
- * were dragged across them, the sap gaps and any other short break too. Rests go evenly across each gap's clear ground, between the stamps of the
+ * Closes the gaps in the wire, as every attack found them: at stand-to the wooden fences stood ready in the patrol gaps
+ * were dragged across them, the sap gaps and any other short break too. Fences go evenly across each gap's clear ground, between the stamps of the
  * belts' end posts, near enough together to leave no way through. Placed after everything else, on random draws of
- * their own, so they move nothing. Trees, stumps, logs and rubble in their way make room, as does the rest that stood
- * ready in each gap. A rest that would stand in a trench, or well inside a ruin, wall or other solid thing, isn't needed:
+ * their own, so they move nothing. Trees, stumps, logs and rubble in their way make room, as does the fence that stood
+ * ready in each gap. A fence that would stand in a trench, or well inside a ruin, wall or other solid thing, isn't needed:
  * that fills its part of the gap already.
  */
 function closeGaps(
@@ -608,28 +609,28 @@ function closeGaps(
   ready: readonly GroundPoint[],
   random: () => number
 ): void {
-  placer.remove((item) => item.kind === "knife-rest" && ready.some(([x, z]) => item.x === x && item.z === z))
+  placer.remove((item) => item.kind === "wooden-fence" && ready.some(([x, z]) => item.x === x && item.z === z))
   for (const { gap, heading } of gaps) {
     const [fromX, fromZ] = gap.from
     const [toX, toZ] = gap.to
     const length = Math.hypot(toX - fromX, toZ - fromZ)
     const clear = length - 2 * WIRE_STAMP.belt
     const count = Math.max(1, Math.ceil(clear / WIRE_STAMP.apart))
-    for (let rest = 0; rest < count; rest++) {
-      const t = (WIRE_STAMP.belt + (clear * (rest + 0.5)) / count) / length
+    for (let fence = 0; fence < count; fence++) {
+      const t = (WIRE_STAMP.belt + (clear * (fence + 0.5)) / count) / length
       const x = fromX + (toX - fromX) * t
       const z = fromZ + (toZ - fromZ) * t
       const [turn, variant] = [random(), random()]
       const near = (item: Scenery, reach: number) => Math.hypot(item.x - x, item.z - z) < reach + footprintRadius(item)
-      // A sap runs through its gap: the rests stand either side of it, and the sap head has its own.
+      // A sap runs through its gap: the fences stand either side of it, and the sap head has its own.
       if (
         trenchDistance(segments, x, z) < TRENCH_PROFILE.parapetOuter ||
         placer.scenery.some((item) => !UNDERFOOT.has(item.kind) && item.kind !== "pool" && near(item, -1))
       ) {
         continue
       }
-      placer.remove((item) => UNDERFOOT.has(item.kind) && near(item, WIRE_STAMP.knifeRest))
-      placer.place("knife-rest", x, z, heading + (turn - 0.5) * 0.4, { variant: Math.floor(variant * 1_000) })
+      placer.remove((item) => UNDERFOOT.has(item.kind) && near(item, WIRE_STAMP.fence))
+      placer.place("wooden-fence", x, z, heading + (turn - 0.5) * 0.4, { variant: Math.floor(variant * 1_000) })
     }
   }
 }
@@ -1165,7 +1166,7 @@ export function generateFleurySector({
     const drawn = { ...map, trenches, scenery: placer.scenery, wire: [...layout.wire], objectives, railways }
     sculptForScenery(drawn, drawn.scenery)
     sculptForRailways(drawn, railways)
-    return drawn
+    return withRoads(drawn, segments)
   }
 
   placeVillage(placer, craters, sceneryRandom)
@@ -1187,7 +1188,7 @@ export function generateFleurySector({
     const variant = side === french ? 0 : 1
     for (const [x, z] of trenchesOfSide.sapHeads) {
       placer.place("machine-gun", x, z + side.towardEnemy * 2.6, heading, { variant })
-      placer.place("knife-rest", x, z + side.towardEnemy * 5.5, heading)
+      placer.place("wooden-fence", x, z + side.towardEnemy * 5.5, heading)
     }
     // The ravine is dead ground to every gun but the concrete post sited at its head.
     const coversRavine = (bay: Bay) => Math.abs((bay.fromX + bay.toX) / 2 - ravine) < 35
@@ -1198,7 +1199,7 @@ export function generateFleurySector({
       placeNear(placer, "stores", x + 9, z - side.towardEnemy * 5, heading, 1.5)
     }
     for (const [x, z] of wire.gaps) {
-      placer.place("knife-rest", x, z, heading + (sceneryRandom() - 0.5) * 0.4)
+      placer.place("wooden-fence", x, z, heading + (sceneryRandom() - 0.5) * 0.4)
     }
   }
   placeRoadsideTrees(placer, sceneryRandom)
@@ -1209,7 +1210,7 @@ export function generateFleurySector({
     placeNear(placer, "stores", x, z, 0, 1.5)
   }
   // Last too, so they move nothing else: the church behind the German front, the orchard behind the French support,
-  // and the knife rests across the gaps in the wire.
+  // and the wooden fences across the gaps in the wire.
   placeChurch(placer, craters)
   placeOrchard(placer, createRandom(seed + SEEDS.orchard))
   closeGaps(
@@ -1220,7 +1221,7 @@ export function generateFleurySector({
       ...germanWire.closed.map((gap) => ({ gap, heading: german.towardEnemy === 1 ? 0 : Math.PI }))
     ],
     [...frenchWire.gaps, ...germanWire.gaps],
-    createRandom(seed + SEEDS.knifeRests)
+    createRandom(seed + SEEDS.fences)
   )
 
   const sector = {
@@ -1235,5 +1236,28 @@ export function generateFleurySector({
   // stands on.
   sculptForScenery(sector, sector.scenery)
   sculptForRailways(sector, railways)
-  return sector
+  return withRoads(sector, segments)
+}
+
+function sideLines(side: TrenchSide): SideLines {
+  return {
+    side: side.side,
+    towardEnemy: side.side === "french" ? 1 : -1,
+    front: side.front,
+    lines: [side.front, side.support, side.reserve]
+  }
+}
+
+/**
+ * The sector's roads, cut at each side's rear limit, and where each side's lorries set down its men: on its own roads,
+ * out of the enemy's sight and off the bridges over its trenches. Last, on the finished ground and scenery.
+ */
+function withRoads(map: BattlefieldMap, segments: readonly [GroundPoint, GroundPoint][]): BattlefieldMap {
+  const roads = roadsBehindLines([...ROADS, ...FEATURES.streets], REAR_ROAD_LIMITS, sideLines(FRENCH).towardEnemy)
+  const onTrench = (x: number, z: number) => trenchDistance(segments, x, z) < TRENCH_PROFILE.parapetOuter + 1
+  const debus = [
+    findDebus(map, roads, sideLines(FRENCH), sideLines(GERMAN), onTrench),
+    findDebus(map, roads, sideLines(GERMAN), sideLines(FRENCH), onTrench)
+  ].filter((point) => point !== null)
+  return { ...map, roads, debus }
 }

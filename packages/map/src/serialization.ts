@@ -1,11 +1,15 @@
 import { type BattlefieldMap, isSurface, MAP_FORMAT_VERSION, sampleCount, Surface, SURFACE_COUNT } from "./format.ts"
 import {
+  type Debus,
+  isDebus,
   isObjective,
   isRailway,
+  isRoad,
   isScenery,
   isWireBelt,
   type Objective,
   type Railway,
+  type Road,
   type Scenery,
   type WireBelt
 } from "./scenery.ts"
@@ -33,6 +37,10 @@ export interface MapDocument {
   readonly weatherRegion?: string
   /** Added in version 6. */
   readonly railways?: readonly Railway[]
+  /** Added in version 7. */
+  readonly roads?: readonly Road[]
+  /** Added in version 7. */
+  readonly debus?: readonly Debus[]
 }
 
 export function toMapDocument(map: BattlefieldMap): MapDocument {
@@ -49,7 +57,9 @@ export function toMapDocument(map: BattlefieldMap): MapDocument {
     wire: map.wire,
     objectives: map.objectives,
     ...(map.weatherRegion === undefined ? {} : { weatherRegion: map.weatherRegion }),
-    railways: map.railways
+    railways: map.railways,
+    roads: map.roads,
+    debus: map.debus
   }
 }
 
@@ -79,6 +89,11 @@ function isTrench(value: unknown): value is Trench {
   return validKind && validFacing && Array.isArray(points) && points.length >= 2 && points.every(isGroundPoint)
 }
 
+/** An item of a version 4 to 6 map, with the wooden fences' old kind, "knife-rest", renamed. */
+function renameFences(item: unknown): unknown {
+  return isRecord(item) && item.kind === "knife-rest" ? { ...item, kind: "wooden-fence" } : item
+}
+
 function isSurfaceArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every(isSurface)
 }
@@ -86,7 +101,9 @@ function isSurfaceArray(value: unknown): value is number[] {
 /**
  * Validates a parsed map file and migrates older versions. Throws with the reason when the document is not a readable
  * map. Version 1 files have no surface layer; they load as all mud. Versions 1 and 2 have no trenches, versions 1 to 3
- * no scenery or wire, and versions 1 to 5 no railways.
+ * no scenery or wire, versions 1 to 5 no railways, and versions 1 to 6 no roads or debus points; versions 4 to 6 named
+ * the wooden fences "knife-rest", renamed in place so every item keeps its index (the simulation's `fencesDown` holds
+ * indices into the scenery).
  */
 export function fromMapDocument(document: unknown): BattlefieldMap {
   if (!isRecord(document)) {
@@ -105,7 +122,9 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     wire,
     objectives,
     weatherRegion,
-    railways
+    railways,
+    roads,
+    debus
   } = document
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1 || version > MAP_FORMAT_VERSION) {
     throw new TypeError(`Unsupported map format version ${String(version)}; expected 1 to ${MAP_FORMAT_VERSION}`)
@@ -145,7 +164,8 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
   let wireBelts: readonly WireBelt[] = []
   let objectiveList: readonly Objective[] = []
   if (version >= 4) {
-    if (!Array.isArray(scenery) || !scenery.every(isScenery)) {
+    const renamed = version < 7 && Array.isArray(scenery) ? scenery.map(renameFences) : scenery
+    if (!Array.isArray(renamed) || !renamed.every(isScenery)) {
       throw new TypeError("Map scenery must be a list of placed ruins, trees, guns and other known kinds")
     }
     if (!Array.isArray(wire) || !wire.every(isWireBelt)) {
@@ -154,7 +174,7 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     if (!Array.isArray(objectives) || !objectives.every(isObjective)) {
       throw new TypeError("Map objectives must be a list of named points, each with a positive radius")
     }
-    sceneryItems = scenery
+    sceneryItems = renamed
     wireBelts = wire
     objectiveList = objectives
   }
@@ -167,6 +187,22 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
       throw new TypeError("Map railways must be a list of lines, each of at least two points")
     }
     railwayLines = railways
+  }
+  let roadLines: readonly Road[] = []
+  let debusPoints: readonly Debus[] = []
+  if (version >= 7) {
+    if (!Array.isArray(roads) || !roads.every(isRoad)) {
+      throw new TypeError(
+        "Map roads must be a list of lines of at least two points, each behind french, german or null"
+      )
+    }
+    if (!Array.isArray(debus) || !debus.every(isDebus)) {
+      throw new TypeError(
+        "Map debus points must be a list of points, each with a side of french or german and a heading"
+      )
+    }
+    roadLines = roads
+    debusPoints = debus
   }
 
   return {
@@ -182,6 +218,8 @@ export function fromMapDocument(document: unknown): BattlefieldMap {
     wire: wireBelts,
     objectives: objectiveList,
     ...(typeof weatherRegion === "string" ? { weatherRegion } : {}),
-    railways: railwayLines
+    railways: railwayLines,
+    roads: roadLines,
+    debus: debusPoints
   }
 }

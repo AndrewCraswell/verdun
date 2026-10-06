@@ -351,7 +351,9 @@ const ART: Readonly<Record<Exclude<SceneryKind, "pool">, readonly (readonly Part
       { pieces: SANDBAGS, forward: 1.2, tilt: true }
     ]
   ],
-  "knife-rest": [[{ pieces: ["Prop_Barricade_03", "Prop_Barricade_03", "Prop_Barricade_01"], tilt: true, lift: 0.15 }]],
+  "wooden-fence": [
+    [{ pieces: ["Prop_Barricade_03", "Prop_Barricade_03", "Prop_Barricade_01"], tilt: true, lift: 0.15 }]
+  ],
   stores: [
     [
       { pieces: ["Prop_Crate_Pile_01"], tilt: true },

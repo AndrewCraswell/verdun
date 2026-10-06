@@ -23,7 +23,7 @@ const BELT: WireBelt = {
 }
 
 /** A wooden fence at (x, 50), its rails running east-west (it faces north), and a low stone wall the same at (x, 70). */
-const fenceAt = (x: number): Scenery => ({ kind: "knife-rest", x, z: 50, heading: 0, variant: 0, scale: 1 })
+const fenceAt = (x: number): Scenery => ({ kind: "wooden-fence", x, z: 50, heading: 0, variant: 0, scale: 1 })
 const wallAt = (x: number): Scenery => ({ kind: "wall", x, z: 70, heading: 0, variant: 0, scale: 1 })
 
 function field(scenery: readonly Scenery[] = [], wire: readonly WireBelt[] = []): Simulation {
@@ -119,7 +119,7 @@ describe("climbing a wooden fence or a low wall", () => {
 
   it("comes down a little further on where the end of the next fence along leaves no room", () => {
     // The next fence's end stands just past where he'd come down.
-    const sim = field([fenceAt(50), { kind: "knife-rest", x: 48, z: 50.7, heading: 0, variant: 0, scale: 1 }])
+    const sim = field([fenceAt(50), { kind: "wooden-fence", x: 48, z: 50.7, heading: 0, variant: 0, scale: 1 }])
     const landing = vaultLanding(sim, facingNorth(sim, 50.1, 49.5))
     expect(landing?.z).toBeGreaterThan(50.5)
     expect(landing?.z).toBeLessThan(51.1)

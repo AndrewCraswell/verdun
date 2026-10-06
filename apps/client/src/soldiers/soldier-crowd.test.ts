@@ -716,7 +716,7 @@ describe("createSoldierCrowd", () => {
 
   it("climbs over a fence the whole time he's on it, square across it, and walks on beyond", () => {
     // A wooden fence running east-west across a flat field at z = 40.
-    const fence: Scenery = { kind: "knife-rest", x: 50, z: 40, heading: 0, variant: 0, scale: 1 }
+    const fence: Scenery = { kind: "wooden-fence", x: 50, z: 40, heading: 0, variant: 0, scale: 1 }
     const field = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 160 }, 5, Surface.Grass)
     const sim = createSimulation({ map: { ...field, scenery: [fence] }, seed: 1 })
     // One heads for it slantwise, 30 degrees east of north, from where it's in reach; the other stands on it, going

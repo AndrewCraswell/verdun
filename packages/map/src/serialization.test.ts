@@ -181,6 +181,41 @@ describe("map documents", () => {
     ).toThrow("railways")
   })
 
+  it("round-trip roads and debus points, load older files without any, and reject malformed ones", () => {
+    const road = {
+      points: [
+        [0, 0],
+        [2, 2]
+      ] as const,
+      behind: "french" as const
+    }
+    const debus = { side: "french" as const, x: 1, z: 1, heading: 0.5, seenBy: 0 }
+    const map = {
+      ...createFlatMap({ name: "lorries", cellSize: 1, columns: 3, rows: 3 }),
+      roads: [road],
+      debus: [debus]
+    }
+    const current = toMapDocument(map)
+    expect(fromMapDocument(structuredClone(current))).toEqual(map)
+    const older = { ...current, version: 6, roads: undefined, debus: undefined }
+    expect(fromMapDocument(older).roads).toEqual([])
+    expect(fromMapDocument(older).debus).toEqual([])
+    // Version 6 named the wooden fences "knife-rest": renamed in place, the scenery's order kept.
+    const fence = { kind: "knife-rest", x: 1, z: 2, heading: 0, variant: 0, scale: 1 }
+    const tree = { kind: "tree", x: 3, z: 2, heading: 0, variant: 0, scale: 1 }
+    expect(fromMapDocument({ ...older, scenery: [fence, tree] }).scenery.map((item) => item.kind)).toEqual([
+      "wooden-fence",
+      "tree"
+    ])
+    expect(() => fromMapDocument({ ...current, scenery: [fence] })).toThrow("scenery")
+    expect(() => fromMapDocument({ ...current, roads: [{ ...road, behind: "british" }] })).toThrow("roads")
+    expect(() => fromMapDocument({ ...current, roads: [{ points: road.points }] })).toThrow("roads")
+    expect(() => fromMapDocument({ ...current, debus: [{ ...debus, seenBy: -1 }] })).toThrow("debus")
+    expect(() => fromMapDocument({ ...current, debus: [{ ...debus, side: null }] })).toThrow("debus")
+    expect(() => fromMapDocument({ ...current, debus: undefined })).toThrow("debus")
+    expect(() => fromMapDocument({ ...current, debus: ["here"] })).toThrow("debus")
+  })
+
   it("rejects documents that are not objects", () => {
     expect(() => fromMapDocument(null)).toThrow("must be an object")
     expect(() => fromMapDocument("map")).toThrow("must be an object")

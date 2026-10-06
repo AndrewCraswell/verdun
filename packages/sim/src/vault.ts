@@ -53,7 +53,7 @@ function fencesOf(map: BattlefieldMap): readonly { readonly item: number; readon
   let fences = fencesByMap.get(map)
   if (!fences) {
     fences = map.scenery.flatMap((scenery, item) =>
-      scenery.kind === "knife-rest" ? climbedShapes(scenery).map((rails) => ({ item, rails })) : []
+      scenery.kind === "wooden-fence" ? climbedShapes(scenery).map((rails) => ({ item, rails })) : []
     )
     fencesByMap.set(map, fences)
   }

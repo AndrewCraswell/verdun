@@ -12,14 +12,14 @@ export interface FenceArt {
 }
 
 /**
- * The wooden fences closing the wire's gaps (the map's knife rests, drawn as the kit's barricade) in step with the
+ * The wooden fences closing the wire's gaps (the map's `wooden-fence` scenery, drawn as the kit's barricade) in step with the
  * simulation: each is drawn until a shell flattens it, as the simulation has it (`sim.fencesDown`), so the gaps the
  * guns opened show, and a barrage that leaves the wire for the attack leaves the fences standing in the art too.
  */
 export function createFenceArt(scenery: SceneryBatches, items: readonly Scenery[]): FenceArt {
   const pieces = new Map<number, PlacedPiece[]>()
   items.forEach((item, index) => {
-    if (item.kind !== "knife-rest") {
+    if (item.kind !== "wooden-fence") {
       return
     }
     const placed = scenery
