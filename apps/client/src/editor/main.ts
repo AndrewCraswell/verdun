@@ -357,7 +357,7 @@ async function start(): Promise<void> {
     new Option("None", ""),
     ...BATTLE_MAPS.map((battle) => {
       const when = battle.from === battle.to ? dateOf(battle.from) : `${dateOf(battle.from)} to ${dateOf(battle.to)}`
-      return new Option(`${when}: ${battle.title}`, battle.id)
+      return new Option(`${when}: ${battle.name}`, battle.id)
     })
   )
   const keptBattle = readStored(BATTLE_MAP_KEY)
@@ -380,7 +380,7 @@ async function start(): Promise<void> {
     if (chosen) {
       try {
         battleDrape = drapeBattleMap(scene, chosen, theatreFrame, ground.heightAt, Number(battleOpacity.value))
-        battleNote.textContent = `${chosen.source}. ${chosen.credit}. Fitted to within ${Math.round(battleDrape.rms)} m.`
+        battleNote.textContent = `${chosen.title}. ${chosen.source}. ${chosen.credit}. Fitted to within ${Math.round(battleDrape.rms)} m.`
       } catch (error) {
         battleNote.textContent = error instanceof Error ? error.message : String(error)
       }

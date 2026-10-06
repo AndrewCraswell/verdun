@@ -12,6 +12,8 @@ import { THEATRE } from "./ground.ts"
 /** A dated battle map: a scan fitted to the ground by its control points (packages/map/data/battle-maps.json). */
 export interface BattleMap {
   readonly id: string
+  /** What the editor calls it, in English; `title` is the map's own, as printed. */
+  readonly name: string
   readonly title: string
   readonly from: string
   readonly to: string
@@ -43,7 +45,7 @@ function isControlPoint(value: unknown): value is ControlPoint {
 function isBattleMap(value: unknown): value is BattleMap {
   return (
     isRecord(value) &&
-    ["id", "title", "from", "to", "source", "credit", "file"].every((key) => typeof value[key] === "string") &&
+    ["id", "name", "title", "from", "to", "source", "credit", "file"].every((key) => typeof value[key] === "string") &&
     isNumbers(value.size, 2) &&
     isNumbers(value.frame, 4) &&
     Array.isArray(value.excluded) &&
