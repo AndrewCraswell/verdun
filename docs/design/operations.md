@@ -123,9 +123,12 @@ planning map, with the AI's scores shown as advice.
 
 The bombardments, the standing barrage and the creeping barrage cover the stretch and 20 m beyond each flank. They keep
 the same weight of fire per metre of front as the [balance](balance.md#battle-matrix-built) runs set for the whole
-sector, so a narrower attack uses fewer shells, not denser ones, and they are laid on the whole line's depth, as those
-runs were: on a stretch's shallower trench alone the standing barrage lifts with the attackers still 40 m out, and they
-are shot down in the open.
+sector, so a narrower attack uses fewer shells, not denser ones. The barrages are laid on the whole line's depth, as
+those runs were: on a stretch's shallower trench alone the standing barrage lifts with the attackers still 40 m out, and
+they are shot down in the open. The bombardments are not: they are laid on the stretch's own trench and the wire in
+front of it, as observed, registered shoots were. Laid on the whole line's depth, the wire-cutting fire aimed 30 m in
+front of the enemy's most forward bays anywhere on the front, and where his line lay back on the stretch it fell in no
+man's land, short of the wire it was meant to cut.
 
 Two more fire tasks belong to a local attack:
 
@@ -138,10 +141,9 @@ Two more fire tasks belong to a local attack:
 
 ### Wire the guns haven't broken
 
-A belt is a thicket of stakes, strands and coils several metres deep. Nobody climbs one while it stands: only where a
-bombardment has torn it to wreckage (below 60% of the wire staked) can a man get over it, and by then it can mostly be
-walked through. Uncut, it's waded at a twentieth of walking pace, or gone round through a gap. So an attack without
-preparation meets its wire whole.
+A belt is a thicket of stakes, strands and coils several metres deep. Nobody climbs barbed wire: it's cut by shells or
+by a man with cutters, waded at a twentieth of walking pace, or gone round through a gap. So an attack without
+preparation meets its wire whole, and finds its way through the gaps the wire leaves.
 
 ### Holding the stretch
 

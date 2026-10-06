@@ -18,6 +18,7 @@ mechanic, the number is the one in the code today.
 | [Logistics](logistics.md)                                 | Supply lines, dumps, ammunition, reinforcements, communications                                          |
 | [Artillery and air](artillery-and-air.md)                 | Guns and shells by year, batteries, observation, balloons, aircraft                                      |
 | [Field works](field-works.md)                             | Digging and building: saps, trenches, repairs, nests, dugouts, bunkers, wire, mining                     |
+| [Supply, works and ground](supply-works-and-ground.md)    | Proposal: lorries, observation, holdings that pay and player merit, tied into one loop                   |
 | [Armour](armour.md)                                       | Tanks, armoured cars and anti-tank                                                                       |
 | [War map and season](war-map-and-season.md)               | Sectors on the front, the daily turn, resources, the season arc, victory                                 |
 | [Balance](balance.md)                                     | Population, factions, time zones, snowballing, tuning levers, test harness                               |
