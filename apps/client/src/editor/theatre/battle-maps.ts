@@ -23,6 +23,8 @@ export interface BattleMap {
   readonly frame: readonly [number, number, number, number]
   readonly excluded: readonly (readonly [number, number, number, number])[]
   readonly order: 1 | 2
+  /** Whether the scan is stretched to pass through every control point (see georeference.ts). */
+  readonly exact?: boolean
   readonly controlPoints: readonly ControlPoint[]
 }
 
@@ -47,6 +49,7 @@ function isBattleMap(value: unknown): value is BattleMap {
     Array.isArray(value.excluded) &&
     value.excluded.every((box: unknown) => isNumbers(box, 4)) &&
     (value.order === 1 || value.order === 2) &&
+    (value.exact === undefined || typeof value.exact === "boolean") &&
     Array.isArray(value.controlPoints) &&
     value.controlPoints.every(isControlPoint)
   )
@@ -83,7 +86,7 @@ export function drapeBattleMap(
   heightAt: (x: number, z: number) => number,
   opacity: number
 ): BattleMapDrape {
-  const fit = georeference(map.controlPoints, map.order)
+  const fit = georeference(map.controlPoints, map.order, map.exact === true)
   const [width, height] = map.size
   const [left, top, right, bottom] = map.frame
   const onMap = ([u, v]: readonly [number, number]) =>

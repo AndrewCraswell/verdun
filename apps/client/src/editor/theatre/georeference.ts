@@ -3,6 +3,10 @@
  * crossroads) whose position on the ground is known, a transform from Lambert-93 metres to the scan's pixels, by least
  * squares. Three points or more fit an affine transform (shift, scale, rotation, shear); six or more a second-order
  * polynomial too, which takes up a sheet's bending. Each point's residual says how far the fitted scan misses it.
+ *
+ * With many points spread over the sheet, such as every crossing of its printed kilometre grid, the fit can be made
+ * exact: the scan is then also stretched like a rubber sheet, each point's residual eased in around it, so the scan
+ * passes through every point and takes up a paper's local creases and stretch, which no polynomial follows.
  */
 
 /** A place on a scan: its pixel (from the image's top-left), and where it lies in Lambert-93 metres. */
@@ -20,6 +24,9 @@ export interface Georeference {
   readonly rms: number
   readonly order: 1 | 2
 }
+
+/** How sharply a rubber sheet's correction falls off with distance from each point: inverse distance to this power. */
+const SHEET_POWER = 3
 
 /** The terms of the transform's polynomial at a point: 1, x, y for affine; with x², xy, y² for second order. */
 function terms(x: number, y: number, order: 1 | 2): number[] {
@@ -65,7 +72,7 @@ function leastSquares(rows: readonly number[][], values: readonly number[]): num
  * Fits the scan to the ground from its control points. Coordinates are taken about their mean, in kilometres, so the
  * polynomial's squares stay well conditioned. `order` 2 needs six points or more; by default it's used from eight.
  */
-export function georeference(points: readonly ControlPoint[], order?: 1 | 2): Georeference {
+export function georeference(points: readonly ControlPoint[], order?: 1 | 2, exact = false): Georeference {
   const chosen: 1 | 2 = order ?? (points.length >= 8 ? 2 : 1)
   const needed = chosen === 1 ? 3 : 6
   if (points.length < needed) {
@@ -83,17 +90,43 @@ export function georeference(points: readonly ControlPoint[], order?: 1 | 2): Ge
     rows,
     points.map((point) => point.pixel[1])
   )
-  const toPixel = (x: number, y: number): [number, number] => {
+  const polynomial = (x: number, y: number): [number, number] => {
     const t = local(x, y)
     return [
       t.reduce((sum, term, index) => sum + term * (u[index] ?? 0), 0),
       t.reduce((sum, term, index) => sum + term * (v[index] ?? 0), 0)
     ]
   }
+  // The rubber sheet: what the polynomial misses at each point, in pixels, eased in by inverse distance.
+  const misses = points.map((point) => {
+    const [px, py] = polynomial(point.ground[0], point.ground[1])
+    return { x: point.ground[0], y: point.ground[1], du: point.pixel[0] - px, dv: point.pixel[1] - py }
+  })
+  const toPixel = (x: number, y: number): [number, number] => {
+    const [px, py] = polynomial(x, y)
+    if (!exact) {
+      return [px, py]
+    }
+    let weights = 0
+    let du = 0
+    let dv = 0
+    for (const miss of misses) {
+      const distance = Math.hypot(x - miss.x, y - miss.y)
+      if (distance < 1e-6) {
+        return [px + miss.du, py + miss.dv]
+      }
+      const weight = distance ** -SHEET_POWER
+      weights += weight
+      du += weight * miss.du
+      dv += weight * miss.dv
+    }
+    return [px + du / weights, py + dv / weights]
+  }
   // A residual in pixels, turned into metres by the scan's local scale near the point.
+  // A residual is the polynomial's: how much the sheet is bent or stretched there, even when the fit is made exact.
   const residuals = points.map((point) => {
-    const [px, py] = toPixel(point.ground[0], point.ground[1])
-    const [ex, ey] = toPixel(point.ground[0] + 100, point.ground[1])
+    const [px, py] = polynomial(point.ground[0], point.ground[1])
+    const [ex, ey] = polynomial(point.ground[0] + 100, point.ground[1])
     const metresPerPixel = 100 / Math.hypot(ex - px, ey - py)
     return { name: point.name, metres: Math.hypot(px - point.pixel[0], py - point.pixel[1]) * metresPerPixel }
   })

@@ -67,6 +67,300 @@
           "ground": [874598, 6906871]
         }
       ]
+    },
+    {
+      "id": "afgg-iv-2-carte-11",
+      "title": "Attaques allemandes des 11 et 12 juillet 1916 (Thiaumont, Fleury, Souville, Tavannes)",
+      "from": "1916-07-10",
+      "to": "1916-07-12",
+      "source": "Les armées françaises dans la Grande Guerre, tome IV, 2e volume, carte n° 11 (1:10 000)",
+      "credit": "Site Mémoire des hommes, ministère des Armées",
+      "licence": "Licence Ouverte 2.0 (Etalab)",
+      "image": "https://www.memoiredeshommes.defense.gouv.fr/_recherche-images/show/111573/image/56057/0?size=full",
+      "file": "afgg/thiaumont-fleury-souville-tavannes-10-12-juillet.jpg",
+      "size": [4085, 5000],
+      "frame": [175, 306, 3713, 4710],
+      "excluded": [[2620, 3960, 3713, 4710]],
+      "order": 2,
+      "exact": true,
+      "fitting": "Placed by its printed kilometre grid (the Nord de Guerre Lambert grid of the plans directeurs): every crossing traced on the scan, pinned to its kilometre, taken to Lambert-93 (EPSG:27500 to 2154) and shifted by the old datum's offset, -132 m E and -118 m N, fitted to the forts of Douaumont, Souville, Tavannes and Froideterre. The 1916 drawing of Fort de Vaux lies about 60 m south-west of the fort.",
+      "controlPoints": [
+        {
+          "name": "grid 0,0",
+          "pixel": [333.3, 648.1],
+          "ground": [874787.7, 6905273.0]
+        },
+        {
+          "name": "grid 1,0",
+          "pixel": [878.5, 630.8],
+          "ground": [875786.7, 6905334.5]
+        },
+        {
+          "name": "grid 2,0",
+          "pixel": [1426.0, 613.2],
+          "ground": [876785.8, 6905395.9]
+        },
+        {
+          "name": "grid 3,0",
+          "pixel": [1972.5, 595.6],
+          "ground": [877784.9, 6905457.3]
+        },
+        {
+          "name": "grid 4,0",
+          "pixel": [2517.0, 577.9],
+          "ground": [878784.0, 6905518.7]
+        },
+        {
+          "name": "grid 5,0",
+          "pixel": [3067.9, 559.9],
+          "ground": [879783.1, 6905580.1]
+        },
+        {
+          "name": "grid 6,0",
+          "pixel": [3612.3, 541.9],
+          "ground": [880782.2, 6905641.5]
+        },
+        {
+          "name": "grid 0,1",
+          "pixel": [350.4, 1203.3],
+          "ground": [874849.1, 6904274.0]
+        },
+        {
+          "name": "grid 1,1",
+          "pixel": [895.4, 1185.5],
+          "ground": [875848.2, 6904335.5]
+        },
+        {
+          "name": "grid 2,1",
+          "pixel": [1442.8, 1167.7],
+          "ground": [876847.2, 6904396.9]
+        },
+        {
+          "name": "grid 3,1",
+          "pixel": [1989.1, 1150.0],
+          "ground": [877846.3, 6904458.3]
+        },
+        {
+          "name": "grid 4,1",
+          "pixel": [2533.2, 1132.6],
+          "ground": [878845.4, 6904519.7]
+        },
+        {
+          "name": "grid 5,1",
+          "pixel": [3081.7, 1115.1],
+          "ground": [879844.5, 6904581.1]
+        },
+        {
+          "name": "grid 6,1",
+          "pixel": [3626.4, 1097.8],
+          "ground": [880843.6, 6904642.5]
+        },
+        {
+          "name": "grid 0,2",
+          "pixel": [367.1, 1756.2],
+          "ground": [874910.5, 6903275.1]
+        },
+        {
+          "name": "grid 1,2",
+          "pixel": [912.0, 1736.8],
+          "ground": [875909.6, 6903336.5]
+        },
+        {
+          "name": "grid 2,2",
+          "pixel": [1459.1, 1718.4],
+          "ground": [876908.7, 6903397.9]
+        },
+        {
+          "name": "grid 3,2",
+          "pixel": [2005.2, 1701.3],
+          "ground": [877907.7, 6903459.3]
+        },
+        {
+          "name": "grid 4,2",
+          "pixel": [2549.0, 1685.3],
+          "ground": [878906.8, 6903520.7]
+        },
+        {
+          "name": "grid 5,2",
+          "pixel": [3096.1, 1670.4],
+          "ground": [879905.9, 6903582.1]
+        },
+        {
+          "name": "grid 6,2",
+          "pixel": [3641.1, 1656.6],
+          "ground": [880905.0, 6903643.5]
+        },
+        {
+          "name": "grid 0,3",
+          "pixel": [383.7, 2310.3],
+          "ground": [874971.9, 6902276.1]
+        },
+        {
+          "name": "grid 1,3",
+          "pixel": [928.2, 2291.4],
+          "ground": [875971.0, 6902337.5]
+        },
+        {
+          "name": "grid 2,3",
+          "pixel": [1475.1, 2273.3],
+          "ground": [876970.1, 6902398.9]
+        },
+        {
+          "name": "grid 3,3",
+          "pixel": [2021.0, 2256.0],
+          "ground": [877969.1, 6902460.3]
+        },
+        {
+          "name": "grid 4,3",
+          "pixel": [2564.6, 2239.5],
+          "ground": [878968.2, 6902521.7]
+        },
+        {
+          "name": "grid 5,3",
+          "pixel": [3111.1, 2223.8],
+          "ground": [879967.3, 6902583.1]
+        },
+        {
+          "name": "grid 6,3",
+          "pixel": [3656.2, 2208.9],
+          "ground": [880966.4, 6902644.5]
+        },
+        {
+          "name": "grid 0,4",
+          "pixel": [399.7, 2857.9],
+          "ground": [875033.4, 6901277.1]
+        },
+        {
+          "name": "grid 1,4",
+          "pixel": [943.9, 2838.6],
+          "ground": [876032.4, 6901338.6]
+        },
+        {
+          "name": "grid 2,4",
+          "pixel": [1490.5, 2819.4],
+          "ground": [877031.5, 6901400.0]
+        },
+        {
+          "name": "grid 3,4",
+          "pixel": [2036.1, 2800.4],
+          "ground": [878030.5, 6901461.4]
+        },
+        {
+          "name": "grid 4,4",
+          "pixel": [2579.6, 2781.6],
+          "ground": [879029.6, 6901522.8]
+        },
+        {
+          "name": "grid 5,4",
+          "pixel": [3126.3, 2762.9],
+          "ground": [880028.7, 6901584.2]
+        },
+        {
+          "name": "grid 6,4",
+          "pixel": [3671.2, 2744.4],
+          "ground": [881027.7, 6901645.5]
+        },
+        {
+          "name": "grid 0,5",
+          "pixel": [415.7, 3414.2],
+          "ground": [875094.8, 6900278.2]
+        },
+        {
+          "name": "grid 1,5",
+          "pixel": [959.6, 3396.8],
+          "ground": [876093.8, 6900339.6]
+        },
+        {
+          "name": "grid 2,5",
+          "pixel": [1505.8, 3379.8],
+          "ground": [877092.9, 6900401.0]
+        },
+        {
+          "name": "grid 3,5",
+          "pixel": [2051.2, 3363.5],
+          "ground": [878092.0, 6900462.4]
+        },
+        {
+          "name": "grid 4,5",
+          "pixel": [2595.0, 3347.8],
+          "ground": [879091.0, 6900523.8]
+        },
+        {
+          "name": "grid 5,5",
+          "pixel": [3143.1, 3332.5],
+          "ground": [880090.1, 6900585.2]
+        },
+        {
+          "name": "grid 6,5",
+          "pixel": [3687.8, 3317.9],
+          "ground": [881089.1, 6900646.6]
+        },
+        {
+          "name": "grid 0,6",
+          "pixel": [431.2, 3963.6],
+          "ground": [875156.2, 6899279.2]
+        },
+        {
+          "name": "grid 1,6",
+          "pixel": [974.7, 3946.4],
+          "ground": [876155.3, 6899340.6]
+        },
+        {
+          "name": "grid 2,6",
+          "pixel": [1520.4, 3929.7],
+          "ground": [877154.3, 6899402.1]
+        },
+        {
+          "name": "grid 3,6",
+          "pixel": [2065.5, 3913.5],
+          "ground": [878153.4, 6899463.5]
+        },
+        {
+          "name": "grid 4,6",
+          "pixel": [2609.7, 3897.8],
+          "ground": [879152.4, 6899524.9]
+        },
+        {
+          "name": "grid 5,6",
+          "pixel": [3159.8, 3882.5],
+          "ground": [880151.4, 6899586.3]
+        },
+        {
+          "name": "grid 6,6",
+          "pixel": [3704.3, 3867.9],
+          "ground": [881150.5, 6899647.6]
+        },
+        {
+          "name": "grid 0,7",
+          "pixel": [446.6, 4518.0],
+          "ground": [875217.7, 6898280.3]
+        },
+        {
+          "name": "grid 1,7",
+          "pixel": [989.6, 4501.8],
+          "ground": [876216.7, 6898341.7]
+        },
+        {
+          "name": "grid 2,7",
+          "pixel": [1534.8, 4485.6],
+          "ground": [877215.7, 6898403.1]
+        },
+        {
+          "name": "grid 3,7",
+          "pixel": [2079.6, 4469.7],
+          "ground": [878214.8, 6898464.5]
+        },
+        {
+          "name": "grid 4,7",
+          "pixel": [2624.2, 4454.0],
+          "ground": [879213.8, 6898525.9]
+        },
+        {
+          "name": "grid 5,7",
+          "pixel": [3177.4, 4438.2],
+          "ground": [880212.8, 6898587.3]
+        }
+      ]
     }
   ]
 }

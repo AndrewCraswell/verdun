@@ -59,4 +59,27 @@ describe("georeference", () => {
       georeference([place("a", 860_000, 6_895_000), place("b", 861_000, 6_895_000), place("c", 862_000, 6_895_000)])
     ).toThrow("line")
   })
+
+  it("stretches the scan through every point when made exact, easing each one's miss in around it", () => {
+    // A sheet with a crease: the points east of 875 000 drawn 12 pixels too far right.
+    const grid = Array.from({ length: 16 }, (_, index) => {
+      const x = 870_000 + (index % 4) * 3000
+      const y = 6_900_000 + Math.floor(index / 4) * 3000
+      const [u, v] = scanPixel(x, y)
+      return { name: `grid ${index}`, ground: [x, y], pixel: [x > 875_000 ? u + 12 : u, v] } as const
+    })
+    const loose = georeference(grid, 1)
+    const exact = georeference(grid, 1, true)
+    expect(loose.rms).toBeGreaterThan(5)
+    // The residuals still say how much the sheet is bent; but the exact fit passes through each point.
+    expect(exact.rms).toBeCloseTo(loose.rms, 6)
+    for (const point of grid) {
+      const [u, v] = exact.toPixel(point.ground[0], point.ground[1])
+      expect(u).toBeCloseTo(point.pixel[0], 6)
+      expect(v).toBeCloseTo(point.pixel[1], 6)
+    }
+    // Between points, it takes up the crease on its own side.
+    const [u] = exact.toPixel(879_500, 6_904_500)
+    expect(u - scanPixel(879_500, 6_904_500)[0]).toBeGreaterThan(8)
+  })
 })
