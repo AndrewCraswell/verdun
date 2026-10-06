@@ -257,7 +257,7 @@ async function start(): Promise<void> {
     parent: theatreFrame,
     hole: { x0: 0.5, z0: 0.5, x1: width - 0.5, z1: depth - 0.5 }
   })
-  everyFrame.push((x, z) => ground.update(x - theatreFrame.position.x, z - theatreFrame.position.z))
+  everyFrame.push(() => ground.update(camera))
   const sectorBox = {
     west: SECTOR_CORNER.west,
     south: SECTOR_CORNER.south,

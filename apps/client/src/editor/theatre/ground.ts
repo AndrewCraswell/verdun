@@ -1,7 +1,12 @@
+import type { Camera } from "@babylonjs/core/Cameras/camera"
+import { BoundingBox } from "@babylonjs/core/Culling/boundingBox"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
+import { Frustum } from "@babylonjs/core/Maths/math.frustum"
+import type { Plane } from "@babylonjs/core/Maths/math.plane"
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode"
@@ -67,19 +72,30 @@ export const BASE_MAPS: readonly BaseMap[] = [
 const LIDAR = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93"
 const RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
 
-/** The coarse ground over the whole theatre, every `step` metres, and finer tiles near the camera. */
+/** The coarse ground over the whole theatre, every `step` metres, under one map. */
 const COARSE = { step: 50, texture: 4096 } as const
-const DETAIL = { samples: 257, texture: 1024, radius: 2600, maxLoads: 3 } as const
 /**
- * The finest ground, the LiDAR at 1 m, in a square of `span` by `span` tiles of `size` metres round the point looked
- * at, its map at half a metre a pixel: shown whole once every tile has come, in place of the ground under it.
+ * The finer ground, a 1 km block at a time, in place of the coarse ground there: the LiDAR at about 4 m in one tile
+ * with a map at a metre a pixel, or at 1 m in sixteen tiles of 250 m with maps at half a metre a pixel. A block is drawn
+ * at the finest it has within `range` metres of the camera (its height above the ground counted in), loaded only while
+ * it's in view, `together` tiles at a time, at most `maxLoads` blocks at once and `cap` blocks held.
  */
-const FINE = { size: 250, samples: 251, texture: 512, span: 5, maxLoads: 4 } as const
-/** A tile or square that failed to load is asked for again after this many milliseconds. */
+const LEVELS = {
+  fine: { size: 250, samples: 251, texture: 512, range: 1100, cap: 6, together: 4, maxLoads: 2 },
+  detail: { size: 1000, samples: 257, texture: 1024, range: 8000, cap: 48, together: 1, maxLoads: 3 }
+} as const
+type Level = keyof typeof LEVELS
+/** Finest first: a block shows the finest of its levels that has come. */
+const BY_FINENESS: readonly Level[] = ["fine", "detail"]
+/** A block that failed to load is asked for again after this many milliseconds. */
 const RETRY_AFTER = 8000
-/** A fine tile is kept until it lies this much further off than the radius it's loaded within, so tiles near the edge
+/** A block is kept until it lies this much further off than the range it's loaded within, so blocks near the edge
  * don't come and go as the view moves a little. */
-const KEEP = 1.4
+const KEEP = 1.3
+/** The blocks wanted are worked out at most this often, in milliseconds. */
+const PLAN_EVERY = 150
+/** A block counts as in view when it's within this many metres of the edge of the picture, so it's there on turning. */
+const VIEW_MARGIN = 150
 /** Each tile's edges hang this far down, so no crack shows where a fine tile meets a coarse one. */
 const SKIRT = 25
 
@@ -274,25 +290,39 @@ export interface TheatreGround {
   setHole(cut: boolean): void
   /** Multiplies the hillshade into the map, or stops. */
   setShading(shaded: boolean): void
-  /** Called each frame with the point the camera looks at: loads finer tiles round it, drops those far off. */
-  update(x: number, z: number): void
+  /** Called each frame: loads finer ground in view near the camera, and drops what's far off or long out of view. */
+  update(camera: Camera): void
   /**
    * Lays an image of the whole theatre over its ground, unlit, `lift` metres above it, such as the rivers: transparent
    * where the image is. Returns the mesh, to show and hide.
    */
   drape(name: string, image: BaseTexture, lift: number): Mesh
-  /** How many detail tiles are drawn and loading, and whether the 1 m square is shown, for the status line. */
-  readonly detail: { readonly shown: number; readonly loading: number; readonly fine: boolean }
+  /** How many blocks are drawn at 4 m and at 1 m, and how many are loading, for inspecting from the console. */
+  readonly detail: { readonly detail: number; readonly fine: number; readonly loading: number }
 }
 
-interface DetailTile {
-  mesh: Mesh | null
-  material: StandardMaterial | null
-  loading: boolean
-  /** When it last failed to load, by performance.now(), or 0: it's tried again RETRY_AFTER milliseconds later. */
+/** A block's ground at one level: its tiles' meshes and maps, shown once all have come. */
+interface Layer {
+  readonly look: string
+  readonly meshes: Mesh[]
+  readonly materials: StandardMaterial[]
+  cancelled: boolean
+}
+
+/** A 1 km block of the theatre, and the finer ground it has. */
+interface Block {
+  readonly key: number
+  readonly box: TileBox
+  /** Its lowest and highest ground, metres above the theatre's base, to tell whether it's in view. */
+  readonly low: number
+  readonly high: number
+  readonly shown: Map<Level, Layer>
+  readonly loading: Map<Level, Layer>
+  /** When it last failed to load, by performance.now(), or 0. */
   failedAt: number
-  /** How it was drawn: its map, and whether shaded. */
-  look: string
+  /** How far it lies from the camera, and whether it's in view, as of the last plan. */
+  distance: number
+  seen: boolean
 }
 
 /**
@@ -341,14 +371,8 @@ export async function createTheatreGround(
       skirt: SKIRT
     })
 
-  /** The 1 m square, in the scene's metres, while it's shown. */
-  let fineBox: GroundBox = NO_BOX
-  const offsetX = () => parent?.position.x ?? 0
-  const offsetZ = () => parent?.position.z ?? 0
   let cutting = true
-  const sectorHole = () => (cutting && hole ? hole : NO_BOX)
-  const theatreHoles = (): readonly [GroundBox, GroundBox] => [sectorHole(), fineBox]
-  const fineHoles = (): readonly [GroundBox, GroundBox] => [sectorHole(), NO_BOX]
+  const holes = (): readonly [GroundBox, GroundBox] => [cutting && hole ? hole : NO_BOX, NO_BOX]
 
   let map = initial
   let shaded = false
@@ -377,14 +401,7 @@ export async function createTheatreGround(
       COARSE.texture,
       Math.round((COARSE.texture * THEATRE.depth) / THEATRE.width)
     )
-  let coarseMaterial = mapMaterial(
-    scene,
-    "theatre-coarse",
-    coarseTexture(map),
-    map,
-    theatreHoles,
-    coarseShade()
-  ).material
+  let coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, holes, coarseShade()).material
   const perTile = TILE / COARSE.step
   const tilesX = THEATRE.width / TILE
   const tilesZ = THEATRE.depth / TILE
@@ -407,177 +424,195 @@ export async function createTheatreGround(
     }
   }
 
-  const details = new Map<number, DetailTile>()
-  let loading = 0
-  const load = (tx: number, tz: number, tile: DetailTile) => {
-    tile.loading = true
-    loading += 1
-    const box = { x0: tx * TILE, z0: tz * TILE, x1: (tx + 1) * TILE, z1: (tz + 1) * TILE }
-    const samples = DETAIL.samples
-    const drawn = map
-    const drawnLook = look()
-    const shade = shadeUrl(box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture)
-    tileMesh(`theatre-detail-${tx}-${tz}`, box, samples)
-      .then(async (mesh) => {
-        mesh.setEnabled(false)
-        mesh.parent = parent ?? null
-        const { material, loaded } = mapMaterial(
-          scene,
-          `theatre-detail-${tx}-${tz}`,
-          wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture),
-          drawn,
-          theatreHoles,
-          shade
-        )
-        mesh.material = material
-        try {
-          await loaded
-        } catch (error) {
-          mesh.dispose()
-          material.dispose(true, true)
-          throw error
-        }
-        // The fine tile takes over from the coarse ground only once its map has come.
-        tile.mesh?.dispose()
-        tile.material?.dispose(true, true)
-        tile.mesh = mesh
-        tile.material = material
-        tile.look = drawnLook
-        tile.failedAt = 0
-        mesh.setEnabled(true)
-        coarseTiles[tz * tilesX + tx]?.setEnabled(false)
-      })
-      .catch((error: unknown) => {
-        tile.failedAt = performance.now()
-        console.warn(`Theatre tile ${tx},${tz}, trying again shortly:`, error)
-      })
-      .finally(() => {
-        tile.loading = false
-        loading -= 1
-      })
-  }
   const redrawCoarse = () => {
     coarseMaterial.dispose(true, true)
-    coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, theatreHoles, coarseShade()).material
+    coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, holes, coarseShade()).material
     for (const mesh of coarseTiles) {
       mesh.material = coarseMaterial
     }
   }
-  interface FineSquare {
-    readonly key: string
-    readonly box: GroundBox
-    readonly meshes: Mesh[]
-    readonly materials: StandardMaterial[]
-    cancelled: boolean
+
+  const blocks: Block[] = []
+  for (let tz = 0; tz < tilesZ; tz++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      let low = Infinity
+      let high = -Infinity
+      for (let row = tz * perTile; row <= (tz + 1) * perTile; row++) {
+        for (let column = tx * perTile; column <= (tx + 1) * perTile; column++) {
+          low = Math.min(low, coarseAt(column, row))
+          high = Math.max(high, coarseAt(column, row))
+        }
+      }
+      blocks.push({
+        key: tz * tilesX + tx,
+        box: { x0: tx * TILE, z0: tz * TILE, x1: (tx + 1) * TILE, z1: (tz + 1) * TILE },
+        low,
+        high,
+        shown: new Map(),
+        loading: new Map(),
+        failedAt: 0,
+        distance: Infinity,
+        seen: false
+      })
+    }
   }
-  let fineShown: FineSquare | null = null
-  let fineLoading: FineSquare | null = null
-  /** The square that last failed, and when, so it isn't asked for again straight away. */
-  let fineFailed = { key: "", at: 0 }
-  const disposeSquare = (square: FineSquare) => {
-    for (const mesh of square.meshes) {
+  const loadingCount: Record<Level, number> = { fine: 0, detail: 0 }
+
+  const disposeLayer = (layer: Layer) => {
+    for (const mesh of layer.meshes) {
       mesh.dispose()
     }
-    for (const material of square.materials) {
+    for (const material of layer.materials) {
       material.dispose(true, true)
     }
   }
-  /** Loads the square whose south-west corner is at (x0, z0), at most FINE.maxLoads tiles at a time, and shows it. */
-  const loadSquare = (x0: number, z0: number, key: string) => {
-    const square: FineSquare = {
-      key,
-      box: { x0, z0, x1: x0 + FINE.span * FINE.size, z1: z0 + FINE.span * FINE.size },
-      meshes: [],
-      materials: [],
-      cancelled: false
-    }
-    fineLoading = square
-    const drawn = map
-    const tiles: { x0: number; z0: number }[] = []
-    for (let row = 0; row < FINE.span; row++) {
-      for (let column = 0; column < FINE.span; column++) {
-        tiles.push({ x0: x0 + column * FINE.size, z0: z0 + row * FINE.size })
+  /** Draws a block at the finest level it has, and the coarse ground there only when it has none. */
+  const show = (block: Block) => {
+    const finest = BY_FINENESS.map((level) => block.shown.get(level)).find((layer) => layer !== undefined)
+    for (const layer of block.shown.values()) {
+      for (const mesh of layer.meshes) {
+        mesh.setEnabled(layer === finest)
       }
     }
-    const loadTile = async (tile: { x0: number; z0: number }) => {
-      const box = { x0: tile.x0, z0: tile.z0, x1: tile.x0 + FINE.size, z1: tile.z0 + FINE.size }
-      const mesh = await tileMesh(`theatre-fine-${box.x0}-${box.z0}`, box, FINE.samples)
+    coarseTiles[block.key]?.setEnabled(finest === undefined)
+  }
+  const drop = (block: Block, level: Level) => {
+    const layer = block.shown.get(level)
+    if (layer) {
+      disposeLayer(layer)
+      block.shown.delete(level)
+      show(block)
+    }
+    const loading = block.loading.get(level)
+    if (loading) {
+      loading.cancelled = true
+    }
+  }
+  /** Loads a block's tiles at a level, and shows them once all have come, in place of what was drawn there. */
+  const load = (block: Block, level: Level) => {
+    const { size, samples, texture, together } = LEVELS[level]
+    const drawn = map
+    const layer: Layer = { look: look(), meshes: [], materials: [], cancelled: false }
+    block.loading.set(level, layer)
+    loadingCount[level] += 1
+    const boxes: TileBox[] = []
+    for (let z0 = block.box.z0; z0 < block.box.z1; z0 += size) {
+      for (let x0 = block.box.x0; x0 < block.box.x1; x0 += size) {
+        boxes.push({ x0, z0, x1: x0 + size, z1: z0 + size })
+      }
+    }
+    const loadTile = async (box: TileBox) => {
+      const name = `theatre-${level}-${box.x0}-${box.z0}`
+      const mesh = await tileMesh(name, box, samples)
       mesh.setEnabled(false)
       mesh.parent = parent ?? null
       const { material, loaded } = mapMaterial(
         scene,
-        `theatre-fine-${box.x0}-${box.z0}`,
-        wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, FINE.texture, FINE.texture),
+        name,
+        wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, texture, texture),
         drawn,
-        fineHoles,
-        shadeUrl(box.x0, box.z0, box.x1, box.z1, FINE.texture, FINE.texture)
+        holes,
+        shadeUrl(box.x0, box.z0, box.x1, box.z1, texture, texture)
       )
       mesh.material = material
-      square.meshes.push(mesh)
-      square.materials.push(material)
+      layer.meshes.push(mesh)
+      layer.materials.push(material)
       await loaded
     }
     const next = async (): Promise<void> => {
-      const tile = tiles.shift()
-      if (!tile || square.cancelled) {
+      const box = boxes.shift()
+      if (!box || layer.cancelled) {
         return
       }
-      await loadTile(tile)
+      await loadTile(box)
       return next()
     }
-    Promise.all(Array.from({ length: FINE.maxLoads }, next))
+    Promise.all(Array.from({ length: together }, next))
       .then(() => {
-        if (square.cancelled) {
-          disposeSquare(square)
+        if (layer.cancelled) {
+          disposeLayer(layer)
           return
         }
-        // The whole square has come: it takes over from the ground under it.
-        if (fineShown) {
-          disposeSquare(fineShown)
+        // Every tile has come: the block is drawn from them, in place of what was there.
+        const old = block.shown.get(level)
+        if (old) {
+          disposeLayer(old)
         }
-        fineShown = square
-        fineLoading = null
-        for (const mesh of square.meshes) {
-          mesh.setEnabled(true)
-        }
-        fineBox = {
-          x0: square.box.x0 + offsetX(),
-          z0: square.box.z0 + offsetZ(),
-          x1: square.box.x1 + offsetX(),
-          z1: square.box.z1 + offsetZ()
-        }
+        block.shown.set(level, layer)
+        block.failedAt = 0
+        show(block)
       })
       .catch((error: unknown) => {
-        console.warn("The 1 m ground, trying again shortly:", error)
-        fineFailed = { key: square.key, at: performance.now() }
-        disposeSquare(square)
-        if (fineLoading === square) {
-          fineLoading = null
-        }
+        block.failedAt = performance.now()
+        disposeLayer(layer)
+        console.warn(`Theatre ground ${block.key} at ${level}, trying again shortly:`, error)
+      })
+      .finally(() => {
+        block.loading.delete(level)
+        loadingCount[level] -= 1
       })
   }
-  /** Keeps the 1 m square round the point looked at, in step with the map drawn on it. */
-  const followFine = (x: number, z: number) => {
-    const half = (FINE.span * FINE.size) / 2
-    const x0 = Math.min(THEATRE.width - 2 * half, Math.max(0, Math.round((x - half) / FINE.size) * FINE.size))
-    const z0 = Math.min(THEATRE.depth - 2 * half, Math.max(0, Math.round((z - half) / FINE.size) * FINE.size))
-    const key = `${x0},${z0},${look()}`
-    if (fineShown?.key === key || fineLoading?.key === key) {
-      return
+
+  // Where the camera is, and which blocks it sees, in the theatre's frame.
+  let nextPlan = 0
+  const toLocal = new Matrix()
+  const planes: Plane[] = Frustum.GetPlanes(Matrix.Identity())
+  const corners = Array.from({ length: 8 }, () => new Vector3())
+  const inView = (block: Block, toWorld: Matrix) => {
+    const { x0, z0, x1, z1 } = block.box
+    for (let index = 0; index < 8; index++) {
+      const corner = corners[index]
+      if (corner) {
+        Vector3.TransformCoordinatesFromFloatsToRef(
+          index & 1 ? x1 + VIEW_MARGIN : x0 - VIEW_MARGIN,
+          index & 2 ? block.high + VIEW_MARGIN : block.low - SKIRT,
+          index & 4 ? z1 + VIEW_MARGIN : z0 - VIEW_MARGIN,
+          toWorld,
+          corner
+        )
+      }
     }
-    if (fineFailed.key === key && performance.now() - fineFailed.at < RETRY_AFTER) {
-      return
-    }
-    if (fineLoading) {
-      fineLoading.cancelled = true
-    }
-    loadSquare(x0, z0, key)
+    return BoundingBox.IsInFrustum(corners, planes)
   }
-  const drop = (key: number, tile: DetailTile) => {
-    tile.mesh?.dispose()
-    tile.material?.dispose(true, true)
-    details.delete(key)
-    coarseTiles[key]?.setEnabled(true)
+  const plan = (camera: Camera) => {
+    const toWorld = parent?.getWorldMatrix() ?? Matrix.Identity()
+    toWorld.invertToRef(toLocal)
+    const eye = Vector3.TransformCoordinates(camera.globalPosition, toLocal)
+    const above = Math.max(0, eye.y - heightAt(eye.x, eye.z))
+    Frustum.GetPlanesToRef(camera.getTransformationMatrix(), planes)
+    for (const block of blocks) {
+      const dx = Math.max(block.box.x0 - eye.x, 0, eye.x - block.box.x1)
+      const dz = Math.max(block.box.z0 - eye.z, 0, eye.z - block.box.z1)
+      block.distance = Math.hypot(dx, dz, above)
+      block.seen = block.distance < LEVELS.detail.range * KEEP && inView(block, toWorld)
+    }
+    const now = performance.now()
+    for (const level of BY_FINENESS) {
+      const { range, cap, maxLoads } = LEVELS[level]
+      const held = (block: Block) => block.shown.has(level) || block.loading.has(level)
+      // The blocks this level may hold: those held still within reach, and those in view within range, in view and
+      // nearest first, up to its cap.
+      const allowed = blocks
+        .filter((block) => (held(block) && block.distance < range * KEEP) || (block.seen && block.distance < range))
+        .sort((a, b) => Number(b.seen) - Number(a.seen) || a.distance - b.distance)
+        .slice(0, cap)
+      const allowedKeys = new Set(allowed.map((block) => block.key))
+      for (const block of blocks) {
+        if (held(block) && !allowedKeys.has(block.key)) {
+          drop(block, level)
+        }
+      }
+      for (const block of allowed) {
+        if (loadingCount[level] >= maxLoads) {
+          break
+        }
+        const stale = block.shown.get(level)?.look !== look()
+        const resting = block.failedAt > 0 && now - block.failedAt < RETRY_AFTER
+        if (block.seen && stale && !block.loading.has(level) && !resting) {
+          load(block, level)
+        }
+      }
+    }
   }
 
   return {
@@ -606,46 +641,18 @@ export async function createTheatreGround(
     setHole(cut) {
       cutting = cut
     },
-    update(x, z) {
-      followFine(x, z)
-      // The tiles wanted: those within reach of the point looked at, nearest first.
-      const wanted: { key: number; tx: number; tz: number; distance: number }[] = []
-      for (let tz = 0; tz < tilesZ; tz++) {
-        for (let tx = 0; tx < tilesX; tx++) {
-          const distance = Math.hypot((tx + 0.5) * TILE - x, (tz + 0.5) * TILE - z)
-          if (distance < DETAIL.radius) {
-            wanted.push({ key: tz * tilesX + tx, tx, tz, distance })
-          }
-        }
-      }
-      wanted.sort((a, b) => a.distance - b.distance)
-      for (const [key, tile] of details) {
-        const tx = key % tilesX
-        const tz = Math.floor(key / tilesX)
-        const distance = Math.hypot((tx + 0.5) * TILE - x, (tz + 0.5) * TILE - z)
-        if (distance > DETAIL.radius * KEEP && !tile.loading) {
-          drop(key, tile)
-        }
-      }
-      for (const { key, tx, tz } of wanted) {
-        if (loading >= DETAIL.maxLoads) {
-          break
-        }
-        const tile = details.get(key)
-        if (!tile) {
-          const fresh: DetailTile = { mesh: null, material: null, loading: false, look: look(), failedAt: 0 }
-          details.set(key, fresh)
-          load(tx, tz, fresh)
-        } else if (
-          !tile.loading &&
-          (tile.look !== look() || (!tile.mesh && tile.failedAt > 0 && performance.now() - tile.failedAt > RETRY_AFTER))
-        ) {
-          load(tx, tz, tile)
-        }
+    update(camera) {
+      if (performance.now() >= nextPlan) {
+        nextPlan = performance.now() + PLAN_EVERY
+        plan(camera)
       }
     },
     get detail() {
-      return { shown: [...details.values()].filter((tile) => tile.mesh).length, loading, fine: fineShown !== null }
+      return {
+        detail: blocks.filter((block) => block.shown.has("detail")).length,
+        fine: blocks.filter((block) => block.shown.has("fine")).length,
+        loading: loadingCount.detail + loadingCount.fine
+      }
     }
   }
 }
