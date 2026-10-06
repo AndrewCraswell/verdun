@@ -128,8 +128,8 @@ describe("sector files' trenches", () => {
     const [french, german] = fromTiledSector(fleury()).sides
     expect(french?.side).toBe("french")
     expect(german?.side).toBe("german")
-    expect(french?.wire).toEqual([22, 33])
-    expect(german?.wire).toEqual([18, 30, 42])
+    expect(french?.wire).toEqual([25])
+    expect(german?.wire).toEqual([25])
     expect(french?.forward).toEqual([64, 186, 302, 412, 512])
     expect(german?.saps).toEqual([40, 280, 396, 486])
     expect(french?.front[0]?.[0]).toBe(8)
@@ -182,7 +182,7 @@ describe("sector files' trenches", () => {
     const wire = editing(line("french front"), (object) => {
       if (Array.isArray(object.properties)) {
         object.properties = object.properties.map((property) =>
-          isObject(property) && property.name === "wire" ? { ...property, value: "22 lots" } : property
+          isObject(property) && property.name === "wire" ? { ...property, value: "25 lots" } : property
         )
       }
     })

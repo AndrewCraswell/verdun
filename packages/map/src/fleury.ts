@@ -526,19 +526,38 @@ interface WireGap {
   readonly to: GroundPoint
 }
 
+/** Patrol gaps in a belt are this many metres wide, from its last post before the gap to its first after it. */
+const PATROL_GAP = { narrowest: 10, widest: 16 } as const
+/** And this many metres of wire stand between one patrol gap and the next. */
+const PATROL_WIRE = { shortest: 22, longest: 50 } as const
+
+/**
+ * Where a belt is left open for patrols, from west to east: gaps of 10 to 16 m every few tens of metres, at random, as
+ * the thin wire of a shell-hole line was laid in haste by night and never made whole.
+ */
+function patrolGaps(random: () => number, fromX: number, toX: number): (readonly [number, number])[] {
+  const gaps: (readonly [number, number])[] = []
+  let start = fromX + PATROL_WIRE.shortest * random()
+  while (start < toX) {
+    const width = PATROL_GAP.narrowest + (PATROL_GAP.widest - PATROL_GAP.narrowest) * random()
+    gaps.push([start, start + width])
+    start += width + PATROL_WIRE.shortest + (PATROL_WIRE.longest - PATROL_WIRE.shortest) * random()
+  }
+  return gaps
+}
+
 /**
  * Belts of wire in front of a side's front line, staked out from the bays nearest each point so they clear the line
- * where it bends, and broken by gaps for patrols and the saps' listening posts. `gaps` are where the wooden fence that
- * stood ready in each patrol gap was placed; `closed` every gap of a post or two, closed at stand-to (see closeGaps).
+ * where it bends, and broken by patrol gaps, left open, and gaps for the saps' listening posts. `closed` is every other
+ * gap of a post or two, fenced at stand-to (see closeGaps).
  */
 function wireBelts(
   seed: number,
   layout: SideLayout,
   own: SideTrenches,
   enemy: SideTrenches
-): { belts: WireBelt[]; gaps: GroundPoint[]; closed: WireGap[] } {
+): { belts: WireBelt[]; closed: WireGap[] } {
   const belts: WireBelt[] = []
-  const gaps: GroundPoint[] = []
   const closed: WireGap[] = []
   const enemyToward = layout.towardEnemy === 1 ? -1 : 1
   for (const [beltIndex, offset] of layout.wire.entries()) {
@@ -552,37 +571,38 @@ function wireBelts(
     // The belt's last post, and how many posts have been left out since.
     let last: GroundPoint | null = null
     let missing = 0
+    // Whether the posts left out since the last one make a patrol gap, which is left open.
+    let patrolled = false
     const { fromX, toX } = extent(layout.lines.front)
+    const random = createRandom(seed + SEEDS.wire + beltIndex * 101 + (layout.towardEnemy === 1 ? 0 : 53))
+    const open = patrolGaps(random, fromX, toX)
     for (let x = fromX; x <= toX; x += 5) {
-      const ragged = (valueNoise(seed + SEEDS.wire + beltIndex, x, 0, 24) - 0.5) * 6
+      const ragged = (valueNoise(seed + SEEDS.wire + beltIndex, x, 0, 24) - 0.5) * 8
       const ownEdge = forwardEdge(own.frontBays, layout.towardEnemy, x)
       const z = ownEdge + layout.towardEnemy * (offset + ragged)
       // Stay on our own half of no man's land where the lines close up.
       const middle = (ownEdge + forwardEdge(enemy.frontBays, enemyToward, x)) / 2
       const ownHalf = layout.towardEnemy * (middle - z) > 6
-      // Staggered patrol gaps, so no lane runs straight through every belt.
-      const patrolGap = (x + beltIndex * 31) % 90 < 6
+      const patrolGap = open.some(([from, to]) => x > from && x < to)
       const nearSap = own.sapHeads.some(([sapX]) => Math.abs(sapX - x) < 5)
-      // A wooden fence stands ready in each patrol gap, to be dragged across it at night.
-      if (patrolGap && points.length > 0) {
-        gaps.push([x + 2, z])
-      }
       if (!ownHalf || patrolGap || nearSap) {
         flush()
         missing += 1
+        patrolled ||= patrolGap
       } else {
         // Where the lines close up the belt breaks off for tens of metres: no fences close that.
-        if (last && missing > 0 && missing <= CLOSED_GAP_POSTS) {
+        if (last && missing > 0 && missing <= CLOSED_GAP_POSTS && !patrolled) {
           closed.push({ from: last, to: [x, z] })
         }
         missing = 0
+        patrolled = false
         points.push([x, z])
         last = [x, z]
       }
     }
     flush()
   }
-  return { belts, gaps, closed }
+  return { belts, closed }
 }
 
 /**
@@ -595,21 +615,18 @@ const WIRE_STAMP = { belt: 1.7, fence: 1.5, apart: 2.9 } as const
 const UNDERFOOT: ReadonlySet<SceneryKind> = new Set(["tree", "fruit-tree", "stump", "log", "rubble"])
 
 /**
- * Closes the gaps in the wire, as every attack found them: at stand-to the wooden fences stood ready in the patrol gaps
- * were dragged across them, the sap gaps and any other short break too. Fences go evenly across each gap's clear ground, between the stamps of the
- * belts' end posts, near enough together to leave no way through. Placed after everything else, on random draws of
- * their own, so they move nothing. Trees, stumps, logs and rubble in their way make room, as does the fence that stood
- * ready in each gap. A fence that would stand in a trench, or well inside a ruin, wall or other solid thing, isn't needed:
- * that fills its part of the gap already.
+ * Fences the short gaps in the wire at stand-to: the sap gaps and any other break of a post or two (the patrol gaps are
+ * left open). Wooden fences go evenly across each gap's clear ground, between the stamps of the belts' end posts, near
+ * enough together to leave no way through but over them. Placed after everything else, on random draws of their own,
+ * so they move nothing. Trees, stumps, logs and rubble in their way make room. A fence that would stand in a trench, or
+ * well inside a ruin, wall or other solid thing, isn't needed: that fills its part of the gap already.
  */
 function closeGaps(
   placer: Placer,
   segments: readonly [GroundPoint, GroundPoint][],
   gaps: readonly { readonly gap: WireGap; readonly heading: number }[],
-  ready: readonly GroundPoint[],
   random: () => number
 ): void {
-  placer.remove((item) => item.kind === "wooden-fence" && ready.some(([x, z]) => item.x === x && item.z === z))
   for (const { gap, heading } of gaps) {
     const [fromX, fromZ] = gap.from
     const [toX, toZ] = gap.to
@@ -1180,14 +1197,15 @@ export function generateFleurySector({
   const ravine = ravineCrossing()
   const frenchWire = wireBelts(seed, french, frenchTrenches, germanTrenches)
   const germanWire = wireBelts(seed, german, germanTrenches, frenchTrenches)
-  for (const [side, trenchesOfSide, wire] of [
-    [french, frenchTrenches, frenchWire],
-    [german, germanTrenches, germanWire]
+  for (const [side, trenchesOfSide] of [
+    [french, frenchTrenches],
+    [german, germanTrenches]
   ] as const) {
     const heading = side.towardEnemy === 1 ? 0 : Math.PI
     const variant = side === french ? 0 : 1
     for (const [x, z] of trenchesOfSide.sapHeads) {
       placer.place("machine-gun", x, z + side.towardEnemy * 2.6, heading, { variant })
+      // A wooden fence across the sap's mouth.
       placer.place("wooden-fence", x, z + side.towardEnemy * 5.5, heading)
     }
     // The ravine is dead ground to every gun but the concrete post sited at its head.
@@ -1198,9 +1216,6 @@ export function generateFleurySector({
     for (const [x, z] of trenchesOfSide.communicationEnds) {
       placeNear(placer, "stores", x + 9, z - side.towardEnemy * 5, heading, 1.5)
     }
-    for (const [x, z] of wire.gaps) {
-      placer.place("wooden-fence", x, z, heading + (sceneryRandom() - 0.5) * 0.4)
-    }
   }
   placeRoadsideTrees(placer, sceneryRandom)
   placeWoods(seed, placer, sceneryRandom)
@@ -1210,7 +1225,7 @@ export function generateFleurySector({
     placeNear(placer, "stores", x, z, 0, 1.5)
   }
   // Last too, so they move nothing else: the church behind the German front, the orchard behind the French support,
-  // and the wooden fences across the gaps in the wire.
+  // and the wooden fences across the short gaps in the wire.
   placeChurch(placer, craters)
   placeOrchard(placer, createRandom(seed + SEEDS.orchard))
   closeGaps(
@@ -1220,7 +1235,6 @@ export function generateFleurySector({
       ...frenchWire.closed.map((gap) => ({ gap, heading: french.towardEnemy === 1 ? 0 : Math.PI })),
       ...germanWire.closed.map((gap) => ({ gap, heading: german.towardEnemy === 1 ? 0 : Math.PI }))
     ],
-    [...frenchWire.gaps, ...germanWire.gaps],
     createRandom(seed + SEEDS.fences)
   )
 

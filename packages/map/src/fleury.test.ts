@@ -206,25 +206,27 @@ describe("generateFleurySector", () => {
     expect(stumps.length).toBeGreaterThan(0)
   })
 
-  it("closes the short gaps in the wire with wooden fences at stand-to, leaving no way through", () => {
-    // Every half metre between one belt's end and the next belt's start in its row lies within a wooden fence's reach, a
-    // belt end's, a trench (the sap through it) or something standing in it.
+  it("leaves a patrol gap open in each side's wire every few tens of metres, and no gap half closed", () => {
+    // A gap is closed when every half metre between one belt's end and the next belt's start in its row lies within a
+    // wooden fence's reach, a belt end's, a trench (the sap through it) or something standing in it; a patrol gap is open
+    // for metres together, wide enough for a file of men.
     const rests = map.scenery.filter((item) => item.kind === "wooden-fence")
     const loose = ["wooden-fence", "tree", "fruit-tree", "stump", "log", "rubble", "pool", "bridge"]
     const solid = map.scenery.filter((item) => !loose.includes(item.kind))
     const starts = map.wire.map((belt) => belt.points[0] ?? [0, 0])
-    let gaps = 0
+    const middle = (meanZ(frontLine("north")) + meanZ(frontLine("south"))) / 2
     const open: string[] = []
+    const halfClosed: string[] = []
     for (const belt of map.wire) {
       const [endX, endZ] = belt.points.at(-1) ?? [0, 0]
       const [next] = starts
-        .filter(([x, z]) => x > endX && x - endX <= 16 && Math.abs(z - endZ) < 4)
+        .filter(([x, z]) => x > endX && x - endX <= 25 && Math.abs(z - endZ) < 8)
         .sort(([a], [b]) => a - b)
       if (!next) {
         continue
       }
-      gaps += 1
       const [nextX, nextZ] = next
+      let clear = 0
       const length = Math.hypot(nextX - endX, nextZ - endZ)
       for (let along = 0; along <= length; along += 0.5) {
         const x = endX + ((nextX - endX) * along) / length
@@ -235,13 +237,17 @@ describe("generateFleurySector", () => {
           rests.some((rest) => Math.hypot(rest.x - x, rest.z - z) <= 1.5 * rest.scale) ||
           distanceToTrenches(x, z) < TRENCH_PROFILE.parapetOuter ||
           solid.some((item) => Math.hypot(item.x - x, item.z - z) < footprintRadius(item) + 0.5)
-        if (!closed) {
-          open.push(`${x.toFixed(1)}, ${z.toFixed(1)}`)
-        }
+        clear += closed ? 0 : 0.5
+      }
+      if (clear >= 6) {
+        open.push(endZ < middle ? "french" : "german")
+      } else if (clear > 0) {
+        halfClosed.push(`${endX.toFixed(1)}, ${endZ.toFixed(1)}`)
       }
     }
-    expect(gaps).toBeGreaterThan(20)
-    expect(open).toEqual([])
+    expect(halfClosed).toEqual([])
+    expect(open.filter((side) => side === "french").length).toBeGreaterThan(9)
+    expect(open.filter((side) => side === "german").length).toBeGreaterThan(9)
   })
 
   it("stakes wire in front of both front lines, each belt on its own side of no man's land", () => {
@@ -251,8 +257,8 @@ describe("generateFleurySector", () => {
     const frenchBelts = map.wire.filter((belt) => (belt.points[0]?.[1] ?? 0) < middle)
     const germanBelts = map.wire.filter((belt) => (belt.points[0]?.[1] ?? 0) > middle)
 
-    expect(frenchBelts.length).toBeGreaterThan(4)
-    expect(germanBelts.length).toBeGreaterThan(6)
+    expect(frenchBelts.length).toBeGreaterThan(8)
+    expect(germanBelts.length).toBeGreaterThan(8)
     // Clear of the fire trenches; saps run out to listening posts just behind the wire.
     for (const belt of map.wire) {
       expect(belt.points.every(([x, z]) => distanceToTrenches(x, z, "fire") > 10)).toBe(true)
@@ -292,7 +298,7 @@ describe("generateFleurySector", () => {
     expect(map.objectives.every((objective) => objective.z > 150 && objective.z < 300)).toBe(true)
   })
 
-  it("closes the wire's patrol gaps and the saps' mouths with wooden fences", () => {
+  it("fences the saps' mouths and the short gaps in the wire", () => {
     const fences = map.scenery.filter((item) => item.kind === "wooden-fence")
 
     expect(fences.length).toBeGreaterThan(8)

@@ -460,7 +460,7 @@
       {
        "name": "wire",
        "type": "string",
-       "value": "22 33"
+       "value": "25"
       }
      ],
      "type": "line",
@@ -1404,7 +1404,7 @@
       {
        "name": "wire",
        "type": "string",
-       "value": "18 30 42"
+       "value": "25"
       }
      ],
      "type": "line",
