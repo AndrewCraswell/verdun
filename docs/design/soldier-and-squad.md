@@ -216,8 +216,17 @@ last man falls or is captured, the squad is sent for from the sector's [manpower
    players lead. The line thins as the reserves run out.
 
 The HUD shows the reserves left, counts down to the replacements while the squad is wiped out, and logs their arrival.
-In the skirmish each side holds 160 men back; in a headless barrage attack on the prototype sector the Germans bring up
-15 squads and keep their last 40 men, and the French still take the front line at the same moment.
+
+**Planned: by lorry, one squad at a time.** Replacements stop appearing in the rear trench. Each side's wiped squads,
+bots' and players' alike, join one queue, and each squad comes up in its own lorry. The lorry drives in from the side's
+rear edge of the map along its rear road to a debus point out of the enemy's sight, the squad gets down, and the lorry
+drives back. The next lorry comes once the last has unloaded, so a side gets a squad every minute or so however many it
+has lost: a fight that wipes out squads faster than that thins the line, and a side can't pour men into a break-in.
+Squads players lead go to the head of the queue, so a player's wait stays near a minute; bot squads wait their turn.
+From the debus point the squad walks up the communication trenches, where the enemy's fire on the support line can catch
+it. A player coming back comes the same way. Needs the map's rear roads and debus points, and a lorry model. In the
+skirmish each side holds 160 men back; in a headless barrage attack on the prototype sector the Germans bring up 15
+squads and keep their last 40 men, and the French still take the front line at the same moment.
 
 Still to come:
 
