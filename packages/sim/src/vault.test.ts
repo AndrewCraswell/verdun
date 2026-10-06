@@ -89,6 +89,16 @@ describe("vaulting a wire fence", () => {
     expect(startVault(sim, soldier)).toBe(false)
   })
 
+  it("gets a player's man over a fence however whole the belt stands", () => {
+    const sim = field(true)
+    const soldier = facingTheWire(sim, bare?.x ?? 0)
+    expect(vaultLanding(sim, soldier, undefined, true)?.z).toBeGreaterThan(51.7)
+
+    enqueueCommand(sim, { type: "vault", soldier })
+    stepSimulation(sim)
+    expect(hasComponent(sim.world, soldier, sim.soldiers.vault)).toBe(true)
+  })
+
   it("won't climb where a tangle of coils lies across his way, nor with no wire ahead", () => {
     const sim = field()
     const snared = facingTheWire(sim, tangled?.x ?? 0)

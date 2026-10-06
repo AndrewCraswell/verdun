@@ -1,4 +1,14 @@
-import { type BattlefieldMap, footprintRadius, heightAt, mapDepth, mapWidth, SCENERY_FOOTPRINTS } from "@verdun/map"
+import {
+  type BattlefieldMap,
+  footprintRadius,
+  heightAt,
+  mapDepth,
+  mapWidth,
+  SCENERY_FOOTPRINTS,
+  sampleIndex,
+  Surface
+} from "@verdun/map"
+import { isInTrench } from "./trench-grid.ts"
 
 /**
  * A soldier's body against the ground and the scenery: what he can walk up, what he climbs, what he slides along, and
@@ -33,7 +43,8 @@ const SHOULDER = 0.8
 
 /**
  * How a man treats a ledge or wall he walks into. Steered, as the player steers him, he climbs a ledge only when he
- * heads straight at it, and never a wall: those he vaults. On an order, his route chose the way, so he climbs whatever
+ * heads straight at it, and a trench's wall never: those he vaults. On ground the shells have churned, out of the
+ * trenches, a wall is a crater's side, loose earth he scrambles up heading straight at it, as at a ledge. On an order, his route chose the way, so he climbs whatever
  * lies across it as long as he's heading at it.
  */
 export const Climbing = { Steered: 0, Ordered: 1 } as const
@@ -45,6 +56,13 @@ const CLIMB_HEADING: Readonly<Record<Climbing, number>> = {
   [Climbing.Steered]: 0.9,
   // About 45 degrees.
   [Climbing.Ordered]: 0.7
+}
+
+/** Whether a man stands on shell-churned ground out of the trenches: in or by a crater, whose sides he can scramble. */
+function inShellHole(map: BattlefieldMap, x: number, z: number): boolean {
+  const column = Math.min(map.columns, Math.max(0, Math.round(x / map.cellSize)))
+  const row = Math.min(map.rows, Math.max(0, Math.round(z / map.cellSize)))
+  return map.surfaces[sampleIndex(map, column, row)] === Surface.Churned && !isInTrench(map, x, z)
 }
 
 /** What stands in a man's way. */
@@ -167,7 +185,7 @@ export function wayAhead(
     }
     const climbs =
       touched.heading >= CLIMB_HEADING[climbing] &&
-      (touched.obstacle === Obstacle.Ledge || climbing === Climbing.Ordered)
+      (touched.obstacle === Obstacle.Ledge || climbing === Climbing.Ordered || inShellHole(map, x, z))
     if (climbs && pass === 0) {
       return { x: wx, z: wz, met: touched.obstacle, climbing: true }
     }

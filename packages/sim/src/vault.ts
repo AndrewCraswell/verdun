@@ -22,9 +22,10 @@ const STEP = 0.25
 /** Wire this thin or thinner, cut or trampled, is no obstacle (as for walking: wire.ts). */
 const CLEAR = 0.15
 /**
- * Wire denser than this anywhere on the way over can't be climbed at all: a belt the guns haven't broken up is a thicket
- * of stakes, strands and coils several metres deep, and only after a bombardment has torn it does it become wreckage a
- * man can get over. Below it he climbs; above it he wades, or finds a gap.
+ * Wire denser than this anywhere on the way over and the bots won't climb it: a belt the guns haven't broken up is a
+ * thicket of stakes, strands and coils several metres deep, and only after a bombardment has torn it does it become
+ * wreckage a squad can get over. Below it they climb; above it they wade, or find a gap. A player's man climbs a fence
+ * however whole it stands: the action key always gets him over.
  */
 const INTACT = 0.6
 /** He comes down this far past the wire, in metres. */
@@ -159,12 +160,14 @@ function wallLanding(
  * Where a soldier would come down vaulting what's ahead of him, the way he's going: a belt of wire, over its staked
  * fence, where the fence stands within reach, the belt is shallow enough to climb in one go and no tangle of loose
  * coils lies in his way; or else a trench wall, onto its top. Null where there's nothing he can vault. A man on an
- * order goes the way his route takes him, given as `toward` (a unit vector), rather than the way he faces.
+ * order goes the way his route takes him, given as `toward` (a unit vector), rather than the way he faces. A bot won't
+ * climb a belt still more than `INTACT`; a player's man (`player`) climbs any fence.
  */
 export function vaultLanding(
   sim: Simulation,
   soldier: EntityId,
-  toward?: { readonly x: number; readonly z: number }
+  toward?: { readonly x: number; readonly z: number },
+  player = false
 ): { x: number; z: number } | null {
   const heading = toward ?? headingOf(sim, soldier)
   if (!heading) {
@@ -195,7 +198,7 @@ export function vaultLanding(
     }
     thickest = Math.max(thickest, density)
   }
-  if (exit < 0 || thickest > INTACT) {
+  if (exit < 0 || (!player && thickest > INTACT)) {
     return null
   }
   const from = at(entry)
@@ -214,18 +217,19 @@ export function isVaulting(sim: Simulation, soldier: EntityId): boolean {
 
 /**
  * Sets a soldier climbing the fence or wall ahead of him, if there's one he can climb, the way he's going (`toward`, as
- * for `vaultLanding`). Whether he does.
+ * for `vaultLanding`; `player` for a player's man). Whether he does.
  */
 export function startVault(
   sim: Simulation,
   soldier: EntityId,
-  toward?: { readonly x: number; readonly z: number }
+  toward?: { readonly x: number; readonly z: number },
+  player = false
 ): boolean {
   const { vault, stamina, stance } = sim.soldiers
   if (hasComponent(sim.world, soldier, vault) || stamina.spent[soldier] === 1) {
     return false
   }
-  const landing = vaultLanding(sim, soldier, toward)
+  const landing = vaultLanding(sim, soldier, toward, player)
   if (!landing) {
     return false
   }

@@ -1,4 +1,13 @@
-import { carveTrenches, createFlatMap, heightAt, sampleIndex, type Scenery, Surface, type Trench } from "@verdun/map"
+import {
+  carveTrenches,
+  createFlatMap,
+  heightAt,
+  sampleIndex,
+  type Scenery,
+  stampCrater,
+  Surface,
+  type Trench
+} from "@verdun/map"
 import { describe, expect, it } from "vitest"
 import { BODY_RADIUS, canBeShoved, clearOfScenery, Climbing, insideScenery, Obstacle, wayAhead } from "./body.ts"
 
@@ -163,5 +172,17 @@ describe("scenery", () => {
     expect(canBeShoved(trench, 30, 49.6, 30.2, 49.6)).toBe(true)
     expect(canBeShoved(trench, 30, 49.6, 30, 48.6)).toBe(false)
     expect(canBeShoved(map, 50, 55, 50, 57)).toBe(false)
+  })
+})
+
+describe("climbing out of a shell hole", () => {
+  it("lets a steered man scramble up a crater's side he heads straight at, where a trench's wall stops him", () => {
+    const map = trenchField()
+    stampCrater(map, { x: 50, z: 80, radius: 3, depth: 2.2 })
+    expect(heightAt(map, 50, 84) - heightAt(map, 50, 80)).toBeGreaterThan(1.3)
+
+    const out = walk(map, { x: 50, z: 80 }, 90, 15)
+    expect(out.z).toBeGreaterThan(84)
+    expect(out.height).toBeGreaterThan(-0.5)
   })
 })

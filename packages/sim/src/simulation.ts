@@ -24,6 +24,7 @@ import { combatSystem, magazineOf, type ReloadEvent, type ShotEvent, type ThrowE
 import { type CommanderState, commanderSystem, type CounterAttackEvent, createCommanders } from "./commander.ts"
 import { applyCommand, type Command } from "./commands.ts"
 import { createSoldierComponents, MaskState, NEVER, Side, type SoldierComponents, Stance } from "./components.ts"
+import { cuttingSystem } from "./cutters.ts"
 import {
   type CounterThrustEvent,
   createDefence,
@@ -389,6 +390,7 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: wounds", woundSystem],
   ["sim: spotting", spottingSystem],
   ["sim: gun crews", gunCrewSystem],
+  ["sim: wire cutting", (sim) => cuttingSystem(sim, STEP_SECONDS)],
   ["sim: movement", (sim) => movementSystem(sim, STEP_SECONDS)],
   ["sim: objectives", objectiveSystem],
   ["sim: operation", operationSystem]

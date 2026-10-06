@@ -2,10 +2,12 @@ import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 import { Matrix } from "@babylonjs/core/Maths/math.vector"
 import { heightAt } from "@verdun/map"
 import {
+  canCut,
   enqueueCommand,
   type EntityId,
   gunPartner,
   isAlive,
+  isCutting,
   nextLivingMember,
   type Simulation,
   type Squad,
@@ -13,6 +15,7 @@ import {
   soldierEye,
   soldierIds,
   takeOverCandidates,
+  vaultLanding,
   Weapon
 } from "@verdun/sim"
 import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
@@ -115,6 +118,20 @@ export function aimToward(from: GroundVector, target: GroundVector): GroundVecto
 const STEER_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD"] as const
 
 /** How many times a weapon's sights magnify in the aim view: a scoped rifle's five, a machine gun's one and a half. */
+/**
+ * What the action key does for a man, as the HUD's prompt says it (hud/soldier-state.ts): take over or hand back a
+ * machine gun beside him; stop cutting wire; climb the fence or wall ahead; else cut the wire ahead he can't climb.
+ */
+function actionCommand(sim: Simulation, soldier: EntityId): "man-gun" | "vault" | "cut-wire" {
+  if (gunPartner(sim, soldier) >= 0) {
+    return "man-gun"
+  }
+  if (isCutting(sim, soldier)) {
+    return "cut-wire"
+  }
+  return vaultLanding(sim, soldier, undefined, true) || !canCut(sim, soldier) ? "vault" : "cut-wire"
+}
+
 function sightsMagnify(weapon: number): number {
   switch (weapon) {
     case Weapon.Sniper:
@@ -291,10 +308,10 @@ export function createPlayerControl(
         }
         return
       case "act":
-        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire.
+        // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire. Wire
+        // he can't climb (tangled coils, a knife rest, a belt too deep) he cuts, as he stops cutting.
         if (squad.leader >= 0) {
-          const type = gunPartner(sim, squad.leader) >= 0 ? "man-gun" : "vault"
-          enqueueCommand(sim, { type, soldier: squad.leader })
+          enqueueCommand(sim, { type: actionCommand(sim, squad.leader), soldier: squad.leader })
         }
         return
       // In an operation the plan blows the whistle and fires the bombardments: early, they'd send the side over before

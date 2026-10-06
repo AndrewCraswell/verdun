@@ -1,4 +1,4 @@
-import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { type BattlefieldMap, heightAt } from "@verdun/map"
 import { type EntityId, hasComponent } from "bitecs"
 import { PINNED, Weapon } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
@@ -7,6 +7,9 @@ import { restsTonight } from "./routine.ts"
 import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
+import { isInTrench } from "./trench-grid.ts"
+
+export { isInTrench }
 
 /** Eye height of a soldier lying prone, in metres: head up enough to see and shoot. */
 export const PRONE_EYE_HEIGHT = 0.45
@@ -23,8 +26,6 @@ export const CROUCH_FACTOR = 0.6
 const PARAPET_REACH = [1.5, 2.2, 3] as const
 /** Directions round a soldier the parapet is looked for in. */
 const PARAPET_BEARINGS = 16
-/** Soldiers within this distance of a trench's centre line are in it: on the floor or the fire step. */
-const IN_TRENCH_RADIUS = 1.3
 /** Stances are reconsidered this often, in steps. */
 const STANCE_INTERVAL = 5
 /**
@@ -46,47 +47,6 @@ const MACHINE_GUN_CLIMB_SECONDS = { min: 3, spread: 5 } as const
 const ALARM_RANGE = 50
 /** Even with the enemy close, nobody climbs out while shells are still landing this recently, in seconds. */
 const ALARM_CALM = 3
-
-const trenchGrids = new WeakMap<BattlefieldMap, Uint8Array>()
-
-/** A 1 m grid over the map marking cells inside a trench, built once per map: trenches don't move. */
-function trenchGrid(map: BattlefieldMap): Uint8Array {
-  const cached = trenchGrids.get(map)
-  if (cached) {
-    return cached
-  }
-  const columns = Math.ceil(mapWidth(map)) + 1
-  const rows = Math.ceil(mapDepth(map)) + 1
-  const grid = new Uint8Array(columns * rows)
-  for (const trench of map.trenches) {
-    for (let index = 1; index < trench.points.length; index++) {
-      const [ax, az] = trench.points[index - 1] ?? [0, 0]
-      const [bx, bz] = trench.points[index] ?? [0, 0]
-      const minX = Math.max(0, Math.floor(Math.min(ax, bx) - IN_TRENCH_RADIUS))
-      const maxX = Math.min(columns - 1, Math.ceil(Math.max(ax, bx) + IN_TRENCH_RADIUS))
-      const minZ = Math.max(0, Math.floor(Math.min(az, bz) - IN_TRENCH_RADIUS))
-      const maxZ = Math.min(rows - 1, Math.ceil(Math.max(az, bz) + IN_TRENCH_RADIUS))
-      const dx = bx - ax
-      const dz = bz - az
-      const lengthSquared = dx * dx + dz * dz || 1
-      for (let row = minZ; row <= maxZ; row++) {
-        for (let column = minX; column <= maxX; column++) {
-          // Cell centres, so a cell counts when the middle of it is in the trench.
-          const px = column + 0.5
-          const pz = row + 0.5
-          const along = Math.min(1, Math.max(0, ((px - ax) * dx + (pz - az) * dz) / lengthSquared))
-          const ox = ax + along * dx - px
-          const oz = az + along * dz - pz
-          if (ox * ox + oz * oz <= IN_TRENCH_RADIUS * IN_TRENCH_RADIUS) {
-            grid[row * columns + column] = 1
-          }
-        }
-      }
-    }
-  }
-  trenchGrids.set(map, grid)
-  return grid
-}
 
 const noMansLandMiddles = new WeakMap<BattlefieldMap, number>()
 
@@ -122,17 +82,6 @@ function inEnemyTrench(sim: Simulation, soldier: EntityId): boolean {
   const middle = noMansLandMiddle(sim.map)
   const beyond = sim.soldiers.position.z[soldier] - middle
   return sim.soldiers.side.value[soldier] === Side.German ? beyond < 0 : beyond > 0
-}
-
-/** Whether a ground point is inside a trench. */
-export function isInTrench(map: BattlefieldMap, x: number, z: number): boolean {
-  const columns = Math.ceil(mapWidth(map)) + 1
-  const column = Math.floor(x)
-  const row = Math.floor(z)
-  if (column < 0 || row < 0 || column >= columns || row > Math.ceil(mapDepth(map))) {
-    return false
-  }
-  return trenchGrid(map)[row * columns + column] === 1
 }
 
 /** A soldier's eye, at the height their stance puts it. */

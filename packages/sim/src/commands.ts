@@ -2,6 +2,7 @@ import { addComponent, type EntityId, entityExists, hasComponent, removeComponen
 import { type FireMissionPlan, lineSpanBetween, orderFireMission, Shell } from "./artillery.ts"
 import { fireAimed, shakeSquad, startReload, throwGrenade } from "./combat.ts"
 import { Side, Stance } from "./components.ts"
+import { toggleCutting } from "./cutters.ts"
 import { clockAt, holdWeather, startWeek, updateEnvironment } from "./environment.ts"
 import { sendUpFlare } from "./flares.ts"
 import { manGun } from "./man-gun.ts"
@@ -144,6 +145,14 @@ export interface VaultCommand {
   readonly soldier: EntityId
 }
 
+/**
+ * Starts the soldier cutting a lane through the wire ahead of him, the way he faces, or stops him if he already is.
+ */
+export interface CutWireCommand {
+  readonly type: "cut-wire"
+  readonly soldier: EntityId
+}
+
 /** Reloads the soldier's weapon now, before it's empty: a full magazine before going over, say. */
 export interface ReloadCommand {
   readonly type: "reload"
@@ -273,6 +282,7 @@ export type Command =
   | StanceCommand
   | ThrowGrenadeCommand
   | VaultCommand
+  | CutWireCommand
   | ManGunCommand
   | ReloadCommand
   | AmmunitionCommand
@@ -424,7 +434,13 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "vault": {
       if (isSoldier(sim, command.soldier)) {
-        startVault(sim, command.soldier)
+        startVault(sim, command.soldier, undefined, true)
+      }
+      return
+    }
+    case "cut-wire": {
+      if (isSoldier(sim, command.soldier)) {
+        toggleCutting(sim, command.soldier)
       }
       return
     }
