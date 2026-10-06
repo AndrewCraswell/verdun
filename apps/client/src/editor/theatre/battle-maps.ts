@@ -66,6 +66,10 @@ export const BATTLE_MAPS: readonly BattleMap[] = (
 /** The ground is followed in steps this long, in metres, and the map floats this far above it. */
 const STEP = 40
 const LIFT = 9
+/** The drape covers the ground of the control points and this far beyond, in metres, which takes in the scan's frame. */
+const REACH = 4000
+/** The fit is worked out every this many grid steps and eased between: the paper's stretch varies over a kilometre. */
+const SAMPLE = 5
 
 export interface BattleMapDrape {
   /** How far the fit misses its control points, on average, in metres. */
@@ -95,16 +99,46 @@ export function drapeBattleMap(
     v >= top &&
     v <= bottom &&
     !map.excluded.some(([x0, y0, x1, y1]) => u >= x0 && u <= x1 && v >= y0 && v <= y1)
-  const columns = Math.floor(THEATRE.width / STEP) + 1
-  const rows = Math.floor(THEATRE.depth / STEP) + 1
+  // Only the ground round the map: a sheet covers a few kilometres of a theatre fifty across.
+  const xs = map.controlPoints.map((point) => point.ground[0] - THEATRE.west)
+  const zs = map.controlPoints.map((point) => point.ground[1] - THEATRE.south)
+  const first = (values: number[]) => Math.max(0, Math.floor((Math.min(...values) - REACH) / STEP))
+  const last = (values: number[], length: number) =>
+    Math.min(Math.floor(length / STEP), Math.ceil((Math.max(...values) + REACH) / STEP))
+  const [column0, row0] = [first(xs), first(zs)]
+  const columns = last(xs, THEATRE.width) - column0 + 1
+  const rows = last(zs, THEATRE.depth) - row0 + 1
+  const sampleColumns = Math.ceil((columns - 1) / SAMPLE) + 1
+  const sampleRows = Math.ceil((rows - 1) / SAMPLE) + 1
+  const samples = Array.from({ length: sampleRows }, (_, sampleRow) =>
+    Array.from({ length: sampleColumns }, (_, sampleColumn) =>
+      fit.toPixel(
+        THEATRE.west + (column0 + sampleColumn * SAMPLE) * STEP,
+        THEATRE.south + (row0 + sampleRow * SAMPLE) * STEP
+      )
+    )
+  )
+  /** The scan's pixel at a grid point, eased between the fitted samples round it. */
+  const pixelAt = (column: number, row: number): [number, number] => {
+    const sc = Math.min(sampleColumns - 2, Math.floor(column / SAMPLE))
+    const sr = Math.min(sampleRows - 2, Math.floor(row / SAMPLE))
+    const fx = column / SAMPLE - sc
+    const fz = row / SAMPLE - sr
+    const at = (dc: number, dr: number): [number, number] =>
+      samples[Math.max(0, sr + dr)]?.[Math.max(0, sc + dc)] ?? [0, 0]
+    const [a, b, c, d] = [at(0, 0), at(1, 0), at(0, 1), at(1, 1)]
+    const ease = (axis: 0 | 1) =>
+      (a[axis] * (1 - fx) + b[axis] * fx) * (1 - fz) + (c[axis] * (1 - fx) + d[axis] * fx) * fz
+    return [ease(0), ease(1)]
+  }
   const positions: number[] = []
   const uvs: number[] = []
   const inside: boolean[] = []
   for (let row = 0; row < rows; row++) {
-    const z = row * STEP
+    const z = (row0 + row) * STEP
     for (let column = 0; column < columns; column++) {
-      const x = column * STEP
-      const pixel = fit.toPixel(THEATRE.west + x, THEATRE.south + z)
+      const x = (column0 + column) * STEP
+      const pixel = pixelAt(column, row)
       positions.push(x, heightAt(x, z) + LIFT, z)
       uvs.push(pixel[0] / width, 1 - pixel[1] / height)
       inside.push(onMap(pixel))

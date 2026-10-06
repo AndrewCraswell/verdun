@@ -25,8 +25,8 @@ from pyproj import Transformer
 
 Image.MAX_IMAGE_PIXELS = None
 STEP, WINDOW = 40, 50
-# A grid line leans a little on the scan: about this many pixels across for each pixel along.
-LEAN = {"vertical": 0.03, "horizontal": -0.034}
+# A traced line counts only if it was followed this closely, in pixels, over at least this share of the scan.
+FOLLOWED, SPAN = 1.5, 0.4
 
 parser = argparse.ArgumentParser()
 parser.add_argument("scan")
@@ -36,16 +36,24 @@ parser.add_argument("--vertical", required=True)
 parser.add_argument("--at-row", type=int, required=True)
 parser.add_argument("--horizontal", required=True)
 parser.add_argument("--at-column", type=int, required=True)
-parser.add_argument("--corner", required=True)
+parser.add_argument("--corner", required=True, help="a guess at the north-west crossing, within 400 m")
+parser.add_argument(
+    "--datum",
+    default="-135,-116",
+    help="the old datum's offset from pyproj's ballpark, metres E,N (measured on the July 1916 Fleury map); 'fit' to fit it",
+)
+parser.add_argument("--lean", default="0.03,-0.034", help="pixels across per pixel along: vertical, horizontal")
 parser.add_argument("--leave-out", default="", help="names of places not to fit the offset to, comma-separated")
 args = parser.parse_args()
 
 dark = 255 - np.asarray(Image.open(args.scan).convert("L")).astype(float)
 H, W = dark.shape
+LEAN = dict(zip(("vertical", "horizontal"), (float(value) for value in args.lean.split(","))))
 
 
 def trace(start, at, vertical):
-    """A grid line's course: x as a quadratic in y (vertical) or y in x (horizontal), each pass looking closer."""
+    """A grid line's course: x as a quadratic in y (vertical) or y in x (horizontal), each pass looking closer; or
+    None where no line could be followed, so a missing line keeps its place in the grid."""
     length, across = (H, W) if vertical else (W, H)
     lean = LEAN["vertical" if vertical else "horizontal"]
     fit = None
@@ -67,6 +75,9 @@ def trace(start, at, vertical):
             keys.append(along)
             values.append(centre - search + best + (0.5 * (a - c) / (a - 2 * b + c) if a - 2 * b + c else 0))
         keys, values = np.array(keys, dtype=float), np.array(values)
+        if len(keys) < 8:
+            print(f"no line near {start:.0f}")
+            return None
         for _ in range(4):
             fit = np.polyfit(keys, values, 2)
             error = np.abs(np.polyval(fit, keys) - values)
@@ -74,9 +85,10 @@ def trace(start, at, vertical):
             keys, values = keys[keep], values[keep]
         fit = np.polyfit(keys, values, 2)
     error = float(np.median(np.abs(np.polyval(fit, keys) - values)))
+    followed = error <= FOLLOWED and keys.max() - keys.min() >= SPAN * length
     print(f"{'vertical' if vertical else 'horizontal'} line from {start:.0f}: traced {keys.min():.0f} to "
-          f"{keys.max():.0f}, median miss {error:.2f} px")
-    return fit, (keys.min(), keys.max())
+          f"{keys.max():.0f}, median miss {error:.2f} px{'' if followed else ': dropped'}")
+    return (fit, (keys.min(), keys.max())) if followed else None
 
 
 verticals = [trace(float(x), args.at_row, True) for x in args.vertical.split(",")]
@@ -84,9 +96,13 @@ horizontals = [trace(float(y), args.at_column, False) for y in args.horizontal.s
 
 # The crossings, row by row from the north: x = fv(y) meets y = fh(x).
 nodes = []
-for fh, hspan in horizontals:
+for horizontal in horizontals:
     row = []
-    for fv, vspan in verticals:
+    for vertical in verticals:
+        if horizontal is None or vertical is None:
+            row.append(None)
+            continue
+        (fh, hspan), (fv, vspan) = horizontal, vertical
         x = np.polyval(fv, (hspan[0] + hspan[1]) / 2)
         y = np.polyval(fh, x)
         for _ in range(20):
@@ -129,6 +145,14 @@ for place in places:
     ndg = np.array(to_ndg.transform(*place["ground"]))
     offsets.append((place["name"], ndg - [east0 + 1000 * at[0], north0 - 1000 * at[1]]))
 offset = np.median([o for _, o in offsets], axis=0)
+if args.datum != "fit":
+    # The datum's offset is the same on every sheet; the places only say which kilometre each line is.
+    known = np.array([float(value) for value in args.datum.split(",")])
+    whole = np.round((offset - known) / 1000) * 1000
+    east0, north0 = east0 + whole[0], north0 + whole[1]
+    offsets = [(name, o - whole) for name, o in offsets]
+    offset = known
+    print(f"north-west crossing at Nord de Guerre {east0:.0f} E, {north0:.0f} N")
 print(f"datum offset {offset[0]:+.1f} m E, {offset[1]:+.1f} m N, from {len(offsets)} places; each one's miss:")
 for name, o in offsets:
     print(f"  {name:<28} {np.hypot(*(o - offset)):6.1f} m")
@@ -142,4 +166,9 @@ for j, row in enumerate(nodes):
         points.append({"name": f"grid {i},{j}", "pixel": [round(float(pixel[0]), 1), round(float(pixel[1]), 1)],
                        "ground": [round(x, 1), round(y, 1)]})
 json.dump(points, open(args.out, "w", encoding="utf-8"), indent=1)
+# The map's frame: where its grid lines end, which is where the drawn map does.
+spans_x = [h[1] for h in horizontals if h is not None]
+spans_y = [v[1] for v in verticals if v is not None]
+frame = [min(s[0] for s in spans_x), min(s[0] for s in spans_y), max(s[1] for s in spans_x), max(s[1] for s in spans_y)]
+print("frame", json.dumps([int(round(value)) for value in frame]))
 print(f"{len(points)} crossings written to {args.out}")
