@@ -115,7 +115,9 @@ export const worldMarks: HudElementFactory = (context) => {
   const rearLayer = element("g", "wm-rear")
   // The stretch of the enemy's line our attack goes in on, in the overview: the war map draws it further out.
   const stretchPath = element("path", "wm-stretch")
-  root.append(defs, stretchPath, missionsLayer, objectivesLayer, rearLayer, orderLayer, squadLayer)
+  // Our own line over it, where the squads beside it assemble before zero hour.
+  const assemblyPath = element("path", "wm-assembly")
+  root.append(defs, stretchPath, assemblyPath, missionsLayer, objectivesLayer, rearLayer, orderLayer, squadLayer)
 
   const orderLine = element("path", "wm-order__line")
   const orderPin = element("g", "wm-order__pin")
@@ -191,6 +193,24 @@ export const worldMarks: HudElementFactory = (context) => {
       }
     }
     return drawing ? `${path}Z` : path
+  }
+
+  /** Lines over the ground, as one path. */
+  function groundPath(lines: readonly (readonly (readonly [number, number])[])[] | null | undefined): string {
+    let path = ""
+    for (const line of lines ?? []) {
+      let open = false
+      for (const [x, z] of line) {
+        const point = project(x, z, 0.4)
+        if (!point) {
+          open = false
+          continue
+        }
+        path += `${open ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+        open = true
+      }
+    }
+    return path
   }
 
   /** A line across the ground at `z`, from `fromX` to `toX`. */
@@ -339,23 +359,9 @@ export const worldMarks: HudElementFactory = (context) => {
     },
     frame(state) {
       const now = latest ?? state
-      const stretch = now.view.overview && now.view.tactical <= 0.5 ? now.operation?.stretch : null
-      let stretchD = ""
-      for (const line of stretch ?? []) {
-        let open = false
-        for (const [x, z] of line) {
-          const point = project(x, z, 0.4)
-          if (!point) {
-            open = false
-            continue
-          }
-          stretchD += `${open ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
-          open = true
-        }
-      }
-      if (stretchPath.getAttribute("d") !== stretchD) {
-        stretchPath.setAttribute("d", stretchD)
-      }
+      const overview = now.view.overview && now.view.tactical <= 0.5
+      setAttribute(stretchPath, "d", overview ? groundPath(now.operation?.stretch) : "")
+      setAttribute(assemblyPath, "d", overview ? groundPath(now.operation?.assembly) : "")
       const soldier = now.soldier?.position ?? null
       const from = soldier ? project(soldier.x, soldier.z, 0.2) : null
 

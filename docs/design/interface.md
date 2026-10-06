@@ -659,6 +659,10 @@ can be turned off, and is listed in the menu.
   [consolidation](sector-battle.md#consolidation) clock.
 - For the defender: nothing about the zero hour, only the [signs](operations.md#what-the-defender-sees) the side has
   seen ("Heavy bombardment on our wire since 04:10").
+- **Built**, the assembly (`operation-state.ts`): before zero hour the attackers see our own front line over the stretch
+  in brass dashes, labelled "Assembly" on the war map and drawn in the overview, where the squads beside it close in
+  (`operation.assembling`). While any are still on their way the countdown's note says so in one line, "3 squads
+  assembling", ahead of "Our guns are firing". Both go at zero hour.
 
 ### H20 Your task
 

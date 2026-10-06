@@ -1,4 +1,4 @@
-import { PLAYTEST_OPERATION, planOperation, Side, TICK_RATE } from "@verdun/sim"
+import { createSquad, PLAYTEST_OPERATION, planOperation, Side, spawnSoldier, TICK_RATE } from "@verdun/sim"
 import { describe, expect, it } from "vitest"
 import { clipToEastings, operationView, planFires } from "./operation-state.ts"
 import { testBattle } from "./test-battle.ts"
@@ -59,6 +59,35 @@ describe("the operation's countdown", () => {
     const middles = stretch.map((line) => line.reduce((sum, [, z]) => sum + z, 0) / line.length)
     expect(Math.max(...middles) - Math.min(...middles)).toBeLessThanOrEqual(20)
     expect(operationView(sim, Side.German, TICK_RATE)?.stretch).toBeNull()
+  })
+
+  it("marks our own line over the stretch for the squads assembling on it, and counts those still on their way", () => {
+    const { sim } = testBattle()
+    const operation = planOperation(sim, PLAYTEST_OPERATION)
+    const view = operationView(sim, Side.French, TICK_RATE)
+    const assembly = view?.assembly ?? []
+    expect(assembly.length).toBeGreaterThan(0)
+    // Ours, south of theirs, and over the same eastings.
+    const middle = (lines: readonly (readonly (readonly [number, number])[])[]) =>
+      lines.flat().reduce((sum, [, z]) => sum + z, 0) / lines.flat().length
+    expect(middle(assembly)).toBeLessThan(middle(view?.stretch ?? []))
+    for (const [x] of assembly.flat()) {
+      expect(x).toBeGreaterThanOrEqual(operation.fromX - 1e-6)
+      expect(x).toBeLessThanOrEqual(operation.toX + 1e-6)
+    }
+    expect(operationView(sim, Side.German, TICK_RATE)?.assembly).toBeNull()
+
+    // A squad from along the line sent to its place on the stretch: said while it's on its way.
+    const men = Array.from({ length: 4 }, (_, index) => spawnSoldier(sim, { side: Side.French, x: 10 + index, z: 30 }))
+    const squad = createSquad(sim, Side.French, men, "ai")
+    squad.order = { kind: "advance", x: (operation.fromX + operation.toX) / 2, z: 30 }
+    operation.assembling.push(squad.id)
+    expect(operationView(sim, Side.French, TICK_RATE)?.note).toBe("1 squad assembling")
+    sim.soldiers.position.x[squad.leader] = squad.order.x
+    expect(operationView(sim, Side.French, TICK_RATE)?.note).toBeNull()
+
+    sim.tick = operation.zeroHourAt
+    expect(operationView(sim, Side.French, TICK_RATE)?.assembly).toBeNull()
   })
 
   it("cuts lines where they cross the eastings it keeps", () => {

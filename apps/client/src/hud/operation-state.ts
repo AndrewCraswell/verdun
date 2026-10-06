@@ -1,4 +1,4 @@
-import { bombardmentAt, type OperationResult, type OperationState, Side, type Simulation } from "@verdun/sim"
+import { bombardmentAt, isAlive, type OperationResult, type OperationState, Side, type Simulation } from "@verdun/sim"
 
 /**
  * The operation the battle is fought in (docs/design/operations.md, "The playtest operation"), as the HUD counts it
@@ -27,6 +27,11 @@ export interface OperationView {
    * attackers only, until it's over. The defenders aren't told where it will fall.
    */
   readonly stretch: readonly (readonly GroundPoint[])[] | null
+  /**
+   * Our own front line over the stretch, where the squads beside it assemble before zero hour: for the attackers only,
+   * until the attack goes in.
+   */
+  readonly assembly: readonly (readonly GroundPoint[])[] | null
 }
 
 type GroundPoint = readonly [number, number]
@@ -79,30 +84,60 @@ export function clipToEastings(
 /** How deep a front line's own bays and traverses run, in metres: lines further back are its support and reserve. */
 const FRONT_LINE_DEPTH = 20
 
-/** The enemy's front line over an operation's stretch, kept for as long as the stretch stays the same. */
-let stretchKey = ""
-let stretchLines: readonly (readonly GroundPoint[])[] = []
+/** A side's front line over an operation's stretch, kept for as long as the stretch stays the same. */
+const frontLines = new Map<string, readonly (readonly GroundPoint[])[]>()
 
-function stretchOf(sim: Simulation, operation: OperationState, side: Side): readonly (readonly GroundPoint[])[] {
-  const key = `${operation.fromX}:${operation.toX}:${side}`
-  if (key !== stretchKey) {
-    // The enemy's fire trenches face the attackers: the Germans' south, the French north.
-    const facing = side === Side.French ? "south" : "north"
+function frontLineOver(sim: Simulation, operation: OperationState, owner: Side): readonly (readonly GroundPoint[])[] {
+  const key = `${operation.fromX}:${operation.toX}:${owner}`
+  let lines = frontLines.get(key)
+  if (!lines) {
+    // Fire trenches face the enemy: the French north, the Germans south.
+    const facing = owner === Side.French ? "north" : "south"
     const trenches = sim.map.trenches.filter((trench) => trench.kind === "fire" && trench.facing === facing)
     const runs = clipToEastings(
       trenches.map((trench) => trench.points),
       operation.fromX,
       operation.toX
     )
-    // Their front line only, not the support and reserve lines behind it: the runs nearest the attackers, who come
-    // from the south when the French attack and from the north when the Germans do.
+    // The front line only, not the support and reserve lines behind it: the runs nearest the enemy, who are north of
+    // the French and south of the Germans.
     const middleZ = (run: readonly GroundPoint[]) => run.reduce((sum, point) => sum + point[1], 0) / run.length
-    const toward = side === Side.French ? -1 : 1
+    const toward = owner === Side.French ? 1 : -1
     const nearest = Math.max(...runs.map((run) => toward * middleZ(run)))
-    stretchKey = key
-    stretchLines = runs.filter((run) => toward * middleZ(run) >= nearest - FRONT_LINE_DEPTH)
+    lines = runs.filter((run) => toward * middleZ(run) >= nearest - FRONT_LINE_DEPTH)
+    frontLines.set(key, lines)
   }
-  return stretchLines
+  return lines
+}
+
+/** The enemy's front line over the stretch: where the attack goes in. */
+function stretchOf(sim: Simulation, operation: OperationState, side: Side): readonly (readonly GroundPoint[])[] {
+  return frontLineOver(sim, operation, side === Side.French ? Side.German : Side.French)
+}
+
+/** A squad sent to assemble is there once its leader is this close to its place, in metres (as squad-order.ts has it). */
+const ASSEMBLED = 8
+
+/** The squads sent to assemble on the stretch that haven't got to their places yet. */
+function stillAssembling(sim: Simulation, operation: OperationState): number {
+  return operation.assembling.filter((id) => {
+    const squad = sim.squads[id]
+    const leader = squad?.leader ?? -1
+    if (!squad || squad.order.kind !== "advance" || leader < 0 || !isAlive(sim, leader)) {
+      return false
+    }
+    const { x, z } = squad.order
+    return Math.hypot(sim.soldiers.position.x[leader] - x, sim.soldiers.position.z[leader] - z) >= ASSEMBLED
+  }).length
+}
+
+/** A short line while the squads beside the stretch close in on it, ahead of the guns'. */
+function beforeNote(sim: Simulation, operation: OperationState, tickRate: number): string | null {
+  const moving = stillAssembling(sim, operation)
+  if (moving > 0) {
+    return `${moving} ${moving === 1 ? "squad" : "squads"} assembling`
+  }
+  return bombardingAt(sim, operation, tickRate) ? "Our guns are firing" : null
 }
 
 /** How it ended, from the player's side. */
@@ -141,7 +176,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       progress: 1,
       note: attacking ? ours : theirs,
       result: operation.result,
-      stretch: null
+      stretch: null,
+      assembly: null
     }
   }
   const tick = sim.tick
@@ -155,7 +191,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       progress: null,
       note: coming && bombardingAt(sim, operation, tickRate) ? "Their guns are firing" : null,
       result: null,
-      stretch: null
+      stretch: null,
+      assembly: null
     }
   }
   if (tick < operation.zeroHourAt) {
@@ -165,9 +202,10 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
       label: "Attack in",
       seconds: (operation.zeroHourAt - tick) / tickRate,
       progress: (tick - operation.plannedAt) / Math.max(1, operation.zeroHourAt - operation.plannedAt),
-      note: bombardingAt(sim, operation, tickRate) ? "Our guns are firing" : null,
+      note: beforeNote(sim, operation, tickRate),
       result: null,
-      stretch: stretchOf(sim, operation, side)
+      stretch: stretchOf(sim, operation, side),
+      assembly: frontLineOver(sim, operation, side)
     }
   }
   return {
@@ -178,7 +216,8 @@ export function operationView(sim: Simulation, side: Side, tickRate: number): Op
     progress: (tick - operation.zeroHourAt) / Math.max(1, operation.endsAt - operation.zeroHourAt),
     note: null,
     result: null,
-    stretch: stretchOf(sim, operation, side)
+    stretch: stretchOf(sim, operation, side),
+    assembly: null
   }
 }
 

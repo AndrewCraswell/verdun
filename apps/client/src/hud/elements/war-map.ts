@@ -55,6 +55,7 @@ export const warMap: HudElementFactory = (context) => {
   // What the ground's canvas was last drawn for: the camera's view, the screen's size and our attack's stretch.
   let groundDrawn = ""
   let stretchDrawn: unknown = null
+  let assemblyDrawn: unknown = null
   const { sim, squad } = context
   const width = mapWidth(sim.map)
   const depth = mapDepth(sim.map)
@@ -210,6 +211,42 @@ export const warMap: HudElementFactory = (context) => {
     }
   }
 
+  /** Our own line over the stretch, where the squads beside it assemble before zero hour: brass dashes over our blue. */
+  function drawAssembly(state: HudState): void {
+    const assembly = state.operation?.assembly
+    if (!drawing || !assembly || assembly.length === 0) {
+      return
+    }
+    drawing.beginPath()
+    for (const line of assembly) {
+      groundLine(line)
+    }
+    drawing.lineJoin = "round"
+    drawing.lineCap = "round"
+    drawing.setLineDash([])
+    drawing.strokeStyle = "rgb(8 7 5 / 70%)"
+    drawing.lineWidth = 7
+    drawing.stroke()
+    drawing.setLineDash([7, 6])
+    drawing.strokeStyle = colours.brass
+    drawing.lineWidth = 3
+    drawing.stroke()
+    drawing.setLineDash([])
+    const longest = [...assembly].sort((a, b) => b.length - a.length)[0]
+    const middle = longest?.[Math.floor(longest.length / 2)]
+    const label = middle ? project(middle[0], middle[1], 0) : null
+    if (label) {
+      drawing.font = "700 12px 'Archivo Variable', sans-serif"
+      drawing.textAlign = "center"
+      drawing.textBaseline = "top"
+      drawing.lineWidth = 3.5
+      drawing.strokeStyle = "rgb(8 7 5 / 85%)"
+      drawing.strokeText("ASSEMBLY", label.x, label.y + 8)
+      drawing.fillStyle = colours.brass
+      drawing.fillText("ASSEMBLY", label.x, label.y + 8)
+    }
+  }
+
   /** Gas on the ground, where it's thick enough to smell: the gas colour, stronger where it's thicker. */
   function drawGas(): void {
     const pen = drawing
@@ -335,9 +372,11 @@ export const warMap: HudElementFactory = (context) => {
       }
       const view = viewKey()
       const stretch = state.operation?.stretch ?? null
-      if (view !== groundDrawn || stretch !== stretchDrawn) {
+      const assembly = state.operation?.assembly ?? null
+      if (view !== groundDrawn || stretch !== stretchDrawn || assembly !== assemblyDrawn) {
         groundDrawn = view
         stretchDrawn = stretch
+        assemblyDrawn = assembly
         drawing = groundLayer
         drawing.clearRect(0, 0, innerWidth, innerHeight)
         // A wash over the ground, so the map's lines and men read over grass, mud and snow alike.
@@ -346,6 +385,7 @@ export const warMap: HudElementFactory = (context) => {
         drawGrid()
         drawTrenches()
         drawStretch(state)
+        drawAssembly(state)
       }
       drawing = menLayer
       drawing.clearRect(0, 0, innerWidth, innerHeight)

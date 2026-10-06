@@ -20,6 +20,17 @@
   filter: drop-shadow(0 0 2px rgb(8 7 5 / 90%));
 }
 
+/* Our own line over it, where the squads beside it assemble before zero hour: brass dashes. */
+.wm-assembly {
+  fill: none;
+  stroke: var(--hud-brass-bright);
+  stroke-width: 2.6;
+  stroke-dasharray: 7 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 2px rgb(8 7 5 / 90%));
+}
+
 .wm-text {
   font-family: var(--hud-font-ui);
   font-size: 0.72em;
