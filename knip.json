@@ -4,6 +4,7 @@
   "workspaces": {
     ".": {},
     "apps/client": {
+      "entry": ["src/editor/main.ts"],
       "ignoreDependencies": ["@verdun/oxlint-config"]
     },
     "apps/server": {

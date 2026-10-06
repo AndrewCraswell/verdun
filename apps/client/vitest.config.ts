@@ -19,6 +19,9 @@ export default defineConfig({
         "src/**/*.test.ts",
         "src/main.ts",
         "src/start-battle.ts",
+        "src/render/create-engine.ts",
+        // The sector editor, a dev tool like those below, verified in the browser.
+        "src/editor/**",
         // Only carries messages between the page and sim-runner.ts, which is tested.
         "src/sim/sim-worker.ts",
         // Only carry the server's messages to decoding.ts and back, off the page's thread; decoding.ts is tested.

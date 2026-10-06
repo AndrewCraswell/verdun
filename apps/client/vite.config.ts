@@ -158,6 +158,36 @@ function music(): Plugin {
   }
 }
 
+/** The sector files and the images their Tiled maps lay out on (packages/map/sectors), for the sector editor. */
+const SECTORS_DIR = resolve(import.meta.dirname, "../../packages/map/sectors")
+const SECTORS_ROUTE = "/sectors"
+const SECTOR_TYPES: Record<string, string> = { ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg" }
+
+/**
+ * Serves the sector files at /sectors/ in dev only, for the sector editor (editor.html): the Tiled maps and their image
+ * layers (the LiDAR survey, the generated preview, historical maps traced over). The editor's page isn't built: it
+ * reads and writes the repository's own files through the dev server.
+ */
+function sectorFiles(): Plugin {
+  return {
+    name: "verdun-sector-files",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(SECTORS_ROUTE, (request, response, next) => {
+        const file = resolve(SECTORS_DIR, `.${decodeURIComponent(request.url?.split("?")[0] ?? "")}`)
+        const contentType = SECTOR_TYPES[extname(file)]
+        if (!file.startsWith(SECTORS_DIR + sep) || !contentType || !existsSync(file)) {
+          next()
+          return
+        }
+        response.setHeader("Content-Type", contentType)
+        response.setHeader("Cache-Control", "no-store")
+        sendFile(file, response)
+      })
+    }
+  }
+}
+
 /** The build's name for the menu's footer: the commit it was built from, or "dev" where git can't say. */
 function buildName(): string {
   try {
@@ -168,7 +198,7 @@ function buildName(): string {
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [levelKit(), assetPack(), music()],
+  plugins: [levelKit(), assetPack(), music(), sectorFiles()],
   define: {
     "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev")
   },

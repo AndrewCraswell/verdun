@@ -592,6 +592,17 @@ for seed 1916 and simplified to within 5 cm, so they moved by at most 4.4 cm, an
 scenery placed round them shuffled once. Nothing of Fleury's own is left in the generator: everything placed by hand is
 in the file.
 
+## Sector editor
+
+The sector editor (`apps/client/editor.html`, served by the dev server only, at http://localhost:5173/editor.html) shows
+a sector as its file makes it, generated and dressed with the level's own art, under a free camera. Saving the sector in
+Tiled reloads it, keeping the view. Any image layer of the sector's Tiled map can be laid over the ground at an opacity
+of your choosing ([overlay.ts](../apps/client/src/editor/overlay.ts)): the LiDAR survey, a historical map traced in, or
+the `generated` preview, which sits exactly on what was generated. The dev server hands the editor the sector files at
+`/sectors/` (`sectorFiles` in the client's Vite config). `window.editor` holds its engine, scene, camera and map for the
+console. Next: selecting and moving what the file holds, placing the kit's pieces, drawing trenches, and analysis
+overlays.
+
 ## Editing in Tiled
 
 The layout (trench lines, wire belts, railways and scenery) can be edited in [Tiled](https://www.mapeditor.org), as the
