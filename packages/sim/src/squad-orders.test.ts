@@ -86,7 +86,8 @@ describe("advance by the trenches", () => {
       [40, 80],
       [120, 80],
       [120, 30]
-    ]
+    ],
+    facing: null
   }
 
   function inLoop(trench: boolean) {
