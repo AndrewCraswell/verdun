@@ -6,7 +6,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
-import { type GroundBox, SectorHolePlugin } from "./sector-hole.ts"
+import { type GroundBox, NO_BOX, SectorHolePlugin } from "./sector-hole.ts"
 
 /**
  * The theatre: the ground round Verdun the editor's theatre view draws, in Lambert-93 (EPSG:2154) metres. Its local
@@ -68,6 +68,11 @@ const RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
 /** The coarse ground over the whole theatre, every `step` metres, and finer tiles near the camera. */
 const COARSE = { step: 50, texture: 4096 } as const
 const DETAIL = { samples: 257, texture: 1024, radius: 2600, maxLoads: 3 } as const
+/**
+ * The finest ground, the LiDAR at 1 m, in a square of `span` by `span` tiles of `size` metres round the point looked
+ * at, its map at half a metre a pixel: shown whole once every tile has come, in place of the ground under it.
+ */
+const FINE = { size: 250, samples: 251, texture: 512, span: 5, maxLoads: 4 } as const
 /** A fine tile is kept until it lies this much further off than the radius it's loaded within, so tiles near the edge
  * don't come and go as the view moves a little. */
 const KEEP = 1.4
@@ -213,7 +218,7 @@ function mapMaterial(
   name: string,
   url: string,
   base: BaseMap,
-  hole: GroundBox | null,
+  holes: (() => readonly [GroundBox, GroundBox]) | null,
   shade: string | null
 ): { material: StandardMaterial; loaded: Promise<void> } {
   const material = new StandardMaterial(name, scene)
@@ -225,9 +230,9 @@ function mapMaterial(
     material.lightmapTexture = relief
     material.useLightmapAsShadowmap = true
   }
-  if (hole) {
+  if (holes) {
     // The plugin registers itself with the material; kept with it for the console's sake.
-    material.metadata = { hole: new SectorHolePlugin(material, hole) }
+    material.metadata = { holes: new SectorHolePlugin(material, holes) }
   }
   if (base.tint) {
     material.diffuseColor = new Color3(...base.tint)
@@ -265,8 +270,8 @@ export interface TheatreGround {
    * where the image is. Returns the mesh, to show and hide.
    */
   drape(name: string, image: BaseTexture, lift: number): Mesh
-  /** How many fine tiles are drawn and loading, for the status line. */
-  readonly detail: { readonly shown: number; readonly loading: number }
+  /** How many detail tiles are drawn and loading, and whether the 1 m square is shown, for the status line. */
+  readonly detail: { readonly shown: number; readonly loading: number; readonly fine: boolean }
 }
 
 interface DetailTile {
@@ -311,6 +316,13 @@ export async function createTheatreGround(
     return near * (1 - fz) + far * fz
   }
 
+  /** The 1 m square, in the scene's metres, while it's shown. */
+  let fineBox: GroundBox = NO_BOX
+  const offsetX = () => parent?.position.x ?? 0
+  const offsetZ = () => parent?.position.z ?? 0
+  const theatreHoles = (): readonly [GroundBox, GroundBox] => [hole ?? NO_BOX, fineBox]
+  const fineHoles = (): readonly [GroundBox, GroundBox] => [hole ?? NO_BOX, NO_BOX]
+
   let map = initial
   let shaded = false
   const look = () => `${map.name}${shaded ? " shaded" : ""}`
@@ -343,7 +355,7 @@ export async function createTheatreGround(
     "theatre-coarse",
     coarseTexture(map),
     map,
-    hole ?? null,
+    theatreHoles,
     coarseShade()
   ).material
   const perTile = TILE / COARSE.step
@@ -396,7 +408,7 @@ export async function createTheatreGround(
           `theatre-detail-${tx}-${tz}`,
           wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture),
           drawn,
-          hole ?? null,
+          theatreHoles,
           shade
         )
         mesh.material = material
@@ -424,10 +436,123 @@ export async function createTheatreGround(
   }
   const redrawCoarse = () => {
     coarseMaterial.dispose(true, true)
-    coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null, coarseShade()).material
+    coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, theatreHoles, coarseShade()).material
     for (const mesh of coarseTiles) {
       mesh.material = coarseMaterial
     }
+  }
+  interface FineSquare {
+    readonly key: string
+    readonly box: GroundBox
+    readonly meshes: Mesh[]
+    readonly materials: StandardMaterial[]
+    cancelled: boolean
+  }
+  let fineShown: FineSquare | null = null
+  let fineLoading: FineSquare | null = null
+  const disposeSquare = (square: FineSquare) => {
+    for (const mesh of square.meshes) {
+      mesh.dispose()
+    }
+    for (const material of square.materials) {
+      material.dispose(true, true)
+    }
+  }
+  /** Loads the square whose south-west corner is at (x0, z0), at most FINE.maxLoads tiles at a time, and shows it. */
+  const loadSquare = (x0: number, z0: number, key: string) => {
+    const square: FineSquare = {
+      key,
+      box: { x0, z0, x1: x0 + FINE.span * FINE.size, z1: z0 + FINE.span * FINE.size },
+      meshes: [],
+      materials: [],
+      cancelled: false
+    }
+    fineLoading = square
+    const drawn = map
+    const tiles: { x0: number; z0: number }[] = []
+    for (let row = 0; row < FINE.span; row++) {
+      for (let column = 0; column < FINE.span; column++) {
+        tiles.push({ x0: x0 + column * FINE.size, z0: z0 + row * FINE.size })
+      }
+    }
+    const loadTile = async (tile: { x0: number; z0: number }) => {
+      const box = { x0: tile.x0, z0: tile.z0, x1: tile.x0 + FINE.size, z1: tile.z0 + FINE.size }
+      const heights = await heightGrid(box.x0, box.z0, box.x1, box.z1, FINE.samples, FINE.samples)
+      const mesh = gridMesh(
+        scene,
+        `theatre-fine-${box.x0}-${box.z0}`,
+        (column, row) => heights[row * FINE.samples + column] ?? 0,
+        box,
+        FINE.samples,
+        FINE.samples,
+        box
+      )
+      mesh.setEnabled(false)
+      mesh.parent = parent ?? null
+      const { material, loaded } = mapMaterial(
+        scene,
+        `theatre-fine-${box.x0}-${box.z0}`,
+        wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, FINE.texture, FINE.texture),
+        drawn,
+        fineHoles,
+        shadeUrl(box.x0, box.z0, box.x1, box.z1, FINE.texture, FINE.texture)
+      )
+      mesh.material = material
+      square.meshes.push(mesh)
+      square.materials.push(material)
+      await loaded
+    }
+    const next = async (): Promise<void> => {
+      const tile = tiles.shift()
+      if (!tile || square.cancelled) {
+        return
+      }
+      await loadTile(tile)
+      return next()
+    }
+    Promise.all(Array.from({ length: FINE.maxLoads }, next))
+      .then(() => {
+        if (square.cancelled) {
+          disposeSquare(square)
+          return
+        }
+        // The whole square has come: it takes over from the ground under it.
+        if (fineShown) {
+          disposeSquare(fineShown)
+        }
+        fineShown = square
+        fineLoading = null
+        for (const mesh of square.meshes) {
+          mesh.setEnabled(true)
+        }
+        fineBox = {
+          x0: square.box.x0 + offsetX(),
+          z0: square.box.z0 + offsetZ(),
+          x1: square.box.x1 + offsetX(),
+          z1: square.box.z1 + offsetZ()
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn("The 1 m ground:", error)
+        disposeSquare(square)
+        if (fineLoading === square) {
+          fineLoading = null
+        }
+      })
+  }
+  /** Keeps the 1 m square round the point looked at, in step with the map drawn on it. */
+  const followFine = (x: number, z: number) => {
+    const half = (FINE.span * FINE.size) / 2
+    const x0 = Math.min(THEATRE.width - 2 * half, Math.max(0, Math.round((x - half) / FINE.size) * FINE.size))
+    const z0 = Math.min(THEATRE.depth - 2 * half, Math.max(0, Math.round((z - half) / FINE.size) * FINE.size))
+    const key = `${x0},${z0},${look()}`
+    if (fineShown?.key === key || fineLoading?.key === key) {
+      return
+    }
+    if (fineLoading) {
+      fineLoading.cancelled = true
+    }
+    loadSquare(x0, z0, key)
   }
   const drop = (key: number, tile: DetailTile) => {
     tile.mesh?.dispose()
@@ -460,6 +585,7 @@ export async function createTheatreGround(
       redrawCoarse()
     },
     update(x, z) {
+      followFine(x, z)
       // The tiles wanted: those within reach of the point looked at, nearest first.
       const wanted: { key: number; tx: number; tz: number; distance: number }[] = []
       for (let tz = 0; tz < tilesZ; tz++) {
@@ -494,7 +620,7 @@ export async function createTheatreGround(
       }
     },
     get detail() {
-      return { shown: [...details.values()].filter((tile) => tile.mesh).length, loading }
+      return { shown: [...details.values()].filter((tile) => tile.mesh).length, loading, fine: fineShown !== null }
     }
   }
 }

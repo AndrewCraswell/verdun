@@ -11,16 +11,20 @@ export interface GroundBox {
   readonly z1: number
 }
 
+/** No box: nothing is cut away. */
+export const NO_BOX: GroundBox = { x0: 0, z0: 0, x1: 0, z1: 0 }
+
 /**
- * Leaves a hole in the theatre's ground where the sector being edited is drawn, so the sector's own ground, trenches and
- * all, shows through and the theatre's coarser ground doesn't cut across it. Works in GLSL (WebGL 2) and WGSL (WebGPU).
+ * Leaves holes in the theatre's ground where finer ground is drawn instead: the sector being edited, its trenches and
+ * all, and the square of 1 m ground round the camera. `holes` is read each frame, so a hole can move by changing
+ * what it gives. Works in GLSL (WebGL 2) and WGSL (WebGPU).
  */
 export class SectorHolePlugin extends MaterialPluginBase {
-  private readonly hole: GroundBox
+  private readonly holes: () => readonly [GroundBox, GroundBox]
 
-  constructor(material: Material, hole: GroundBox) {
+  constructor(material: Material, holes: () => readonly [GroundBox, GroundBox]) {
     super(material, "SectorHole", 200, undefined, true, true)
-    this.hole = hole
+    this.holes = holes
   }
 
   override getClassName(): string {
@@ -36,14 +40,18 @@ export class SectorHolePlugin extends MaterialPluginBase {
     fragment: string
   } {
     return {
-      ubo: [{ name: "sectorHole", size: 4, type: "vec4" }],
-      fragment: shaderLanguage === ShaderLanguage.GLSL ? "uniform vec4 sectorHole;" : ""
+      ubo: [
+        { name: "sectorHole", size: 4, type: "vec4" },
+        { name: "fineHole", size: 4, type: "vec4" }
+      ],
+      fragment: shaderLanguage === ShaderLanguage.GLSL ? "uniform vec4 sectorHole;\nuniform vec4 fineHole;" : ""
     }
   }
 
   override bindForSubMesh(uniformBuffer: UniformBuffer): void {
-    const { x0, z0, x1, z1 } = this.hole
-    uniformBuffer.updateFloat4("sectorHole", x0, z0, x1, z1)
+    const [sector, fine] = this.holes()
+    uniformBuffer.updateFloat4("sectorHole", sector.x0, sector.z0, sector.x1, sector.z1)
+    uniformBuffer.updateFloat4("fineHole", fine.x0, fine.z0, fine.x1, fine.z1)
   }
 
   override getCustomCode(
@@ -53,12 +61,14 @@ export class SectorHolePlugin extends MaterialPluginBase {
     if (shaderType !== "fragment") {
       return null
     }
-    const [position, hole] =
-      shaderLanguage === ShaderLanguage.WGSL
-        ? ["fragmentInputs.vPositionW", "uniforms.sectorHole"]
-        : ["vPositionW", "sectorHole"]
+    const wgsl = shaderLanguage === ShaderLanguage.WGSL
+    const position = wgsl ? "fragmentInputs.vPositionW" : "vPositionW"
+    const inside = (hole: string) => {
+      const box = wgsl ? `uniforms.${hole}` : hole
+      return `(${position}.x > ${box}.x && ${position}.x < ${box}.z && ${position}.z > ${box}.y && ${position}.z < ${box}.w)`
+    }
     return {
-      CUSTOM_FRAGMENT_MAIN_BEGIN: `if (${position}.x > ${hole}.x && ${position}.x < ${hole}.z && ${position}.z > ${hole}.y && ${position}.z < ${hole}.w) { discard; }`
+      CUSTOM_FRAGMENT_MAIN_BEGIN: `if (${inside("sectorHole")} || ${inside("fineHole")}) { discard; }`
     }
   }
 }
