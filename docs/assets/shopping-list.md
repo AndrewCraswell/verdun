@@ -44,6 +44,15 @@ Optional: Synty
 [ANIMATION Base Locomotion](https://assetstore.unity.com/packages/3d/animations/animation-base-locomotion-280764)
 ($69.99), if Mixamo clips on the Synty rig fall short.
 
+## Needed for version 1
+
+- [ ] **A WW1 lorry**, one per side: a Berliet CBA (the French army's most common lorry, 25,000 in service) and a German
+      Daimler or Büssing 3-tonner, canvas tilt over the bed, low poly. Replacement squads arrive by lorry and debus
+      behind the lines (the map's debus points). None of the owned packs has a lorry or truck of any period: War Map WWI
+      has tanks, guns, planes and a blimp, the Low Poly War Pack WW2 vehicles and one civilian car. Not yet found on Fab
+      or CGTrader; check the asset library on E: first, then search for one before pricing. Men get down from the
+      tailgate with the Mixamo two-footed jump already in `vendor/mixamo/`.
+
 ## Remaster: realistic kit (about $270)
 
 - [ ] [AmeliaTeale WW1 low poly British/French pack](https://www.fab.com/listings/07831ff9-9019-4c58-8026-65c7e74530d0)
