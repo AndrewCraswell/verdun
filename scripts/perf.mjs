@@ -1247,6 +1247,10 @@ async function buildCommit(ref, outDir, slot) {
   if (existsSync(join(tree, ".git"))) {
     await run("git", ["-C", tree, "checkout", "--force", "--detach", commit], process.cwd())
   } else {
+    // A removal stopped by a file still open leaves the tree without its .git, and git won't add a worktree over it:
+    // every run in the slot failed until someone cleared it. Its node_modules links point within it, and rmSync
+    // unlinks a link rather than follow it.
+    rmSync(tree, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
     await run("git", ["worktree", "add", "--force", "--detach", tree, commit], process.cwd())
   }
   print(`building ${commit.slice(0, 7)}`)
