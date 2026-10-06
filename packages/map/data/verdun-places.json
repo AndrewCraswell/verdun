@@ -1,0 +1,747 @@
+{
+  "source": "Wikidata, CC0",
+  "places": [
+    {
+      "name": "fort de Belleville",
+      "kind": "fort",
+      "x": 873801,
+      "y": 6900492,
+      "wikidata": "Q24930128"
+    },
+    {
+      "name": "fort de Belrupt",
+      "kind": "fort",
+      "x": 877638,
+      "y": 6896961,
+      "wikidata": "Q1438840"
+    },
+    {
+      "name": "fort de Bois Bourrus",
+      "kind": "fort",
+      "x": 867549,
+      "y": 6901624,
+      "wikidata": "Q61641460"
+    },
+    {
+      "name": "fort de Choisel",
+      "kind": "fort",
+      "x": 867918,
+      "y": 6900064,
+      "wikidata": "Q61641155"
+    },
+    {
+      "name": "fort de Douaumont",
+      "kind": "fort",
+      "x": 877685,
+      "y": 6904629,
+      "wikidata": "Q186536"
+    },
+    {
+      "name": "fort de Dugny",
+      "kind": "fort",
+      "x": 873679,
+      "y": 6892930,
+      "wikidata": "Q61643107"
+    },
+    {
+      "name": "fort de Haudainville",
+      "kind": "fort",
+      "x": 877632,
+      "y": 6893360,
+      "wikidata": "Q61643178"
+    },
+    {
+      "name": "fort de la Chaume",
+      "kind": "fort",
+      "x": 869919,
+      "y": 6897617,
+      "wikidata": "Q56760734"
+    },
+    {
+      "name": "Fort de Landrecourt",
+      "kind": "fort",
+      "x": 871067,
+      "y": 6892800,
+      "wikidata": "Q61642353"
+    },
+    {
+      "name": "fort de Marre",
+      "kind": "fort",
+      "x": 868723,
+      "y": 6902025,
+      "wikidata": "Q61641037"
+    },
+    {
+      "name": "fort de Moulainville",
+      "kind": "fort",
+      "x": 881181,
+      "y": 6899314,
+      "wikidata": "Q56884820"
+    },
+    {
+      "name": "fort de Regret",
+      "kind": "fort",
+      "x": 870583,
+      "y": 6895616,
+      "wikidata": "Q61642219"
+    },
+    {
+      "name": "fort de Rozelier",
+      "kind": "fort",
+      "x": 881032,
+      "y": 6894526,
+      "wikidata": "Q61642876"
+    },
+    {
+      "name": "fort de Souville",
+      "kind": "fort",
+      "x": 877815,
+      "y": 6901437,
+      "wikidata": "Q1438859"
+    },
+    {
+      "name": "fort de Tavannes",
+      "kind": "fort",
+      "x": 879568,
+      "y": 6900755,
+      "wikidata": "Q55444932"
+    },
+    {
+      "name": "fort de Vacherauville",
+      "kind": "fort",
+      "x": 870655,
+      "y": 6903050,
+      "wikidata": "Q60846401"
+    },
+    {
+      "name": "fort de Vaux",
+      "kind": "fort",
+      "x": 880008,
+      "y": 6902840,
+      "wikidata": "Q1438801"
+    },
+    {
+      "name": "fort des Sartelles",
+      "kind": "fort",
+      "x": 868490,
+      "y": 6897290,
+      "wikidata": "Q3078327"
+    },
+    {
+      "name": "fort Saint-Michel",
+      "kind": "fort",
+      "x": 876065,
+      "y": 6900004,
+      "wikidata": "Q55596955"
+    },
+    {
+      "name": "ouvrage de Charny",
+      "kind": "fort",
+      "x": 871534,
+      "y": 6902636,
+      "wikidata": "Q61640419"
+    },
+    {
+      "name": "Ouvrage de Déramé",
+      "kind": "fort",
+      "x": 881067,
+      "y": 6896618,
+      "wikidata": "Q131751382"
+    },
+    {
+      "name": "ouvrage de Froideterre",
+      "kind": "fort",
+      "x": 875180,
+      "y": 6902450,
+      "wikidata": "Q1518926"
+    },
+    {
+      "name": "ouvrage de Saint-Symphorien",
+      "kind": "fort",
+      "x": 879241,
+      "y": 6893722,
+      "wikidata": "Q61643266"
+    },
+    {
+      "name": "ouvrage de Thiaumont",
+      "kind": "fort",
+      "x": 876317,
+      "y": 6903479,
+      "wikidata": "Q3358743"
+    },
+    {
+      "name": "ouvrage du Chana",
+      "kind": "fort",
+      "x": 868480,
+      "y": 6898551,
+      "wikidata": "Q61641699"
+    },
+    {
+      "name": "poste de Belle Epine",
+      "kind": "fort",
+      "x": 869882,
+      "y": 6902554,
+      "wikidata": "Q61640757"
+    },
+    {
+      "name": "Côte du Poivre",
+      "kind": "hill",
+      "x": 874240,
+      "y": 6906018,
+      "wikidata": "Q32180073"
+    },
+    {
+      "name": "Verdun",
+      "kind": "town",
+      "x": 873790,
+      "y": 6898173,
+      "wikidata": "Q154748"
+    },
+    {
+      "name": "Abaucourt-Hautecourt",
+      "kind": "village",
+      "x": 885100,
+      "y": 6902668,
+      "wikidata": "Q228231"
+    },
+    {
+      "name": "Abaucourt-lès-Souppleville",
+      "kind": "village",
+      "x": 885100,
+      "y": 6902668,
+      "wikidata": "Q131666861"
+    },
+    {
+      "name": "Ancemont",
+      "kind": "village",
+      "x": 875812,
+      "y": 6888374,
+      "wikidata": "Q472924"
+    },
+    {
+      "name": "Azannes-et-Soumazannes",
+      "kind": "village",
+      "x": 879489,
+      "y": 6913001,
+      "wikidata": "Q227629"
+    },
+    {
+      "name": "Beaumont-en-Verdunois",
+      "kind": "village",
+      "x": 875277,
+      "y": 6909223,
+      "wikidata": "Q474363"
+    },
+    {
+      "name": "Belleray",
+      "kind": "village",
+      "x": 875079,
+      "y": 6895121,
+      "wikidata": "Q426483"
+    },
+    {
+      "name": "Belleville-sur-Meuse",
+      "kind": "village",
+      "x": 873552,
+      "y": 6900021,
+      "wikidata": "Q723986"
+    },
+    {
+      "name": "Belrupt-en-Verdunois",
+      "kind": "village",
+      "x": 878167,
+      "y": 6896267,
+      "wikidata": "Q723959"
+    },
+    {
+      "name": "Béthelainville",
+      "kind": "village",
+      "x": 862972,
+      "y": 6898629,
+      "wikidata": "Q1049406"
+    },
+    {
+      "name": "Béthincourt",
+      "kind": "village",
+      "x": 862439,
+      "y": 6908166,
+      "wikidata": "Q1047383"
+    },
+    {
+      "name": "Bezonvaux",
+      "kind": "village",
+      "x": 879700,
+      "y": 6906917,
+      "wikidata": "Q458720"
+    },
+    {
+      "name": "Blanzée",
+      "kind": "village",
+      "x": 885092,
+      "y": 6898494,
+      "wikidata": "Q1046708"
+    },
+    {
+      "name": "Blercourt",
+      "kind": "village",
+      "x": 863347,
+      "y": 6892551,
+      "wikidata": "Q28040520"
+    },
+    {
+      "name": "Brabant-sur-Meuse",
+      "kind": "village",
+      "x": 868196,
+      "y": 6910588,
+      "wikidata": "Q934274"
+    },
+    {
+      "name": "Bras-sur-Meuse",
+      "kind": "village",
+      "x": 873195,
+      "y": 6903781,
+      "wikidata": "Q1049872"
+    },
+    {
+      "name": "Champneuville",
+      "kind": "village",
+      "x": 869446,
+      "y": 6906606,
+      "wikidata": "Q1048412"
+    },
+    {
+      "name": "Charny-sur-Meuse",
+      "kind": "village",
+      "x": 872193,
+      "y": 6903442,
+      "wikidata": "Q1060021"
+    },
+    {
+      "name": "Châtillon-sous-les-Côtes",
+      "kind": "village",
+      "x": 884131,
+      "y": 6896856,
+      "wikidata": "Q222954"
+    },
+    {
+      "name": "Chattancourt",
+      "kind": "village",
+      "x": 865220,
+      "y": 6904350,
+      "wikidata": "Q724213"
+    },
+    {
+      "name": "Chaumont-devant-Damvillers",
+      "kind": "village",
+      "x": 876426,
+      "y": 6914637,
+      "wikidata": "Q724031"
+    },
+    {
+      "name": "Consenvoye",
+      "kind": "village",
+      "x": 866331,
+      "y": 6912141,
+      "wikidata": "Q209962"
+    },
+    {
+      "name": "Crépion",
+      "kind": "village",
+      "x": 873806,
+      "y": 6914812,
+      "wikidata": "Q2155160"
+    },
+    {
+      "name": "Cumières-le-Mort-Homme",
+      "kind": "village",
+      "x": 866122,
+      "y": 6906076,
+      "wikidata": "Q633275"
+    },
+    {
+      "name": "Damloup",
+      "kind": "village",
+      "x": 881563,
+      "y": 6903050,
+      "wikidata": "Q1098060"
+    },
+    {
+      "name": "Dannevoux",
+      "kind": "village",
+      "x": 862568,
+      "y": 6914352,
+      "wikidata": "Q724224"
+    },
+    {
+      "name": "Dieppe-sous-Douaumont",
+      "kind": "village",
+      "x": 882871,
+      "y": 6905224,
+      "wikidata": "Q1096684"
+    },
+    {
+      "name": "Dieue",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q84239641"
+    },
+    {
+      "name": "Dieue",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q64515857"
+    },
+    {
+      "name": "Dieue-sur-Meuse",
+      "kind": "village",
+      "x": 876969,
+      "y": 6888379,
+      "wikidata": "Q740367"
+    },
+    {
+      "name": "Dombasle-en-Argonne",
+      "kind": "village",
+      "x": 859863,
+      "y": 6895266,
+      "wikidata": "Q227585"
+    },
+    {
+      "name": "Douaumont",
+      "kind": "village",
+      "x": 877128,
+      "y": 6904983,
+      "wikidata": "Q1113111"
+    },
+    {
+      "name": "Douaumont-Vaux",
+      "kind": "village",
+      "x": 880209,
+      "y": 6904213,
+      "wikidata": "Q60038354"
+    },
+    {
+      "name": "Dugny-sur-Meuse",
+      "kind": "village",
+      "x": 874135,
+      "y": 6892125,
+      "wikidata": "Q1617753"
+    },
+    {
+      "name": "Eix",
+      "kind": "village",
+      "x": 882085,
+      "y": 6900624,
+      "wikidata": "Q724313"
+    },
+    {
+      "name": "Esnes-en-Argonne",
+      "kind": "village",
+      "x": 861143,
+      "y": 6903153,
+      "wikidata": "Q939685"
+    },
+    {
+      "name": "Flabas",
+      "kind": "village",
+      "x": 874571,
+      "y": 6913808,
+      "wikidata": "Q2147644"
+    },
+    {
+      "name": "Fleury-devant-Douaumont",
+      "kind": "village",
+      "x": 877436,
+      "y": 6902210,
+      "wikidata": "Q59254"
+    },
+    {
+      "name": "Forges-sur-Meuse",
+      "kind": "village",
+      "x": 866834,
+      "y": 6909435,
+      "wikidata": "Q602475"
+    },
+    {
+      "name": "Fromeréville-les-Vallons",
+      "kind": "village",
+      "x": 866805,
+      "y": 6897874,
+      "wikidata": "Q1385052"
+    },
+    {
+      "name": "Gercourt-et-Drillancourt",
+      "kind": "village",
+      "x": 862842,
+      "y": 6911794,
+      "wikidata": "Q217293"
+    },
+    {
+      "name": "Gremilly",
+      "kind": "village",
+      "x": 880247,
+      "y": 6911417,
+      "wikidata": "Q216719"
+    },
+    {
+      "name": "Grimaucourt-en-Woëvre",
+      "kind": "village",
+      "x": 886377,
+      "y": 6900143,
+      "wikidata": "Q216686"
+    },
+    {
+      "name": "Haudainville",
+      "kind": "village",
+      "x": 876799,
+      "y": 6894586,
+      "wikidata": "Q212539"
+    },
+    {
+      "name": "Haudiomont",
+      "kind": "village",
+      "x": 886849,
+      "y": 6893698,
+      "wikidata": "Q668270"
+    },
+    {
+      "name": "Haumont-près-Samogneux",
+      "kind": "village",
+      "x": 871132,
+      "y": 6910646,
+      "wikidata": "Q681869"
+    },
+    {
+      "name": "Hautecourt-lès-Broville",
+      "kind": "village",
+      "x": 886479,
+      "y": 6902412,
+      "wikidata": "Q60845761"
+    },
+    {
+      "name": "Jouy-en-Argonne",
+      "kind": "village",
+      "x": 862184,
+      "y": 6894960,
+      "wikidata": "Q1611588"
+    },
+    {
+      "name": "Landrecourt",
+      "kind": "village",
+      "x": 871364,
+      "y": 6891833,
+      "wikidata": "Q52383306"
+    },
+    {
+      "name": "Landrecourt-Lempire",
+      "kind": "village",
+      "x": 871524,
+      "y": 6891892,
+      "wikidata": "Q680194"
+    },
+    {
+      "name": "Lempire-aux-Bois",
+      "kind": "village",
+      "x": 869209,
+      "y": 6891113,
+      "wikidata": "Q52383226"
+    },
+    {
+      "name": "Lempire-aux-Bois",
+      "kind": "village",
+      "x": 869190,
+      "y": 6891100,
+      "wikidata": "Q52383174"
+    },
+    {
+      "name": "Les Souhesmes",
+      "kind": "village",
+      "x": 864512,
+      "y": 6889432,
+      "wikidata": "Q123186759"
+    },
+    {
+      "name": "Les Souhesmes-Rampont",
+      "kind": "village",
+      "x": 864512,
+      "y": 6889432,
+      "wikidata": "Q219826"
+    },
+    {
+      "name": "Louvemont-Côte-du-Poivre",
+      "kind": "village",
+      "x": 874660,
+      "y": 6906886,
+      "wikidata": "Q817414"
+    },
+    {
+      "name": "Marre",
+      "kind": "village",
+      "x": 867729,
+      "y": 6903712,
+      "wikidata": "Q892391"
+    },
+    {
+      "name": "Maucourt-sur-Orne",
+      "kind": "village",
+      "x": 882671,
+      "y": 6908340,
+      "wikidata": "Q892552"
+    },
+    {
+      "name": "Mogeville",
+      "kind": "village",
+      "x": 884230,
+      "y": 6907679,
+      "wikidata": "Q892565"
+    },
+    {
+      "name": "Moirey-Flabas-Crépion",
+      "kind": "village",
+      "x": 874773,
+      "y": 6914494,
+      "wikidata": "Q1386664"
+    },
+    {
+      "name": "Mont-sous-les-Côtes",
+      "kind": "village",
+      "x": 887502,
+      "y": 6891409,
+      "wikidata": "Q107920333"
+    },
+    {
+      "name": "Mont-Villers",
+      "kind": "village",
+      "x": 887502,
+      "y": 6891409,
+      "wikidata": "Q3321627"
+    },
+    {
+      "name": "Montzéville",
+      "kind": "village",
+      "x": 861903,
+      "y": 6901350,
+      "wikidata": "Q1159381"
+    },
+    {
+      "name": "Moranville",
+      "kind": "village",
+      "x": 885626,
+      "y": 6900181,
+      "wikidata": "Q892382"
+    },
+    {
+      "name": "Moulainville",
+      "kind": "village",
+      "x": 881984,
+      "y": 6898674,
+      "wikidata": "Q224276"
+    },
+    {
+      "name": "Nixéville",
+      "kind": "village",
+      "x": 866070,
+      "y": 6892413,
+      "wikidata": "Q97009777"
+    },
+    {
+      "name": "Nixéville-Blercourt",
+      "kind": "village",
+      "x": 866070,
+      "y": 6892413,
+      "wikidata": "Q215529"
+    },
+    {
+      "name": "Ornes",
+      "kind": "village",
+      "x": 879967,
+      "y": 6908719,
+      "wikidata": "Q627493"
+    },
+    {
+      "name": "Rampont",
+      "kind": "village",
+      "x": 862041,
+      "y": 6891371,
+      "wikidata": "Q83261246"
+    },
+    {
+      "name": "Regnéville-sur-Meuse",
+      "kind": "village",
+      "x": 869331,
+      "y": 6908457,
+      "wikidata": "Q1388020"
+    },
+    {
+      "name": "Ronvaux",
+      "kind": "village",
+      "x": 886414,
+      "y": 6895229,
+      "wikidata": "Q981879"
+    },
+    {
+      "name": "Samogneux",
+      "kind": "village",
+      "x": 870215,
+      "y": 6908669,
+      "wikidata": "Q1159344"
+    },
+    {
+      "name": "Sivry-la-Perche",
+      "kind": "village",
+      "x": 864178,
+      "y": 6896160,
+      "wikidata": "Q981875"
+    },
+    {
+      "name": "Sommedieue",
+      "kind": "village",
+      "x": 879922,
+      "y": 6890047,
+      "wikidata": "Q975286"
+    },
+    {
+      "name": "Thierville-sur-Meuse",
+      "kind": "village",
+      "x": 871584,
+      "y": 6899405,
+      "wikidata": "Q223869"
+    },
+    {
+      "name": "Vacherauville",
+      "kind": "village",
+      "x": 871905,
+      "y": 6904948,
+      "wikidata": "Q209800"
+    },
+    {
+      "name": "Vadelaincourt",
+      "kind": "village",
+      "x": 865382,
+      "y": 6888097,
+      "wikidata": "Q59322"
+    },
+    {
+      "name": "Vaux-devant-Damloup",
+      "kind": "village",
+      "x": 880152,
+      "y": 6904118,
+      "wikidata": "Q669097"
+    },
+    {
+      "name": "Ville-devant-Chaumont",
+      "kind": "village",
+      "x": 876572,
+      "y": 6913189,
+      "wikidata": "Q1379732"
+    },
+    {
+      "name": "Watronville",
+      "kind": "village",
+      "x": 885456,
+      "y": 6896002,
+      "wikidata": "Q215545"
+    }
+  ]
+}

@@ -1,16 +1,19 @@
-// The sector editor: the sector as its file makes it, drawn with the level's own art under a free camera, with the
-// LiDAR survey and historical maps laid over the ground to place things by. A dev tool (editor.html), served only by
-// the dev server, which also hands it the sector files. Saving the sector in Tiled reloads the page, which keeps its
-// view.
+// The sector editor: the sector as its file makes it, drawn with the level's own art where it lies in the whole front
+// round Verdun, under a free camera, with maps of the country draped over the ground and the forts, villages and town
+// marked. A dev tool (editor.html), served only by the dev server, which also hands it the sector files and IGN's maps.
+// Saving the sector in Tiled reloads the page, which keeps its view.
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
+import { CreateRibbon } from "@babylonjs/core/Meshes/Builders/ribbonBuilder"
+import type { Mesh } from "@babylonjs/core/Meshes/mesh"
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import { Scene } from "@babylonjs/core/scene"
 import { decodeElevation, generateFleurySector, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import elevationUrl from "@verdun/map/data/fleury-elevation.bin?url"
-import surroundingsUrl from "@verdun/map/data/fleury-surroundings.bin?url"
+import placesFile from "@verdun/map/data/verdun-places.json" with { type: "json" }
 import { installInspectorToggle } from "../dev/inspector.ts"
 import { dressLevel } from "../level/dress-battlefield.ts"
 import { openKitFiles } from "../level/kit-files.ts"
@@ -19,14 +22,23 @@ import { selectEnabledMeshes } from "../render/active-meshes.ts"
 import { createEngine } from "../render/create-engine.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type CameraPose, createEditorCamera, initialPose } from "./editor-camera.ts"
+import { createMarkers, isPlaceKind, PLACE_KINDS, type Place } from "./markers.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
-import { startTheatre } from "./theatre/theatre.ts"
+import { BASE_MAPS, BATTLE_BOUNDS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
+import { createWaterTexture } from "./theatre/water.ts"
 
 /** The sector file the editor shows. Only Fleury generates as yet. */
 const SECTOR = "fleury"
 /** Where the view is kept across the reloads that saving the sector brings. */
 const VIEW_KEY = "verdun.editor.camera"
 const OVERLAY_KEY = "verdun.editor.overlay"
+const MARKERS_KEY = "verdun.editor.markers"
+const RIVERS_KEY = "verdun.editor.rivers"
+/**
+ * Where the sector lies: its south-west corner in Lambert-93, the one scripts/fetch-elevation.mjs fetched its ground for.
+ * The sector files will carry their own.
+ */
+const SECTOR_CORNER = { west: 876_773, south: 6_902_290 }
 
 function element<T extends HTMLElement>(id: string, type: new () => T): T {
   const found = document.getElementById(id)
@@ -38,6 +50,7 @@ function element<T extends HTMLElement>(id: string, type: new () => T): T {
 
 const canvas = element("battlefield", HTMLCanvasElement)
 const status = element("status", HTMLElement)
+const mapSelect = element("overlay-map", HTMLSelectElement)
 const layerSelect = element("overlay-layer", HTMLSelectElement)
 const opacityInput = element("overlay-opacity", HTMLInputElement)
 
@@ -73,6 +86,20 @@ async function imageLayers(): Promise<{ name: string; placement: ImagePlacement 
       }
     ]
   })
+}
+
+/** The named places round Verdun (scripts/fetch-places.mjs). */
+function places(): Place[] {
+  const list: unknown = isRecord(placesFile) ? placesFile.places : []
+  return (Array.isArray(list) ? list : []).flatMap((place: unknown) =>
+    isRecord(place) &&
+    typeof place.name === "string" &&
+    isPlaceKind(place.kind) &&
+    typeof place.x === "number" &&
+    typeof place.y === "number"
+      ? [{ name: place.name, kind: place.kind, x: place.x, y: place.y }]
+      : []
+  )
 }
 
 function readStored(key: string): unknown {
@@ -112,8 +139,7 @@ function keptPose(key = VIEW_KEY): CameraPose | null {
 
 async function start(): Promise<void> {
   status.textContent = "Generating the sector"
-  const [elevationData, surroundingsData] = await Promise.all([download(elevationUrl), download(surroundingsUrl)])
-  const elevation = decodeElevation(elevationData)
+  const elevation = decodeElevation(await download(elevationUrl))
   const map = generateFleurySector({ seed: 1916, elevation })
   element("sector-name", HTMLElement).textContent = map.name
   document.title = `${map.name}: sector editor`
@@ -128,6 +154,16 @@ async function start(): Promise<void> {
     editorCamera.frame(0, 0, width, depth, groundY)
   )
   const camera = editorCamera.camera
+  camera.maxZ = 80_000
+  element("face-north", HTMLButtonElement).addEventListener("click", () => editorCamera.faceNorth())
+  element("compass", HTMLButtonElement).addEventListener("click", () => editorCamera.faceNorth())
+  element("reset-view", HTMLButtonElement).addEventListener("click", () =>
+    editorCamera.reset(initialPose(width, groundY))
+  )
+  element("frame-sector", HTMLButtonElement).addEventListener("click", () =>
+    editorCamera.frame(0, 0, width, depth, groundY)
+  )
+  const needle = element("compass-needle", HTMLElement)
   let keepAt = 0
   camera.onViewMatrixChangedObservable.add(() => {
     const now = performance.now()
@@ -150,32 +186,31 @@ async function start(): Promise<void> {
   selectEnabledMeshes(scene)
   // Drawing from the start: the level's warm-up waits on frames.
   addEventListener("resize", () => engine.resize())
+  // What follows the camera each frame, as it comes: the theatre's finer ground and the place labels.
+  const everyFrame: ((x: number, z: number) => void)[] = []
   engine.runRenderLoop(() => {
     editorCamera.update(engine.getDeltaTime() / 1000)
     // The ground's detail follows where the camera looks: the point straight ahead, or below it when looking up.
     const ahead = camera.getDirection(Vector3.Forward())
-    const reach = ahead.y < -0.05 ? Math.min(600, (camera.position.y - groundY) / -ahead.y) : 0
-    terrain.flush(camera.position.x + ahead.x * reach, camera.position.z + ahead.z * reach)
+    const reach = ahead.y < -0.05 ? Math.min(20_000, (camera.position.y - groundY) / -ahead.y) : 0
+    const lookX = camera.position.x + ahead.x * reach
+    const lookZ = camera.position.z + ahead.z * reach
+    terrain.flush(lookX, lookZ)
+    for (const follow of everyFrame) {
+      follow(lookX, lookZ)
+    }
+    // The compass's needle points north as the camera turns.
+    needle.style.transform = `rotate(${-editorCamera.yaw}rad)`
     scene.render()
   })
 
   status.textContent = "Dressing the battlefield"
   const files = openKitFiles()
-  const level = await dressLevel({ scene, camera, groundMaterial, terrain }, map, {
-    files,
-    surroundings: {
-      elevation: decodeElevation(surroundingsData),
-      sectorBase: elevation.base,
-      sectorOrigin: { x: 1200, z: 1300 }
-    }
-  })
+  // The whole front's ground stands in for the game's backdrop round the sector.
+  const level = await dressLevel({ scene, camera, groundMaterial, terrain }, map, { files })
   void Promise.resolve(level?.sfx).finally(() => files?.close?.())
   // Shadows and the sky compile as they come; the editor needn't wait on them.
   void level?.atmosphere?.warmUp()
-  // The ground beyond the sector is there for its lie, not its woods: those only crowd the view.
-  for (const wood of level?.woods ?? []) {
-    wood.setEnabled(false)
-  }
   // The game's miniature focus follows its camera's target; an editor wants the whole view sharp.
   if (level?.postProcess) {
     level.postProcess.pipeline.depthOfFieldEnabled = false
@@ -184,66 +219,175 @@ async function start(): Promise<void> {
   // For inspecting the editor from the console, as window.verdun is for the game.
   Object.assign(window, { editor: { engine, scene, camera, map, level } })
 
-  // The overlay: one of the sector file's image layers over the ground, or none.
+  // The whole front round Verdun, its frame placed in the sector's, with a hole where the sector's own ground is drawn.
+  status.textContent = "Fetching the ground round the sector"
+  const theatreFrame = new TransformNode("theatre", scene)
+  theatreFrame.position.set(
+    THEATRE.west - SECTOR_CORNER.west,
+    THEATRE.base - elevation.base,
+    THEATRE.south - SECTOR_CORNER.south
+  )
+  const ground = await createTheatreGround(scene, TERRAIN, {
+    parent: theatreFrame,
+    hole: { x0: 0.5, z0: 0.5, x1: width - 0.5, z1: depth - 0.5 }
+  })
+  everyFrame.push((x, z) => ground.update(x - theatreFrame.position.x, z - theatreFrame.position.z))
+  const sectorBox = {
+    west: SECTOR_CORNER.west,
+    south: SECTOR_CORNER.south,
+    east: SECTOR_CORNER.west + width,
+    north: SECTOR_CORNER.south + depth
+  }
+
+  // The places, marked where they lie on the ground.
+  const toScene = (x: number, y: number) => {
+    const tx = x - THEATRE.west
+    const tz = y - THEATRE.south
+    return new Vector3(
+      tx + theatreFrame.position.x,
+      ground.heightAt(tx, tz) + theatreFrame.position.y + 20,
+      tz + theatreFrame.position.z
+    )
+  }
+  // Where the battle was fought, and the sector, each fenced by a translucent curtain standing on the ground round it,
+  // tall enough that no hill hides it.
+  const outline = (
+    name: string,
+    box: { readonly west: number; readonly south: number; readonly east: number; readonly north: number },
+    colour: Color3,
+    tall: number
+  ) => {
+    const corners: [number, number][] = [
+      [box.west, box.south],
+      [box.east, box.south],
+      [box.east, box.north],
+      [box.west, box.north],
+      [box.west, box.south]
+    ]
+    const foot: Vector3[] = []
+    const head: Vector3[] = []
+    for (let index = 1; index < corners.length; index++) {
+      const [ax, ay] = corners[index - 1] ?? [0, 0]
+      const [bx, by] = corners[index] ?? [0, 0]
+      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 25))
+      for (let step = 0; step <= steps; step++) {
+        // toScene stands 20 m above the ground: the curtain starts below it, so it meets the ground everywhere.
+        const at = toScene(ax + ((bx - ax) * step) / steps, ay + ((by - ay) * step) / steps)
+        foot.push(at.subtractFromFloats(0, 40, 0))
+        head.push(at.add(new Vector3(0, tall - 20, 0)))
+      }
+    }
+    const curtain = CreateRibbon(name, { pathArray: [foot, head], sideOrientation: 2 }, scene)
+    const material = new StandardMaterial(name, scene)
+    material.emissiveColor = colour
+    material.disableLighting = true
+    material.alpha = 0.4
+    material.backFaceCulling = false
+    curtain.material = material
+    curtain.isPickable = false
+  }
+  outline("battle-bounds", BATTLE_BOUNDS, new Color3(0.9, 0.2, 0.15), 150)
+  outline("sector-bounds", sectorBox, new Color3(1, 0.78, 0.3), 30)
+
+  // The rivers, canals and ponds, bright over whatever map is down, when asked for.
+  const riversBox = element("rivers", HTMLInputElement)
+  const keptRivers = readStored(RIVERS_KEY)
+  riversBox.checked = keptRivers === true
+  let rivers: Mesh | null = null
+  const showRivers = async () => {
+    store(RIVERS_KEY, riversBox.checked)
+    if (riversBox.checked && !rivers) {
+      rivers = ground.drape("rivers", await createWaterTexture(scene), 3)
+    }
+    rivers?.setEnabled(riversBox.checked)
+  }
+  riversBox.addEventListener("change", () => void showRivers())
+  void showRivers()
+  const battleLabel: Place = {
+    name: "Battle of Verdun, 1916",
+    kind: "area",
+    x: BATTLE_BOUNDS.west + 400,
+    y: BATTLE_BOUNDS.north - 300
+  }
+  const markers = createMarkers(scene, camera, canvas, [battleLabel, ...places()], toScene)
+  everyFrame.push(() => markers.update())
+  const keptMarkers = readStored(MARKERS_KEY)
+  const markerList = element("markers", HTMLElement)
+  for (const [kind, { label }] of Object.entries(PLACE_KINDS)) {
+    if (!isPlaceKind(kind)) {
+      continue
+    }
+    const box = document.createElement("input")
+    box.type = "checkbox"
+    box.checked =
+      isRecord(keptMarkers) && kind in keptMarkers ? keptMarkers[kind] === true : kind !== "village" && kind !== "hill"
+    markers.show(kind, box.checked)
+    box.addEventListener("change", () => {
+      markers.show(kind, box.checked)
+      const kept = readStored(MARKERS_KEY)
+      store(MARKERS_KEY, { ...(isRecord(kept) ? kept : {}), [kind]: box.checked })
+    })
+    const row = document.createElement("label")
+    row.append(box, ` ${label}`)
+    markerList.append(row)
+  }
+
+  // The map draped over everything, and over the sector one of its file's own images, at the chosen opacity.
+  mapSelect.replaceChildren(
+    new Option("Terrain (no map)", ""),
+    ...BASE_MAPS.map((base) => new Option(base.name, base.name))
+  )
   const layers = await imageLayers()
   layerSelect.replaceChildren(new Option("None", ""), ...layers.map((layer) => new Option(layer.name, layer.name)))
   const keptOverlay = readStored(OVERLAY_KEY)
   if (isRecord(keptOverlay)) {
+    mapSelect.value = typeof keptOverlay.map === "string" ? keptOverlay.map : ""
     layerSelect.value = typeof keptOverlay.layer === "string" ? keptOverlay.layer : ""
     opacityInput.value = typeof keptOverlay.opacity === "number" ? String(keptOverlay.opacity) : opacityInput.value
   }
-  let overlay: ImageOverlay | null = null
-  const showOverlay = async () => {
-    overlay?.dispose()
-    overlay = null
-    store(OVERLAY_KEY, { layer: layerSelect.value, opacity: Number(opacityInput.value) })
+  const keepOverlay = () =>
+    store(OVERLAY_KEY, { map: mapSelect.value, layer: layerSelect.value, opacity: Number(opacityInput.value) })
+  let overlays: ImageOverlay[] = []
+  const showOverlays = async () => {
+    keepOverlay()
+    for (const overlay of overlays) {
+      overlay.dispose()
+    }
+    overlays = []
+    const base = BASE_MAPS.find((candidate) => candidate.name === mapSelect.value)
+    ground.setBaseMap(base ?? TERRAIN)
+    const placements: ImagePlacement[] = []
+    if (base) {
+      // The map over the sector itself, at a quarter of a metre a pixel.
+      placements.push({
+        url: mapImageUrl(base, sectorBox, width * 4, depth * 4),
+        offsetX: 0,
+        offsetY: 0,
+        metresPerPixel: 0.25
+      })
+    }
     const layer = layers.find((candidate) => candidate.name === layerSelect.value)
     if (layer) {
-      overlay = await createImageOverlay(scene, map, layer.placement, Number(opacityInput.value))
+      placements.push(layer.placement)
     }
+    overlays = await Promise.all(
+      placements.map((placement) => createImageOverlay(scene, map, placement, Number(opacityInput.value)))
+    )
   }
-  layerSelect.addEventListener("change", () => void showOverlay())
+  mapSelect.addEventListener("change", () => void showOverlays())
+  layerSelect.addEventListener("change", () => void showOverlays())
   opacityInput.addEventListener("input", () => {
-    overlay?.setOpacity(Number(opacityInput.value))
-    store(OVERLAY_KEY, { layer: layerSelect.value, opacity: Number(opacityInput.value) })
+    keepOverlay()
+    for (const overlay of overlays) {
+      overlay.setOpacity(Number(opacityInput.value))
+    }
   })
-  await showOverlay()
+  await showOverlays()
 
   status.textContent = `${width} m by ${depth} m, ${map.trenches.length} trenches, ${map.scenery.length} pieces of scenery`
 }
 
-/**
- * The sectors as they lie in the theatre. Fleury's corner is the one scripts/fetch-elevation.mjs fetched its ground
- * for; the sector files will carry their own.
- */
-const SECTORS = [{ name: "Fleury", west: 876_773, south: 6_902_290, width: 600, depth: 400 }]
-const THEATRE_CAMERA_KEY = "verdun.editor.theatre.camera"
-const BASE_MAP_KEY = "verdun.editor.theatre.map"
-
-/** The theatre view: the whole front, with the sectors on it. */
-async function theatre(): Promise<void> {
-  element("sector-name", HTMLElement).textContent = "Verdun, 1916"
-  document.title = "Verdun: theatre"
-  element("overlay-section", HTMLElement).hidden = true
-  const engine = await createEngine(canvas)
-  const kept = readStored(BASE_MAP_KEY)
-  const scene = await startTheatre({
-    canvas,
-    engine,
-    panel: element("panel", HTMLElement),
-    status,
-    sectors: SECTORS,
-    pose: keptPose(THEATRE_CAMERA_KEY),
-    keepPose: (pose) => store(THEATRE_CAMERA_KEY, pose),
-    baseMap: typeof kept === "string" ? kept : null,
-    keepBaseMap: (name) => store(BASE_MAP_KEY, name)
-  })
-  installInspectorToggle(scene)
-  Object.assign(window, { editor: { engine, scene } })
-}
-
-const view = new URLSearchParams(location.search).has("theatre") ? theatre() : start()
-view.catch((error: unknown) => {
+start().catch((error: unknown) => {
   status.textContent = error instanceof Error ? error.message : String(error)
   throw error
 })

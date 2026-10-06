@@ -30,22 +30,26 @@
         display: block;
         outline: none;
       }
-      #panel {
+      .panel {
         position: absolute;
-        top: 12px;
-        left: 12px;
-        width: 260px;
-        padding: 12px 14px;
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 6px;
+      }
+      #panel {
+        top: 12px;
+        left: 12px;
+        width: 270px;
+        padding: 12px 14px;
+        max-height: calc(100% - 50px);
+        overflow-y: auto;
       }
       #panel h1 {
         margin: 0 0 2px;
         font-size: 15px;
         font-weight: 600;
       }
-      #panel .muted {
+      .muted {
         color: var(--muted);
       }
       #panel section {
@@ -71,43 +75,146 @@
         flex: 1;
         accent-color: var(--accent);
       }
-      #panel .views {
-        margin-top: 8px;
-        display: flex;
-        gap: 12px;
+      #panel input[type="checkbox"] {
+        accent-color: var(--accent);
       }
-      #panel a {
-        color: var(--accent);
-      }
-      #panel select {
-        flex: 1;
+      select,
+      button {
         background: #221f1a;
         color: var(--text);
         border: 1px solid var(--line);
         border-radius: 4px;
-        padding: 2px 4px;
+        padding: 3px 6px;
+        font: inherit;
+      }
+      #panel select {
+        flex: 1;
+        min-width: 0;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      #view-controls {
+        top: 12px;
+        right: 12px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      #compass {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        padding: 0;
+        position: relative;
+      }
+      #compass-needle {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+      }
+      #compass-needle b {
+        color: var(--accent);
+        font-size: 13px;
+        margin-top: 2px;
+      }
+      #compass-needle i {
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 18px solid var(--accent);
+      }
+      #view-controls button:not(#compass) {
+        width: 100%;
+      }
+      .markers {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .marker {
+        position: absolute;
+        left: 0;
+        top: 0;
+        white-space: nowrap;
+        font-size: 12px;
+        padding: 1px 6px;
+        border-radius: 3px;
+        background: rgba(20, 18, 15, 0.78);
+        border-left: 3px solid var(--muted);
+        margin-top: -10px;
+      }
+      .marker-area {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffb4a8;
+        border-left-color: #d9402e;
+      }
+      .marker-town {
+        font-size: 15px;
+        font-weight: 600;
+        border-left-color: #e8e0d0;
+      }
+      .marker-fort {
+        border-left-color: #c94f3d;
+      }
+      .marker-village {
+        border-left-color: #8fae6a;
+      }
+      .marker-hill {
+        border-left-color: #b89a5a;
+        font-style: italic;
       }
     </style>
   </head>
   <body>
     <canvas id="battlefield"></canvas>
-    <div id="panel">
+    <div id="panel" class="panel">
       <h1 id="sector-name">Sector editor</h1>
       <div id="status" class="muted">Loading</div>
-      <nav class="views"><a href="?theatre">Theatre</a> <a href="?">Sector</a></nav>
-      <section id="overlay-section">
-        <h2>Overlay</h2>
+      <section>
+        <h2>Maps</h2>
         <label
           >Map
+          <select id="overlay-map"></select
+        ></label>
+        <label
+          >Sector
           <select id="overlay-layer"></select
         ></label>
-        <label>Opacity <input id="overlay-opacity" type="range" min="0" max="1" step="0.05" value="0.6" /></label>
+        <label
+          >Over the sector <input id="overlay-opacity" type="range" min="0" max="1" step="0.05" value="0.6"
+        /></label>
+        <label><input id="rivers" type="checkbox" /> Rivers and canals</label>
+        <div class="muted">Ground and maps: IGN, Licence Ouverte 2.0. Places: Wikidata.</div>
+      </section>
+      <section>
+        <h2>Markers</h2>
+        <div id="markers"></div>
       </section>
       <section class="muted">
         Hold the right button to look round and fly with WASD, Q and E down and up, Shift faster, the wheel for speed.
         Middle-drag to pan, Alt and left-drag to orbit, the wheel to zoom where you point, F to frame the sector. Saving
         the sector in Tiled rebuilds it here.
       </section>
+    </div>
+    <div id="view-controls" class="panel">
+      <button id="compass" type="button" title="Face north">
+        <span id="compass-needle"><b>N</b><i></i></span>
+      </button>
+      <button id="face-north" type="button">Face north</button>
+      <button id="frame-sector" type="button">Frame sector</button>
+      <button id="reset-view" type="button">Reset view</button>
     </div>
     <script type="module" src="/src/editor/main.ts"></script>
   </body>

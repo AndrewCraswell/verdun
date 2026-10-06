@@ -18,11 +18,13 @@ export interface ImageOverlay {
   dispose(): void
 }
 
-/** Where an image layer of a sector file lies: its top-left corner, in the Tiled map's pixels. */
+/** Where an image lies: its top-left corner, in pixels from the sector's north-west corner, and its scale. */
 export interface ImagePlacement {
   readonly url: string
   readonly offsetX: number
   readonly offsetY: number
+  /** Metres a pixel: a sector file's images are drawn at 0.1, as its Tiled map is. */
+  readonly metresPerPixel?: number
 }
 
 /**
@@ -32,7 +34,7 @@ export interface ImagePlacement {
 export async function createImageOverlay(
   scene: Scene,
   map: BattlefieldMap,
-  { url, offsetX, offsetY }: ImagePlacement,
+  { url, offsetX, offsetY, metresPerPixel = 1 / PIXELS_PER_METRE }: ImagePlacement,
   opacity: number
 ): Promise<ImageOverlay> {
   const texture = await new Promise<Texture>((resolve, reject) => {
@@ -51,10 +53,10 @@ export async function createImageOverlay(
   const { width: pixelsWide, height: pixelsHigh } = texture.getBaseSize()
   const depth = mapDepth(map)
   // The image's rectangle in metres, clipped to the sector.
-  const left = offsetX / PIXELS_PER_METRE
-  const top = depth - offsetY / PIXELS_PER_METRE
-  const right = left + pixelsWide / PIXELS_PER_METRE
-  const bottom = top - pixelsHigh / PIXELS_PER_METRE
+  const left = offsetX * metresPerPixel
+  const top = depth - offsetY * metresPerPixel
+  const right = left + pixelsWide * metresPerPixel
+  const bottom = top - pixelsHigh * metresPerPixel
   const fromX = Math.max(0, left)
   const toX = Math.min(mapWidth(map), right)
   const fromZ = Math.max(0, bottom)

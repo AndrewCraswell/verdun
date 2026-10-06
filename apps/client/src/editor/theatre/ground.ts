@@ -1,15 +1,25 @@
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
+import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture"
 import { Texture } from "@babylonjs/core/Materials/Textures/texture"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Mesh } from "@babylonjs/core/Meshes/mesh"
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
+import { type GroundBox, SectorHolePlugin } from "./sector-hole.ts"
 
 /**
  * The theatre: the ground round Verdun the editor's theatre view draws, in Lambert-93 (EPSG:2154) metres. Its local
  * frame puts the south-west corner at x 0, z 0, with z north and heights above `base`, as the sectors' frames do.
  */
-export const THEATRE = { west: 860_000, south: 6_892_000, width: 26_000, depth: 23_000, base: 170 } as const
+export const THEATRE = { west: 852_000, south: 6_892_000, width: 38_000, depth: 25_000, base: 170 } as const
+
+/**
+ * Where the Battle of Verdun was fought, February to December 1916, roughly: from the Bois d'Avocourt on the left bank
+ * to Fromezey in the Woëvre, and from the line of 21 February by Consenvoye and the Bois des Caures south to Eix and
+ * Fort Souville, the furthest the Germans came. In Lambert-93 metres; to be drawn from the dated front lines once traced.
+ */
+export const BATTLE_BOUNDS = { west: 854_000, south: 6_899_500, east: 888_500, north: 6_913_000 } as const
 /** The ground is drawn in tiles this many metres square. */
 const TILE = 1000
 
@@ -18,6 +28,22 @@ export interface BaseMap {
   readonly name: string
   readonly layer: string
   readonly format: "image/png" | "image/jpeg"
+  /** A colour the map is multiplied by: the plain terrain is the hillshade, tinted the colour of the ground. */
+  readonly tint?: readonly [number, number, number]
+}
+
+/**
+ * The ground's hillshade: LiDAR HD's, over RGE ALTI's where LiDAR HD hasn't been flown, so no hole shows. IGN draws the
+ * layers named one over the other.
+ */
+const HILLSHADE = "ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW,IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW"
+
+/** The ground as the land lies, without a map on it: the LiDAR hillshade in the colours of the earth. */
+export const TERRAIN: BaseMap = {
+  name: "Terrain",
+  layer: HILLSHADE,
+  format: "image/png",
+  tint: [0.66, 0.6, 0.47]
 }
 
 /**
@@ -28,10 +54,11 @@ export const BASE_MAPS: readonly BaseMap[] = [
   { name: "Carte d'état-major, 1820–1866", layer: "GEOGRAPHICALGRIDSYSTEMS.ETATMAJOR40", format: "image/jpeg" },
   { name: "Cassini, 18th century", layer: "BNF-IGNF_GEOGRAPHICALGRIDSYSTEMS.CASSINI", format: "image/jpeg" },
   { name: "SCAN 50, 1950", layer: "GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN50.1950", format: "image/jpeg" },
-  { name: "Aerial photographs, 1950–1965", layer: "ORTHOIMAGERY.ORTHOPHOTOS.1950-1965", format: "image/jpeg" },
+  // IGN serves these with a transparency band, as PNG only.
+  { name: "Aerial photographs, 1950–1965", layer: "ORTHOIMAGERY.ORTHOPHOTOS.1950-1965", format: "image/png" },
   { name: "Aerial photographs, today", layer: "HR.ORTHOIMAGERY.ORTHOPHOTOS", format: "image/jpeg" },
   { name: "Plan IGN, today", layer: "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", format: "image/png" },
-  { name: "LiDAR hillshade", layer: "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW", format: "image/png" }
+  { name: "LiDAR hillshade", layer: HILLSHADE, format: "image/png" }
 ]
 
 /** The bare-earth terrain models: LiDAR HD where it has been flown, RGE ALTI everywhere, to fill its gaps. */
@@ -55,7 +82,11 @@ function wmsUrl(layer: string, format: string, x0: number, z0: number, x1: numbe
     VERSION: "1.3.0",
     REQUEST: "GetMap",
     LAYERS: layer,
-    STYLES: "",
+    // One style, the default, for each layer named.
+    STYLES: layer
+      .split(",")
+      .map(() => "")
+      .join(","),
     CRS: "EPSG:2154",
     BBOX: bbox,
     WIDTH: String(w),
@@ -63,6 +94,25 @@ function wmsUrl(layer: string, format: string, x0: number, z0: number, x1: numbe
     FORMAT: format
   })
   return `/geo/wms?${query.toString()}`
+}
+
+/** A map's image of a box given in Lambert-93 metres, `width` by `height` pixels, north at the top. */
+export function mapImageUrl(
+  base: BaseMap,
+  box: { readonly west: number; readonly south: number; readonly east: number; readonly north: number },
+  width: number,
+  height: number
+): string {
+  return wmsUrl(
+    base.layer,
+    base.format,
+    box.west - THEATRE.west,
+    box.south - THEATRE.south,
+    box.east - THEATRE.west,
+    box.north - THEATRE.south,
+    width,
+    height
+  )
 }
 
 /**
@@ -157,15 +207,39 @@ function gridMesh(
   return mesh
 }
 
-function mapMaterial(scene: Scene, name: string, url: string): StandardMaterial {
+/** A material drawing a map's image, and when the image has come: until then a mesh with it would draw white. */
+function mapMaterial(
+  scene: Scene,
+  name: string,
+  url: string,
+  base: BaseMap,
+  hole: GroundBox | null
+): { material: StandardMaterial; loaded: Promise<void> } {
   const material = new StandardMaterial(name, scene)
-  const texture = new Texture(url, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE)
-  texture.wrapU = Texture.CLAMP_ADDRESSMODE
-  texture.wrapV = Texture.CLAMP_ADDRESSMODE
-  texture.anisotropicFilteringLevel = 8
-  material.diffuseTexture = texture
+  if (hole) {
+    // The plugin registers itself with the material; kept with it for the console's sake.
+    material.metadata = { hole: new SectorHolePlugin(material, hole) }
+  }
+  if (base.tint) {
+    material.diffuseColor = new Color3(...base.tint)
+  }
+  const loaded = new Promise<void>((resolve, reject) => {
+    const texture = new Texture(
+      url,
+      scene,
+      false,
+      true,
+      Texture.TRILINEAR_SAMPLINGMODE,
+      () => resolve(),
+      () => reject(new Error(`Couldn't load ${url}`))
+    )
+    texture.wrapU = Texture.CLAMP_ADDRESSMODE
+    texture.wrapV = Texture.CLAMP_ADDRESSMODE
+    texture.anisotropicFilteringLevel = 8
+    material.diffuseTexture = texture
+  })
   material.specularColor = Color3.Black()
-  return material
+  return { material, loaded }
 }
 
 export interface TheatreGround {
@@ -175,6 +249,11 @@ export interface TheatreGround {
   setBaseMap(map: BaseMap): void
   /** Called each frame with the point the camera looks at: loads finer tiles round it, drops those far off. */
   update(x: number, z: number): void
+  /**
+   * Lays an image of the whole theatre over its ground, unlit, `lift` metres above it, such as the rivers: transparent
+   * where the image is. Returns the mesh, to show and hide.
+   */
+  drape(name: string, image: BaseTexture, lift: number): Mesh
   /** How many fine tiles are drawn and loading, for the status line. */
   readonly detail: { readonly shown: number; readonly loading: number }
 }
@@ -192,7 +271,18 @@ interface DetailTile {
  * texture of their own near the camera, replacing the coarse ground beneath them. Heights and maps come from IGN
  * through the dev server's cache.
  */
-export async function createTheatreGround(scene: Scene, initial: BaseMap): Promise<TheatreGround> {
+export interface TheatreGroundOptions {
+  /** What the ground is drawn under, placing the theatre's frame in the scene's. */
+  readonly parent?: TransformNode
+  /** Where the sector being edited is drawn, in the scene's metres: the theatre leaves a hole for it. */
+  readonly hole?: GroundBox
+}
+
+export async function createTheatreGround(
+  scene: Scene,
+  initial: BaseMap,
+  { parent, hole = undefined }: TheatreGroundOptions = {}
+): Promise<TheatreGround> {
   const columns = THEATRE.width / COARSE.step + 1
   const rows = THEATRE.depth / COARSE.step + 1
   const coarse = await heightGrid(0, 0, THEATRE.width, THEATRE.depth, columns, rows)
@@ -223,7 +313,7 @@ export async function createTheatreGround(scene: Scene, initial: BaseMap): Promi
       COARSE.texture,
       Math.round((COARSE.texture * THEATRE.depth) / THEATRE.width)
     )
-  let coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map))
+  let coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null).material
   const perTile = TILE / COARSE.step
   const tilesX = THEATRE.width / TILE
   const tilesZ = THEATRE.depth / TILE
@@ -240,6 +330,7 @@ export async function createTheatreGround(scene: Scene, initial: BaseMap): Promi
         whole
       )
       mesh.material = coarseMaterial
+      mesh.parent = parent ?? null
       mesh.isPickable = true
       coarseTiles.push(mesh)
     }
@@ -252,12 +343,10 @@ export async function createTheatreGround(scene: Scene, initial: BaseMap): Promi
     loading += 1
     const box = { x0: tx * TILE, z0: tz * TILE, x1: (tx + 1) * TILE, z1: (tz + 1) * TILE }
     const samples = DETAIL.samples
+    const drawn = map
     heightGrid(box.x0, box.z0, box.x1, box.z1, samples, samples)
-      .then((heights) => {
-        tile.mesh?.dispose()
-        tile.material?.dispose(true, true)
-        tile.map = map
-        tile.mesh = gridMesh(
+      .then(async (heights) => {
+        const mesh = gridMesh(
           scene,
           `theatre-detail-${tx}-${tz}`,
           (column, row) => heights[row * samples + column] ?? 0,
@@ -266,12 +355,30 @@ export async function createTheatreGround(scene: Scene, initial: BaseMap): Promi
           samples,
           box
         )
-        tile.material = mapMaterial(
+        mesh.setEnabled(false)
+        mesh.parent = parent ?? null
+        const { material, loaded } = mapMaterial(
           scene,
           `theatre-detail-${tx}-${tz}`,
-          wmsUrl(map.layer, map.format, box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture)
+          wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture),
+          drawn,
+          hole ?? null
         )
-        tile.mesh.material = tile.material
+        mesh.material = material
+        try {
+          await loaded
+        } catch (error) {
+          mesh.dispose()
+          material.dispose(true, true)
+          throw error
+        }
+        // The fine tile takes over from the coarse ground only once its map has come.
+        tile.mesh?.dispose()
+        tile.material?.dispose(true, true)
+        tile.mesh = mesh
+        tile.material = material
+        tile.map = drawn
+        mesh.setEnabled(true)
         coarseTiles[tz * tilesX + tx]?.setEnabled(false)
       })
       .catch((error: unknown) => console.warn(`Theatre tile ${tx},${tz}:`, error))
@@ -289,10 +396,23 @@ export async function createTheatreGround(scene: Scene, initial: BaseMap): Promi
 
   return {
     heightAt,
+    drape(name, image, lift) {
+      const mesh = gridMesh(scene, name, (column, row) => coarseAt(column, row) + lift, whole, columns, rows, whole)
+      mesh.parent = parent ?? null
+      mesh.isPickable = false
+      const material = new StandardMaterial(name, scene)
+      material.diffuseTexture = image
+      material.emissiveColor = Color3.White()
+      material.disableLighting = true
+      material.useAlphaFromDiffuseTexture = true
+      material.zOffset = -4
+      mesh.material = material
+      return mesh
+    },
     setBaseMap(next) {
       map = next
       coarseMaterial.dispose(true, true)
-      coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map))
+      coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null).material
       for (const mesh of coarseTiles) {
         mesh.material = coarseMaterial
       }

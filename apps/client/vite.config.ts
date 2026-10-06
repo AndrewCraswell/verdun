@@ -190,50 +190,57 @@ function sectorFiles(): Plugin {
 
 /** Where the geography the editor's theatre view draws is cached: IGN's elevation and maps, fetched once. Git-ignored. */
 const GEO_CACHE_DIR = resolve(import.meta.dirname, "../../.asset-cache/geo")
-const GEO_ROUTE = "/geo/wms"
-/** IGN's Géoplateforme map service: LiDAR HD elevation, the état-major and Cassini maps, aerial photographs. */
-const IGN_WMS = "https://data.geopf.fr/wms-r/wms"
+/**
+ * IGN's Géoplateforme services the theatre view reads, by the route the dev server gives each: the map service (LiDAR HD
+ * elevation, the état-major and Cassini maps, aerial photographs) and the features service (BD TOPO's rivers).
+ */
+const GEO_SERVICES: Record<string, string> = {
+  "/geo/wms": "https://data.geopf.fr/wms-r/wms",
+  "/geo/wfs": "https://data.geopf.fr/wfs/ows"
+}
 
 /**
- * Serves IGN's map service to the sector editor's theatre view at /geo/wms in dev, keeping each answer on disk so a
- * tile is fetched from IGN once, and the theatre opens offline after that. Data © IGN, Licence Ouverte 2.0.
+ * Serves IGN's services to the sector editor's theatre view under /geo/ in dev, keeping each answer on disk so it is
+ * fetched from IGN once, and the theatre opens offline after that. Data © IGN, Licence Ouverte 2.0.
  */
 function geoCache(): Plugin {
   return {
     name: "verdun-geo-cache",
     apply: "serve",
     configureServer(server) {
-      server.middlewares.use(GEO_ROUTE, (request, response) => {
-        const query = request.url?.split("?")[1] ?? ""
-        const key = createHash("sha1").update(query).digest("hex")
-        const file = resolve(GEO_CACHE_DIR, key.slice(0, 2), key)
-        const send = (body: Buffer, contentType: string) => {
-          response.setHeader("Content-Type", contentType)
-          response.setHeader("Cache-Control", "max-age=31536000, immutable")
-          response.end(body)
-        }
-        if (existsSync(file) && existsSync(`${file}.type`)) {
-          send(readFileSync(file), readFileSync(`${file}.type`, "utf8"))
-          return
-        }
-        fetch(`${IGN_WMS}?${query}`)
-          .then(async (answer) => {
-            const contentType = answer.headers.get("content-type") ?? "application/octet-stream"
-            const body = Buffer.from(await answer.arrayBuffer())
-            // Only maps and grids are kept: IGN answers a bad request with an XML exception.
-            if (answer.ok && !contentType.includes("xml")) {
-              mkdirSync(resolve(GEO_CACHE_DIR, key.slice(0, 2)), { recursive: true })
-              writeFileSync(file, body)
-              writeFileSync(`${file}.type`, contentType)
-            }
-            response.statusCode = answer.status
-            send(body, contentType)
-          })
-          .catch((error: unknown) => {
-            response.statusCode = 502
-            response.end(String(error))
-          })
-      })
+      for (const [route, service] of Object.entries(GEO_SERVICES)) {
+        server.middlewares.use(route, (request, response) => {
+          const query = request.url?.split("?")[1] ?? ""
+          const key = createHash("sha1").update(`${route}?${query}`).digest("hex")
+          const file = resolve(GEO_CACHE_DIR, key.slice(0, 2), key)
+          const send = (body: Buffer, contentType: string) => {
+            response.setHeader("Content-Type", contentType)
+            response.setHeader("Cache-Control", "max-age=31536000, immutable")
+            response.end(body)
+          }
+          if (existsSync(file) && existsSync(`${file}.type`)) {
+            send(readFileSync(file), readFileSync(`${file}.type`, "utf8"))
+            return
+          }
+          fetch(`${service}?${query}`)
+            .then(async (answer) => {
+              const contentType = answer.headers.get("content-type") ?? "application/octet-stream"
+              const body = Buffer.from(await answer.arrayBuffer())
+              // Only maps and grids are kept: IGN answers a bad request with an XML exception.
+              if (answer.ok && !contentType.includes("xml")) {
+                mkdirSync(resolve(GEO_CACHE_DIR, key.slice(0, 2)), { recursive: true })
+                writeFileSync(file, body)
+                writeFileSync(`${file}.type`, contentType)
+              }
+              response.statusCode = answer.status
+              send(body, contentType)
+            })
+            .catch((error: unknown) => {
+              response.statusCode = 502
+              response.end(String(error))
+            })
+        })
+      }
     }
   }
 }

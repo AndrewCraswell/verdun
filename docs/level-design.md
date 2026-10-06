@@ -598,13 +598,20 @@ in the file.
 ## Sector editor
 
 The sector editor (`apps/client/editor.html`, served by the dev server only, at http://localhost:5173/editor.html) shows
-a sector as its file makes it, generated and dressed with the level's own art, under a free camera. Saving the sector in
-Tiled reloads it, keeping the view. Any image layer of the sector's Tiled map can be laid over the ground at an opacity
-of your choosing ([overlay.ts](../apps/client/src/editor/overlay.ts)): the LiDAR survey, a historical map traced in, or
-the `generated` preview, which sits exactly on what was generated. The dev server hands the editor the sector files at
-`/sectors/` (`sectorFiles` in the client's Vite config). `window.editor` holds its engine, scene, camera and map for the
-console. Next: selecting and moving what the file holds, placing the kit's pieces, drawing trenches, and analysis
-overlays.
+a sector as its file makes it, generated and dressed with the level's own art, where it lies in the whole front round
+Verdun: 38 km by 25 km of IGN's LiDAR HD ground (RGE ALTI where LiDAR HD hasn't been flown), a 50 m grid of the whole
+and 1 km tiles at about 8 m near the camera ([ground.ts](../apps/client/src/editor/theatre/ground.ts)), with a hole
+where the sector's own ground is drawn. Over all of it goes a map chosen from a list: the plain terrain (the hillshade),
+the Carte d'état-major (1820–1866), Cassini, the SCAN 50 of 1950, aerial photographs of 1950–65 and today, or Plan IGN;
+over the sector, at an opacity of your choosing, the same map and one of its file's own images (the LiDAR survey, or the
+`generated` preview, which sits exactly on what was generated). The rivers, canals and ponds of 1916 from BD TOPO can be
+highlighted. Forts, villages, the town and hills are marked from Wikidata (`pnpm map:places` writes
+packages/map/data/verdun-places.json), the area the battle was fought over is fenced in red, and the sector in gold. The
+camera works as in other level editors (right button to fly, middle to pan, Alt to orbit, the wheel to the cursor), with
+a compass, Face north, Frame sector and Reset view. The dev server hands the editor the sector files at `/sectors/` and
+IGN's services at `/geo/`, keeping every answer from IGN in `.asset-cache/geo`. `window.editor` holds its engine, scene,
+camera and map for the console. Saving the sector in Tiled reloads it, keeping the view. What comes next is in
+[the sector editor's design](design/sector-editor.md).
 
 ## Editing in Tiled
 

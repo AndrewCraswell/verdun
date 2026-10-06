@@ -15,6 +15,12 @@ export interface CameraPose {
 export interface EditorCamera {
   readonly camera: UniversalCamera
   pose(): CameraPose
+  /** Which way the camera faces: radians clockwise from north. */
+  readonly yaw: number
+  /** Turns to face north, keeping where the camera is and how far it looks down. */
+  faceNorth(): void
+  /** Puts the camera back where a pose has it. */
+  reset(pose: CameraPose): void
   /** Looks at a box of ground from above and to the south, near enough to fill the view with it. */
   frame(minX: number, minZ: number, maxX: number, maxZ: number, groundY: number): void
   /** Called each frame with the seconds since the last: flies with the keys held. */
@@ -171,6 +177,20 @@ export function createEditorCamera(
     pose() {
       const { x, y, z } = camera.position
       return { position: [x, y, z], yaw, pitch, speed }
+    },
+    get yaw() {
+      return yaw
+    },
+    faceNorth() {
+      yaw = 0
+      aim()
+    },
+    reset(next) {
+      camera.position.set(...next.position)
+      yaw = next.yaw
+      pitch = next.pitch
+      speed = next.speed
+      aim()
     },
     frame(minX, minZ, maxX, maxZ, groundY) {
       const size = Math.max(maxX - minX, maxZ - minZ)

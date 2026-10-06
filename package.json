@@ -31,6 +31,7 @@
     "prepare": "lefthook install",
     "map:analyze": "node scripts/analyze-sector.mjs",
     "map:elevation": "node scripts/fetch-elevation.mjs",
+    "map:places": "node scripts/fetch-places.mjs",
     "map:front": "node scripts/build-front-map.mjs",
     "weather:build": "node scripts/build-historical-weather.mjs",
     "sound:voices": "node scripts/generate-voices.mjs scripts/voice-lines.json",
