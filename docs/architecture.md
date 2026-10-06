@@ -249,9 +249,12 @@ What it said, and what was done about it:
 - **Hosting**: at 100 players a sector sends about 2.5 MB/s (21 Mbit/s), which matters for Railway's egress pricing.
 - **Rust**: the step's time is in algorithms (route searches thrashing, rebuilt fields) and in how hot loops are
   written, not in what JavaScript costs over native code, and the simulation is shared with the browser's worker; a
-  rewrite isn't warranted. Writing the route search's loop tightly made it three times as fast in JavaScript. If it's
-  still the bottleneck, that one function could become a Rust/WebAssembly module behind the same call, as the sight
-  lines already are (Rapier).
+  rewrite isn't warranted. Writing the route search's loop tightly made it three times as fast in JavaScript. Measured
+  after that, on the Fleury grid with the same inputs and identical results (40 route searches to the map's edge, and
+  20,000 straight walks from where men stood): Rust compiled to WebAssembly ran the search about 1.45 times as fast as
+  the JavaScript and the straight walks 1.5 times, native Rust 1.8 and 1.7. With the two a third to a half of a step,
+  that would take some 12 to 15% off it, about 2 ms: not worth a second language in the build yet. If the step is the
+  limit again, the route search is the one to move, behind the same call, as the sight lines already are (Rapier).
 
 ### ECS decision
 
