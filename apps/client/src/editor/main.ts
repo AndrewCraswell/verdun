@@ -102,7 +102,15 @@ function places(): Place[] {
     isPlaceKind(place.kind) &&
     typeof place.x === "number" &&
     typeof place.y === "number"
-      ? [{ name: place.name, kind: place.kind, x: place.x, y: place.y }]
+      ? [
+          {
+            name: place.name,
+            kind: place.kind,
+            x: place.x,
+            y: place.y,
+            ...(typeof place.wikipedia === "string" ? { wikipedia: place.wikipedia } : {})
+          }
+        ]
       : []
   )
 }

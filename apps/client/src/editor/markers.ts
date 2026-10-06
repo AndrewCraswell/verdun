@@ -27,6 +27,8 @@ export interface Place {
   readonly kind: PlaceKind
   readonly x: number
   readonly y: number
+  /** Its Wikipedia article, where it has one. */
+  readonly wikipedia?: string
 }
 
 export function isPlaceKind(value: unknown): value is PlaceKind {
@@ -79,6 +81,18 @@ export function createMarkers(
     const label = document.createElement("div")
     label.className = `marker marker-${place.kind}`
     label.textContent = place.name
+    // A link to the place's Wikipedia article, where it has one, opening in a new tab.
+    if (place.wikipedia) {
+      const link = document.createElement("a")
+      link.className = "marker-wiki"
+      link.href = place.wikipedia
+      link.target = "_blank"
+      link.rel = "noopener noreferrer"
+      link.title = `${place.name} on Wikipedia`
+      link.textContent = "W"
+      link.addEventListener("click", (event) => event.stopPropagation())
+      label.append(link)
+    }
     // How many labels this one hides where they'd overlap. Clicking a label that hides others spreads them out under it,
     // and again folds them; clicking one that hides none takes the camera to its place.
     const covers = document.createElement("span")
