@@ -27,7 +27,8 @@ import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./ov
 import { createScaleBar } from "./scale-bar.ts"
 import { createAlignment } from "./theatre/align.ts"
 import { BATTLE_MAPS, type BattleMap, type BattleMapDrape, drapeBattleMap } from "./theatre/battle-maps.ts"
-import { BASE_MAPS, BATTLE_BOUNDS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
+import { BATTLE_AREA, FRONT_LINE_DATES, FRONT_LINES } from "./theatre/front-lines.ts"
+import { BASE_MAPS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
 import { createWaterTexture } from "./theatre/water.ts"
 
 /** The sector file the editor shows. Only Fleury generates as yet. */
@@ -39,6 +40,7 @@ const MARKERS_KEY = "verdun.editor.markers"
 const RIVERS_KEY = "verdun.editor.rivers"
 const RELIEF_KEY = "verdun.editor.relief"
 const BATTLE_MAP_KEY = "verdun.editor.battle-map"
+const FRONT_LINES_KEY = "verdun.editor.front-lines"
 const SECTOR_KEY = "verdun.editor.sector"
 /**
  * The camera layer the sector is drawn on, its ground, trenches, scenery and the images laid over it: the camera leaves
@@ -277,19 +279,8 @@ async function start(): Promise<void> {
   }
   // Where the battle was fought, and the sector, each fenced by a translucent curtain standing on the ground round it,
   // tall enough that no hill hides it.
-  const outline = (
-    name: string,
-    box: { readonly west: number; readonly south: number; readonly east: number; readonly north: number },
-    colour: Color3,
-    tall: number
-  ) => {
-    const corners: [number, number][] = [
-      [box.west, box.south],
-      [box.east, box.south],
-      [box.east, box.north],
-      [box.west, box.north],
-      [box.west, box.south]
-    ]
+  /** A translucent curtain standing `tall` metres over the ground along a line of Lambert-93 points. */
+  const curtain = (name: string, corners: readonly (readonly [number, number])[], colour: Color3, tall: number) => {
     const foot: Vector3[] = []
     const head: Vector3[] = []
     for (let index = 1; index < corners.length; index++) {
@@ -303,20 +294,101 @@ async function start(): Promise<void> {
         head.push(at.add(new Vector3(0, tall - 20, 0)))
       }
     }
-    const curtain = CreateRibbon(name, { pathArray: [foot, head], sideOrientation: 2 }, scene)
+    const ribbon = CreateRibbon(name, { pathArray: [foot, head], sideOrientation: 2 }, scene)
     const material = new StandardMaterial(name, scene)
     material.emissiveColor = colour
     material.disableLighting = true
     material.alpha = 0.4
     material.backFaceCulling = false
-    curtain.material = material
-    curtain.isPickable = false
+    ribbon.material = material
+    ribbon.isPickable = false
   }
+  /** A band `wide` metres across lying on the ground along a line, seen from above as the curtain isn't. */
+  const band = (name: string, points: readonly (readonly [number, number])[], colour: Color3, wide: number) => {
+    const left: Vector3[] = []
+    const right: Vector3[] = []
+    points.forEach(([x, y], index) => {
+      const [ax, ay] = points[Math.max(0, index - 1)] ?? [x, y]
+      const [bx, by] = points[Math.min(points.length - 1, index + 1)] ?? [x, y]
+      const length = Math.hypot(bx - ax, by - ay) || 1
+      const [nx, ny] = [(-(by - ay) / length) * (wide / 2), ((bx - ax) / length) * (wide / 2)]
+      left.push(toScene(x + nx, y + ny).subtractFromFloats(0, 12, 0))
+      right.push(toScene(x - nx, y - ny).subtractFromFloats(0, 12, 0))
+    })
+    const ribbon = CreateRibbon(name, { pathArray: [left, right], sideOrientation: 2 }, scene)
+    const material = new StandardMaterial(name, scene)
+    material.emissiveColor = colour
+    material.disableLighting = true
+    material.alpha = 0.85
+    material.backFaceCulling = false
+    material.zOffset = -8
+    ribbon.material = material
+    ribbon.isPickable = false
+  }
+  const outline = (
+    name: string,
+    box: { readonly west: number; readonly south: number; readonly east: number; readonly north: number },
+    colour: Color3,
+    tall: number
+  ) =>
+    curtain(
+      name,
+      [
+        [box.west, box.south],
+        [box.east, box.south],
+        [box.east, box.north],
+        [box.west, box.north],
+        [box.west, box.south]
+      ],
+      colour,
+      tall
+    )
+  // The front lines of a date: German in blue, French in red.
+  const frontSelect = element("front-lines", HTMLSelectElement)
+  const frontNote = element("front-lines-note", HTMLElement)
+  const lineDate = (iso: string) =>
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+  frontSelect.replaceChildren(
+    new Option("None", ""),
+    ...FRONT_LINE_DATES.map((date) => new Option(lineDate(date), date))
+  )
+  const keptFront = readStored(FRONT_LINES_KEY)
+  frontSelect.value = typeof keptFront === "string" && FRONT_LINE_DATES.includes(keptFront) ? keptFront : ""
+  const drawFrontLines = () => {
+    for (const mesh of scene.meshes.filter((candidate) => candidate.name.startsWith("front-line-"))) {
+      mesh.dispose(false, true)
+    }
+    const shown = FRONT_LINES.filter((line) => line.date === frontSelect.value)
+    for (const line of shown) {
+      const colour = line.side === "german" ? new Color3(0.15, 0.35, 0.95) : new Color3(0.95, 0.15, 0.12)
+      curtain(`front-line-${line.id}`, line.points, colour, 60)
+      band(`front-line-${line.id}-band`, line.points, colour, 60)
+    }
+    const kilometres = shown.reduce(
+      (sum, line) =>
+        sum +
+        line.points.slice(1).reduce((total, [x, y], index) => {
+          const [px, py] = line.points[index] ?? [x, y]
+          return total + Math.hypot(x - px, y - py)
+        }, 0),
+      0
+    )
+    frontNote.textContent = shown.length
+      ? `${shown.map((line) => line.note).join(" ")} ${Math.round(kilometres / 100) / 10} km traced.`
+      : ""
+  }
+  frontSelect.addEventListener("change", () => {
+    store(FRONT_LINES_KEY, frontSelect.value)
+    drawFrontLines()
+  })
   const drawOutlines = () => {
     scene.getMeshByName("battle-bounds")?.dispose(false, true)
+    scene.getMeshByName("battle-bounds-band")?.dispose(false, true)
     scene.getMeshByName("sector-bounds")?.dispose(false, true)
-    outline("battle-bounds", BATTLE_BOUNDS, new Color3(0.9, 0.2, 0.15), 150)
+    curtain("battle-bounds", BATTLE_AREA, new Color3(0.9, 0.2, 0.15), 150)
+    band("battle-bounds-band", BATTLE_AREA, new Color3(0.9, 0.2, 0.15), 90)
     outline("sector-bounds", sectorBox, new Color3(1, 0.78, 0.3), 30)
+    drawFrontLines()
   }
   drawOutlines()
 
@@ -337,8 +409,9 @@ async function start(): Promise<void> {
   const battleLabel: Place = {
     name: "Battle of Verdun, 1916",
     kind: "area",
-    x: BATTLE_BOUNDS.west + 400,
-    y: BATTLE_BOUNDS.north - 300
+    // Over the battlefield's middle: the Côte du Talou, between the banks.
+    x: BATTLE_AREA.reduce((sum, [x]) => sum + x, 0) / Math.max(1, BATTLE_AREA.length),
+    y: BATTLE_AREA.reduce((sum, [, y]) => sum + y, 0) / Math.max(1, BATTLE_AREA.length)
   }
   // Choosing a place from a label's list takes the camera to it, a kilometre and a half off.
   const flyTo = (place: Place) => {

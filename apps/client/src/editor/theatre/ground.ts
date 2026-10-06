@@ -23,12 +23,6 @@ import { createTileThread } from "./tile-thread.ts"
  */
 export const THEATRE = { west: 846_000, south: 6_880_000, width: 50_000, depth: 38_000, base: 170 } as const
 
-/**
- * Where the Battle of Verdun was fought, February to December 1916, roughly: from the Bois d'Avocourt on the left bank
- * to Fromezey in the Woëvre, and from the line of 21 February by Consenvoye and the Bois des Caures south to Eix and
- * Fort Souville, the furthest the Germans came. In Lambert-93 metres; to be drawn from the dated front lines once traced.
- */
-export const BATTLE_BOUNDS = { west: 854_000, south: 6_899_500, east: 888_500, north: 6_913_000 } as const
 /** The ground is drawn in tiles this many metres square. */
 const TILE = 1000
 
