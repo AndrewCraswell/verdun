@@ -383,7 +383,7 @@ CLIMB = {
     "clear": 0.05,
 }
 # What each climbs, in metres: how high its top stands, and how far its faces stand either side of its line. The
-# knife-rest fence is Synty's barricade, 1.35 m to the top of its posts and 0.1 m either side as the simulation has it;
+# wooden fence is Synty's barricade, 1.35 m to the top of its posts and 0.1 m either side as the simulation has it;
 # the walls, the stone walls' sight shapes (sight-shapes.ts): a metre high and 0.6 m thick, or 0.6 m and 0.8 m.
 CLIMBS = {
     "climb_over": {"top": 1.35, "half": 0.1},

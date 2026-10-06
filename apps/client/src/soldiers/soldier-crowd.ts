@@ -120,7 +120,7 @@ const GUN_REACH = 1
 
 /** How high a fence or low wall men climb stands: a wall as its sight shapes measure it. */
 function topOf(item: Scenery): number {
-  return item.kind === "knife-rest"
+  return item.kind === "wooden-fence"
     ? FENCE_TOP * item.scale
     : sightBlocks(item).reduce((top, block) => Math.max(top, block.height), 0)
 }
