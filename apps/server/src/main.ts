@@ -48,8 +48,13 @@ function save(): void {
   store.save(sector.name, sector.save(Date.now()))
 }
 
-// The battle's saves are ours to make on the way down, so Colyseus doesn't stop the process itself.
-const server = new Server({ transport: new WebSocketTransport(), gracefullyShutdown: false })
+// The battle's saves are ours to make on the way down, so Colyseus doesn't stop the process itself. A player's page is
+// pinged every 10 s and let go after 6 unanswered: one busy building the level as it joins, not reading for a while,
+// would otherwise be dropped after 9 s, its reply queued behind the battle's messages.
+const server = new Server({
+  transport: new WebSocketTransport({ pingInterval: 10_000, pingMaxRetries: 6 }),
+  gracefullyShutdown: false
+})
 server.define(SECTOR_ROOM, sectorRoom({ sector, dev, log, ...(statsEvery ? { statsEvery } : {}) }))
 await server.listen(port)
 // The sector's room runs from the start, players or none.

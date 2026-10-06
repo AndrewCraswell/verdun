@@ -160,7 +160,11 @@ before, for development and `pnpm perf`.
   manifests and lockfile together with the server and the packages it runs on, and Railway builds the image from
   `deploy/server/Dockerfile`, Node running the TypeScript as it is. The battle is kept in SQLite on the service's volume
   (`VERDUN_DB=/data/verdun.db`); a deploy gives the server 10 s to save it before it's stopped, and the new one takes it
-  up where it left off. One instance, as the battle is one process's.
+  up where it left off. One instance, as the battle is one process's. A player's page is pinged every 10 s and let go
+  after six go unanswered: a page building the level as it joins reads nothing for a while, its replies queued behind
+  the battle's messages, and with Colyseus's 3 s and two it was dropped. Let go once in the battle, past the client's
+  own reconnecting, the page says the connection was lost and to reload; taking the player back into the battle as they
+  were is still to do.
 
 - **Client-side prediction** (`apps/client/src/sim/prediction.ts`): the soldier the player controls moves on the page at
   once, not a round trip later. The page counts its own steps at the simulation's rate and sends each batch of commands

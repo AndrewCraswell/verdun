@@ -117,6 +117,8 @@ export async function startBattle(
   const server = battleServer(address, modeSettings().current.mode, serverPlace())
   const remote =
     server === null ? null : await serverHost(map, setup, await connectToSector(server, setup.side ?? Side.French))
+  // Lost once in it, the battle says so plainly, rather than standing still with no word from the server.
+  remote?.onLost(() => menu.fail(new Error("The connection to the battle was lost. Reload the page to join it again.")))
   const host = remote ?? (await createSimHost(map, setup, address.has("inline")))
   const { sim, playerSquad } = host
   // The war's calendar: on a server, the sector's own. Played locally, it's kept between visits, so the war goes on a

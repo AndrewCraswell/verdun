@@ -45,6 +45,11 @@ const MOST_STEPS_KEPT = 2 * TICK_RATE
 /** The battle on a sector server: the host also carries the war's calendar the server keeps. */
 export interface ServerHost extends SimHost {
   readonly schedule: WarSchedule
+  /**
+   * Hears when the server lets the page go once it's in the battle, with the close code: the connection lost, past the
+   * reconnecting the client tries first. Not when the page leaves itself.
+   */
+  onLost(listener: (code: number) => void): void
 }
 
 /**
@@ -99,6 +104,8 @@ export async function serverHost(
   mirror.lineOfSight = sightLines
   let arrived: StepTaken[] = []
   let left: number | null = null
+  let leaving = false
+  const lost = new Set<(code: number) => void>()
   const prediction = createPrediction(mirror)
   const smoothing = createSmoothing(mirror)
   // The smoke comes twice a second: the page shows it drifting between.
@@ -126,6 +133,11 @@ export async function serverHost(
     connection.onLeave((code) => {
       left = code
       reject(new Error(`The server closed the battle (${code})`))
+      if (!leaving) {
+        for (const listener of lost) {
+          listener(code)
+        }
+      }
     })
   })
   connection.onMessage(MESSAGE.sync, (payload) => {
@@ -204,7 +216,11 @@ export async function serverHost(
     attachLineOfSight() {
       // The server has the physics; the page answers its own questions from the ground.
     },
+    onLost(listener) {
+      lost.add(listener)
+    },
     dispose() {
+      leaving = true
       connection.leave()
       decoding.dispose()
     }

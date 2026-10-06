@@ -228,6 +228,23 @@ describe("the battle on a server, as the page sees it", () => {
     host.dispose()
   })
 
+  it("says when the server lets the page go, but not when the page leaves itself", async () => {
+    const server = new FakeServer()
+    const host = await serverHost(map(), setup, server)
+    const lost = vi.fn<(code: number) => void>()
+    host.onLost(lost)
+    server.close(1006)
+    expect(lost).toHaveBeenCalledWith(1006)
+
+    const leaving = new FakeServer()
+    const left = await serverHost(map(), setup, leaving)
+    const quiet = vi.fn<(code: number) => void>()
+    left.onLost(quiet)
+    left.dispose()
+    leaving.close(4000)
+    expect(quiet).not.toHaveBeenCalled()
+  })
+
   it("stops sending once the server has gone, and leaves when done", async () => {
     const server = new FakeServer()
     const host = await serverHost(map(), setup, server)
