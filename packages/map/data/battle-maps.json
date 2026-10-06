@@ -8310,6 +8310,155 @@
       ]
     },
     {
+      "id": "afgg-iv-2-carte-10",
+      "name": "Defences of the Second Army, the whole front",
+      "title": "Schéma des organisations défensives de la IIe Armée, 8 juillet 1916",
+      "from": "1916-07-08",
+      "to": "1916-07-08",
+      "source": "Les armées françaises dans la Grande Guerre, tome IV, 2e volume, carte n° 10 (1:80 000)",
+      "credit": "Site Mémoire des hommes, ministère des Armées",
+      "licence": "Licence Ouverte 2.0 (Etalab)",
+      "image": "https://www.memoiredeshommes.defense.gouv.fr/_recherche-images/show/111572/image/56056/0?size=full",
+      "file": "afgg/organisations-defensives-iie-armee-8-juillet-1916.jpg",
+      "size": [5000, 3711],
+      "frame": [120, 20, 4880, 3460],
+      "excluded": [],
+      "order": 1,
+      "fitting": "Printed on the 1:80 000 état-major map, with no kilometre grid: placed by an affine fit to 18 villages (the houses, not the labels) and 8 forts (the blue markers drawn on them), each read from a zoomed crop. Each point left out of the fit in turn is missed by 124 m rms, worst 270 m; a curved fit does no better. Good to about 150 m: finer than the 300 to 500 m bands this map draws positions with, too coarse for trenches.",
+      "controlPoints": [
+        {
+          "name": "Esnes-en-Argonne",
+          "pixel": [1890, 744],
+          "ground": [861143, 6903153]
+        },
+        {
+          "name": "Montzéville",
+          "pixel": [1936, 855],
+          "ground": [861903, 6901350]
+        },
+        {
+          "name": "Avocourt",
+          "pixel": [1580, 755],
+          "ground": [856127, 6902921]
+        },
+        {
+          "name": "Chattancourt",
+          "pixel": [2146, 669],
+          "ground": [865220, 6904350]
+        },
+        {
+          "name": "Bras-sur-Meuse",
+          "pixel": [2645, 697],
+          "ground": [873195, 6903781]
+        },
+        {
+          "name": "Moulainville",
+          "pixel": [3196, 1020],
+          "ground": [881984, 6898674]
+        },
+        {
+          "name": "Eix",
+          "pixel": [3205, 900],
+          "ground": [882085, 6900624]
+        },
+        {
+          "name": "Sommedieue",
+          "pixel": [3080, 1571],
+          "ground": [879922, 6890047]
+        },
+        {
+          "name": "Dieue-sur-Meuse",
+          "pixel": [2884, 1667],
+          "ground": [876969, 6888379]
+        },
+        {
+          "name": "Génicourt-sur-Meuse",
+          "pixel": [2965, 1908],
+          "ground": [878185, 6884522]
+        },
+        {
+          "name": "Lemmes",
+          "pixel": [2266, 1706],
+          "ground": [866999, 6887649]
+        },
+        {
+          "name": "Nixéville",
+          "pixel": [2206, 1418],
+          "ground": [866070, 6892413]
+        },
+        {
+          "name": "Sivry-la-Perche",
+          "pixel": [2086, 1190],
+          "ground": [864178, 6896160]
+        },
+        {
+          "name": "Dombasle-en-Argonne",
+          "pixel": [1826, 1226],
+          "ground": [859863, 6895266]
+        },
+        {
+          "name": "Jouy-en-Argonne",
+          "pixel": [1956, 1254],
+          "ground": [862184, 6894960]
+        },
+        {
+          "name": "Récicourt",
+          "pixel": [1656, 1203],
+          "ground": [857378, 6895661]
+        },
+        {
+          "name": "Moranville",
+          "pixel": [3434, 932],
+          "ground": [885626, 6900181]
+        },
+        {
+          "name": "Fromeréville-les-Vallons",
+          "pixel": [2253, 1069],
+          "ground": [866805, 6897874]
+        },
+        {
+          "name": "Fort de Regret",
+          "pixel": [2484, 1219],
+          "ground": [870583, 6895616]
+        },
+        {
+          "name": "Fort de Dugny",
+          "pixel": [2678, 1389],
+          "ground": [873679, 6892930]
+        },
+        {
+          "name": "Fort de Belrupt",
+          "pixel": [2928, 1123],
+          "ground": [877638, 6896961]
+        },
+        {
+          "name": "Fort de Tavannes",
+          "pixel": [3050, 895],
+          "ground": [879560, 6900755]
+        },
+        {
+          "name": "Fort de la Chaume",
+          "pixel": [2434, 1099],
+          "ground": [869919, 6897617]
+        },
+        {
+          "name": "Fort de Marre",
+          "pixel": [2361, 812],
+          "ground": [868723, 6902025]
+        },
+        {
+          "name": "Fort de Vacherauville",
+          "pixel": [2482, 756],
+          "ground": [870655, 6903050]
+        },
+        {
+          "name": "Fort des Sartelles",
+          "pixel": [2348, 1108],
+          "ground": [868490, 6897290]
+        }
+      ]
+    },
+    {
       "id": "afgg-iv-2-carte-11",
       "name": "German attacks at Thiaumont, Fleury, Souville and Tavannes",
       "title": "Attaques allemandes des 11 et 12 juillet 1916 (Thiaumont, Fleury, Souville, Tavannes)",
