@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs"
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import type { ServerResponse } from "node:http"
 import { extname, resolve, sep } from "node:path"
 import { pipeline } from "node:stream"
@@ -188,6 +188,56 @@ function sectorFiles(): Plugin {
   }
 }
 
+/** Where the geography the editor's theatre view draws is cached: IGN's elevation and maps, fetched once. Git-ignored. */
+const GEO_CACHE_DIR = resolve(import.meta.dirname, "../../.asset-cache/geo")
+const GEO_ROUTE = "/geo/wms"
+/** IGN's Géoplateforme map service: LiDAR HD elevation, the état-major and Cassini maps, aerial photographs. */
+const IGN_WMS = "https://data.geopf.fr/wms-r/wms"
+
+/**
+ * Serves IGN's map service to the sector editor's theatre view at /geo/wms in dev, keeping each answer on disk so a
+ * tile is fetched from IGN once, and the theatre opens offline after that. Data © IGN, Licence Ouverte 2.0.
+ */
+function geoCache(): Plugin {
+  return {
+    name: "verdun-geo-cache",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(GEO_ROUTE, (request, response) => {
+        const query = request.url?.split("?")[1] ?? ""
+        const key = createHash("sha1").update(query).digest("hex")
+        const file = resolve(GEO_CACHE_DIR, key.slice(0, 2), key)
+        const send = (body: Buffer, contentType: string) => {
+          response.setHeader("Content-Type", contentType)
+          response.setHeader("Cache-Control", "max-age=31536000, immutable")
+          response.end(body)
+        }
+        if (existsSync(file) && existsSync(`${file}.type`)) {
+          send(readFileSync(file), readFileSync(`${file}.type`, "utf8"))
+          return
+        }
+        fetch(`${IGN_WMS}?${query}`)
+          .then(async (answer) => {
+            const contentType = answer.headers.get("content-type") ?? "application/octet-stream"
+            const body = Buffer.from(await answer.arrayBuffer())
+            // Only maps and grids are kept: IGN answers a bad request with an XML exception.
+            if (answer.ok && !contentType.includes("xml")) {
+              mkdirSync(resolve(GEO_CACHE_DIR, key.slice(0, 2)), { recursive: true })
+              writeFileSync(file, body)
+              writeFileSync(`${file}.type`, contentType)
+            }
+            response.statusCode = answer.status
+            send(body, contentType)
+          })
+          .catch((error: unknown) => {
+            response.statusCode = 502
+            response.end(String(error))
+          })
+      })
+    }
+  }
+}
+
 /** The build's name for the menu's footer: the commit it was built from, or "dev" where git can't say. */
 function buildName(): string {
   try {
@@ -198,7 +248,7 @@ function buildName(): string {
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [levelKit(), assetPack(), music(), sectorFiles()],
+  plugins: [levelKit(), assetPack(), music(), sectorFiles(), geoCache()],
   define: {
     "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev"),
     // The sector server multiplayer is played on, as CI builds the live game: none here unless given, so a local

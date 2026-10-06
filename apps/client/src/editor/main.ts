@@ -20,6 +20,7 @@ import { createEngine } from "../render/create-engine.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type CameraPose, createEditorCamera, initialPose } from "./editor-camera.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
+import { startTheatre } from "./theatre/theatre.ts"
 
 /** The sector file the editor shows. Only Fleury generates as yet. */
 const SECTOR = "fleury"
@@ -96,8 +97,8 @@ function isNumber(value: unknown): value is number {
 }
 
 /** The camera's pose as last kept, if there is one. */
-function keptPose(): CameraPose | null {
-  const kept = readStored(VIEW_KEY)
+function keptPose(key = VIEW_KEY): CameraPose | null {
+  const kept = readStored(key)
   if (!isRecord(kept) || !Array.isArray(kept.position) || !kept.position.every(isNumber)) {
     return null
   }
@@ -211,7 +212,38 @@ async function start(): Promise<void> {
   status.textContent = `${width} m by ${depth} m, ${map.trenches.length} trenches, ${map.scenery.length} pieces of scenery`
 }
 
-start().catch((error: unknown) => {
+/**
+ * The sectors as they lie in the theatre. Fleury's corner is the one scripts/fetch-elevation.mjs fetched its ground
+ * for; the sector files will carry their own.
+ */
+const SECTORS = [{ name: "Fleury", west: 876_773, south: 6_902_290, width: 600, depth: 400 }]
+const THEATRE_CAMERA_KEY = "verdun.editor.theatre.camera"
+const BASE_MAP_KEY = "verdun.editor.theatre.map"
+
+/** The theatre view: the whole front, with the sectors on it. */
+async function theatre(): Promise<void> {
+  element("sector-name", HTMLElement).textContent = "Verdun, 1916"
+  document.title = "Verdun: theatre"
+  element("overlay-section", HTMLElement).hidden = true
+  const engine = await createEngine(canvas)
+  const kept = readStored(BASE_MAP_KEY)
+  const scene = await startTheatre({
+    canvas,
+    engine,
+    panel: element("panel", HTMLElement),
+    status,
+    sectors: SECTORS,
+    pose: keptPose(THEATRE_CAMERA_KEY),
+    keepPose: (pose) => store(THEATRE_CAMERA_KEY, pose),
+    baseMap: typeof kept === "string" ? kept : null,
+    keepBaseMap: (name) => store(BASE_MAP_KEY, name)
+  })
+  installInspectorToggle(scene)
+  Object.assign(window, { editor: { engine, scene } })
+}
+
+const view = new URLSearchParams(location.search).has("theatre") ? theatre() : start()
+view.catch((error: unknown) => {
   status.textContent = error instanceof Error ? error.message : String(error)
   throw error
 })
