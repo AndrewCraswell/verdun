@@ -61,7 +61,9 @@ size and place can be changed, and the editing UX level editors generally have.
   directeurs, for reference only (their scans need a licence to trace for the game). German: the Bavarian Kriegsarchiv's
   Alpenkorps files (CC0) for Fleury, Thiaumont, Souville and Vaux in 1916. No 1916 plans directeurs are online; the
   Bundesarchiv's German position maps (PH 3-KART) aren't scanned and have to be ordered. Maps are fitted to the ground
-  one by one into `battle-maps.json`.
+  one by one into `battle-maps.json`. A map with the army's printed kilometre grid (Nord de Guerre) is fitted by it:
+  `scripts/fit-battle-map-grid.py` traces every line, pins each crossing to its kilometre, fits only the old datum's
+  offset (about 100 m) to a few forts, and the crossings are fitted `exact`, taking up the paper's folds.
 
 ## Order
 
