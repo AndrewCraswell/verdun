@@ -80,7 +80,21 @@ describe("what a player may command", () => {
       stance: "prone"
     })
 
+    expect(playerCommand(sim, ours, { type: "reload", soldier: man })).toEqual({ type: "reload", soldier: man })
+    expect(playerCommand(sim, ours, { type: "man-gun", soldier: man })).toEqual({ type: "man-gun", soldier: man })
+    expect(playerCommand(sim, ours, { type: "vault", soldier: man, x: 0, z: 1 })).toEqual({
+      type: "vault",
+      soldier: man,
+      x: 0,
+      z: 1
+    })
+    expect(playerCommand(sim, ours, { type: "cut-wire", soldier: man, x: "north" })).toEqual({
+      type: "cut-wire",
+      soldier: man
+    })
+
     expect(playerCommand(sim, ours, { type: "fire", soldier: foe })).toBeNull()
+    expect(playerCommand(sim, ours, { type: "vault", soldier: foe })).toBeNull()
     expect(playerCommand(sim, ours, { type: "steer", soldier: foe, x: 1, z: 0 })).toBeNull()
     expect(playerCommand(sim, ours, { type: "move-to", soldier: man, x: Number.NaN, z: 0 })).toBeNull()
     expect(playerCommand(sim, ours, { type: "stance", soldier: man, stance: "sheltering" })).toBeNull()

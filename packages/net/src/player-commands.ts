@@ -156,7 +156,13 @@ export function playerCommand(sim: Simulation, squad: Squad, value: unknown, dev
     case "throw-grenade":
       return ours && point ? { type: value["type"], soldier, x, z } : null
     case "fire":
-      return ours ? { type: "fire", soldier } : null
+    case "reload":
+    case "man-gun":
+      return ours ? { type: value["type"], soldier } : null
+    // The action key: over the fence or wall ahead, or cutting the wire, the way given or else the way he faces.
+    case "vault":
+    case "cut-wire":
+      return ours ? { type: value["type"], soldier, ...(point ? { x, z } : {}) } : null
     case "stance": {
       const stance = STANCES.find((each) => each === value["stance"])
       return ours && stance ? { type: "stance", soldier, stance } : null
