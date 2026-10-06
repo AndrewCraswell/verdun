@@ -111,6 +111,8 @@ export interface SoldierView {
   readonly position: { readonly x: number; readonly z: number }
   /** What the action key (Space) would do now, in a few words, or null when it would do nothing. */
   readonly action: string | null
+  /** How far through the belt the lane he's cutting is, from 0 to 1, or null when he isn't cutting. */
+  readonly cutting: number | null
 }
 
 /**
@@ -282,7 +284,8 @@ export function soldierView(sim: Simulation, squad: Squad, names: SquadNames, ti
         ? { count: soldiers.rifleGrenades.count[soldier], carried: RIFLE_GRENADES_CARRIED }
         : null,
     position: { x, z },
-    action: actionFor(sim, soldier)
+    action: actionFor(sim, soldier),
+    cutting: isCutting(sim, soldier) ? Math.min(1, Math.max(0, sim.soldiers.cutting.progress[soldier])) : null
   }
 }
 

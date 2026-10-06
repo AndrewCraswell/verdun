@@ -1,8 +1,13 @@
+import { createFlatMap, Surface } from "@verdun/map"
 import {
   casualty,
+  createSimulation,
+  createSquad,
   enqueueCommand,
   MaskState,
   reloadSeconds,
+  Side,
+  spawnSoldier,
   Stance,
   stepSimulation,
   surrender,
@@ -249,5 +254,24 @@ describe("effectsOn", () => {
     const ids = masking ? effectsOn(sim, masking).map((effect) => effect.id) : []
     expect(ids).toEqual(expect.arrayContaining(["mask", "fog", "dugout"]))
     expect(ids).not.toContain("gas")
+  })
+
+  it("reads how far through the belt the lane he's cutting is, and nothing when he isn't cutting", () => {
+    const flat = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 200 }, 5, Surface.Grass)
+    const belt = { points: [[0, 50] as const, [100, 50] as const] }
+    const sim = createSimulation({ map: { ...flat, wire: [belt] }, seed: 1 })
+    const man = spawnSoldier(sim, { side: Side.French, x: 40.5, z: 47.8 })
+    sim.soldiers.facing.x[man] = 0
+    sim.soldiers.facing.z[man] = 1
+    const squad = createSquad(sim, Side.French, [man], "player")
+    const names = createSquadNames()
+    expect(soldierView(sim, squad, names, TICK_RATE)?.cutting).toBeNull()
+    enqueueCommand(sim, { type: "cut-wire", soldier: man, x: 0, z: 1 })
+    for (let step = 0; step < 8 * TICK_RATE; step++) {
+      stepSimulation(sim)
+    }
+    const cutting = soldierView(sim, squad, names, TICK_RATE)?.cutting ?? 0
+    expect(cutting).toBeGreaterThan(0)
+    expect(cutting).toBeLessThan(1)
   })
 })
