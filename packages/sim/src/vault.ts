@@ -30,16 +30,17 @@ const OVER_DROP = 1.5
 const VAULT_PACE = 1.2
 /**
  * A fence or low wall takes this long to get over from where it stops him, in seconds: both hands on the top rail and
- * over in a bound, as the soldiers' climbs take it (scripts/retarget-animations.py). A man astride it is a mark for every rifle in reach while
- * he is.
+ * over in a bound, as the soldiers' climbs take it (scripts/retarget-animations.py). A man astride it is a mark for
+ * every rifle in reach while he is.
  */
 export const FENCE_CLIMB_SECONDS = 1.25
 /**
  * He's climbing a fence or low wall while within this far of its faces, in metres: from where it stops him (his
- * half-width off it) to as far past it.
+ * half-width off it) to as far past it. The climbs are keyed to start this far off the fence: CLIMB["reach"] in
+ * scripts/retarget-animations.py copies it, so change both together.
  */
 export const FENCE_REACH = 0.35
-/** He comes down this much further from its far face, in metres, so he's off it as he lands... */
+/** He comes down this much further from its far face, in metres, so he's off it as he lands (CLIMB["clear"])... */
 const CLEAR_OF_FENCE = 0.05
 /** ...or up to this much further still, in metres, to find room. */
 const LANDING_LEEWAY = 0.5
