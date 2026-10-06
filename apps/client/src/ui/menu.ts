@@ -5,6 +5,7 @@ import { turnLabel, weekLabel } from "../environment/war-labels.ts"
 import { BATTLE_WEEK, browserStore, localSchedule } from "../environment/war-schedule.ts"
 import { h, setText } from "../hud/dom.ts"
 import { type InterfaceSettings, interfaceSettings } from "../hud/interface-settings.ts"
+import { modeSettings, multiplayerServer, type PlayMode, serverPlace } from "../settings/mode.ts"
 import { type PlayerSide, sideSettings } from "../settings/side.ts"
 import type { BattlePages } from "./battle-pages.ts"
 import type { BattleParts } from "./battle.ts"
@@ -14,7 +15,7 @@ import { createFrontMapPage } from "./front/front-map.ts"
 import { OPEN_SECTOR } from "./front/front.ts"
 import { weekAtVerdun } from "./front/verdun-1916.ts"
 import { keymap } from "./keymap.ts"
-import { createLoadingScreen } from "./loading.ts"
+import { createLoadingScreen, verdunSketch } from "./loading.ts"
 import { createOptionsPage } from "./options.ts"
 import type { MenuPage } from "./page.ts"
 // The menus share the HUD's type: Archivo for reading, Bodoni Moda for headings.
@@ -158,7 +159,27 @@ export function createMenu(
   const history = h("p", "ui-history")
   const nav = h("nav", "ui-nav-list")
   nav.setAttribute("aria-label", "Menu")
-  const footer = h("footer", "ui-footer", `Single-player prototype, build ${build}`)
+  const footer = h("footer", "ui-footer", `Prototype, build ${build}`)
+  // How to play, at the front door: multiplayer on the sector's server, or alone. Offered only where the game knows a
+  // server; the battle comes up for the mode chosen, so a change once it's loading starts it again.
+  const modeChoice = segmented<PlayMode>(
+    [
+      { value: "multiplayer", label: "Multiplayer" },
+      { value: "single", label: "Single player" }
+    ],
+    modeSettings().current.mode,
+    (mode) => {
+      modeSettings().change({ mode })
+      if (requested) {
+        location.reload()
+      } else {
+        entry()
+      }
+    }
+  )
+  modeChoice.root.classList.add("ui-mode-choice")
+  const modePicker = h("div", "ui-side", h("span", "ui-side-label", "Play"), modeChoice.root)
+  const canPlayOnline = multiplayerServer(serverPlace()) !== null
   // The side to fight for, at the front door. The battle comes up for the side chosen, so a change once it's loading
   // starts it again.
   const sideChoice = segmented<PlayerSide>(
@@ -184,6 +205,7 @@ export function createMenu(
     "ui-column",
     h("header", "ui-masthead", kicker, title),
     h("div", "ui-date", week, history),
+    modePicker,
     sidePicker,
     nav,
     footer
@@ -197,7 +219,10 @@ export function createMenu(
   const pagePanel = h("section", "ui-page", h("header", "ui-page-header", pageTitle, pageClose), pageBody)
   pagePanel.hidden = true
 
-  const root = h("div", "ui", h("div", "ui-veil"), column, pagePanel)
+  // At the front door nothing of the battle has loaded: the front at Verdun is drawn behind the list instead.
+  const backdrop = h("div", "ui-backdrop")
+  backdrop.append(verdunSketch())
+  const root = h("div", "ui", h("div", "ui-veil"), backdrop, column, pagePanel)
   root.setAttribute("role", "dialog")
   root.setAttribute("aria-modal", "true")
   root.setAttribute("aria-label", "Menu")
@@ -341,6 +366,7 @@ export function createMenu(
     setText(title, door ? "Verdun" : OPEN_SECTOR.name)
     setText(enterLabel, door ? "Join the battle" : "Resume")
     sidePicker.hidden = !door
+    modePicker.hidden = !door || !canPlayOnline
     // At the front door: join, the war map, the options, the credits. In battle: the battle's own pages first, then
     // the war map and the options; the credits stay at the front door.
     const shown = door

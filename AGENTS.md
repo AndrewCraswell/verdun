@@ -38,7 +38,8 @@ prototype, one battlefield, one human plus bots. See [roadmap](docs/roadmap.md).
   keeps up and what each player is sent (`--players`, `--soldiers`, `--minutes`, `--latency`). It loads the CPU for its
   run; say what else was running.
 - `pnpm server`: run the sector server, which steps the battle on the real clock and saves it every minute to
-  `apps/server/data/verdun.db` (`VERDUN_DB` moves it). Load the client with `?server&play` to join its battle.
+  `apps/server/data/verdun.db` (`VERDUN_DB` moves it). Choose Multiplayer at the front door, or load the client with
+  `?server&play`, to join its battle. The live game is multiplayer by default, on the server deployed beside it.
 - `pnpm verify`: format check, lint, types, knip, tests with coverage, build. Must pass before finishing.
 - `pnpm format`: apply oxfmt
 - `pnpm perf`: build HEAD, play it in an off-screen Chrome at 1920×1080 and report fps, the tracer's CPU hot spots and

@@ -74,17 +74,21 @@ from the hand to where it bursts.
 
 The menus are built too, in `apps/client/src/ui/`. The game opens on a front door (a first cut of S13), from a small
 bundle of its own that loads none of the battle, since at the front door which battle the player will join isn't known
-yet: "Join the battle", "War map", "Options" and "Credits", nothing more, with "Fight for: French or German" over them
-(S14's first cut: kept between visits; the battle loads for the side chosen, so a change once it's loading starts it
-again). A German player defends against the playtest's French attack and, as a defender of 1916 would, isn't told its
-hour or where it will fall: the join screen gives orders to hold, and the report reads Held, A footing lost or Line
-lost. "Join the battle" (or the war map's way into Fleury) starts the battle loading, under the loading screen (S6), and
-then opens the join screen (S8): the sector's plan with every squad pinned where it stands and the attack ahead beside
-it, and **Start**, which goes straight into the battle. Esc opens the list over the battle (S1): "Resume", the sector
-map (S4), the squad book (S5), the battle log's history (H14), the war map (a first cut of S15: the Western Front in
-each season, the theatres each season opens, Verdun's sectors, Fleury playable), the options (S3, with the keys and
-their rebinding, S2, as a tab), "Restart" and "Leave the battle". M and U open the sector map and the squad book on
-their own over the running battle. `?play` goes straight into the line behind the loading screen; `?debug` past both.
+yet: "Join the battle", "War map", "Options" and "Credits", nothing more, with "Play: Multiplayer or Single player" and
+"Fight for: French or German" over them (S14's first cut: both kept between visits; the battle loads for the mode and
+side chosen, so a change once it's loading starts it again). Multiplayer joins the battle on the sector's server, which
+goes on whoever is playing, and is the default where the game knows one: the live game does, and a local build offers
+`pnpm server`'s but starts alone (`settings/mode.ts`). Nothing of the battle shows behind the front door: it's a page of
+its own, the front at Verdun drawn faintly across it, as on the loading screen. A German player defends against the
+playtest's French attack and, as a defender of 1916 would, isn't told its hour or where it will fall: the join screen
+gives orders to hold, and the report reads Held, A footing lost or Line lost. "Join the battle" (or the war map's way
+into Fleury) starts the battle loading, under the loading screen (S6), and then opens the join screen (S8): the sector's
+plan with every squad pinned where it stands and the attack ahead beside it, and **Start**, which goes straight into the
+battle. Esc opens the list over the battle (S1): "Resume", the sector map (S4), the squad book (S5), the battle log's
+history (H14), the war map (a first cut of S15: the Western Front in each season, the theatres each season opens,
+Verdun's sectors, Fleury playable), the options (S3, with the keys and their rebinding, S2, as a tab), "Restart" and
+"Leave the battle". M and U open the sector map and the squad book on their own over the running battle. `?play` goes
+straight into the line behind the loading screen; `?debug` past both.
 
 The orders wheel (H7: held, point at an order, let go: Advance, Run to, Suppress, Dig in, Withdraw, Rally, Hold and
 Follow, one the squad can't take now greyed with the reason under the wheel), the shot's chance on the cursor (H8: three

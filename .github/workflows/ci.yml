@@ -44,7 +44,10 @@ jobs:
       # Builds with the real level, not the greybox: an encrypted pack under a fresh key, as a deploy would.
       - name: Pack the level kit
         run: pnpm assets:pack
+      # The live game is built to play multiplayer on the sector server deployed beside it (settings/mode.ts).
       - run: pnpm verify
+        env:
+          VERDUN_SERVER: wss://server-production-ff62.up.railway.app
       # Every push to main that passes goes live: the client just built, served by Caddy (deploy/), and the sector
       # server (deploy/server/), on Railway. Needs the RAILWAY_TOKEN secret, a project token for the verdun project's
       # production environment.

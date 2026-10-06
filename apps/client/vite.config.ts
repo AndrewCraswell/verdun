@@ -200,7 +200,10 @@ function buildName(): string {
 export default defineConfig(({ command }) => ({
   plugins: [levelKit(), assetPack(), music(), sectorFiles()],
   define: {
-    "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev")
+    "import.meta.env.VERDUN_BUILD": JSON.stringify(command === "build" ? buildName() : "dev"),
+    // The sector server multiplayer is played on, as CI builds the live game: none here unless given, so a local
+    // build plays alone by default (settings/mode.ts).
+    "import.meta.env.VERDUN_SERVER": JSON.stringify(process.env["VERDUN_SERVER"] ?? "")
   },
   server: {
     port: 5173,

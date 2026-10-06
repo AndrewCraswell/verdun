@@ -23,8 +23,11 @@ export interface LoadingScreen {
   dispose(): void
 }
 
-/** Verdun's ground drawn faintly behind the title: the Meuse, and the two lines either side of no man's land. */
-function verdunSketch(): SVGSVGElement {
+/**
+ * Verdun's ground drawn faintly behind the title: the Meuse, and the two lines either side of no man's land. The front
+ * door draws it too.
+ */
+export function verdunSketch(): SVGSVGElement {
   const namespace = "http://www.w3.org/2000/svg"
   const box = boxOf([5.05, 49.08, 5.72, 49.34])
   const sketch = document.createElementNS(namespace, "svg")

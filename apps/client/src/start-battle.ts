@@ -47,6 +47,7 @@ import { shadowCasterCulling } from "./render/shadow-reach.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
 import { graphicsQuality } from "./settings/graphics.ts"
+import { battleServer, modeSettings, serverPlace } from "./settings/mode.ts"
 import { playSettings } from "./settings/play.ts"
 import { sideSettings } from "./settings/side.ts"
 import { browserStorage } from "./settings/store.ts"
@@ -109,19 +110,13 @@ export async function startBattle(
     free: address.has("free"),
     side: sideSettings().current.side === "german" ? Side.German : Side.French
   }
-  // The simulation runs in a Web Worker, stepping off the page's thread; `sim` here is its mirror, brought up to date
-  // as each batch of steps comes back. ?inline steps it on the page instead, as before. ?server joins the battle on a
-  // sector server instead (`pnpm server`), where the war goes on whoever is playing: ws://<this host>:2567 unless given,
-  // as in ?server=wss://example.org.
-  const server = address.get("server")
+  // Multiplayer, the battle is joined on the sector's server, where the war goes on whoever is playing; ?server=url
+  // joins one named (?server alone, this host's `pnpm server`) whatever was chosen (settings/mode.ts). Alone, the
+  // simulation runs in a Web Worker, stepping off the page's thread, `sim` here its mirror, brought up to date as each
+  // batch of steps comes back; ?inline steps it on the page instead, as before.
+  const server = battleServer(address, modeSettings().current.mode, serverPlace())
   const remote =
-    server === null
-      ? null
-      : await serverHost(
-          map,
-          setup,
-          await connectToSector(server || `ws://${location.hostname}:2567`, setup.side ?? Side.French)
-        )
+    server === null ? null : await serverHost(map, setup, await connectToSector(server, setup.side ?? Side.French))
   const host = remote ?? (await createSimHost(map, setup, address.has("inline")))
   const { sim, playerSquad } = host
   // The war's calendar: on a server, the sector's own. Played locally, it's kept between visits, so the war goes on a
