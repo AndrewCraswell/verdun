@@ -162,13 +162,15 @@ export function nextLivingMember(sim: Simulation, squad: Squad, from: EntityId):
 
 /**
  * Where a man boxed into a corner steps to, `SIDESTEP` metres off: the free way round that heads most nearly `toward`
- * (a unit vector) where he's going, or, failing that, the freest way back. Null where every way is walled in.
+ * (a unit vector) where he's going, or, failing that, the freest way back. Null where every way is walled in. `down`
+ * are the fences shells have flattened, by their index in the map's scenery.
  */
 export function wayOut(
   map: BattlefieldMap,
   x: number,
   z: number,
-  toward: { readonly x: number; readonly z: number }
+  toward: { readonly x: number; readonly z: number },
+  down: readonly number[] = []
 ): Place | null {
   let best: Place | null = null
   let bestScore = 0
@@ -182,7 +184,7 @@ export function wayOut(
     const score = freeShare * (1.5 + ax * toward.x + az * toward.z)
     if (freeShare > 0.5 && score > bestScore) {
       bestScore = score
-      best = clearOfScenery(map, x + ax * SIDESTEP, z + az * SIDESTEP)
+      best = clearOfScenery(map, x + ax * SIDESTEP, z + az * SIDESTEP, down)
     }
   }
   return best
@@ -251,7 +253,7 @@ function followSlots(sim: Simulation, leader: EntityId, followers: readonly Enti
     const lateral = ((slot % FORMATION_WIDTH) - (inRank - 1) / 2) * FORMATION_SPACING
     const behind = FORMATION_SPACING * (1 + rank)
     const place = clampToMap(sim, lx + rightX * lateral + backX * behind, lz + rightZ * lateral + backZ * behind)
-    places.set(member, clearOfScenery(sim.map, place.x, place.z))
+    places.set(member, clearOfScenery(sim.map, place.x, place.z, sim.fencesDown))
   })
   return places
 }
@@ -442,7 +444,7 @@ export function overOrAround(sim: Simulation, soldier: EntityId, via: Place, tar
   if (kept >= BLOCKED) {
     return false
   }
-  const best = wayOut(sim.map, x, z, toward)
+  const best = wayOut(sim.map, x, z, toward, sim.fencesDown)
   if (!best) {
     return false
   }

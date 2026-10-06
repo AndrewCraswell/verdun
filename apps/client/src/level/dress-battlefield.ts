@@ -16,6 +16,7 @@ import type { TerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type Ambience, createAmbience } from "./ambience.ts"
 import { type Atmosphere, createAtmosphere } from "./atmosphere.ts"
 import { type BattleDamage, createBattleDamage, DEBRIS } from "./battle-damage.ts"
+import { createFenceArt, type FenceArt } from "./fence-art.ts"
 import { pauseIdleParticles } from "./idle-particles.ts"
 import type { KitFiles } from "./kit-files.ts"
 import { type KitEffects, type LevelKit, loadLevelKit } from "./level-kit.ts"
@@ -319,6 +320,8 @@ export interface LevelDressing extends BattlefieldDressing {
   readonly materials: readonly Material[]
   /** The wire belts' art, following the simulation's wire as it's cut and mended; null when the level wasn't given it. */
   readonly wire: WireArt | null
+  /** The gap fences' art, following the fences shells flatten; null when the level wasn't given them. */
+  readonly fences: FenceArt | null
   /** The sector's ambient sound, following the camera: null until the kit's ambience has come, or when it has none. */
   readonly ambience: Ambience | null
   /**
@@ -344,6 +347,11 @@ interface LevelOptions {
    * shells tear the wire's art away round each crater, and it stays torn.
    */
   readonly wire?: () => WireField
+  /**
+   * The fences shells have flattened, by their index in the map's scenery (the simulation's `fencesDown`), which the
+   * gap fences' art follows. Without it, shells blow the fences' art away round each crater.
+   */
+  readonly fencesDown?: () => readonly number[]
   /** How hard it's raining, in millimetres an hour, and how much of it is snow: rain washes the scorch away. */
   readonly weather?: () => { readonly precipitation: number; readonly snowFraction: number }
 }
@@ -379,7 +387,7 @@ interface DressableView {
 export async function dressLevel(
   view: DressableView,
   map: BattlefieldMap,
-  { wind = () => WESTERLY, files, surroundings, wire, weather, quality }: LevelOptions = {}
+  { wind = () => WESTERLY, files, surroundings, wire, fencesDown, weather, quality }: LevelOptions = {}
 ): Promise<LevelDressing | null> {
   const kit = await loadLevelKit(view.scene, files)
   if (!kit) {
@@ -440,9 +448,15 @@ export async function dressLevel(
     ...dressed,
     ground,
     atmosphere,
-    // Given the simulation's wire, the belts' art follows it, not the craters.
-    damage: createBattleDamage(dressed.scenery, (piece) => wire !== undefined && piece.startsWith("Prop_Wire_Fence")),
+    // Given the simulation's wire and fences, their art follows them, not the craters.
+    damage: createBattleDamage(
+      dressed.scenery,
+      (piece) =>
+        (wire !== undefined && piece.startsWith("Prop_Wire_Fence")) ||
+        (fencesDown !== undefined && piece.startsWith("Prop_Barricade"))
+    ),
     wire: wire ? createWireArt(dressed.scenery, dressed.placements) : null,
+    fences: fencesDown ? createFenceArt(dressed.scenery, map.scenery) : null,
     bursts,
     aftermath: createShellAftermath(view.scene, map, view.camera, kit.fx, scorch, wind, (event) => {
       bursts.burst(event)
@@ -523,6 +537,10 @@ export async function dressLevel(
     if (field && field.cuts !== wireCuts) {
       wireCuts = field.cuts
       dressing.wire?.sync(field)
+    }
+    const down = fencesDown?.()
+    if (down) {
+      dressing.fences?.sync(down)
     }
     airLight(view.scene, light)
     particleLight.update(light)

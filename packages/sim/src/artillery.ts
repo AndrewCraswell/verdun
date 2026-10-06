@@ -12,6 +12,7 @@ import { type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { soldiersNear } from "./spatial.ts"
 import { isAlive } from "./squads.ts"
 import { isInTrench, markShelled, soldierEye } from "./stance.ts"
+import { flattenFences } from "./vault.ts"
 import { cutWire } from "./wire.ts"
 import { casualty, type CasualtyCause, KILLED_OUTRIGHT, recordFallen } from "./wounds.ts"
 
@@ -531,6 +532,7 @@ function groundBurst(sim: Simulation, landed: ShellInFlight): BurstEvent {
   releaseGas(sim.smoke, landed.x, landed.z, stats.smokeMass)
   if (landed.cutsWire !== false) {
     cutWire(sim, landed.x, landed.z, stats.wireCutRadius)
+    flattenFences(sim, landed.x, landed.z, stats.wireCutRadius)
   }
   return { type: "burst", shell: landed.shell, at, crater }
 }

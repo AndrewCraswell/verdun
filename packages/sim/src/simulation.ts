@@ -97,6 +97,8 @@ export interface Simulation {
   readonly smoke: GasField
   /** Barbed wire in front of the trenches, as staked and as shells have cut it since. */
   readonly wire: WireField
+  /** The wooden fences shells have flattened, by their index in the map's scenery, in the order they fell. */
+  readonly fencesDown: number[]
   /** The wind near the ground, in metres per second toward +x (east) and +z (north). It carries gas. */
   readonly wind: { x: number; z: number }
   /** The date and time of day, the weather and the light. The weather sets the wind each second. */
@@ -191,6 +193,7 @@ export function createSimulation({
     gas: createGasField(map),
     smoke: createGasField(map),
     wire: createWireField(map),
+    fencesDown: [],
     wind: { x: environment.weather.wind.x, z: environment.weather.wind.z },
     environment,
     commanders: createCommanders(),

@@ -235,6 +235,7 @@ export async function startBattle(
     files: kitFiles,
     surroundings,
     wire: () => sim.wire,
+    fencesDown: () => sim.fencesDown,
     weather: () => sim.environment.weather,
     quality
   })

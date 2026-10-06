@@ -165,7 +165,7 @@ function stepAlong(
   const wayZ = straight ? dz : way.z / kept
   const pace = straight ? meant : paceOf(sim, soldier, wayX, wayZ, run, stepSeconds)
   const stride = pace.stride * kept * share
-  const clear = clearOfScenery(sim.map, x + wayX * stride, z + wayZ * stride)
+  const clear = clearOfScenery(sim.map, x + wayX * stride, z + wayZ * stride, sim.fencesDown)
   const next = clampToMap(sim, clear.x, clear.z)
   return { x: next.x, z: next.z, pace, stride, wayX, wayZ, straight }
 }
@@ -395,7 +395,7 @@ function shove(sim: Simulation, soldier: EntityId, dx: number, dz: number): void
   const x = position.x[soldier]
   const z = position.z[soldier]
   const to = clampToMap(sim, x + dx, z + dz)
-  if (canBeShoved(sim.map, x, z, to.x, to.z)) {
+  if (canBeShoved(sim.map, x, z, to.x, to.z, sim.fencesDown)) {
     position.x[soldier] = to.x
     position.z[soldier] = to.z
   }

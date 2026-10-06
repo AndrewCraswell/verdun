@@ -1,6 +1,6 @@
-import { heightAt, mapDepth, mapWidth } from "@verdun/map"
+import { type BattlefieldMap, heightAt, mapDepth, mapWidth } from "@verdun/map"
 import { addComponent, type EntityId, hasComponent } from "bitecs"
-import { BODY_RADIUS, climbedAhead, climbedUnder, insideScenery } from "./body.ts"
+import { BODY_RADIUS, type Climbed, climbedAhead, climbedShapes, climbedUnder, insideScenery } from "./body.ts"
 import { Stance } from "./components.ts"
 import type { Simulation } from "./simulation.ts"
 import { climbLimit } from "./terrain.ts"
@@ -46,14 +46,49 @@ const LANDING_LEEWAY = 0.5
 /** The breath a climb costs him at once, of 100. */
 const VAULT_BREATH = 12
 
+const fencesByMap = new WeakMap<BattlefieldMap, readonly { readonly item: number; readonly rails: Climbed }[]>()
+
+/** The map's wooden fences, by their index in its scenery, and their rails. */
+function fencesOf(map: BattlefieldMap): readonly { readonly item: number; readonly rails: Climbed }[] {
+  let fences = fencesByMap.get(map)
+  if (!fences) {
+    fences = map.scenery.flatMap((scenery, item) =>
+      scenery.kind === "knife-rest" ? climbedShapes(scenery).map((rails) => ({ item, rails })) : []
+    )
+    fencesByMap.set(map, fences)
+  }
+  return fences
+}
+
+/**
+ * Flattens the wooden fences whose rails a shell bursting at (x, z) reaches within `radius` metres, as it cuts the wire
+ * there (and only where it cuts wire: barrages fired to leave the wire for the attack leave the fences too). Men walk
+ * over a flattened fence from then on.
+ */
+export function flattenFences(sim: Simulation, x: number, z: number, radius: number): void {
+  for (const { item, rails } of fencesOf(sim.map)) {
+    if (sim.fencesDown.includes(item)) {
+      continue
+    }
+    const dx = x - rails.x
+    const dz = z - rails.z
+    const along = Math.max(-rails.halfLength, Math.min(rails.halfLength, dx * rails.lineX + dz * rails.lineZ))
+    const ox = dx - along * rails.lineX
+    const oz = dz - along * rails.lineZ
+    if (ox * ox + oz * oz <= radius * radius) {
+      sim.fencesDown.push(item)
+    }
+  }
+}
+
 /** Whether a point lies astride a wooden fence or a low wall: within `FENCE_REACH` of its faces, along its length. */
 export function astrideFence(sim: Simulation, x: number, z: number): boolean {
-  return climbedUnder(sim.map, x, z, FENCE_REACH) !== null
+  return climbedUnder(sim.map, x, z, FENCE_REACH, sim.fencesDown) !== null
 }
 
 /** The way straight across the fence or low wall a point lies astride, a unit vector, or null where there's none. */
 export function acrossFence(sim: Simulation, x: number, z: number): { x: number; z: number } | null {
-  const climbed = climbedUnder(sim.map, x, z, FENCE_REACH)
+  const climbed = climbedUnder(sim.map, x, z, FENCE_REACH, sim.fencesDown)
   return climbed && { x: climbed.lineZ, z: -climbed.lineX }
 }
 
@@ -62,7 +97,7 @@ export function acrossFence(sim: Simulation, x: number, z: number): { x: number;
  * takes him across it, from `FENCE_REACH` short of it to where he comes down, in `FENCE_CLIMB_SECONDS`.
  */
 export function vaultPace(sim: Simulation, x: number, z: number): number {
-  const climbed = climbedUnder(sim.map, x, z, FENCE_REACH)
+  const climbed = climbedUnder(sim.map, x, z, FENCE_REACH, sim.fencesDown)
   return climbed ? (2 * (FENCE_REACH + climbed.halfDepth) + CLEAR_OF_FENCE) / FENCE_CLIMB_SECONDS : VAULT_PACE
 }
 
@@ -91,7 +126,7 @@ function fenceLanding(
   z: number,
   heading: { x: number; z: number }
 ): { x: number; z: number } | null {
-  const ahead = climbedAhead(sim.map, x, z, heading.x, heading.z, CLIMB_REACH)
+  const ahead = climbedAhead(sim.map, x, z, heading.x, heading.z, CLIMB_REACH, sim.fencesDown)
   if (!ahead) {
     return null
   }
@@ -107,7 +142,7 @@ function fenceLanding(
     if (rise > OVER_RISE || rise < -OVER_DROP || !onMap(sim, landing)) {
       return null
     }
-    if (!insideScenery(sim.map, landing.x, landing.z)) {
+    if (!insideScenery(sim.map, landing.x, landing.z, sim.fencesDown)) {
       return landing
     }
   }

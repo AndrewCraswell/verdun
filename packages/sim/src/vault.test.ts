@@ -1,6 +1,7 @@
 import { beltLayout, createFlatMap, sampleIndex, type Scenery, Surface, type WireBelt } from "@verdun/map"
 import { hasComponent } from "bitecs"
 import { describe, expect, it } from "vitest"
+import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
 import {
   createSimulation,
@@ -141,6 +142,43 @@ describe("climbing a wooden fence or a low wall", () => {
     // A tree just behind the fence.
     const sim = field([fenceAt(50), { kind: "tree", x: 50, z: 51, heading: 0, variant: 0, scale: 1 }])
     expect(vaultLanding(sim, facingNorth(sim, 50, 49.5))).toBeNull()
+  })
+})
+
+describe("a fence under shellfire", () => {
+  it("is flattened by a shell that cuts the wire, and walked over from then on, and the save keeps it down", () => {
+    const sim = field([fenceAt(50)])
+    // A field gun's shell 2 m short of the rails.
+    sim.artillery.shells.push({ shell: Shell.FieldHighExplosive, side: Side.German, x: 50.5, z: 48, landsAtTick: 0 })
+    stepSimulation(sim)
+    expect(sim.fencesDown).toEqual([0])
+
+    const soldier = facingNorth(sim, 50, 49)
+    expect(vaultLanding(sim, soldier)).toBeNull()
+    expect(astrideFence(sim, 50, 50)).toBe(false)
+    enqueueCommand(sim, { type: "steer", soldier, x: 0, z: 1 })
+    for (let step = 0; step < 2 * TICK_RATE; step++) {
+      stepSimulation(sim)
+    }
+    expect(sim.soldiers.position.z[soldier]).toBeGreaterThan(50.5)
+
+    expect(restoreSimulation(sim.map, takeSnapshot(sim)).fencesDown).toEqual([0])
+  })
+
+  it("stands through a barrage fired to leave the wire for the attack, and a burst too far off", () => {
+    const sim = field([fenceAt(50)])
+    sim.artillery.shells.push({
+      shell: Shell.FieldHighExplosive,
+      side: Side.German,
+      x: 50,
+      z: 48,
+      landsAtTick: 0,
+      cutsWire: false
+    })
+    sim.artillery.shells.push({ shell: Shell.FieldHighExplosive, side: Side.German, x: 50, z: 45, landsAtTick: 0 })
+    stepSimulation(sim)
+    expect(sim.fencesDown).toEqual([])
+    expect(vaultLanding(sim, facingNorth(sim, 50, 49.5))).not.toBeNull()
   })
 })
 

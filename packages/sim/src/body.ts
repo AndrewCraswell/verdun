@@ -253,10 +253,16 @@ export function climbedShapes(item: Scenery): Climbed[] {
   )
 }
 
-/** What a man can't stand in: an impassable piece of scenery's footprint, as a circle, or a climbed one's box. */
+/**
+ * What a man can't stand in: an impassable piece of scenery's footprint, as a circle, or a climbed one's box, with the
+ * index in the map's scenery of the item it belongs to.
+ */
 type Footing =
   | { readonly kind: "disc"; readonly x: number; readonly z: number; readonly radius: number }
-  | ({ readonly kind: "box" } & Climbed)
+  | ({ readonly kind: "box"; readonly item: number } & Climbed)
+
+/** No fences flattened. */
+const NONE: readonly number[] = []
 
 /** How far a footing reaches from its middle, in metres. */
 function footingReach(footing: Footing): number {
@@ -344,32 +350,38 @@ function sceneryIndex(map: BattlefieldMap): SceneryIndex {
       }
     }
   }
-  for (const scenery of map.scenery) {
+  map.scenery.forEach((scenery, item) => {
     const footprint = SCENERY_FOOTPRINTS[scenery.kind]
     if (footprint.climbed) {
       for (const shape of climbedShapes(scenery)) {
-        add({ kind: "box", ...shape })
+        add({ kind: "box", item, ...shape })
       }
     } else if (!Number.isFinite(footprint.walkCost)) {
       add({ kind: "disc", x: scenery.x, z: scenery.z, radius: footprintRadius(scenery) })
     }
-  }
+  })
   const index = { columns, rows, buckets }
   sceneryIndexes.set(map, index)
   return index
 }
 
-/** The footings that may reach (x, z). */
-function footingsNear(map: BattlefieldMap, x: number, z: number): readonly Footing[] {
+/** The footings that may reach (x, z), but for the fences shells have flattened (`down`, by scenery index). */
+function footingsNear(map: BattlefieldMap, x: number, z: number, down: readonly number[]): readonly Footing[] {
   const { columns, rows, buckets } = sceneryIndex(map)
   const column = Math.min(columns - 1, Math.max(0, Math.floor(x / SCENERY_BUCKET)))
   const row = Math.min(rows - 1, Math.max(0, Math.floor(z / SCENERY_BUCKET)))
-  return buckets[row * columns + column] ?? []
+  const near = buckets[row * columns + column] ?? NONE_NEAR
+  return down.length === 0 ? near : near.filter((footing) => footing.kind === "disc" || !down.includes(footing.item))
 }
 
-/** Whether a man standing at (x, z) would be inside a piece of impassable or climbed scenery. */
-export function insideScenery(map: BattlefieldMap, x: number, z: number): boolean {
-  return footingsNear(map, x, z).some((footing) => standing(footing, x, z).gap < BODY_RADIUS)
+const NONE_NEAR: readonly Footing[] = []
+
+/**
+ * Whether a man standing at (x, z) would be inside a piece of impassable or climbed scenery, but for the fences shells
+ * have flattened (`down`, by their index in the map's scenery), which he walks over.
+ */
+export function insideScenery(map: BattlefieldMap, x: number, z: number, down = NONE): boolean {
+  return footingsNear(map, x, z, down).some((footing) => standing(footing, x, z).gap < BODY_RADIUS)
 }
 
 /**
@@ -377,12 +389,12 @@ export function insideScenery(map: BattlefieldMap, x: number, z: number): boolea
  * keeps the part of his step that runs round it, so he slides round a ruin's corner, a tree or along a fence rather than
  * stopping at it. Twice over, for footings that touch.
  */
-export function clearOfScenery(map: BattlefieldMap, x: number, z: number): { x: number; z: number } {
+export function clearOfScenery(map: BattlefieldMap, x: number, z: number, down = NONE): { x: number; z: number } {
   let px = x
   let pz = z
   for (let pass = 0; pass < 2; pass++) {
     let moved = false
-    for (const footing of footingsNear(map, px, pz)) {
+    for (const footing of footingsNear(map, px, pz, down)) {
       const { gap, outX, outZ } = standing(footing, px, pz)
       if (gap >= BODY_RADIUS) {
         continue
@@ -401,8 +413,8 @@ export function clearOfScenery(map: BattlefieldMap, x: number, z: number): { x: 
 }
 
 /** The fence or low wall a man at (x, z) is on, within `reach` of its faces and along its length, or null. */
-export function climbedUnder(map: BattlefieldMap, x: number, z: number, reach: number): Climbed | null {
-  for (const footing of footingsNear(map, x, z)) {
+export function climbedUnder(map: BattlefieldMap, x: number, z: number, reach: number, down = NONE): Climbed | null {
+  for (const footing of footingsNear(map, x, z, down)) {
     if (footing.kind !== "box") {
       continue
     }
@@ -430,14 +442,15 @@ export function climbedAhead(
   z: number,
   dx: number,
   dz: number,
-  reach: number
+  reach: number,
+  down = NONE
 ): { readonly entry: number; readonly exit: number; readonly climbed: Climbed } | null {
   const probe = reach + BODY_RADIUS
   const far = probe + CLIMB_SPAN
   const near = new Set([
-    ...footingsNear(map, x, z),
-    ...footingsNear(map, x + dx * probe, z + dz * probe),
-    ...footingsNear(map, x + dx * far, z + dz * far)
+    ...footingsNear(map, x, z, down),
+    ...footingsNear(map, x + dx * probe, z + dz * probe, down),
+    ...footingsNear(map, x + dx * far, z + dz * far, down)
   ])
   const crossed: { entry: number; exit: number; climbed: Climbed }[] = []
   for (const footing of near) {
@@ -485,6 +498,6 @@ export function climbedAhead(
 const LANDING_ROOM = 0.15
 
 /** Whether a man can be shoved from (x, z) to (toX, toZ): no wall to go up, and no scenery to stand in. */
-export function canBeShoved(map: BattlefieldMap, x: number, z: number, toX: number, toZ: number): boolean {
-  return heightAt(map, toX, toZ) - heightAt(map, x, z) <= STEP_UP / 2 && !insideScenery(map, toX, toZ)
+export function canBeShoved(map: BattlefieldMap, x: number, z: number, toX: number, toZ: number, down = NONE): boolean {
+  return heightAt(map, toX, toZ) - heightAt(map, x, z) <= STEP_UP / 2 && !insideScenery(map, toX, toZ, down)
 }

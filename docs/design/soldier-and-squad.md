@@ -16,7 +16,8 @@ Built in M2–M3.
   over, and vault a fence or wall that stops them or that their way would otherwise have them scramble up. Getting over
   a fence or low wall takes 1.25 s, a bound with both hands on the top rail. Barbed wire is never climbed: it's waded,
   cut or gone round by its gaps. Ruins and trees are solid, fences and low walls stop a man along their length, and men
-  ease apart rather than stand inside each other.
+  ease apart rather than stand inside each other. Shells that cut the wire flatten the fences they burst by, to be
+  walked over.
 - **Follow files through trenches.** In a trench the squad follows its leader in single file, 2 m apart, up onto the
   fire step when he is; in the open it forms behind the way he walks and halts where it is when he stops.
 - **Switching is instant** (Tab, or 1–8 for a squad slot). The soldier you leave returns to the AI under the squad's

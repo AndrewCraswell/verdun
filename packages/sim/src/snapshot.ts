@@ -105,6 +105,8 @@ export interface SimulationSnapshot {
   readonly commanders: Record<Side, CommanderState>
   /** Wire cut since it was staked: [cell, density left] for each cell shells have touched. */
   readonly wireCuts: readonly (readonly [number, number])[]
+  /** The fences shells have flattened, by their index in the map's scenery; absent in saves from before they could be. */
+  readonly fencesDown?: readonly number[]
   /** Who holds each of the map's objectives, in the map's order. */
   readonly objectives: readonly { readonly holder: Side | -1; readonly contested: boolean }[]
   /** The date and time, how fast days pass, where the weather comes from, and the weather and light last read. */
@@ -222,6 +224,7 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       [Side.German]: { ...sim.commanders[Side.German] }
     },
     wireCuts: wireCuts(sim.wire),
+    fencesDown: [...sim.fencesDown],
     objectives: sim.objectives.map(({ holder, contested }) => ({ holder, contested })),
     environment: saveEnvironment(sim.environment),
     reinforcements: {
@@ -357,6 +360,7 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
     sim.wire.density[cell] = density
   }
   sim.wire.cuts = snapshot.wireCuts.length
+  sim.fencesDown.push(...(snapshot.fencesDown ?? []))
   Object.assign(sim.reinforcements.pool, snapshot.reinforcements.pool)
   Object.assign(sim.reinforcements.full, snapshot.reinforcements.full)
   sim.reinforcements.arrivals.push(...snapshot.reinforcements.arrivals.map((arrival) => ({ ...arrival })))
