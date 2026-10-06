@@ -79,6 +79,8 @@ interface NavState {
   readonly obstacles: Float32Array
   /** 1 where a cell has any wire in it, so straight walks only check the wire closely where there is some. */
   readonly wired: Uint8Array
+  /** 1 where a cell or any of its neighbours is `wired`: a straight walk with none near needn't look for wire at all. */
+  readonly wiredNear: Uint8Array
   /** 1 where any of a cell lies in a trench, laid once per map: trenches don't move. */
   readonly trench: Uint8Array
   /**
@@ -105,6 +107,8 @@ interface NavState {
    * map's edge would take the budget from routes still wanted.
    */
   readonly unfinished: Map<FlowField, number>
+  /** How far each of the `NEIGHBOURS` is in the grid, as a difference of cell numbers. */
+  readonly offsets: Int32Array
   /** Cells left to settle this step, and the step it's for. */
   budget: number
   budgetTick: number
@@ -208,10 +212,29 @@ function built(sim: Simulation, state: NavState): void {
   state.unfinished.clear()
 }
 
+/** Notes whether a cell or any of its neighbours has wire in it (see `NavState.wiredNear`). */
+function layWiredNear(state: NavState, cell: number): void {
+  const column = cell % state.columns
+  const row = Math.floor(cell / state.columns)
+  let near = 0
+  for (let r = Math.max(0, row - 1); r <= Math.min(state.rows - 1, row + 1) && near === 0; r++) {
+    for (let c = Math.max(0, column - 1); c <= Math.min(state.columns - 1, column + 1); c++) {
+      if (state.wired[r * state.columns + c] === 1) {
+        near = 1
+        break
+      }
+    }
+  }
+  state.wiredNear[cell] = near
+}
+
 /** Rebuilds every cell's cost: for the weather, which changes the ground everywhere. */
 function rebuild(sim: Simulation, state: NavState): void {
   for (let cell = 0; cell < state.columns * state.rows; cell++) {
     survey(sim, state, cell)
+  }
+  for (let cell = 0; cell < state.columns * state.rows; cell++) {
+    layWiredNear(state, cell)
   }
   laySteps(state)
   built(sim, state)
@@ -248,6 +271,7 @@ function refresh(sim: Simulation, state: NavState): void {
     for (let r = Math.max(0, row - 1); r <= Math.min(state.rows - 1, row + 1); r++) {
       for (let c = Math.max(0, column - 1); c <= Math.min(state.columns - 1, column + 1); c++) {
         layStepsInto(state, r * state.columns + c)
+        layWiredNear(state, r * state.columns + c)
       }
     }
   }
@@ -384,6 +408,7 @@ function navState(sim: Simulation): NavState {
       height: new Float32Array(columns * rows),
       obstacles: layObstacles(sim.map, columns, rows),
       wired: new Uint8Array(columns * rows),
+      wiredNear: new Uint8Array(columns * rows),
       trench: layTrenches(sim, columns, rows),
       steps: new Float64Array(columns * rows * NEIGHBOURS.length),
       wireSeen: new Float32Array(sim.wire.density.length),
@@ -395,6 +420,7 @@ function navState(sim: Simulation): NavState {
       builtForSnow: 0,
       fields: new Map(),
       unfinished: new Map(),
+      offsets: Int32Array.from(NEIGHBOURS, ([dc, dr]) => dr * columns + dc),
       budget: SEARCH_BUDGET,
       budgetTick: sim.tick
     }
@@ -500,6 +526,10 @@ const NEIGHBOURS = [
   [-1, -1, Math.SQRT2]
 ] as const
 
+/** The `NEIGHBOURS`' columns and rows apart, for the loops that walk them often. */
+const NEIGHBOUR_COLUMNS = Int8Array.from(NEIGHBOURS, ([dc]) => dc)
+const NEIGHBOUR_ROWS = Int8Array.from(NEIGHBOURS, ([, dr]) => dr)
+
 /** Starts a flow field for a goal: every walkable cell in it is reached already. */
 function startField(state: NavState, goal: NavGoal): FlowField {
   const { columns, rows, cost } = state
@@ -565,14 +595,20 @@ function settle(state: NavState, field: FlowField, cell: number): boolean {
   if (!heap) {
     return true
   }
-  const { columns, steps } = state
+  // The search's inner loop: everything it reads taken out of the objects first, and the neighbours as offsets in the
+  // grid, so each cell costs what its arithmetic does. (It ran at half a microsecond a cell, destructuring each
+  // neighbour's direction afresh.)
+  const { steps, trench, offsets } = state
   const cells = distance.length
+  const byTrench = field.trench
+  let budget = state.budget
   while (heap.size > 0 && heap.topKey < read(distance, cell)) {
-    if (state.budget <= 0) {
+    if (budget <= 0) {
+      state.budget = budget
       state.unfinished.set(field, cell)
       return false
     }
-    state.budget--
+    budget--
     const key = heap.topKey
     const at = heap.pop()
     const here = read(distance, at)
@@ -580,16 +616,14 @@ function settle(state: NavState, field: FlowField, cell: number): boolean {
       // A stale entry: the cell was reached more cheaply since it was pushed.
       continue
     }
-    for (let direction = 0; direction < NEIGHBOURS.length; direction++) {
+    for (let direction = 0; direction < 8; direction++) {
       // The field runs from the goal outward, so the walk is from the neighbour into `at`.
       const walk = steps[direction * cells + at] ?? Infinity
       if (walk === Infinity) {
         continue
       }
-      const [dc, dr] = NEIGHBOURS[direction] ?? [0, 0]
-      const next = at + dr * columns + dc
-      const open = field.trench && (state.trench[at] === 0 || state.trench[next] === 0)
-      const time = open ? walk * OPEN_GROUND : walk
+      const next = at + (offsets[direction] ?? 0)
+      const time = byTrench && (trench[at] === 0 || trench[next] === 0) ? walk * OPEN_GROUND : walk
       // Rounded to the field's own precision first: comparing an unrounded total against a rounded-up stored one
       // would keep "improving" cells by nothing, and push them again and again.
       const total = Math.fround(here + time)
@@ -599,6 +633,7 @@ function settle(state: NavState, field: FlowField, cell: number): boolean {
       }
     }
   }
+  state.budget = budget
   if (heap.size === 0) {
     field.heap = null
   }
@@ -696,20 +731,29 @@ function clearLine(
   // Across the line, a margin's width.
   const sideX = length > 0 ? (-dz / length) * LINE_MARGIN : 0
   const sideZ = length > 0 ? (dx / length) * LINE_MARGIN : 0
+  // Wire within the margin of a point: on the line, and either side of it.
+  const snags = (sx: number, sz: number) =>
+    state.wired[cellAt(state, sx, sz)] === 1 && wirePace(sim.wire, sx, sz) < WIRE_SNAG
+  // A cell's obstacles are looked at once, as the walk comes into it; its points are looked at for wire only where
+  // there's some in it or beside it, as the margin reaches no further. (Looking at every point on hundred-metre walks
+  // was most of what squads taking stock cost.)
+  let lastCell = -1
   for (let step = 1; step <= steps; step++) {
     const along = step / steps
     const x = fromX + dx * along
     const z = fromZ + dz * along
     const cell = cellAt(state, x, z)
-    if (!(read(state.obstacles, cell) < CLEAR_COST) || (low && !isInTrench(sim.map, x, z))) {
-      return false
-    }
-    for (const side of [0, 1, -1]) {
-      const sx = x + sideX * side
-      const sz = z + sideZ * side
-      if (state.wired[cellAt(state, sx, sz)] === 1 && wirePace(sim.wire, sx, sz) < WIRE_SNAG) {
+    if (cell !== lastCell) {
+      if (!(read(state.obstacles, cell) < CLEAR_COST)) {
         return false
       }
+      lastCell = cell
+    }
+    if (low && !isInTrench(sim.map, x, z)) {
+      return false
+    }
+    if (state.wiredNear[cell] === 1 && (snags(x, z) || snags(x + sideX, z + sideZ) || snags(x - sideX, z - sideZ))) {
+      return false
     }
   }
   return true
@@ -801,9 +845,9 @@ export function nextWaypoint(
     const column = cell % state.columns
     const row = Math.floor(cell / state.columns)
     let next = cell
-    for (const [dc, dr] of NEIGHBOURS) {
-      const c = column + dc
-      const r = row + dr
+    for (let direction = 0; direction < 8; direction++) {
+      const c = column + (NEIGHBOUR_COLUMNS[direction] ?? 0)
+      const r = row + (NEIGHBOUR_ROWS[direction] ?? 0)
       if (c < 0 || r < 0 || c >= state.columns || r >= state.rows) {
         continue
       }
