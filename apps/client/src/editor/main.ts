@@ -39,6 +39,12 @@ const MARKERS_KEY = "verdun.editor.markers"
 const RIVERS_KEY = "verdun.editor.rivers"
 const RELIEF_KEY = "verdun.editor.relief"
 const BATTLE_MAP_KEY = "verdun.editor.battle-map"
+const SECTOR_KEY = "verdun.editor.sector"
+/**
+ * The camera layer the sector is drawn on, its ground, trenches, scenery and the images laid over it: the camera leaves
+ * it out to hide the sector, so the theatre's ground shows through where it was.
+ */
+const SECTOR_LAYER = 0x0100_0000
 /**
  * Where the sector lies: its south-west corner in Lambert-93, the one scripts/fetch-elevation.mjs fetched its ground for.
  * The sector files will carry their own.
@@ -233,6 +239,11 @@ async function start(): Promise<void> {
   installInspectorToggle(scene)
   // For inspecting the editor from the console, as window.verdun is for the game.
   Object.assign(window, { editor: { engine, scene, camera, map, level } })
+
+  // Everything drawn so far is the sector.
+  for (const mesh of scene.meshes) {
+    mesh.layerMask = SECTOR_LAYER
+  }
 
   // The whole front round Verdun, its frame placed in the sector's, with a hole where the sector's own ground is drawn.
   status.textContent = "Fetching the ground round the sector"
@@ -523,6 +534,9 @@ async function start(): Promise<void> {
     overlays = await Promise.all(
       placements.map((placement) => createImageOverlay(scene, map, placement, Number(opacityInput.value)))
     )
+    for (const overlay of overlays) {
+      overlay.mesh.layerMask = SECTOR_LAYER
+    }
   }
   mapSelect.addEventListener("change", () => void showOverlays())
   layerSelect.addEventListener("change", () => void showOverlays())
@@ -533,6 +547,17 @@ async function start(): Promise<void> {
     }
   })
   await showOverlays()
+
+  // The sector shown, or hidden for the lie of the land under it.
+  const sectorToggle = element("show-sector", HTMLInputElement)
+  sectorToggle.checked = readStored(SECTOR_KEY) !== false
+  const showSector = () => {
+    store(SECTOR_KEY, sectorToggle.checked)
+    camera.layerMask = sectorToggle.checked ? camera.layerMask | SECTOR_LAYER : camera.layerMask & ~SECTOR_LAYER
+    ground.setHole(sectorToggle.checked)
+  }
+  sectorToggle.addEventListener("change", showSector)
+  showSector()
 
   status.textContent = `${width} m by ${depth} m, ${map.trenches.length} trenches, ${map.scenery.length} pieces of scenery`
 }

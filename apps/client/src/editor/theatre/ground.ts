@@ -270,6 +270,8 @@ export interface TheatreGround {
   heightAt(x: number, z: number): number
   /** Draws the ground with another map. */
   setBaseMap(map: BaseMap): void
+  /** Leaves the hole for the sector, or fills it with the theatre's own ground when the sector is hidden. */
+  setHole(cut: boolean): void
   /** Multiplies the hillshade into the map, or stops. */
   setShading(shaded: boolean): void
   /** Called each frame with the point the camera looks at: loads finer tiles round it, drops those far off. */
@@ -343,8 +345,10 @@ export async function createTheatreGround(
   let fineBox: GroundBox = NO_BOX
   const offsetX = () => parent?.position.x ?? 0
   const offsetZ = () => parent?.position.z ?? 0
-  const theatreHoles = (): readonly [GroundBox, GroundBox] => [hole ?? NO_BOX, fineBox]
-  const fineHoles = (): readonly [GroundBox, GroundBox] => [hole ?? NO_BOX, NO_BOX]
+  let cutting = true
+  const sectorHole = () => (cutting && hole ? hole : NO_BOX)
+  const theatreHoles = (): readonly [GroundBox, GroundBox] => [sectorHole(), fineBox]
+  const fineHoles = (): readonly [GroundBox, GroundBox] => [sectorHole(), NO_BOX]
 
   let map = initial
   let shaded = false
@@ -598,6 +602,9 @@ export async function createTheatreGround(
     setShading(next) {
       shaded = next
       redrawCoarse()
+    },
+    setHole(cut) {
+      cutting = cut
     },
     update(x, z) {
       followFine(x, z)

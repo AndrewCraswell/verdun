@@ -14,6 +14,7 @@ const LIFT = 0.25
 
 /** An image laid over the ground: the LiDAR survey, a historical map traced in, the generator's preview. */
 export interface ImageOverlay {
+  readonly mesh: Mesh
   setOpacity(opacity: number): void
   dispose(): void
 }
@@ -97,6 +98,7 @@ export async function createImageOverlay(
   mesh.material = material
   mesh.isPickable = false
   return {
+    mesh,
     setOpacity(value) {
       material.alpha = value
       mesh.setEnabled(value > 0)
