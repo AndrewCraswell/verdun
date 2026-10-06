@@ -276,7 +276,11 @@ function generatedGround(seed: number, x: number, z: number): number {
 
 /** The ground's height before trenches and shells: surveyed or generated, with the ravine and sunken road cut in. */
 function heightAtSample(seed: number, x: number, z: number, elevation: Elevation | undefined): number {
-  let height = elevation ? elevationAt(elevation, x, z) : generatedGround(seed, x, z)
+  // Surveyed ground is the ground as it is: its ravine and sunken road are in the survey already.
+  if (elevation) {
+    return elevationAt(elevation, x, z)
+  }
+  let height = generatedGround(seed, x, z)
 
   const ravine = nearestOnLine(RAVINE, x, z, RAVINE_HALF_WIDTH)
   if (ravine.distance < RAVINE_HALF_WIDTH) {
@@ -1166,8 +1170,9 @@ export function generateFleurySector({
   }
 
   const random = createRandom(seed + SEEDS.craters)
-  // Surveyed ground already carries a century-old crater field; fewer fresh shell holes go on top.
-  const craters = placeCraters(seed, map, segments, random, elevation ? 1_500 : 2_600, levels.ridge)
+  // Surveyed ground is left as the survey has it, its century-old crater field and all, but for the craters the
+  // sector file draws: the battle blasts fresh ones as its shells land. Generated ground is shelled to begin with.
+  const craters = placeCraters(seed, map, segments, random, elevation ? MINE_CRATERS.length : 2_600, levels.ridge)
   paintRoads(seed, map)
   carveTrenches(map, trenches)
 

@@ -374,7 +374,7 @@ describe("generateFleurySector", () => {
     expect(bed.filter(([x, z]) => seen(x, z)).length).toBeLessThanOrEqual(1)
   })
 
-  it("builds on surveyed ground when given it, keeping the ravine and sunken road cut into it", () => {
+  it("builds on surveyed ground when given it, leaving it as the survey has it but for the trenches and what's drawn", () => {
     // Ground rising 40 m from west to east, as the real Fleury sector does.
     const columns = 600
     const rows = 400
@@ -392,8 +392,10 @@ describe("generateFleurySector", () => {
 
     // Away from trenches and craters the ground follows the survey, east well above west.
     expect(ground(560, 40) - ground(40, 40)).toBeGreaterThan(25)
-    // The ravine's bed lies well below the surveyed ground beside it.
-    expect(ground(212, 216)).toBeLessThan((212 / 600) * 40 - 4)
+    // The ravine and the sunken road are in the survey already: nothing digs them again, and no fresh shell holes
+    // pock the open ground, which is the survey to within a few centimetres.
+    expect(ground(212, 216)).toBeCloseTo((212 / 600) * 40, 1)
+    expect(ground(150, 200)).toBeCloseTo((150 / 600) * 40, 1)
     expect(surveyed.trenches).toEqual(map.trenches)
   })
 })

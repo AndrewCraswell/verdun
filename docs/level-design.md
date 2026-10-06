@@ -24,10 +24,13 @@ above a base height, about 1.9 MB (format in [elevation.ts](../packages/map/src/
 corner is Lambert-93 876773 E, 6902290 N. The data is © IGN under Licence Ouverte 2.0: it ships raw, with the credit
 "IGN – LiDAR HD" (see the [register](assets/register.md)).
 
-`generateFleurySector({ elevation })` builds the sector on it: surveyed heights replace the generated rises and plateau,
-the ravine and sunken road are cut into them, and about 1,500 fresh shell holes go on top of the old crater field
-instead of 2,600. Mud, chalk and water follow the survey's own spread of heights. Without `elevation` the generator
-still makes its synthetic ground, which the tests use.
+`generateFleurySector({ elevation })` builds the sector on it, leaving the ground as the survey has it: its ravine, its
+sunken road and its century-old crater field are all in the survey already, so nothing is dug into it but the trenches,
+the gun pits, the house plots and the craters the sector file draws, and the battle blasts fresh shell holes as its
+shells land. Away from those the ground is the survey to within a few centimetres (a fraction of a metre on average
+across the sector, where it once stood up to 11 m off along the ravine, dug a second time). Mud, chalk and water follow
+the survey's own spread of heights. Without `elevation` the generator still makes its synthetic ground, which the tests
+use.
 
 | Feature                   | Where                         | Why it's there                                                                   |
 | ------------------------- | ----------------------------- | -------------------------------------------------------------------------------- |
@@ -50,9 +53,9 @@ the art draws as Synty's barricade, with no wire on it) set side by side across 
 there's no way through but over them (`closeGaps`): men climb a fence in 1.25 s, while the belts' barbed wire is never
 climbed. A shell that cuts the wire flattens the fences it bursts by, opening the gap, so a bombardment opens them and a
 barrage fired to leave the wire doesn't (`flattenFences`, `sim.fencesDown`). Only the sap trench runs on through its
-gap, and where the lines close up the belts break off for tens of metres, open. No man's land is shelled into churned
-ground with some 2,600 craters, the deeper ones holding water; craters on the ridge throw up rims of chalk, and shelling
-tapers off behind the lines.
+gap, and where the lines close up the belts break off for tens of metres, open. No man's land is churned ground; on the
+synthetic ground the tests use it is shelled with some 2,600 craters, the deeper ones holding water, craters on the
+ridge throwing up rims of chalk, and shelling tapers off behind the lines.
 
 **Objectives**, the ground worth fighting for: Fleury, the Fleury crossroads, the mine craters, the Ravin de la Dame and
 the ravine head. They're data for the capture rules; holding them is up to the simulation.
