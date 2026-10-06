@@ -65,6 +65,18 @@ describe("createNightLight", () => {
     expect(night.lit).toBe(false)
   })
 
+  it("holds its lights on by day until let go, and the darkness decides again", () => {
+    const { night } = setup()
+
+    night.hold(true)
+    night.update(0.016)
+    expect(night.lit).toBe(true)
+    expect(night.lights.every((light) => light.isEnabled())).toBe(true)
+    night.hold(null)
+    night.update(0.016)
+    expect(night.lit).toBe(false)
+  })
+
   it("flashes for a moment where a rifle fires near the camera, and only at night", () => {
     const { night, state } = setup()
     const flash = () => night.lights.at(-1)

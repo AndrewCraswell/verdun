@@ -57,6 +57,12 @@ export interface SoldierCrowd extends SoldierRenderer {
   muzzle(soldier: EntityId): Vector3 | null
   /** How many soldiers the last update drew, and how long it took in milliseconds. */
   readonly stats: { drawn: number; updateMs: number }
+  /**
+   * Has every layer draw, one drawing no one an instance collapsed to nothing, in view and in the sun's shadows, or with
+   * null only those with someone to draw: for building their shaders while the battle loads (see
+   * render/shader-warm-up.ts).
+   */
+  hold(on: boolean | null): void
   dispose(): void
 }
 
@@ -248,8 +254,10 @@ function claim(layer: Layer): number {
  * the matrices went at the count still standing from last frame, so a growing layer's newest soldiers blinked out for a
  * frame; and the settings went whole every frame, as did the matrices of a layer drawing no one.
  */
-function flush(layer: Layer): void {
-  const drawn = drawnCount(layer.count, layer.matrices.length / 16)
+function flush(layer: Layer, held: boolean): void {
+  // Held, a layer drawing no one draws one instance, collapsed to nothing like the bucket's spares, so its shaders are
+  // built with the rest.
+  const drawn = Math.max(held ? 1 : 0, drawnCount(layer.count, layer.matrices.length / 16))
   // Last frame's too, collapsed: a recorded frame replayed before it's recorded again still draws them.
   const sent = Math.max(drawn, layer.drawn)
   layer.matrices.fill(0, layer.count * 16, sent * 16)
@@ -257,7 +265,7 @@ function flush(layer: Layer): void {
   if (layer.mesh.thinInstanceCount !== drawn) {
     layer.mesh.thinInstanceCount = drawn
   }
-  recordNearestDepth(layer.mesh, layer.nearest)
+  recordNearestDepth(layer.mesh, held ? Math.min(layer.nearest, 0) : layer.nearest)
   layer.mesh.isVisible = drawn > 0
   if (sent === 0) {
     return
@@ -868,12 +876,13 @@ export function createSoldierCrowd(
       }
     }
     for (const layer of allLayers) {
-      flush(layer)
+      flush(layer, held)
     }
     stats.drawn = layers.bodies[Side.French].count + layers.bodies[Side.German].count
     stats.updateMs = performance.now() - started
   }
 
+  let held = false
   let renderedFrame = -1
   const observer = scene.onBeforeCameraRenderObservable.add(() => {
     // Once a frame, after the camera has moved and its view is known for culling.
@@ -907,6 +916,9 @@ export function createSoldierCrowd(
     update,
     muzzle,
     stats,
+    hold(on) {
+      held = on === true
+    },
     dispose() {
       scene.onBeforeCameraRenderObservable.remove(observer)
     }

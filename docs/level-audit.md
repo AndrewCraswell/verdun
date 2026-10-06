@@ -141,3 +141,13 @@ In order, each verified in the browser and committed on its own:
   leave out a caster whose shadow, swept from its bounds down to the map's lowest ground, can't reach the camera's view
   (`render/shadow-reach.ts`), and the crows cast none: 64-67 fewer draws a frame by day, at night and under a barrage,
   0.5-0.7 ms of GPU, and the picture identical to the bit by day, at dawn, under a flare and in the overview.
+- **Stutters, nightfall**: at dusk the fires', a rifle flash's and the flares' lights came on together and every lit
+  material's shader went from two lights to eight: the first nightfall froze the battle for 2.5-3 s while the browser
+  compiled them (the frame waiting on its GPU process, not on the page). They're now built while the battle loads, with
+  every layer of the soldiers drawn once (`render/shader-warm-up.ts`), and the loading screen waits for each shader
+  module's compilation report: in a stutter hunt nightfall's worst frame went from 2,944 ms to 143 ms. It costs the
+  first load some 2-4 s on a cold shader cache (14-17.7 s to 16.4-18.5 s on this machine, quiet). Waiting for quick
+  frames let the battle start before the browser had finished (a 2-10 s freeze just after loading); waiting for the
+  GPU's queue took ten seconds more. Zooming out to the overview still builds a soldier layer's shader once, without the
+  sun's shadows: about 0.8 s. The flares' shadows were taken out: they never showed, since a material takes a light's
+  shadows only if its shadow map has casters when the light comes on, and night always fell before the first flare.

@@ -44,6 +44,7 @@ import type { KitFiles } from "./level/kit-files.ts"
 import { createNightLight } from "./level/night-light.ts"
 import { useHeightFog } from "./level/particle-fog.ts"
 import { selectEnabledMeshes } from "./render/active-meshes.ts"
+import { warmUpShaders } from "./render/shader-warm-up.ts"
 import { shadowCasterCulling } from "./render/shadow-reach.ts"
 import { createSnapshotDirector } from "./render/snapshot-director.ts"
 import { displaySettings, frameDue } from "./settings/display.ts"
@@ -529,5 +530,8 @@ export async function startBattle(
   // The loading screen gives way once the battle has drawn its first frame, its shaders built: first those for the
   // sector seen from high up, without the sun's shadows (see atmosphere.ts).
   await level?.atmosphere?.warmUp()
+  // And those the battle would first need in the middle of it: the night's lights, every layer of the soldiers (see
+  // render/shader-warm-up.ts).
+  await warmUpShaders(view.scene, [night, flares, soldiers])
   view.scene.executeWhenReady(() => view.scene.onAfterRenderObservable.addOnce(() => menu.ready()))
 }

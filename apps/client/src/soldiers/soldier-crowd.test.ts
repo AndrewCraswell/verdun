@@ -520,6 +520,26 @@ describe("createSoldierCrowd", () => {
     expect(scene.onBeforeCameraRenderObservable.hasObservers()).toBe(false)
   })
 
+  it("draws every layer while held, one with no one in it a single instance collapsed to nothing, then hides it again", () => {
+    const sim = createSimulation({ map, seed: 1 })
+    spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
+    const { crowd, kit, drawn } = harness(sim)
+    const layers = [kit.bodies[Side.French], kit.bodies[Side.German], kit.rifle, kit.mask, kit.guns[Side.French]]
+    crowd.sync()
+
+    crowd.hold(true)
+    crowd.update()
+    // Every layer drawn, in view and among the sun's shadow casters, for its shaders to be built behind the loading screen.
+    expect(layers.map((mesh) => mesh.isVisible)).toEqual([true, true, true, true, true])
+    expect(layers.map((mesh) => mesh.thinInstanceCount)).toEqual([1, 1, 1, 1, 1])
+    expect(drawn(kit.bodies[Side.German])).toBe(0)
+    expect(nearestDepth(kit.mask)).toBe(0)
+    crowd.hold(null)
+    crowd.update()
+    expect(layers.map((mesh) => mesh.isVisible)).toEqual([true, false, true, false, false])
+    expect(nearestDepth(kit.mask)).toBe(Number.POSITIVE_INFINITY)
+  })
+
   it("measures how near the camera each layer's nearest man drawn comes, for the sun's shadows", () => {
     const sim = createSimulation({ map, seed: 1 })
     spawnSoldier(sim, { side: Side.French, x: 65, z: 45 })

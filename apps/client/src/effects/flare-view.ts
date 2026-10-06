@@ -89,6 +89,11 @@ export interface FlareView {
   readonly lights: readonly SpotLight[]
   /** Draws the flares for this frame. Call after the environment view has lit the scene. */
   update(frameSeconds: number): void
+  /**
+   * Holds the lights on whatever the darkness, or with null lets the darkness decide again: for building the night's
+   * shaders while the battle loads (see render/shader-warm-up.ts).
+   */
+  hold(on: boolean | null): void
   dispose(): void
 }
 
@@ -285,6 +290,8 @@ export function createFlareView(
     return light
   })
   let lit = false
+  // Held on (hold) while the night's shaders are built.
+  let held: boolean | null = null
   let clock = 0
   const drawn: DrawnFlare[] = []
 
@@ -321,7 +328,7 @@ export function createFlareView(
       const haze = hazeOf(sim)
       const wind = sim.wind
       const light = sources.light()
-      setLit(lit ? light < DARK.off : light < DARK.on)
+      setLit(held ?? (lit ? light < DARK.off : light < DARK.on))
 
       // Give each flare in the air a drawing; let go of those whose flares have burnt out, by the time drawn at, which
       // can be a little ahead of the simulation's.
@@ -476,6 +483,12 @@ export function createFlareView(
         }
         Color3.LerpToRef(scene.fogColor, COLOR.burning.scale(0.45 + 0.3 * haze), 0.4 * share, scene.fogColor)
         scene.clearColor = Color4.FromColor3(scene.fogColor, 1)
+      }
+    },
+    hold(on) {
+      held = on
+      if (on !== null) {
+        setLit(on)
       }
     },
     dispose() {

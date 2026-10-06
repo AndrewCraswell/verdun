@@ -30,6 +30,11 @@ export interface NightLight {
   flash(shots: readonly FlashView[]): void
   /** Places and dims the lights. Call once per frame. */
   update(frameSeconds: number): void
+  /**
+   * Holds the lights on (or off) whatever the darkness, or with null lets the darkness decide again: for building the
+   * night's shaders while the battle loads (see render/shader-warm-up.ts).
+   */
+  hold(on: boolean | null): void
   dispose(): void
 }
 
@@ -74,6 +79,7 @@ export function createNightLight(scene: Scene, sources: NightSources, materials:
   }
 
   let lit = false
+  let held: boolean | null = null
   let flashLeft = 0
   let clock = 0
 
@@ -113,7 +119,7 @@ export function createNightLight(scene: Scene, sources: NightSources, materials:
     update(frameSeconds) {
       clock += frameSeconds
       const darkness = sources.darkness()
-      setLit(lit ? darkness > DARK.off : darkness > DARK.on)
+      setLit(held ?? (lit ? darkness > DARK.off : darkness > DARK.on))
       const focus = sources.focus()
 
       if (!lit) {
@@ -134,6 +140,12 @@ export function createNightLight(scene: Scene, sources: NightSources, materials:
       }
       flashLeft = Math.max(0, flashLeft - frameSeconds)
       flashLight.intensity = flashLeft > 0 ? FLASH.intensity * darkness : 0
+    },
+    hold(on) {
+      held = on
+      if (on !== null) {
+        setLit(on)
+      }
     },
     dispose() {
       for (const light of lights) {

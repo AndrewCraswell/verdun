@@ -160,6 +160,18 @@ describe("the flare view", () => {
     expect(view.lights.every((light) => !light.isEnabled())).toBe(true)
   })
 
+  it("holds its lights on by day until let go", () => {
+    const { view } = setup(1)
+
+    view.hold(true)
+    // The battle's own frame goes on meanwhile, and mustn't switch them off.
+    view.update(0.016)
+    expect(view.lights.every((light) => light.isEnabled())).toBe(true)
+    view.hold(null)
+    view.update(0.016)
+    expect(view.lights.every((light) => !light.isEnabled())).toBe(true)
+  })
+
   it("draws a dozen flares at most, and frees each drawing for the next", () => {
     const { view, launch, state, sim } = setup()
     for (let index = 0; index < 15; index++) {
