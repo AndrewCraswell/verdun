@@ -95,7 +95,9 @@ metal-roughness PBR. Limits and gotchas:
      ground, since the simulation moves the man, but keep the hips' rise and fall and their turn. The script keys
      `hands_up` and `hands_up_walk` itself, a prisoner's, from the idle and the walk with the arms raised: Mixamo has no
      one giving himself up. It keys the climbs over a wooden fence and a low wall too (`CLIMBS`), one for each height,
-     from a standstill in the 1.25 s the simulation takes (vault.ts): Mixamo's vaults are running jumps.
+     from a standstill in the 1.25 s the simulation takes (vault.ts): Mixamo's vaults are running jumps. And it
+     shoulders the rifle in the aiming clips (`AIM_AT_EYE`), which Mixamo made holding it at the chest on our soldier.
+     Check the clips in the previewer: `pnpm dev`, then `/anim-preview.html`.
 
   4. `blender -b --factory-startup -P scripts/build-level-kit.py -- .asset-cache/unity vendor/unity .asset-cache/level soldier`
      rebuilds `soldier.glb`; commit it.

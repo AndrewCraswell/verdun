@@ -182,10 +182,10 @@ function moves(target: Scene, name: string, sent: readonly [TransformNode, Vecto
   return group
 }
 
-/** The rifle's matrix in one baked row: after the hands' four bones and Babylon's identity. */
-function rifleAt(data: Float32Array, row: number): Matrix {
-  const floatsPerFrame = (4 + 2) * 16
-  return Matrix.FromArray(data, row * floatsPerFrame + 5 * 16)
+/** The rifle's matrix in one baked row: after the hands' four bones (or as many as given) and Babylon's identity. */
+function rifleAt(data: Float32Array, row: number, bones = 4): Matrix {
+  const floatsPerFrame = (bones + 2) * 16
+  return Matrix.FromArray(data, row * floatsPerFrame + (bones + 1) * 16)
 }
 
 const forwardOf = (matrix: Matrix) => Vector3.TransformNormal(Vector3.Forward(), matrix)
@@ -359,7 +359,7 @@ describe("bakeClips", () => {
     expect(left.position.asArray()).toEqual([-0.1, 1.1, 0.4])
   })
 
-  it("leaves the rifle in the right hand alone as a man falls, then lets it fall to the ground", () => {
+  it("holds the rifle as a man begins to fall, then lets go: it falls on the way it went and lies on its side", () => {
     const target = scene()
     const { skeleton, right, left } = hands(target)
     const death = moves(target, "dying_from_a_prone_position", [
@@ -378,19 +378,129 @@ describe("bakeClips", () => {
         .map((value) => Number(value.toFixed(4)))
     ).toEqual([0.2, 0.8, 0.175])
     expect(Vector3.Dot(forwardOf(falling), forwardOf(first))).toBeCloseTo(1)
-    // At the end it lies on its side on the ground below the hand, pointing the way it pointed, level.
+    // A third of the way he lets go: these hands have no hips to tell him sooner. It falls from the palm (0.73 up,
+    // 0.22 ahead), going down and ahead as the hand went, and lies on its side, level, pointing the way it pointed.
     const resting = rifleAt(data, BAKE_FPS)
-    expect(
-      resting
-        .getTranslation()
-        .asArray()
-        .map((value) => Number(value.toFixed(4)))
-    ).toEqual([0.2, 0.1, 0.55])
+    const lying = resting.getTranslation()
+    expect(lying.x).toBeCloseTo(0.2, 4)
+    expect(lying.y).toBeCloseTo(0.03, 4)
+    expect(lying.z).toBeCloseTo(0.37, 2)
     expect(
       forwardOf(resting)
         .asArray()
         .map((value) => Number(value.toFixed(4)))
     ).toEqual([-0.6, 0, 0.8])
+    expect(upOf(resting).y).toBeCloseTo(0, 4)
+    // Falling, not sliding: it drops slowly at first and faster as it goes, above a straight line to where it lands.
+    const midway = rifleAt(data, 10).getTranslation()
+    expect(midway.y).toBeGreaterThan(0.73 - (0.73 - 0.03) * ((midway.z - 0.217) / (lying.z - 0.217)))
+  })
+
+  it("lets the rifle go at once in a death whose hands never held one, and takes the standing aim's grip till then", () => {
+    const target = scene()
+    const { skeleton, right, left } = hands(target)
+    const hips = new TransformNode("Hips", target)
+    hips.position.set(0, 0.9, 0)
+    hips.rotationQuaternion = Quaternion.Identity()
+    new Bone("Hips", skeleton, null, Matrix.Identity()).linkTransformNode(hips)
+    const aim = moves(target, "rifle_standing_aiming_idle", [[hips, hips.position.clone()]])
+    // Shot standing tall, the hips above the hands the whole way: they hang at his sides, holding nothing.
+    hips.position.set(0, 1.3, 0)
+    const death = moves(target, "rifle_death_from_the_front", [
+      [hips, hips.position.clone()],
+      [right, right.position.clone()],
+      [left, left.position.clone()]
+    ])
+    const { data, clips } = bakeClips(skeleton, [aim, death], Matrix.Identity())
+
+    const start = clips.get("rifle_death_from_the_front")?.start ?? 0
+    const at = (row: number) => rifleAt(data, row, skeleton.bones.length)
+    expect(at(start).equalsWithEpsilon(at(0), 1e-5)).toBe(true)
+    expect(at(start + 2).getTranslation().y).toBeLessThan(at(start).getTranslation().y - 0.01)
+    expect(at(start + BAKE_FPS).getTranslation().y).toBeCloseTo(0.03, 4)
+  })
+
+  it("tips a held rifle about its grip to keep it out of the ground, still in the hand", () => {
+    const target = scene()
+    const { skeleton, right } = hands(target)
+    // The right hand goes down near the ground: the butt, held as the hands first had it, would go into it.
+    const low = moves(target, "rifle_standing_idle", [[right, new Vector3(0.2, 0.12, 0)]])
+    const { data } = bakeClips(skeleton, [low], Matrix.Identity())
+
+    const end = rifleAt(data, BAKE_FPS)
+    const ends = [new Vector3(0, -0.12, -0.28), new Vector3(0, 0, -0.28), new Vector3(0, 0.02, 0.92)]
+    expect(Math.min(...ends.map((point) => Vector3.TransformCoordinates(point, end).y))).toBeGreaterThanOrEqual(0)
+    expect(
+      end
+        .getTranslation()
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.2, 0.12, 0.05])
+    // Tipped, not merely raised: it points lower than the hands first held it.
+    expect(forwardOf(end).y).toBeLessThan(forwardOf(rifleAt(data, 0)).y - 0.05)
+  })
+
+  it("lays a held rifle on its side under a hand put down on the ground, where no tip keeps it out", () => {
+    const target = scene()
+    const { skeleton, right, left } = hands(target)
+    // Both hands go flat on the ground, as a man getting down lies forward on them.
+    const down = moves(target, "rifle_kneeling_to_prone", [
+      [right, new Vector3(0.2, 0.02, 0)],
+      [left, new Vector3(-0.1, 0.02, 0.4)]
+    ])
+    const { data } = bakeClips(skeleton, [down], Matrix.Identity())
+
+    const end = rifleAt(data, BAKE_FPS)
+    // Still in the hand, on its side (its sights facing sideways), level, pointing the way it pointed: out of the ground.
+    expect(
+      end
+        .getTranslation()
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([0.2, 0.02, 0.05])
+    expect(upOf(end).y).toBeCloseTo(0, 4)
+    expect(forwardOf(end).y).toBeCloseTo(0, 4)
+    expect(
+      forwardOf(end)
+        .asArray()
+        .map((value) => Number(value.toFixed(4)))
+    ).toEqual([-0.6, 0, 0.8])
+  })
+
+  it("slings the rifle from where he held it crouched, and back, for a throw that needs both hands", () => {
+    const target = scene()
+    const { skeleton } = hands(target)
+    const joint = (name: string, at: Vector3) => {
+      const node = new TransformNode(name, target)
+      node.position.copyFrom(at)
+      node.rotationQuaternion = Quaternion.Identity()
+      new Bone(name, skeleton, null, Matrix.Identity()).linkTransformNode(node)
+      return node
+    }
+    const hips = joint("Hips", new Vector3(0, 0.6, 0))
+    joint("Spine_03", new Vector3(0, 1, 0))
+    joint("UpperLeg_L", new Vector3(-0.1, 0.6, 0))
+    joint("UpperLeg_R", new Vector3(0.1, 0.6, 0))
+    const still = (name: string) => moves(target, name, [[hips, hips.position.clone()]])
+    const { data, clips } = bakeClips(
+      skeleton,
+      [
+        still("rifle_standing_idle"),
+        still("rifle_crouched_idle"),
+        still("throwing_a_grenade_while_kneeling_pulling_pin_with_teeth")
+      ],
+      Matrix.Identity()
+    )
+
+    const at = (row: number) => rifleAt(data, row, skeleton.bones.length)
+    const crouched = at(clips.get("rifle_crouched_idle")?.start ?? 0)
+    const throwing = clips.get("throwing_a_grenade_while_kneeling_pulling_pin_with_teeth")?.start ?? 0
+    // From the crouched man's hands as it begins, back to them as it ends, and slung on his back between.
+    expect(at(throwing).equalsWithEpsilon(crouched, 1e-5)).toBe(true)
+    expect(at(throwing + BAKE_FPS).equalsWithEpsilon(crouched, 1e-5)).toBe(true)
+    const slung = at(throwing + BAKE_FPS / 2)
+    expect(slung.getTranslation().z).toBeLessThan(-0.1)
+    expect(forwardOf(slung).y).toBeGreaterThan(0.9)
   })
 })
 
@@ -491,6 +601,33 @@ describe("aimed walks and turns", () => {
     const spineForward = Vector3.TransformNormal(Vector3.Forward(), spineAt(halfway))
     expect(Math.atan2(spineForward.x, spineForward.z)).toBeCloseTo((40 * Math.PI) / 180, 3)
     expect(Math.asin(-spineForward.y)).toBeCloseTo((20 * Math.PI) / 180, 3)
+  })
+
+  it("lays an aimed walk's upper body over once in each of the walk's strides, so the two loop together", () => {
+    const target = scene()
+    const { skeleton, hips, spine } = body(target)
+    const walk = keyed(target, "rifle_walk_forward", [[hips, "position", new Vector3(0, 1, 0), new Vector3(0, 1, 0)]])
+    // An aimed walk half as long again as the walk, bending the spine forward 30 degrees and back.
+    const aimed = new AnimationGroup("walking_while_aiming_rifle", target)
+    const bend = new Animation("aimed-spine", "rotationQuaternion", 60, Animation.ANIMATIONTYPE_QUATERNION)
+    bend.setKeys([
+      { frame: 0, value: Quaternion.Identity() },
+      { frame: 45, value: Quaternion.RotationAxis(Vector3.Right(), Math.PI / 6) },
+      { frame: 90, value: Quaternion.Identity() }
+    ])
+    aimed.addTargetedAnimation(bend, spine)
+    aimed.normalize(0, 90)
+    const { data, clips } = bakeClips(skeleton, [walk, aimed], Matrix.Identity())
+
+    const made = clips.get("aim_walk_forward")
+    const start = made?.start ?? 0
+    const floatsPerFrame = (4 + 2) * 16
+    const spineAt = (row: number) => Matrix.FromArray(data, row * floatsPerFrame + 16)
+    // The walk's last frame is its first again, and so is the aimed walk's upper body: no jump where it loops.
+    expect(spineAt(start + BAKE_FPS).equalsWithEpsilon(spineAt(start), 1e-5)).toBe(true)
+    // Halfway through the walk, halfway through the aimed walk: bent the whole 30 degrees.
+    const spineForward = Vector3.TransformNormal(Vector3.Forward(), spineAt(start + BAKE_FPS / 2))
+    expect(Math.asin(-spineForward.y)).toBeCloseTo(Math.PI / 6, 3)
   })
 
   it("measures how far a clip turns a man round, clockwise seen from above", () => {

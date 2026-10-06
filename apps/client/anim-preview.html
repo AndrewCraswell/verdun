@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Soldier clips</title>
+    <style>
+      :root {
+        --bg: #16181b;
+        --panel: #1f2226;
+        --line: #2f343a;
+        --ink: #e6e1d6;
+        --dim: #9a958b;
+        --accent: #c9a45c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+      }
+      body {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        grid-template-rows: 100%;
+      }
+      aside {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+        min-height: 0;
+      }
+      header {
+        padding: 12px 14px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      input[type="search"],
+      select {
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      input[type="search"] {
+        width: 100%;
+      }
+      ol {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+        overflow-y: auto;
+        flex: 1;
+      }
+      li {
+        padding: 3px 14px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      li:hover {
+        background: #2a2e33;
+      }
+      li[aria-selected="true"] {
+        background: #3a3427;
+        color: var(--accent);
+      }
+      li.group {
+        padding-top: 10px;
+        color: var(--dim);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: default;
+      }
+      li.group:hover {
+        background: none;
+      }
+      main {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        outline: none;
+      }
+      .bar {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: rgb(31 34 38 / 0.92);
+      }
+      .bar label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--dim);
+      }
+      .bar input[type="range"] {
+        accent-color: var(--accent);
+      }
+      #scrub {
+        flex: 1;
+        min-width: 160px;
+      }
+      button {
+        padding: 5px 12px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--bg);
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .info {
+        position: absolute;
+        top: 14px;
+        left: 16px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgb(31 34 38 / 0.85);
+      }
+      .info b {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .info div {
+        color: var(--dim);
+      }
+      .keys {
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        color: var(--dim);
+        font-size: 12px;
+        text-align: right;
+      }
+      .tag {
+        position: absolute;
+        transform: translate(-50%, 0);
+        color: var(--accent);
+        font-size: 12px;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <header>
+        <h1>Soldier clips</h1>
+        <input id="filter" type="search" placeholder="Filter clips" />
+      </header>
+      <ol id="list"></ol>
+    </aside>
+    <main>
+      <canvas id="view"></canvas>
+      <div id="tags"></div>
+      <div class="info" id="info">Loading the soldier kit</div>
+      <div class="keys">
+        Up and down: clip<br />Space: play or pause<br />Left and right: a frame<br />Drag: orbit<br />
+        Strip: frames side by side
+      </div>
+      <div class="bar">
+        <button id="play" type="button">Pause</button>
+        <input id="scrub" type="range" min="0" max="1" step="1" value="0" />
+        <span id="frame">0</span>
+        <label
+          >Speed <input id="speed" type="range" min="0.1" max="2" step="0.05" value="1" />
+          <span id="speedText">1</span></label
+        >
+        <label
+          >View
+          <select id="viewpoint">
+            <option value="orbit">Free</option>
+            <option value="three">Three-quarter</option>
+            <option value="front">Front</option>
+            <option value="right">Right side</option>
+            <option value="left">Left side</option>
+            <option value="back">Back</option>
+            <option value="head">Head</option>
+          </select>
+        </label>
+        <label><input id="strip" type="checkbox" /> Strip</label>
+        <label><input id="turn" type="checkbox" checked /> Turn as in game</label>
+        <label><input id="rifle" type="checkbox" checked /> Rifle</label>
+        <label><input id="mask" type="checkbox" /> Gas mask</label>
+        <label><input id="german" type="checkbox" /> German</label>
+      </div>
+    </main>
+    <script type="module">
+      import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
+      import { Camera } from "@babylonjs/core/Cameras/camera"
+      import "@babylonjs/core/Cameras/Inputs/arcRotateCameraPointersInput"
+      import { Engine } from "@babylonjs/core/Engines/engine"
+      import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
+      import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight"
+      import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader"
+      import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
+      import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
+      import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
+      import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+      import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder"
+      import { CreateLines } from "@babylonjs/core/Meshes/Builders/linesBuilder"
+      import "@babylonjs/core/Meshes/thinInstanceMesh"
+      import { Scene } from "@babylonjs/core/scene"
+      import "@babylonjs/loaders/glTF/2.0/glTFLoader"
+      import { Side } from "@verdun/sim"
+      import { bakeClips, prepareSoldierKit } from "/src/soldiers/soldier-kit.ts"
+
+      // A dev-only page: bakes soldier.glb the way the game does (soldiers/soldier-kit.ts) and draws it as the game's
+      // crowd does (soldiers/soldier-crowd.ts), each man a thin instance reading his frame from the animation texture.
+      const canvas = document.getElementById("view")
+      const engine = new Engine(canvas, true, { preserveDrawingBuffer: true })
+      const scene = new Scene(engine)
+      scene.clearColor = new Color4(0.09, 0.094, 0.105, 1)
+      const camera = new ArcRotateCamera("camera", Math.PI / 2 - 0.45, 1.35, 3.6, new Vector3(0, 1, 0), scene)
+      camera.attachControl(canvas, true)
+      camera.lowerRadiusLimit = 0.6
+      camera.upperRadiusLimit = 40
+      camera.wheelPrecision = 60
+      camera.minZ = 0.05
+      // Sky and ground light both, and a low lamp from the front: faces under a helmet's brim, and a gas mask on one,
+      // show plainly.
+      const sky = new HemisphericLight("sky", new Vector3(0.2, 1, 0.3), scene)
+      sky.intensity = 0.8
+      sky.groundColor = new Color3(0.42, 0.4, 0.38)
+      new DirectionalLight("sun", new Vector3(-0.4, -1, -0.6), scene).intensity = 0.55
+      new DirectionalLight("lamp", new Vector3(0.25, -0.15, -1), scene).intensity = 0.45
+      const ground = CreateGround("ground", { width: 40, height: 40 }, scene)
+      const groundMaterial = new StandardMaterial("ground", scene)
+      groundMaterial.diffuseColor = new Color3(0.32, 0.29, 0.24)
+      groundMaterial.specularColor = Color3.Black()
+      ground.material = groundMaterial
+      // A metre grid, and a line ahead of where he faces.
+      for (let i = -20; i <= 20; i++) {
+        const shade = new Color4(1, 1, 1, i === 0 ? 0.3 : 0.08)
+        CreateLines(
+          `x${i}`,
+          { points: [new Vector3(i, 0.002, -20), new Vector3(i, 0.002, 20)], colors: [shade, shade] },
+          scene
+        )
+        CreateLines(
+          `z${i}`,
+          { points: [new Vector3(-20, 0.002, i), new Vector3(20, 0.002, i)], colors: [shade, shade] },
+          scene
+        )
+      }
+      const ahead = new Color4(0.79, 0.64, 0.36, 1)
+      CreateLines(
+        "ahead",
+        { points: [new Vector3(0, 0.004, 0), new Vector3(0, 0.004, 2)], colors: [ahead, ahead] },
+        scene
+      )
+
+      const glb = await fetch("/level-kit/soldier.glb").then((response) => {
+        if (!response.ok) {
+          throw new Error(`soldier.glb: ${response.status}`)
+        }
+        return response.arrayBuffer()
+      })
+      const container = await LoadAssetContainerAsync(new Uint8Array(glb), scene, { pluginExtension: ".glb" })
+      container.addAllToScene()
+      const kit = prepareSoldierKit(scene, container)
+      for (const gun of [kit.guns[Side.French], kit.guns[Side.German]]) {
+        gun.setEnabled(false)
+      }
+
+      // Each mesh a layer of thin instances, as the crowd draws them: a matrix and a frame each.
+      const SETTINGS = "bakedVertexAnimationSettingsInstanced"
+      const MAX = 32
+      const makeLayer = (mesh) => {
+        const matrices = new Float32Array(MAX * 16)
+        const settings = new Float32Array(MAX * 4)
+        mesh.alwaysSelectAsActiveMesh = true
+        mesh.doNotSyncBoundingInfo = true
+        mesh.thinInstanceSetBuffer("matrix", matrices, 16, false)
+        mesh.thinInstanceSetBuffer(SETTINGS, settings, 4, false)
+        mesh.thinInstanceCount = 0
+        mesh.isVisible = false
+        return { mesh, matrices, settings }
+      }
+      const layers = {
+        [Side.French]: makeLayer(kit.bodies[Side.French]),
+        [Side.German]: makeLayer(kit.bodies[Side.German]),
+        rifle: makeLayer(kit.rifle),
+        mask: makeLayer(kit.mask)
+      }
+      function fill(layer, instances) {
+        instances.forEach(({ matrix, row }, index) => {
+          matrix.copyToArray(layer.matrices, index * 16)
+          layer.settings.set([row, row, 0, 0], index * 4)
+        })
+        layer.mesh.thinInstanceCount = instances.length
+        layer.mesh.isVisible = instances.length > 0
+        if (instances.length > 0) {
+          layer.mesh.thinInstanceBufferUpdated("matrix")
+          layer.mesh.thinInstanceBufferUpdated(SETTINGS)
+        }
+      }
+
+      // What each climb goes over, as the retarget script keys it (CLIMBS there) and the simulation carries him
+      // across it (vault.ts): its top, how far its faces stand either side of its line, from where he starts.
+      const CLIMBED = {
+        climb_over: { top: 1.35, half: 0.1 },
+        climb_over_wall: { top: 1, half: 0.3 },
+        climb_over_low_wall: { top: 0.6, half: 0.4 }
+      }
+      const REACH = 0.35
+      const CLEAR = 0.05
+      const obstacleMaterial = new StandardMaterial("obstacle", scene)
+      obstacleMaterial.diffuseColor = new Color3(0.55, 0.36, 0.2)
+      obstacleMaterial.specularColor = Color3.Black()
+      obstacleMaterial.alpha = 0.55
+      const obstacles = Array.from({ length: MAX }, (_, index) => {
+        const box = CreateBox(`obstacle${index}`, { size: 1 }, scene)
+        box.material = obstacleMaterial
+        box.setEnabled(false)
+        return box
+      })
+      /** How far along a climb carries him by a frame, and where its line and top are, or null for other clips. */
+      function climbAt(name, frame, frames) {
+        const climbed = CLIMBED[name]
+        if (!climbed) {
+          return null
+        }
+        const crossing = 2 * (REACH + climbed.half) + CLEAR
+        return {
+          ...climbed,
+          crossing,
+          line: REACH + climbed.half,
+          carried: (crossing * frame) / Math.max(1, frames - 1)
+        }
+      }
+
+      // The clips in groups, by what they're for.
+      // Matched in this order: a clip goes in the first group whose pattern it fits.
+      const matchOrder = ["Changing stance", "Deaths"]
+      const groups = [
+        [
+          "Standing",
+          /^(rifle_standing|two_hand|rifle_idle|fire_bolt_standing|reloading_rifle_while_standing|hit_reaction_while|left_reaction|throwing_something|rifle_turn_)/
+        ],
+        [
+          "Moving",
+          /^(rifle_walk|rifle_run|rifle_sprint|aim_walk|walking_while|throwing_a_grenade_while_walking|throw_grenade_while_running|hit_reaction_when)/
+        ],
+        [
+          "Crouching",
+          /^(rifle_crouch|crouch|fire_bolt_crouched|reload_rifle_while_in_crouch|hit_reaction_from|throwing_a_grenade_while_kneeling|rifle_kneeling_idle)/
+        ],
+        [
+          "Prone",
+          /^(lying|firing_a_rifle_while_prone|fire_bolt_prone|reloading_rifle_in_prone|moving_|rifle_prone_hit|throw_grenade_while_in_prone)/
+        ],
+        ["Changing stance", /^(rifle_standing_to|rifle_kneeling_to|rifle_prone_to)/],
+        ["Climbing, cowering, giving up", /^(climb|being_terrified|hands_up)/],
+        ["Deaths", /(death|dying|getting_hit_to_back)/]
+      ]
+      const names = [...kit.clips.keys()]
+      const grouped = new Map(groups.map(([label]) => [label, []]))
+      grouped.set("Other", [])
+      for (const name of names) {
+        const group =
+          groups.find(([label, pattern]) => matchOrder.includes(label) && pattern.test(name)) ??
+          groups.find(([, pattern]) => pattern.test(name))
+        grouped.get(group ? group[0] : "Other").push(name)
+      }
+      const order = [...grouped.values()].flat()
+
+      const list = document.getElementById("list")
+      const filter = document.getElementById("filter")
+      const info = document.getElementById("info")
+      const tags = document.getElementById("tags")
+      const scrub = document.getElementById("scrub")
+      const frameText = document.getElementById("frame")
+      const playButton = document.getElementById("play")
+      const speed = document.getElementById("speed")
+      const speedText = document.getElementById("speedText")
+      const viewpoint = document.getElementById("viewpoint")
+      const strip = document.getElementById("strip")
+      const turn = document.getElementById("turn")
+      const rifle = document.getElementById("rifle")
+      const mask = document.getElementById("mask")
+      const german = document.getElementById("german")
+
+      let current = order[0]
+      let frame = 0
+      let playing = true
+      // How many frames a strip shows, or which: set from the console (preview.strip) to look at particular ones.
+      let stripFrames = null
+      let stripCount = 8
+      // A strip's framing, from the console: where it centres (metres up), how tall a window, how far apart the men.
+      let stripFraming = {}
+
+      function render() {
+        list.replaceChildren()
+        const query = filter.value.trim().toLowerCase()
+        for (const [label, members] of grouped) {
+          const shown = members.filter((name) => name.includes(query.replaceAll(" ", "_")))
+          if (shown.length === 0) {
+            continue
+          }
+          const heading = document.createElement("li")
+          heading.className = "group"
+          heading.textContent = label
+          list.append(heading)
+          for (const name of shown) {
+            const item = document.createElement("li")
+            item.textContent = name.replaceAll("_", " ")
+            item.setAttribute("aria-selected", String(name === current))
+            item.onclick = () => select(name)
+            list.append(item)
+          }
+        }
+        list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
+      }
+
+      function select(name) {
+        current = name
+        frame = 0
+        stripFrames = null
+        stripFraming = {}
+        // A prisoner has given up his rifle: the game draws none.
+        rifle.checked = !name.startsWith("hands_up")
+        scrub.max = String(kit.clips.get(name).frames - 1)
+        render()
+        frameView()
+      }
+
+      function visible() {
+        const query = filter.value.trim().toLowerCase().replaceAll(" ", "_")
+        return order.filter((name) => name.includes(query))
+      }
+
+      // Where the camera looks from, by the view chosen: round from his right (+x), the way he faces being +z.
+      const ANGLES = {
+        three: Math.PI / 4,
+        front: Math.PI / 2,
+        right: 0,
+        left: Math.PI,
+        back: -Math.PI / 2,
+        head: Math.PI / 2 - 0.3
+      }
+      /** The frames a strip shows: evenly through the clip, first and last among them. */
+      function framesShown(clip) {
+        if (stripFrames) {
+          return stripFrames.filter((at) => at < clip.frames)
+        }
+        const count = Math.min(stripCount, clip.frames)
+        return Array.from({ length: count }, (_, index) =>
+          Math.round((index * (clip.frames - 1)) / Math.max(1, count - 1))
+        )
+      }
+
+      /** Puts the camera where the view chosen looks from; a strip is drawn flat (orthographic), to compare frames. */
+      function frameView() {
+        const clip = kit.clips.get(current)
+        const view = viewpoint.value
+        const prone = /prone|lying|crawl|moving_forward_while|moving_backward/.test(current)
+        if (!strip.checked) {
+          camera.mode = Camera.PERSPECTIVE_CAMERA
+          if (view === "orbit") {
+            return
+          }
+          camera.alpha = ANGLES[view]
+          camera.beta = view === "head" ? 1.5 : 1.35
+          camera.radius = view === "head" ? 1.1 : prone ? 3.6 : 3.4
+          camera.target.set(0, view === "head" ? headHeight(current) : prone ? 0.4 : 0.95, prone ? 0.5 : 0)
+          return
+        }
+        camera.mode = Camera.ORTHOGRAPHIC_CAMERA
+        camera.alpha = ANGLES[view === "orbit" ? "three" : view]
+        camera.beta = view === "head" ? 1.5 : 1.45
+        camera.radius = 20
+      }
+
+      /** A strip's instances, left to right as seen, and the camera's extent round them. */
+      function stripLayout(clip) {
+        const shown = framesShown(clip)
+        const view = viewpoint.value === "orbit" ? "three" : viewpoint.value
+        const prone = /prone|lying|crawl|moving_forward_while|moving_backward/.test(current)
+        // The camera's right, seen from where the view looks from: frames run left to right across the picture.
+        const alpha = ANGLES[view]
+        const across = new Vector3(-Math.sin(alpha), 0, Math.cos(alpha))
+        const side = view === "right" || view === "left"
+        const spacing = view === "head" ? 0.6 : side ? (prone ? 2.6 : CLIMBED[current] ? 2.4 : 1.7) : prone ? 1.4 : 1.1
+        const middle = (shown.length - 1) / 2
+        const gap = stripFraming.spacing ?? spacing
+        const height = stripFraming.height ?? (view === "head" ? 0.7 : prone ? 1.3 : 2.25)
+        const centre = stripFraming.centre ?? (view === "head" ? headHeight(current) : prone ? 0.5 : 1)
+        // In rows when asked, each row raised a window's height above the one below, the first at the top.
+        const columns = Math.min(shown.length, stripFraming.columns ?? shown.length)
+        const rows = Math.ceil(shown.length / columns)
+        const rise = height * 1.08
+        const places = shown.map((at, index) => {
+          const column = index % columns
+          const row = Math.floor(index / columns)
+          return { at, base: across.scale((column - (columns - 1) / 2) * gap), lift: (rows - 1 - row) * rise }
+        })
+        const width = (columns - 1) * gap + (stripFraming.width ?? (view === "head" ? 0.7 : side ? 2.2 : 1.4))
+        return {
+          places,
+          width,
+          height: height + (rows - 1) * rise,
+          centre: centre + ((rows - 1) * rise) / 2,
+          bottom: centre - height / 2,
+          across,
+          view
+        }
+      }
+
+      const degrees = (radians) => Math.round((radians * 180) / Math.PI)
+      const yawed = new Matrix()
+      function show() {
+        const clip = kit.clips.get(current)
+        const whole = Math.floor(frame) % clip.frames
+        const yaw = turn.checked ? clip.turn : 0
+        const instances = []
+        for (const box of obstacles) {
+          box.setEnabled(false)
+        }
+        const placeOne = (at, base, slot, lift = 0) => {
+          const climb = climbAt(current, at, clip.frames)
+          // Over a fence or wall he's carried forward across it, as the simulation carries him.
+          const forward = climb ? climb.carried - climb.crossing / 2 : 0
+          Matrix.RotationYToRef(yaw, yawed)
+          const matrix = yawed.multiply(Matrix.Translation(base.x, lift, base.z + forward))
+          instances.push({ matrix, row: clip.start + at })
+          if (climb) {
+            const box = obstacles[slot]
+            box.setEnabled(true)
+            box.scaling.set(1.6, climb.top, 2 * climb.half)
+            box.position.set(base.x, lift + climb.top / 2, base.z + climb.line - climb.crossing / 2)
+          }
+        }
+        tags.replaceChildren()
+        if (strip.checked) {
+          const layout = stripLayout(clip)
+          layout.places.forEach(({ at, base, lift }, slot) => placeOne(at, base, slot, lift))
+          const ratio = engine.getRenderWidth() / engine.getRenderHeight()
+          // Room under the bottom row for the controls laid over the picture.
+          const below = layout.height * 0.14
+          let halfWidth = layout.width / 2
+          let halfHeight = (layout.height + below) / 2
+          if (halfWidth / halfHeight > ratio) {
+            halfHeight = halfWidth / ratio
+          } else {
+            halfWidth = halfHeight * ratio
+          }
+          camera.orthoLeft = -halfWidth
+          camera.orthoRight = halfWidth
+          camera.orthoTop = halfHeight
+          camera.orthoBottom = -halfHeight
+          camera.target.set(0, layout.centre - below / 2, 0)
+          const transform = scene.getTransformMatrix()
+          const viewport = camera.viewport.toGlobal(canvas.clientWidth, canvas.clientHeight)
+          for (const { at, base, lift } of layout.places) {
+            const point = Vector3.Project(
+              new Vector3(base.x, layout.bottom + lift, base.z),
+              Matrix.IdentityReadOnly,
+              transform,
+              viewport
+            )
+            const tag = document.createElement("div")
+            tag.className = "tag"
+            tag.style.left = `${point.x}px`
+            tag.style.top = `${Math.min(canvas.clientHeight - 120, point.y + 4)}px`
+            tag.textContent = String(at + 1)
+            tags.append(tag)
+          }
+        } else {
+          placeOne(whole, Vector3.Zero(), 0)
+        }
+        const body = german.checked ? Side.German : Side.French
+        fill(layers[body], instances)
+        fill(layers[body === Side.French ? Side.German : Side.French], [])
+        fill(layers.rifle, rifle.checked ? instances : [])
+        fill(layers.mask, mask.checked ? instances : [])
+        scrub.value = String(whole)
+        frameText.textContent = `${whole + 1} of ${clip.frames}`
+        info.innerHTML =
+          `<b>${current.replaceAll("_", " ")}</b>` +
+          `<div>${clip.frames} frames, ${(clip.frames / clip.fps).toFixed(2)} s at ${clip.fps} fps</div>` +
+          `<div>Turned ${degrees(clip.turn)}° to aim; turns him round ${degrees(clip.spin)}°</div>`
+      }
+
+      filter.oninput = () => render()
+      scrub.oninput = () => {
+        playing = false
+        playButton.textContent = "Play"
+        frame = Number(scrub.value)
+      }
+      playButton.onclick = () => {
+        playing = !playing
+        playButton.textContent = playing ? "Pause" : "Play"
+      }
+      speed.oninput = () => {
+        speedText.textContent = speed.value
+      }
+      viewpoint.onchange = () => frameView()
+      strip.onchange = () => frameView()
+      window.addEventListener("keydown", (event) => {
+        if (event.target === filter) {
+          return
+        }
+        const shown = visible()
+        const index = shown.indexOf(current)
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault()
+          const next = shown[Math.min(shown.length - 1, Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)))]
+          if (next) {
+            select(next)
+          }
+        } else if (event.key === " ") {
+          event.preventDefault()
+          playButton.click()
+        } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+          playing = false
+          playButton.textContent = "Play"
+          const clip = kit.clips.get(current)
+          frame = (Math.floor(frame) + (event.key === "ArrowRight" ? 1 : clip.frames - 1)) % clip.frames
+        }
+      })
+
+      // The bake again, from a second copy of the kit, for measuring: where the joints and the rifle are each frame.
+      const measured = await LoadAssetContainerAsync(new Uint8Array(glb), scene, { pluginExtension: ".glb" })
+      for (const group of measured.animationGroups) {
+        group.stop()
+      }
+      const skeleton = measured.skeletons[0]
+      const bakedWorld = measured.meshes
+        .find((mesh) => mesh.name === "Soldier_French")
+        .computeWorldMatrix(true)
+        .clone()
+      const baked = bakeClips(skeleton, measured.animationGroups, bakedWorld)
+      const rest = skeleton.bones.map((bone) =>
+        (bone.getAbsoluteInverseBindMatrix?.() ?? bone.getInvertedAbsoluteTransform()).clone().invert().getTranslation()
+      )
+      const boneIndex = (name) => skeleton.bones.findIndex((bone) => bone.name === name)
+      const fingerIndex = (side) =>
+        skeleton.bones.findIndex(
+          (bone) => bone.name.startsWith("IndexFinger_01") && bone.getParent()?.name === `Hand_${side}`
+        )
+      const JOINTS = Object.fromEntries(
+        [
+          "Hips",
+          "Spine_01",
+          "Spine_03",
+          "Neck",
+          "Head",
+          "Shoulder_L",
+          "Shoulder_R",
+          "Elbow_L",
+          "Elbow_R",
+          "Hand_L",
+          "Hand_R",
+          "UpperLeg_L",
+          "UpperLeg_R",
+          "LowerLeg_L",
+          "LowerLeg_R",
+          "Ankle_L",
+          "Ankle_R",
+          "Toes_L",
+          "Toes_R"
+        ].map((name) => [name, boneIndex(name)])
+      )
+      JOINTS.Finger_L = fingerIndex("L")
+      JOINTS.Finger_R = fingerIndex("R")
+      const floatsPerRow = baked.width * 4
+      const boneFloats = (skeleton.bones.length + 1) * 16
+      // The rifle's length along its own +z: from the butt's end, behind the grip, to the muzzle.
+      const rifleZ = kit.rifle.getVerticesData("position").filter((_, index) => index % 3 === 2)
+      const stock = { butt: Math.min(...rifleZ), muzzle: Math.max(...rifleZ) }
+      const scratch = new Matrix()
+      /** The joints, the palms and the rifle in a baked row, in the meshes' space (metres, +z ahead, +x his right). */
+      function measure(row) {
+        const at = {}
+        for (const [name, index] of Object.entries(JOINTS)) {
+          if (index < 0) {
+            continue
+          }
+          Matrix.FromArrayToRef(baked.data, row * floatsPerRow + index * 16, scratch)
+          at[name] = Vector3.TransformCoordinates(rest[index], scratch)
+        }
+        at.palm_L = at.Hand_L.add(at.Finger_L).scale(0.5)
+        at.palm_R = at.Hand_R.add(at.Finger_R).scale(0.5)
+        const held = Matrix.FromArray(baked.data, row * floatsPerRow + boneFloats)
+        at.grip = held.getTranslation()
+        at.along = Vector3.TransformNormal(Vector3.Forward(), held).normalize()
+        at.sights = Vector3.TransformNormal(Vector3.Up(), held).normalize()
+        at.butt = at.grip.add(at.along.scale(stock.butt))
+        at.toe = at.butt.add(at.sights.scale(-0.12))
+        at.muzzle = at.grip.add(at.along.scale(stock.muzzle))
+        return at
+      }
+      function headHeight(name) {
+        const clip = baked.clips.get(name)
+        return clip ? measure(clip.start).Head.y + 0.1 : 1.6
+      }
+      /** How far a point is from a segment. */
+      function fromSegment(point, a, b) {
+        const ab = b.subtract(a)
+        const t = Math.max(0, Math.min(1, Vector3.Dot(point.subtract(a), ab) / Math.max(1e-9, ab.lengthSquared())))
+        return Vector3.Distance(point, a.add(ab.scale(t)))
+      }
+      // The body as capsules (from joint, to joint, radius in metres), for the rifle going through it.
+      const PARTS = {
+        belly: ["Hips", "Spine_03", 0.11],
+        chest: ["Spine_03", "Neck", 0.1],
+        thigh_L: ["UpperLeg_L", "LowerLeg_L", 0.07],
+        thigh_R: ["UpperLeg_R", "LowerLeg_R", 0.07],
+        shin_L: ["LowerLeg_L", "Ankle_L", 0.05],
+        shin_R: ["LowerLeg_R", "Ankle_R", 0.05]
+      }
+      const round = (value, places = 2) => Number(value.toFixed(places))
+      /** What a clip does, measured frame by frame: see the keys. */
+      function qa(name) {
+        const clip = baked.clips.get(name)
+        if (!clip) {
+          return null
+        }
+        const frames = Array.from({ length: clip.frames }, (_, at) => measure(clip.start + at))
+        // The left palm off the line the hands hold the rifle along, and the right off its grip.
+        const leftOff = frames.map((at) => {
+          const t = Math.max(stock.butt, Math.min(stock.muzzle, Vector3.Dot(at.palm_L.subtract(at.grip), at.along)))
+          return Vector3.Distance(at.palm_L, at.grip.add(at.along.scale(t)))
+        })
+        const rightOff = frames.map((at) => Vector3.Distance(at.palm_R, at.grip))
+        // The rifle into the body: the least clearance of points along it from each part, negative inside.
+        const clearance = {}
+        for (const [part, [from, to, radius]] of Object.entries(PARTS)) {
+          let least = Infinity
+          let when = 0
+          frames.forEach((at, index) => {
+            for (let z = stock.butt + 0.04; z <= stock.muzzle; z += 0.04) {
+              const gap = fromSegment(at.grip.add(at.along.scale(z)), at[from], at[to]) - radius
+              if (gap < least) {
+                least = gap
+                when = index
+              }
+            }
+          })
+          clearance[part] = [round(least), when + 1]
+        }
+        const headGap = Math.min(
+          ...frames.map((at) => {
+            const centre = at.Head.add(at.Head.subtract(at.Neck).normalize().scale(0.09))
+            let least = Infinity
+            for (let z = stock.butt + 0.04; z <= stock.muzzle; z += 0.04) {
+              least = Math.min(least, Vector3.Distance(at.grip.add(at.along.scale(z)), centre) - 0.1)
+            }
+            return least
+          })
+        )
+        // Pops: the largest change of velocity in a frame, for the points that show one.
+        const tracked = ["palm_L", "palm_R", "Head", "Ankle_L", "Ankle_R", "Hips", "grip", "muzzle"]
+        const jerk = {}
+        for (const key of tracked) {
+          let most = 0
+          let when = 0
+          for (let index = 1; index < frames.length - 1; index++) {
+            const change = frames[index + 1][key]
+              .subtract(frames[index][key].scale(2))
+              .add(frames[index - 1][key])
+              .length()
+            if (change > most) {
+              most = change
+              when = index
+            }
+          }
+          jerk[key] = [round(most, 3), when + 1]
+        }
+        // The loop's seam: how far each point jumps from the last frame back to the first.
+        const seam = {}
+        for (const key of tracked) {
+          seam[key] = round(Vector3.Distance(frames[0][key], frames[frames.length - 1][key]), 3)
+        }
+        const lowest = Math.min(...frames.map((at) => Math.min(at.Ankle_L.y, at.Ankle_R.y, at.Toes_L.y, at.Toes_R.y)))
+        // The rifle into the ground: its lowest end, and when.
+        const sunk = frames.map((at) => Math.min(at.toe.y, at.butt.y, at.muzzle.y))
+        const deepest = Math.min(...sunk)
+        const sorted = [...leftOff].sort((a, b) => a - b)
+        return {
+          frames: clip.frames,
+          left: {
+            median: round(sorted[Math.floor(sorted.length / 2)]),
+            most: round(sorted[sorted.length - 1]),
+            off: leftOff.filter((d) => d > 0.06).length
+          },
+          right: round(Math.max(...rightOff)),
+          clearance,
+          head: round(headGap),
+          jerk,
+          seam,
+          feet: round(lowest),
+          ground: [round(deepest), sunk.indexOf(deepest) + 1]
+        }
+      }
+
+      select(current)
+      // For inspecting from the console: pick a clip and frame, draw it; lay out a strip; measure a clip.
+      window.preview = {
+        camera,
+        scene,
+        engine,
+        kit,
+        baked,
+        measure,
+        qa,
+        draw(name, at = 0) {
+          select(name)
+          frame = at
+          playing = false
+          playButton.textContent = "Play"
+          show()
+          scene.render()
+          return true
+        },
+        strip(name, options = {}) {
+          select(name)
+          strip.checked = true
+          viewpoint.value = options.view ?? "three"
+          stripCount = options.count ?? 8
+          stripFrames = options.frames ?? null
+          stripFraming = {
+            centre: options.centre,
+            height: options.height,
+            spacing: options.spacing,
+            columns: options.columns,
+            width: options.width
+          }
+          frameView()
+          playing = false
+          playButton.textContent = "Play"
+          show()
+          scene.render()
+          return framesShown(kit.clips.get(name)).map((at) => at + 1)
+        }
+      }
+      engine.runRenderLoop(() => {
+        const clip = kit.clips.get(current)
+        if (playing) {
+          frame = (frame + (engine.getDeltaTime() / 1000) * clip.fps * Number(speed.value)) % clip.frames
+        }
+        show()
+        scene.render()
+      })
+      window.addEventListener("resize", () => engine.resize())
+    </script>
+  </body>
+</html>

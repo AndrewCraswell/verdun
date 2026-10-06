@@ -27,7 +27,8 @@ import {
   DEATHS,
   IDLE,
   RIFLE_IN_LEFT_HAND,
-  RIFLE_SLUNG
+  RIFLE_SLUNG,
+  RIFLE_SLUNG_BRIEFLY
 } from "./soldier-animation.ts"
 
 /** The soldier models and their baked animation, as scripts/build-level-kit.py builds them into soldier.glb. */
@@ -73,12 +74,23 @@ const HANDS = { grip: "Hand_R", forend: "Hand_L" } as const
  * the right hand and the left reaching for it, so the rifle never swings about when the left lets go.
  */
 const GRIP_SPAN = { min: 0.22, max: 0.55 } as const
+/**
+ * And both palms are above his hips, less this much in metres: a rifle is held in front of him, where hands that only
+ * happen to be a rifle's length apart, hanging at his sides, hold none.
+ */
+const GRIP_ABOVE_HIPS = 0.05
 /** A clip whose palms never hold the rifle takes the grip the standing aim's first frame has. */
 const GRIP_FROM: ClipName = "rifle_standing_aiming_idle"
 /** The frames looked through for a clip's grip, from the first. */
 const GRIP_LOOK = 12
 /** The clip whose first frame sets where the slung rifle hangs on his back: standing at ease. */
 const SLING_FROM: ClipName = IDLE
+/**
+ * A rifle slung for a clip played once from his hands (`RIFLE_SLUNG_BRIEFLY`) goes onto his back over this many of its
+ * first frames, and comes back to his hands over as many of its last, swinging out this far to his right on the way,
+ * in metres, round his body rather than through it.
+ */
+const SLING_EASE = { frames: 8, out: 0.3 } as const
 /** The bone the slung rifle hangs from: the chest. */
 const CHEST = "Spine_03"
 /**
@@ -96,8 +108,127 @@ const UPPER = /Spine|Neck|Head|Clavicle|Shoulder|Elbow|Hand|Finger|Thumb/
 const SPINE = "Spine_01"
 /** The thighs: the line between them, seen from above, is which way the hips face, for how far a clip turns a man. */
 const THIGHS = { left: "UpperLeg_L", right: "UpperLeg_R" } as const
-/** In a death he lets the rifle go: from `from` of the way through, it falls to lie `height` up, clear of bumps. */
-const DROP = { from: 0.5, height: 0.1 } as const
+/** The left ankle, whose lift sets where a walk is in its stride, for laying an aimed walk's arms over it in step. */
+const ANKLE = "Ankle_L"
+/** A walk's stride is compared at this many points through it. */
+const STRIDE_SAMPLES = 24
+/**
+ * In a death he lets the rifle go: at once in a clip whose hands never hold one, as soon as it would touch the ground,
+ * once his hips have fallen below `release` of the height they began at, or else `late` of the way through. It falls
+ * from his hand as it was moving, no faster than `fling` metres a second, under `gravity`, turning onto its side over
+ * `turning` seconds at least, to lie `height` up (its grip: the stock's side on the ground), clear of where his body
+ * comes to lie by `clear` metres. Never below the ground on the way.
+ */
+const DROP = { release: 0.8, late: 0.35, fling: 2, gravity: 9.8, turning: 0.35, height: 0.03, clear: 0.04 } as const
+/**
+ * A fallen man's body, as the rifle keeps clear of it: capsules from joint to joint, this many metres round. The head's
+ * runs on past it, over the helmet.
+ */
+const LYING = [
+  { from: "Hips", to: "Spine_03", radius: 0.14, beyond: 0 },
+  { from: "Spine_03", to: "Neck", radius: 0.13, beyond: 0 },
+  { from: "Neck", to: "Head", radius: 0.13, beyond: 0.12 },
+  { from: "UpperLeg_L", to: "LowerLeg_L", radius: 0.08, beyond: 0 },
+  { from: "UpperLeg_R", to: "LowerLeg_R", radius: 0.08, beyond: 0 },
+  { from: "LowerLeg_L", to: "Ankle_L", radius: 0.06, beyond: 0 },
+  { from: "LowerLeg_R", to: "Ankle_R", radius: 0.06, beyond: 0 }
+] as const
+/** The rifle's reach either side of its grip, in metres, as the kit's model has it: butt behind, muzzle ahead. */
+const RIFLE_REACH = { butt: -0.28, muzzle: 0.92 } as const
+/** Its ends, in its own frame (+z to the muzzle, +y its sights): the butt's toe and heel, and the muzzle's underside. */
+const RIFLE_ENDS = [
+  new Vector3(0, -0.12, RIFLE_REACH.butt),
+  new Vector3(0, 0, RIFLE_REACH.butt),
+  new Vector3(0, 0.02, RIFLE_REACH.muzzle)
+] as const
+
+/** How far below the ground a rifle placed so goes, at its lowest end: 0 when it's clear. */
+function belowGround(rifle: Matrix): number {
+  let lowest = Number.POSITIVE_INFINITY
+  for (const end of RIFLE_ENDS) {
+    lowest = Math.min(lowest, Vector3.TransformCoordinates(end, rifle).y)
+  }
+  return Math.max(0, -lowest)
+}
+
+/**
+ * How far a held rifle tips about its grip, at most, in radians, to keep out of the ground, found in steps this fine,
+ * and spread over this many frames either side of those it must, so it eases out of the ground rather than jumps.
+ */
+const GROUND_TIP = { most: 0.7, step: 0.01, spread: 4 } as const
+
+/**
+ * The tip about its grip (radians about its own right: positive lifts the butt, lowering the muzzle) that brings a
+ * rifle out of the ground: the least that does, lifting whichever end is lower; or the most, if none does.
+ */
+function tipOutOfGround(rifle: Matrix): number {
+  if (belowGround(rifle) <= 0) {
+    return 0
+  }
+  const [toe, heel, muzzle] = RIFLE_ENDS.map((end) => Vector3.TransformCoordinates(end, rifle).y)
+  const way = Math.min(toe ?? 0, heel ?? 0) < (muzzle ?? 0) ? 1 : -1
+  const tip = new Matrix()
+  const tipped = new Matrix()
+  for (let angle = GROUND_TIP.step; angle < GROUND_TIP.most; angle += GROUND_TIP.step) {
+    Matrix.RotationXToRef(way * angle, tip)
+    tip.multiplyToRef(rifle, tipped)
+    if (belowGround(tipped) <= 0) {
+      return way * angle
+    }
+  }
+  return way * GROUND_TIP.most
+}
+
+/**
+ * Keeps a held rifle out of the ground through a clip: tipped about its grip, in the hand, as little as clears it;
+ * where no tip will, the hand down on the ground with it, laid on its side under the hand, level, pointing the way it
+ * pointed, and raised off the ground if the grip itself is in it. Either eases in and out over the frames either side.
+ */
+function keepOutOfGround(data: Float32Array, rows: { first: number; count: number }, stride: number, offset: number) {
+  const rifles = Array.from({ length: rows.count }, (_, frame) =>
+    Matrix.FromArray(data, (rows.first + frame) * stride + offset)
+  )
+  const needed = rifles.map(tipOutOfGround)
+  if (needed.every((angle) => angle === 0)) {
+    return
+  }
+  const tip = new Matrix()
+  const tipped = new Matrix()
+  // Where the most tip leaves it in the ground still.
+  const laid = rifles.map((rifle, frame) => {
+    Matrix.RotationXToRef(needed[frame] ?? 0, tip)
+    tip.multiplyToRef(rifle, tipped)
+    return belowGround(tipped) > 0 ? 1 : 0
+  })
+  const lying = new Matrix()
+  const blended = new Matrix()
+  /** The most any frame near asks for, fading with how far off it is. */
+  const near = (values: readonly number[], frame: number, pick: (a: number, b: number) => number) => {
+    let most = 0
+    for (let step = -GROUND_TIP.spread; step <= GROUND_TIP.spread; step++) {
+      most = pick(most, (values[frame + step] ?? 0) * (1 - Math.abs(step) / (GROUND_TIP.spread + 1)))
+    }
+    return most
+  }
+  for (const [frame, rifle] of rifles.entries()) {
+    // The butt's lift and the muzzle's apart, so one doesn't undo the other.
+    Matrix.RotationXToRef(near(needed, frame, Math.max) + near(needed, frame, Math.min), tip)
+    tip.multiplyToRef(rifle, tipped)
+    const lay = near(laid, frame, Math.max)
+    if (lay > 0) {
+      restingRifle(rifle, lying)
+      lying.setTranslation(rifle.getTranslation())
+      Matrix.DecomposeLerpToRef(tipped, lying, lay * lay * (3 - 2 * lay), blended)
+      tipped.copyFrom(blended)
+    }
+    const sunk = belowGround(tipped)
+    if (sunk > 0) {
+      const at = tipped.getTranslation()
+      tipped.setTranslationFromFloats(at.x, at.y + sunk, at.z)
+    }
+    tipped.copyToArray(data, (rows.first + frame) * stride + offset)
+  }
+}
 const BODIES = { [Side.French]: "Soldier_French", [Side.German]: "Soldier_German" } as const
 const GUNS = { [Side.French]: "MachineGun_French", [Side.German]: "MachineGun_German" } as const
 
@@ -321,18 +452,103 @@ export function restingRifle(held: Matrix, result: Matrix): Matrix {
   return result
 }
 
-/** Eases a dying man's rifle out of his hand over the second half of the clip, down to `restingRifle`. */
-function dropRifle(data: Float32Array, rows: { first: number; count: number }, stride: number, offset: number): void {
-  const held = Matrix.FromArray(data, (rows.first + rows.count - 1) * stride + offset)
+/** A capsule: the segment from one point to another and all within `radius` of it. */
+interface Capsule {
+  readonly from: Vector3
+  readonly to: Vector3
+  readonly radius: number
+}
+
+/** The point on a segment nearest another. */
+function nearestOnSegment(point: Vector3, from: Vector3, to: Vector3): Vector3 {
+  const along = to.subtract(from)
+  const length = along.lengthSquared()
+  const t = length > 1e-12 ? Math.max(0, Math.min(1, Vector3.Dot(point.subtract(from), along) / length)) : 0
+  return from.add(along.scaleInPlace(t))
+}
+
+/**
+ * How far to move a rifle lying along `forward` from `grip`, across the ground, to keep it clear of a body: out from
+ * whichever part it would lie in, until it lies in none.
+ */
+function clearOfBody(grip: Vector3, forward: Vector3, body: readonly Capsule[]): Vector3 {
+  const moved = Vector3.Zero()
+  // Square across the rifle, along the ground: the way it slides off a body it lies on, failing any better.
+  const across = new Vector3(-forward.z, 0, forward.x)
+  for (let attempt = 0; attempt < 8; attempt++) {
+    let deepest = 0
+    const way = Vector3.Zero()
+    for (let along = RIFLE_REACH.butt; along <= RIFLE_REACH.muzzle; along += 0.05) {
+      const point = grip.add(forward.scale(along)).addInPlace(moved)
+      for (const { from, to, radius } of body) {
+        const nearest = nearestOnSegment(point, from, to)
+        const depth = radius + DROP.clear - Vector3.Distance(point, nearest)
+        if (depth > deepest) {
+          deepest = depth
+          way.copyFrom(point.subtract(nearest))
+        }
+      }
+    }
+    if (deepest <= 0) {
+      break
+    }
+    way.y = 0
+    if (way.lengthSquared() < 1e-8) {
+      way.copyFrom(across)
+    }
+    moved.addInPlace(way.normalize().scaleInPlace(deepest + 0.01))
+  }
+  return moved
+}
+
+/**
+ * Lets a dying man's rifle go at `release` (a frame of the clip): it falls from his hand, moving as the hand moved, to
+ * lie on its side on the ground (`restingRifle`), turning over as it falls and kept clear of where his body comes to lie.
+ * Frames before `release` keep it in his hand.
+ */
+function dropRifle(
+  data: Float32Array,
+  rows: { first: number; count: number },
+  stride: number,
+  offset: number,
+  release: number,
+  body: readonly Capsule[]
+): void {
+  const held = Matrix.FromArray(data, (rows.first + release) * stride + offset)
+  const before = Matrix.FromArray(data, (rows.first + Math.max(0, release - 1)) * stride + offset)
+  const start = held.getTranslation()
+  const velocity = start.subtract(before.getTranslation()).scaleInPlace(BAKE_FPS)
+  if (velocity.length() > DROP.fling) {
+    velocity.normalize().scaleInPlace(DROP.fling)
+  }
+  // When it reaches the ground: falling from its height, under gravity from the speed it had.
+  const drop = Math.max(0, start.y - DROP.height)
+  const landing = (velocity.y + Math.sqrt(velocity.y * velocity.y + 2 * DROP.gravity * drop)) / DROP.gravity
   const resting = restingRifle(held, new Matrix())
-  const from = Math.floor((rows.count - 1) * DROP.from)
+  const lying = new Vector3(start.x + velocity.x * landing, DROP.height, start.z + velocity.z * landing)
+  const forward = Vector3.TransformNormal(Vector3.Forward(), resting)
+  lying.addInPlace(clearOfBody(lying, forward, body))
+  resting.setTranslation(lying)
   const blended = new Matrix()
-  for (let frame = from + 1; frame < rows.count; frame++) {
-    const at = (rows.first + frame) * stride + offset
-    Matrix.FromArrayToRef(data, at, held)
-    const t = (frame - from) / (rows.count - 1 - from)
-    Matrix.DecomposeLerpToRef(held, resting, t * t * (3 - 2 * t), blended)
-    blended.copyToArray(data, at)
+  for (let frame = release; frame < rows.count; frame++) {
+    const seconds = (frame - release) / BAKE_FPS
+    const t = landing > 0 ? Math.min(1, seconds / landing) : 1
+    const turned = Math.min(1, seconds / Math.max(landing, DROP.turning))
+    Matrix.DecomposeLerpToRef(held, resting, turned * turned * (3 - 2 * turned), blended)
+    // Its path a fall, not a slide: the height under gravity, the ground covered at the speed it went.
+    const falling = Math.min(seconds, landing)
+    blended.setTranslationFromFloats(
+      start.x + (lying.x - start.x) * t,
+      Math.max(DROP.height, start.y + velocity.y * falling - (DROP.gravity * falling * falling) / 2),
+      start.z + (lying.z - start.z) * t
+    )
+    // Turning over as it lands, one end could dig in: it rests on it instead.
+    const sunk = belowGround(blended)
+    if (sunk > 0) {
+      const at = blended.getTranslation()
+      blended.setTranslationFromFloats(at.x, at.y + sunk, at.z)
+    }
+    blended.copyToArray(data, (rows.first + frame) * stride + offset)
   }
 }
 
@@ -349,13 +565,13 @@ export function bakeClips(
 ): { data: Float32Array; drift: Float32Array; rifles: Float32Array; clips: Map<ClipName, BakedClip>; width: number } {
   const byName = new Map(groups.map((group) => [group.name, group]))
   const clips = new Map<ClipName, BakedClip>()
-  const rows: { name: ClipName; group: AnimationGroup; frames: number; upper?: AnimationGroup }[] = []
+  const rows: { name: ClipName; group: AnimationGroup; frames: number; upper?: AnimationGroup; stride: number }[] = []
   let start = 0
   const add = (name: ClipName, group: AnimationGroup | undefined, upper?: AnimationGroup) => {
     if (group) {
       const frames = Math.max(1, Math.round(clipSeconds(group) * BAKE_FPS) + 1)
       clips.set(name, { start, frames, fps: BAKE_FPS, turn: 0, spin: 0 })
-      rows.push({ name, group, frames, upper })
+      rows.push({ name, group, frames, upper, stride: 0 })
       start += frames
     }
   }
@@ -383,6 +599,10 @@ export function bakeClips(
   }
   const left = Vector3.Zero()
   const right = Vector3.Zero()
+  const ankle = skeleton.bones.find((candidate) => candidate.name === ANKLE)
+  const bodyBones = new Map(
+    LYING.flatMap(({ from, to }) => [from, to]).map((name) => [name, skeleton.bones.find((bone) => bone.name === name)])
+  )
   const gripHand = handOf(skeleton, HANDS.grip)
   const forendHand = handOf(skeleton, HANDS.forend)
   const bone = new Matrix()
@@ -416,7 +636,9 @@ export function bakeClips(
       poseAt(group, frame / BAKE_FPS)
       skeleton.prepare(true)
       const span = Vector3.Distance(palm(gripHand, grip), palm(forendHand, forend))
-      if (span >= GRIP_SPAN.min && span <= GRIP_SPAN.max) {
+      // Held in front of him, above his hips, where the skeleton has them.
+      const low = hips ? jointAt(hips, world, placed, hipsAt).y - GRIP_ABOVE_HIPS : Number.NEGATIVE_INFINITY
+      if (span >= GRIP_SPAN.min && span <= GRIP_SPAN.max && grip.y > low && forend.y > low) {
         rifleBetween(grip, forend, rifle)
         gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
         return rifle.multiply(placed.invertToRef(bone))
@@ -436,12 +658,64 @@ export function bakeClips(
     const at = chestPlaced.getTranslation().addInPlace(SLING.grip)
     sling = rifleAlong(at, SLING.along, SLING.sights, new Matrix()).multiply(chestPlaced.invertToRef(bone))
   }
+  /** How high the left ankle is through a clip's cycle, at `STRIDE_SAMPLES` points, or null without one. */
+  const strideOf = (group: AnimationGroup): number[] | null => {
+    if (!ankle) {
+      return null
+    }
+    const length = clipSeconds(group)
+    const heights = Array.from({ length: STRIDE_SAMPLES }, (_, index) => {
+      poseAt(group, (index / STRIDE_SAMPLES) * length)
+      skeleton.prepare(true)
+      return jointAt(ankle, world, placed, joint).y
+    })
+    const mean = heights.reduce((sum, height) => sum + height, 0) / heights.length
+    return heights.map((height) => height - mean)
+  }
+  // Where in its cycle each aimed walk's upper body starts, so its stride matches the walk's: the left foot up together.
+  for (const entry of rows) {
+    if (!entry.upper) {
+      continue
+    }
+    const walk = strideOf(entry.group)
+    const aimed = strideOf(entry.upper)
+    if (!walk || !aimed) {
+      continue
+    }
+    let best = -Infinity
+    for (let shift = 0; shift < STRIDE_SAMPLES; shift++) {
+      const match = walk.reduce(
+        (sum, height, index) => sum + height * (aimed[(index + shift) % STRIDE_SAMPLES] ?? 0),
+        0
+      )
+      if (match > best) {
+        best = match
+        entry.stride = shift / STRIDE_SAMPLES
+      }
+    }
+  }
+  const held = new Matrix()
+  const blended = new Matrix()
+  const aside = Vector3.Zero()
+  const hipsPlaced = new Matrix()
+  // Where the clips a rifle is slung from hold it, relative to the hips, as they begin.
+  const easeFrom = new Set(RIFLE_SLUNG_BRIEFLY.values())
+  const heldAtEase = new Map<ClipName, Matrix>()
   let row = 0
-  for (const { name, group, frames, upper } of rows) {
+  for (const { name, group, frames, upper, stride } of rows) {
     const leftHeld = RIFLE_IN_LEFT_HAND.has(name)
     const slung = sling && chest && RIFLE_SLUNG.has(name) ? sling : null
+    const easedFrom = RIFLE_SLUNG_BRIEFLY.get(name)
+    const briefly = easedFrom !== undefined
+    const dying = DEATHS.has(name)
+    // A death's hips, frame by frame, for when he goes down and lets the rifle go; and his body as he comes to lie.
+    const hipsHeights: number[] = []
+    const body: Capsule[] = []
+    // And the first frame his rifle, still in his hand, would go into the ground: he lets go of it then.
+    let grounded = -1
     // An aimed walk's arms, and so its grip, are the aimed walk's.
-    const gripped = gripOf(upper ?? group) ?? sharedGrip
+    const ownGrip = gripOf(upper ?? group)
+    const gripped = ownGrip ?? sharedGrip
     // Where an aiming clip points the rifle, summed over its frames: the soldier is turned to put that ahead.
     let aimX = 0
     let aimZ = 0
@@ -451,7 +725,9 @@ export function bakeClips(
     for (let frame = 0; frame < frames; frame++) {
       poseAt(group, frame / BAKE_FPS)
       if (upper) {
-        layUpper(upper, frame / BAKE_FPS)
+        // Once through the aimed walk's cycle in the walk's, in step with it, so the two loop together.
+        const cycle = frames > 1 ? frame / (frames - 1) : 0
+        layUpper(upper, ((cycle + stride) % 1) * clipSeconds(upper))
       }
       skeleton.prepare(true)
       const matrices = skeleton.getTransformMatrices(null)
@@ -467,6 +743,18 @@ export function bakeClips(
         }
         drift[row * 2] = hipsAt.x - hipsFrom.x
         drift[row * 2 + 1] = hipsAt.z - hipsFrom.z
+        hipsHeights.push(hipsAt.y)
+      }
+      if (dying && frame === frames - 1) {
+        for (const { from, to, radius, beyond } of LYING) {
+          const start = bodyBones.get(from)
+          const end = bodyBones.get(to)
+          if (start && end) {
+            const a = jointAt(start, world, placed, Vector3.Zero())
+            const b = jointAt(end, world, placed, Vector3.Zero())
+            body.push({ from: a, to: b.add(b.subtract(a).normalize().scaleInPlace(beyond)), radius })
+          }
+        }
       }
       if (thighs.left && thighs.right && (frame === 0 || frame === frames - 1)) {
         const facing = facingOf(jointAt(thighs.left, world, placed, left), jointAt(thighs.right, world, placed, right))
@@ -478,6 +766,29 @@ export function bakeClips(
       if (slung && chest) {
         chest.getFinalMatrix().multiplyToRef(world, chestPlaced)
         slung.multiplyToRef(chestPlaced, rifle)
+        // Played once from his hands, onto his back as it begins and back into them as it ends, swung out round his
+        // right side on the way.
+        const ease = briefly ? Math.min(1, frame / SLING_EASE.frames, (frames - 1 - frame) / SLING_EASE.frames) : 1
+        const atEase = easedFrom ? heldAtEase.get(easedFrom) : undefined
+        if (ease < 1 && gripHand && gripped && thighs.left && thighs.right) {
+          // From where the clip it's played from holds it, as his hips carry it; failing that, from his right hand.
+          if (atEase && hips) {
+            hips.getFinalMatrix().multiplyToRef(world, hipsPlaced)
+            atEase.multiplyToRef(hipsPlaced, held)
+          } else {
+            gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
+            gripped.multiplyToRef(placed, held)
+          }
+          const share = ease * ease * (3 - 2 * ease)
+          Matrix.DecomposeLerpToRef(held, rifle, share, blended)
+          const facing = facingOf(
+            jointAt(thighs.left, world, placed, left),
+            jointAt(thighs.right, world, placed, right)
+          )
+          aside.set(Math.cos(facing), 0, -Math.sin(facing)).scaleInPlace(SLING_EASE.out * Math.sin(Math.PI * share))
+          blended.setTranslation(blended.getTranslation().addInPlace(aside))
+          rifle.copyFrom(blended)
+        }
       } else if (gripHand && forendHand && gripped) {
         // The right hand in the world, and the rifle in it as it grips it.
         gripHand.wrist.getFinalMatrix().multiplyToRef(world, placed)
@@ -494,6 +805,13 @@ export function bakeClips(
       } else {
         rifle.copyFrom(Matrix.IdentityReadOnly)
       }
+      if (dying && !slung && grounded < 0 && belowGround(rifle) > 0) {
+        grounded = frame
+      }
+      if (frame === 0 && easeFrom.has(name) && hips) {
+        hips.getFinalMatrix().multiplyToRef(world, hipsPlaced)
+        heldAtEase.set(name, rifle.multiply(hipsPlaced.invertToRef(bone)))
+      }
       rifle.copyToArray(data, row * floatsPerFrame + boneFloats)
       Vector3.TransformNormalToRef(Vector3.Forward(), rifle, joint)
       aimX += joint.x
@@ -505,8 +823,19 @@ export function bakeClips(
       const turn = AIMING.has(name) && aimX * aimX + aimZ * aimZ > 1e-12 ? -Math.atan2(aimX, aimZ) : 0
       clips.set(name, { ...clip, turn, spin: turnBetween(firstFacing, lastFacing) })
     }
-    if (DEATHS.has(name) && gripHand && forendHand && frames > 1) {
-      dropRifle(data, { first: row - frames, count: frames }, floatsPerFrame, boneFloats)
+    // Held, never in the ground. A dying man lets it go before it would touch, and it falls to lie on the ground.
+    if (!slung && !dying && gripHand && forendHand && gripped) {
+      keepOutOfGround(data, { first: row - frames, count: frames }, floatsPerFrame, boneFloats)
+    }
+    if (dying && gripHand && forendHand && frames > 2) {
+      // He lets go as his hips go down, or failing that partway through; at once if the clip never held a rifle, or as
+      // soon as it would touch the ground.
+      const standing = hipsHeights[0] ?? 0
+      const down = hipsHeights.findIndex((height, frame) => frame > 0 && height < standing * DROP.release)
+      const late = down > 0 ? down : Math.round((frames - 1) * DROP.late)
+      const touched = grounded >= 0 ? Math.max(0, grounded - 1) : late
+      const release = ownGrip ? Math.min(frames - 2, late, touched) : 0
+      dropRifle(data, { first: row - frames, count: frames }, floatsPerFrame, boneFloats, release, body)
     }
   }
   for (let at = 0; at < start; at++) {

@@ -1,8 +1,8 @@
 """Retargets humanoid soldier animations onto the Synty character rig: polyperfect's Low Poly War Pack and Mixamo.
 
 Imports the converted Synty characters GLB (from convert-unity-models.py), bakes every clip in the given FBX files onto
-its skeleton, makes the clips no source has (`make_climb_over`, `make_hands_up`, `make_bolt_fire`), and exports one
-GLB holding the characters and one animation per clip, at 24 fps.
+its skeleton, shoulders the rifle in the aiming clips (`aim_at_eye`), makes the clips no source has (`make_climb_over`,
+`make_hands_up`, `make_bolt_fire`), and exports one GLB holding the characters and one animation per clip, at 24 fps.
 
 The rigs are humanoid but differ in bone names, proportions, rest pose (polyperfect A-pose, Synty and Mixamo T-pose)
 and bone axes. Bone axes from FBX import are arbitrary, so limbs are compared by joint-to-joint vectors instead: for
@@ -102,6 +102,8 @@ TARGET_HIPS = "Hips"
 DUPLICATE_SUFFIX = re.compile(r"\.\d{3}$")
 # Mixamo clips the game plays under names of its own, by the clip their file is named after.
 MIXAMO_NAMES = {}
+# Clips that climb, with their rise taken out as well as their travel: the simulation lifts the man up the bank.
+CLIMB_IN_PLACE = {"climbing_up_a_slope"}
 # The soldier sent to Mixamo's auto-rigger, as build-level-kit.py names him in soldier.glb.
 MIXAMO_UPLOAD_BODY = "Soldier_French"
 
@@ -251,21 +253,26 @@ def mapped_parents(target_obj, mapping):
     return parents
 
 
-def hip_travel(source_obj, hips, frames, in_place):
+def hip_travel(source_obj, hips, frames, in_place, feet=None):
     """Per frame, the source hips' travel across the ground to take back out: none, or for an in-place clip where it
     begins, off the spot it stands on at rest, and a steady drift from there to where it ends. The clip then starts over
-    the spot and ends there, keeping the sway between and the hips' rise and fall."""
+    the spot and ends there, keeping the sway between and the hips' rise and fall. Given its `feet`, a climb's rise is
+    taken out too, as far as the lower foot has climbed: the simulation lifts the man up whatever he climbs."""
     if not in_place:
         return [Vector()] * len(frames)
     heads = []
+    lowest = []
     for frame in frames:
         set_frame(frame)
         heads.append((source_obj.matrix_world @ source_obj.pose.bones[hips].matrix).translation)
+        if feet:
+            lowest.append(min((source_obj.matrix_world @ source_obj.pose.bones[foot].matrix).translation.z for foot in feet))
     rest = source_obj.matrix_world @ source_obj.data.bones[hips].head_local
     start = Vector((heads[0].x - rest.x, heads[0].y - rest.y, 0))
     drift = Vector((heads[-1].x - heads[0].x, heads[-1].y - heads[0].y, 0))
     last = max(1, len(frames) - 1)
-    return [start + drift * (index / last) for index in range(len(frames))]
+    rise = [height - lowest[0] for height in lowest] if lowest else [0] * len(frames)
+    return [start + drift * (index / last) + Vector((0, 0, rise[index])) for index in range(len(frames))]
 
 
 def bake_clip(source_obj, source_rig, target, mapping, frames, name):
@@ -281,7 +288,8 @@ def bake_clip(source_obj, source_rig, target, mapping, frames, name):
     to_target_space = target_world.inverted().to_3x3()
     sources = {t: s for t, s, _, _ in mapping}
     bones = sorted(target.obj.data.bones, key=lambda b: len(b.parent_recursive))
-    travel = hip_travel(source_obj, source_rig.hips, frames, source_rig.in_place)
+    feet = [source for target_bone, source, _, _ in mapping if target_bone in ("Ankle_L", "Ankle_R")]
+    travel = hip_travel(source_obj, source_rig.hips, frames, source_rig.in_place, feet if name in CLIMB_IN_PLACE else None)
 
     action = bpy.data.actions.new(name)
     action.use_fake_user = True
@@ -398,8 +406,9 @@ def climb_keys(top, half, hips_height, square):
     the ground under him at the start. "hips" moves the hips from where `from` has them; "lean" tips the body forward from
     the hips and "bend" curls the spine over it, in radians; "turn" swings the body left, side-on as the legs go over.
     Hands and feet are where the wrists and ankles go, from where the body carries them (0) to their keyed place (1) as
-    "reach" says. A foot keyed "idle" stands where it stood at the start, "idle+" where it stands at the end. `square`
-    turns the body square to the top from the way `from` stands, side-on to hold the rifle."""
+    "reach" says, a foot's keyed height that of its ankle above the ground standing. A foot keyed "idle" stands where it
+    stood at the start, "idle+" where it stands at the end, and lands there. `square` turns the body square to the top
+    from the way `from` stands, side-on to hold the rifle."""
     near = CLIMB["reach"]
     line = near + half
     far = line + half
@@ -409,22 +418,24 @@ def climb_keys(top, half, hips_height, square):
     tuck = top + 0.18
     return {
         "crossing": crossing,
-        "hips": [(0, (0, 0, 0)), (0.22, (0, 0.06, -0.14)), (0.44, (0.04, line - 0.05, over)),
-                 (0.56, (0.04, line + 0.15, over - 0.08)), (0.76, (0, far + 0.28, -0.2)), (1, (0, crossing, 0))],
-        "lean": [(0, 0), (0.22, 0.35), (0.44, 0.5), (0.6, 0.3), (0.76, 0.25), (1, 0)],
-        "bend": [(0, 0), (0.22, 0.15), (0.44, 0.3), (0.6, 0.15), (0.8, 0.1), (1, 0)],
-        "turn": [(0, 0), (0.2, square), (0.46, square + 0.5), (0.6, square + 0.3), (0.76, square), (0.9, square),
+        "hips": [(0, (0, 0, 0)), (0.13, (0, 0.05, -0.13)), (0.3, (0.02, near - 0.08, 0.45 * over)),
+                 (0.44, (0.04, line - 0.05, over)), (0.56, (0.04, line + 0.15, over - 0.08)),
+                 (0.76, (0, far + 0.28, -0.2)), (1, (0, crossing, 0))],
+        "lean": [(0, 0), (0.13, 0.35), (0.44, 0.5), (0.6, 0.3), (0.76, 0.25), (1, 0)],
+        "bend": [(0, 0), (0.13, 0.15), (0.44, 0.3), (0.6, 0.15), (0.8, 0.1), (1, 0)],
+        "turn": [(0, 0), (0.14, square), (0.46, square + 0.5), (0.6, square + 0.3), (0.76, square), (0.9, square),
                  (1, 0)],
-        "foot_L": [(0, "idle"), (0.27, "idle"), (0.36, (0.14, near - 0.22, 0.85 * top)), (0.47, (0.12, line, tuck)),
-                   (0.58, (0.12, far + 0.18, 0.6 * top)), (0.74, (0.12, far + 0.3, 0)), (0.88, (0.12, far + 0.3, 0)),
-                   (1, "idle+")],
-        "foot_R": [(0, "idle"), (0.25, "idle"), (0.34, (-0.1, near - 0.22, 0.85 * top)), (0.45, (-0.06, line, tuck)),
-                   (0.56, (-0.1, far + 0.15, 0.6 * top)), (0.72, (-0.12, far + 0.28, 0)),
-                   (0.86, (-0.12, far + 0.28, 0)), (1, "idle+")],
+        # The right foot pushes off first, the left after it, a third of a second from the ground to the top.
+        "foot_L": [(0, "idle"), (0.17, "idle"), (0.27, (0.14, near - 0.3, 0.3 * top)),
+                   (0.37, (0.13, near - 0.12, 0.85 * top)), (0.47, (0.12, line, tuck)),
+                   (0.58, (0.12, far + 0.18, 0.6 * top)), (0.74, "idle+"), (1, "idle+")],
+        "foot_R": [(0, "idle"), (0.15, "idle"), (0.25, (-0.1, near - 0.3, 0.3 * top)),
+                   (0.35, (-0.08, near - 0.12, 0.85 * top)), (0.45, (-0.06, line, tuck)),
+                   (0.56, (-0.1, far + 0.15, 0.6 * top)), (0.72, "idle+"), (1, "idle+")],
         "hand_L": [(0, (0.2, line, top + 0.04)), (1, (0.2, line, top + 0.04))],
         "hand_R": [(0, (-0.2, line, top + 0.04)), (1, (-0.2, line, top + 0.04))],
-        "reach_L": [(0, 0), (0.06, 0), (0.18, 1), (0.6, 1), (0.78, 0), (1, 0)],
-        "reach_R": [(0, 0), (0.06, 0), (0.18, 1), (0.56, 1), (0.74, 0), (1, 0)],
+        "reach_L": [(0, 0), (0.16, 1), (0.6, 1), (0.78, 0), (1, 0)],
+        "reach_R": [(0, 0), (0.16, 1), (0.56, 1), (0.74, 0), (1, 0)],
         "reach_foot": [(0, 0), (0.05, 1), (0.95, 1), (1, 0)],
         # Which way a knee points (left, ahead, up): ahead, and up and out as the legs tuck and swing over.
         "knee_L": [(0, (0.1, 1, 0)), (0.22, (0.1, 1, 0)), (0.45, (0.6, 0.8, 0.6)), (0.7, (0.1, 1, 0)),
@@ -520,6 +531,8 @@ def make_climb_over(target_obj, base_action, name, top, half):
     square = math.atan2(stood.cross(left).z, stood.dot(left))
     hips = base[TARGET_HIPS].translation
     ground = Vector((hips.x, hips.y, 0))
+    # The left hand flat, fingers ahead: as it rests in the T-pose (palm down, fingers out to his left), turned ahead.
+    flat_hand = Quaternion(up, -math.pi / 2) @ world_rotation(world @ rest["Hand_L"].matrix_local)
     seconds = CLIMB["seconds"]
     keys = climb_keys(top, half, hips.z, square)
     crossing = ahead * keys["crossing"]
@@ -535,7 +548,9 @@ def make_climb_over(target_obj, base_action, name, top, half):
             return base[end].translation.copy()
         if value == "idle+":
             return base[end].translation + crossing
-        return ground + offset(value)
+        # A foot's height is its ankle's above the ground, as it stands at ease.
+        lift = base[end].translation.z if end.startswith("Ankle") else 0
+        return ground + offset(value) + up * lift
 
     def follow(pose, bone):
         for child in children[bone]:
@@ -588,6 +603,16 @@ def make_climb_over(target_obj, base_action, name, top, half):
                 pose[end] = rotate_about(base[end], base[end].translation, turn)
                 pose[end].translation = at
                 follow(pose, end)
+            else:
+                # The right hand keeps the rifle pointing as it did at ease, whichever way he turns, so it doesn't swing
+                # about as the arm reaches: ahead, over the top, as he goes over. The left goes flat on the top, turned
+                # with him, as it reaches it.
+                at = pose[end].translation.copy()
+                _, held, scale = base[end].decompose()
+                if limb == "hand_L":
+                    held = (turn @ held).slerp(turn @ flat_hand, reach)
+                pose[end] = Matrix.LocRotScale(at, held, scale)
+                follow(pose, end)
         armature = {bone: world.inverted() @ matrix for bone, matrix in pose.items()}
         for bone in bones:
             parent = bone.parent
@@ -608,6 +633,8 @@ HANDS_UP = {
 HANDS_UP_REACH = (0.2, 0.06, 0.44)
 # Which way the elbow bends, from the hand's own side: out, a little ahead.
 HANDS_UP_ELBOW = (1, 0.25, 0)
+# How far the fingers open from the grip the clip has them in, to the straight fingers of the rest pose: palms shown.
+HANDS_UP_OPEN = 0.85
 
 
 def make_hands_up(target_obj, base_action, name):
@@ -617,6 +644,16 @@ def make_hands_up(target_obj, base_action, name):
     bones = sorted(target_obj.data.bones, key=lambda b: len(b.parent_recursive))
     children = {b.name: [c.name for c in b.children] for b in bones}
     start, end = (int(round(x)) for x in base_action.frame_range)
+    # Each hand's fingers, parents before children, and how each lies on its parent at rest: straight.
+    fingers = {
+        side: [b.name for b in sorted(target_obj.data.bones[f"Hand_{side}"].children_recursive,
+                                      key=lambda b: len(b.parent_recursive))]
+        for side in "LR"
+    }
+    opened = {
+        name: target_obj.data.bones[name].parent.matrix_local.inverted() @ target_obj.data.bones[name].matrix_local
+        for side in "LR" for name in fingers[side]
+    }
     assign(target_obj, base_action)
     poses = []
     for frame in range(start, end + 1):
@@ -649,6 +686,13 @@ def make_hands_up(target_obj, base_action, name):
                 swing = (pose[child].translation - head).rotation_difference(place - head)
                 pose[bone] = rotate_about(pose[bone], head, swing)
                 follow(bone)
+            # The hand open: each finger turned most of the way from its grip to lying straight, as at rest.
+            for finger in fingers[side]:
+                parent = target_obj.data.bones[finger].parent.name
+                gripped = local[finger].to_quaternion()
+                straight = opened[finger].to_quaternion()
+                turned = gripped.slerp(straight, HANDS_UP_OPEN)
+                pose[finger] = pose[parent] @ Matrix.LocRotScale(local[finger].translation, turned, local[finger].to_scale())
         poses.append(pose)
     assign(target_obj, None)
 
@@ -675,16 +719,18 @@ BOLT = {
     "fire_bolt_crouched": "fire_rifle_while_crouched",
     "fire_bolt_prone": "firing_a_rifle_while_prone",
 }
-# Where the right wrist goes over the cycle, in seconds from the shot's end, from where it gripped: along the rifle (to
-# the muzzle), to the rifle's right and up, in metres. The bolt's handle is a hand's breadth forward of the grip, on the
-# right; lifted, drawn back a rifle cartridge's length, pushed home and turned down.
+# Where the right palm goes over the cycle, in seconds from the shot's end, from the grip: along the rifle (to the
+# muzzle), to its right and up, in metres, the rifle lying as the kit lays it, from the right palm through the left,
+# sights up (soldiers/soldier-kit.ts). The rifle model's bolt knob stands 8.5 cm ahead of the grip and 3.5 cm to its
+# right, a little below the bore; the palm takes it from behind and to the right, turns it up to 8 cm above the grip,
+# draws it back 9 cm (a cartridge's length), pushes it home and turns it down.
 BOLT_KEYS = [
     (0.0, (0.0, 0.0, 0.0)),
-    (0.15, (0.1, 0.07, 0.05)),
-    (0.25, (0.1, 0.08, 0.09)),
-    (0.42, (0.02, 0.08, 0.09)),
-    (0.58, (0.1, 0.08, 0.09)),
-    (0.68, (0.1, 0.07, 0.05)),
+    (0.15, (0.065, 0.065, 0.017)),
+    (0.25, (0.065, 0.068, 0.09)),
+    (0.42, (-0.025, 0.068, 0.09)),
+    (0.58, (0.065, 0.068, 0.09)),
+    (0.68, (0.065, 0.065, 0.017)),
     (0.88, (0.0, 0.0, 0.0)),
 ]
 # Which way the right elbow bends while it works the bolt: out to the right and down.
@@ -706,13 +752,15 @@ def make_bolt_fire(target_obj, base_action, name):
     assign(target_obj, None)
     last = poses[-1]
     local = {b.name: last[b.parent.name].inverted() @ last[b.name] for b in bones if b.parent}
-    # The rifle's axes as the shot leaves it: from the right wrist through the left, its up, and its right.
-    grip = last["Hand_R"].translation.copy()
-    along = (last["Hand_L"].translation - grip).normalized()
+    # The rifle's axes as the shot leaves it, as the kit lays it: from the right palm through the left, its up, its right.
+    grip = palm_of(target_obj, last, "R")
+    along = (palm_of(target_obj, last, "L") - grip).normalized()
     up = Vector((0, 0, 1))
     up = (up - along * up.dot(along)).normalized()
     right = along.cross(up)
-    keys = [(at, along * a + right * r + up * u) for at, (a, r, u) in BOLT_KEYS]
+    # The palm keyed, the wrist put where it puts the palm.
+    wrist = last["Hand_R"].translation - grip
+    keys = [(at, along * a + right * r + up * u + wrist) for at, (a, r, u) in BOLT_KEYS]
     bend = (along * BOLT_ELBOW[0] + right * BOLT_ELBOW[1] + up * BOLT_ELBOW[2]).normalized()
     for frame in range(1, int(round(BOLT_KEYS[-1][0] * FPS)) + 1):
         pose = {bone: matrix.copy() for bone, matrix in last.items()}
@@ -747,6 +795,141 @@ def make_bolt_fire(target_obj, base_action, name):
             rest = (armature[parent.name] @ parent.matrix_local.inverted() if parent else Matrix()) @ bone.matrix_local
             key_pose(target_obj.pose.bones[bone.name], rest.inverted() @ armature[bone.name], frame, previous)
     return finish_clip(target_obj, action, name), len(poses)
+
+
+# The clips aiming the rifle, and those a made one starts from. Mixamo made them for its own figure and a rifle with its
+# sights high over the hands; on ours they hold the rifle at the chest, a hand's length below the eye. Here it's put to
+# the shoulder as a rifleman shoulders it: the butt in the hollow in front of the right shoulder, pointing as the clip
+# points it, the hands reaching to it, and the head bowed onto the stock, the right eye in line with the sights. Lying
+# at ease he holds it low as Mixamo has it, as his getting down and up again do.
+AIM_AT_EYE = [
+    "rifle_standing_aiming_idle",
+    "firing_a_rifle_while_standing",
+    "walking_while_aiming_rifle",
+    "rifle_crouched_idle_aiming",
+    "fire_rifle_while_crouched",
+    "crouched_walking_while_aiming_rifle",
+    "firing_a_rifle_while_prone",
+]
+# The rifle as the kit lays it between the palms (soldiers/soldier-kit.ts), in metres along it (to the muzzle) and up
+# from the line between the palms: the butt plate's middle 28 cm behind the right palm and 6 cm below, the sights 6.5 cm
+# above. The eye stays at least `EYE_RELIEF` ahead of the butt plate, along the rifle.
+RIFLE_BUTT = (-0.28, -0.06)
+RIFLE_SIGHTS = 0.065
+EYE_RELIEF = 0.08
+# Where the butt sits, from the joint at the top of the right arm: ahead of it, in toward the neck and up, in metres.
+# High in the shoulder: our soldier's eye stands well above his shoulders, a head made big, and no bowing of it brings
+# the eye down to a stock lying lower without hiding the face under the helmet.
+SHOULDER_POCKET = (0.07, 0.03, 0.04)
+# The right eye: from the Eyes bone, this far to his right, in metres.
+EYE_RIGHT = 0.032
+# The neck and head each bow forward toward the sights this far at most, in radians, the neck first, `NECK_SHARE` of
+# the way, the head the rest; and the head leans `HEAD_CANT` to his right, onto the stock.
+HEAD_REACH = 0.3
+NECK_SHARE = 0.4
+HEAD_CANT = 0.12
+
+
+def palm_of(target_obj, pose, side):
+    """A palm in a pose of world matrices: halfway from the wrist to the base of the index finger, as the kit has it."""
+    finger = resolve_target(target_obj, f"IndexFinger_01@{side}").name
+    return (pose[f"Hand_{side}"].translation + pose[finger].translation) / 2
+
+
+def aim_at_eye(target_obj, action):
+    """Shoulders the rifle in an aiming clip, frame by frame (see AIM_AT_EYE): the butt in the right shoulder's hollow
+    pointing as the clip points the rifle, each arm reaching so its palm is where the rifle puts it, the elbow bending as
+    it bent, the hands' span kept; and the neck and head bowed to bring the right eye in line with the sights. Returns
+    how far the hands and the eye fell short, at most, in metres."""
+    scene = bpy.context.scene
+    world = target_obj.matrix_world
+    bones = sorted(target_obj.data.bones, key=lambda b: len(b.parent_recursive))
+    children = {b.name: [c.name for c in b.children] for b in bones}
+    rest = target_obj.data.bones
+    # The right eye at rest, then carried by the head.
+    across = (world @ rest["UpperLeg_L"].head_local) - (world @ rest["UpperLeg_R"].head_local)
+    across = Vector((across.x, across.y, 0)).normalized()
+    eye = (world @ rest["Eyes"].head_local) - across * EYE_RIGHT
+    eye_on_head = (world @ rest["Head"].matrix_local).inverted() @ eye
+    start, end = (int(round(x)) for x in action.frame_range)
+    assign(target_obj, action)
+    poses = []
+    short = {"hands": 0, "eye": 0}
+    for frame in range(start, end + 1):
+        scene.frame_set(frame)
+        pose = {pb.name: world @ pb.matrix for pb in target_obj.pose.bones}
+        local = {b.name: pose[b.parent.name].inverted() @ pose[b.name] for b in bones if b.parent}
+
+        def follow(bone):
+            for child in children[bone]:
+                pose[child] = pose[bone] @ local[child]
+                follow(child)
+
+        right_palm = palm_of(target_obj, pose, "R")
+        left_palm = palm_of(target_obj, pose, "L")
+        along = left_palm - right_palm
+        span = along.length
+        along.normalize()
+        up = Vector((0, 0, 1))
+        rifle_up = (up - along * up.dot(along)).normalized()
+        # The shoulders' own axes: to his right across them, up, and ahead.
+        right = (pose["Shoulder_R"].translation - pose["Shoulder_L"].translation).normalized()
+        shoulders_up = (up - right * up.dot(right)).normalized()
+        ahead = shoulders_up.cross(right)
+        forward, inward, rise = SHOULDER_POCKET
+        pocket = pose["Shoulder_R"].translation + ahead * forward - right * inward + shoulders_up * rise
+        back, drop = RIFLE_BUTT
+        grip = pocket - along * back - rifle_up * drop
+        for side, palm, goal in (("R", right_palm, grip), ("L", left_palm, grip + along * span)):
+            upper, lower, hand = f"Shoulder_{side}", f"Elbow_{side}", f"Hand_{side}"
+            wrist = goal + (pose[hand].translation - palm)
+            joint, reached = two_bone_ik(
+                pose[upper].translation, pose[lower].translation, pose[hand].translation, wrist, pose[lower].translation
+            )
+            short["hands"] = max(short["hands"], (reached - wrist).length)
+            for bone, child, place in [(upper, lower, joint), (lower, hand, reached)]:
+                head = pose[bone].translation
+                swing = (pose[child].translation - head).rotation_difference(place - head)
+                pose[bone] = rotate_about(pose[bone], head, swing)
+                follow(bone)
+        # The sight line, and the point on it the eye can come to, bowing at the neck: as far from the neck's joint
+        # as the eye is, nearest the butt but clear of it. The bow is a nod about the line of his shoulders, no more.
+        sights = grip + rifle_up * RIFLE_SIGHTS
+        for bone, share in (("Neck", NECK_SHARE), ("Head", 1)):
+            pivot = pose[bone].translation
+            seen = pose["Head"] @ eye_on_head
+            reach = (seen - pivot).length
+            offset = sights - pivot
+            middle = -offset.dot(along)
+            spread = middle * middle - offset.length_squared + reach * reach
+            closest = back + EYE_RELIEF
+            t = max(closest, middle - math.sqrt(spread)) if spread > 0 else middle
+            target = sights + along * t
+            now = seen - pivot
+            wanted = target - pivot
+            now -= right * now.dot(right)
+            wanted -= right * wanted.dot(right)
+            angle = now.angle(wanted, 0) * (1 if now.cross(wanted).dot(right) > 0 else -1)
+            turn = Quaternion(right, max(-HEAD_REACH, min(HEAD_REACH, angle * share)))
+            pose[bone] = rotate_about(pose[bone], pivot, turn)
+            follow(bone)
+        pose["Head"] = rotate_about(pose["Head"], pose["Head"].translation, Quaternion(ahead, HEAD_CANT))
+        follow("Head")
+        seen = pose["Head"] @ eye_on_head
+        offset = seen - sights
+        short["eye"] = max(short["eye"], (offset - along * offset.dot(along)).length)
+        poses.append(pose)
+    previous = {}
+    keyed_bones = [f"{part}_{side}" for side in "LR" for part in ("Shoulder", "Elbow")] + ["Neck", "Head"]
+    for frame, pose in zip(range(start, end + 1), poses):
+        armature = {bone: world.inverted() @ matrix for bone, matrix in pose.items()}
+        for name in keyed_bones:
+            bone = rest[name]
+            parent = bone.parent
+            rest_matrix = armature[parent.name] @ parent.matrix_local.inverted() @ bone.matrix_local
+            key_pose(target_obj.pose.bones[name], rest_matrix.inverted() @ armature[name], frame, previous)
+    assign(target_obj, None)
+    return short
 
 
 def export_mixamo_upload(soldier, output):
@@ -851,6 +1034,11 @@ def main():
             for block in [b for b in collection if b.users == 0]:
                 collection.remove(block)
 
+    for name in AIM_AT_EYE:
+        if name in clips:
+            short = aim_at_eye(target_obj, clips[name][0])
+            print(f"[retarget] {name}: shouldered, the hands up to {short['hands'] * 100:.1f} cm short of the rifle, "
+                  f"the eye {short['eye'] * 100:.1f} cm off the sights", flush=True)
     for name, climbed in CLIMBS.items():
         if name not in clips and CLIMB["from"] in clips:
             made, count = make_climb_over(target_obj, clips[CLIMB["from"]][0], name, climbed["top"], climbed["half"])

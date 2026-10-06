@@ -130,7 +130,6 @@ export const RIFLE_IN_LEFT_HAND: ReadonlySet<ClipName> = new Set([
   "throwing_something_holding_rifle_aimed",
   "throwing_a_grenade_while_walking",
   "throw_grenade_while_running",
-  "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
   "throw_grenade_while_in_prone_position"
 ])
 /**
@@ -142,13 +141,23 @@ const CLIMBS = [
   { clip: "climb_over_wall", from: 0.8 },
   { clip: "climb_over_low_wall", from: 0 }
 ] as const
-/** Clips where both hands are busy, climbing, cowering or raised: the rifle hangs slung across his back. */
+/**
+ * Clips where both hands are busy, scrambling up a bank, cowering, raised, or pulling a grenade's pin with them: the
+ * rifle hangs slung across his back. Over a fence he keeps it in his right hand, which goes to the top with it.
+ */
 export const RIFLE_SLUNG: ReadonlySet<ClipName> = new Set([
   "climbing_up_a_slope",
-  ...CLIMBS.map(({ clip }) => clip),
   "being_terrified_while_standing",
   "hands_up",
-  "hands_up_walk"
+  "hands_up_walk",
+  "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth"
+])
+/**
+ * Of those, the ones played once from the rifle in his hands, by the clip he holds it in before and after: it goes onto
+ * his back from there as they begin, and back as they end.
+ */
+export const RIFLE_SLUNG_BRIEFLY: ReadonlyMap<ClipName, ClipName> = new Map([
+  ["throwing_a_grenade_while_kneeling_pulling_pin_with_teeth", "rifle_crouched_idle"]
 ])
 /** Reloading, by stance: Mixamo's are a box magazine's, spread over the simulation's reload. */
 const RELOADS = {
@@ -479,8 +488,9 @@ export function choosePose(state: SoldierState): Pose {
     const stance = state.pinned ? Stance.Crouching : state.stance
     return { clip: reloadClip(stance), mode: "once", rate: 1, seconds: state.reloading }
   }
+  // Broken, he cowers: Mixamo's man takes fright and huddles down, played through once, and stays down.
   if (state.broken) {
-    return loop("being_terrified_while_standing")
+    return once("being_terrified_while_standing")
   }
   if (state.weapon === Weapon.MachineGun) {
     return loop("rifle_kneeling_idle")

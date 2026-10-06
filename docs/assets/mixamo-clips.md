@@ -219,11 +219,28 @@ Mixamo bone map retargets them, and
 - **Reloading**: Mixamo's reloads, standing, crouched and prone, while the simulation has him reloading, spread over its
   reload time but no slower than 1/1.6 of their own pace. They're a box magazine's, not a Lebel's tube or a Gewehr 98's
   charger clip. A machine gunner feeds his gun kneeling, as he fires it.
-- **Firing a bolt-action rifle** and **prisoners' hands up**.
+- **Firing a bolt-action rifle**: after each shot the right hand takes the bolt's knob where the rifle model has it,
+  turns it up, draws it back a cartridge's length, pushes it home and turns it down.
+- **Prisoners' hands up**, the hands open.
 - **Climbing a fence or low wall**: keyed by the retarget script, one for each height (the wooden fence's 1.35 m, a
   stone wall's metre, a broken one's 0.6 m), in the 1.25 s the simulation takes. Mixamo's vaults are running jumps,
   three or four metres over a box under a metre high, where the simulation takes a man over from a standstill where the
-  fence stopped him, a metre or so: played that way, his legs went through the fence.
+  fence stopped him, a metre or so: played that way, his legs went through the fence. Both hands go to the top, the
+  rifle in the right pointing ahead over it, and he lands in his stance, the feet set down where they stay.
+- **Aiming at the shoulder** (6 October 2026): Mixamo's aims, made for its own figure and a rifle whose sights stand
+  high over the hands, held our rifle at the chest, a hand's length below the eye. The retarget script shoulders it in
+  each aiming clip (`AIM_AT_EYE`): the butt high in the right shoulder, the hands to the rifle, the head bowed and
+  leaning onto the stock toward the sights. Our soldier's eye stands well above his shoulders, so it comes within a few
+  centimetres of the sights, not onto them. Lying at ease, and getting down and up, keep Mixamo's low hold.
+- **The rifle in hand** (6 October 2026), in the bake (soldiers/soldier-kit.ts): never in the ground, tipped about the
+  grip or, where the hand is down on the ground, laid on its side under it; let go in a death as he goes down or as it
+  would touch the ground, to fall and lie on its side clear of his body; slung for the kneeling throw, both hands on the
+  grenade, from and back to where he held it crouched; and an aimed walk's arms in step with the walk's legs, so it
+  loops without a jump.
+
+The previewer at `apps/client/anim-preview.html` (`pnpm dev`, then `/anim-preview.html`) bakes the kit as the game does
+and plays each clip, or lays frames side by side ("Strip"); from the console, `preview.qa(name)` measures a clip: the
+hands on the rifle, the rifle into the body or the ground, jumps between frames, a loop's seam, the feet.
 
 A scramble up a trench wall or a crater's lip plays Mixamo's climb up a slope. Its pull up onto a ledge is left out: it
 starts hanging from a ledge 2.2 m up while the simulation lifts the man as well, so it would need its own rise taken out

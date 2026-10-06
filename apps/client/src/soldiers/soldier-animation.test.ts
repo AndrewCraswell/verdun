@@ -126,7 +126,7 @@ describe("choosePose", () => {
   it("gets away bent double when broken, and cowers when broken and still", () => {
     expect(pose({ broken: true, speed: 1.4, heading: Math.PI }).clip).toBe("rifle_crouched_walk_backward")
     expect(pose({ broken: true, speed: 1.4, aiming: true }).clip).toBe("rifle_crouched_walk_forward")
-    expect(pose({ broken: true })).toEqual({ clip: "being_terrified_while_standing", mode: "loop", rate: 1 })
+    expect(pose({ broken: true })).toEqual({ clip: "being_terrified_while_standing", mode: "once", rate: 1 })
   })
 
   it("lies still, aims along the ground, and crawls ahead or back", () => {
