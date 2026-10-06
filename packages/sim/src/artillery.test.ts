@@ -2,8 +2,10 @@ import { carveTrenches, createFlatMap, heightAt, layOutFront, mapDepth, stampCra
 import { afterEach, describe, expect, it } from "vitest"
 import {
   addAmmunition,
+  beatenZone,
   DEFENSIVE_BARRAGE_DELAY,
   defensiveBarrageDelay,
+  type FireMissionPlan,
   frontLineZ,
   observation,
   Shell,
@@ -73,6 +75,46 @@ function drop(sim: Simulation, shell: Shell, x: number, z: number, side: Side = 
 }
 
 describe("fire missions", () => {
+  it("land nine rounds in ten inside the beaten zone the HUD draws, a point's in a circle and a line's in a box", async () => {
+    const sim = await field()
+    const point: FireMissionPlan = {
+      side: Side.French,
+      shell: Shell.FieldHighExplosive,
+      fromX: 90,
+      toX: 110,
+      z: 100,
+      band: 20,
+      radius: 10,
+      roundsPerMinute: 600,
+      delay: 0,
+      duration: 30
+    }
+    const { radius: _, ...laid } = point
+    const line: FireMissionPlan = { ...laid, fromX: 40, toX: 160, band: 30, shell: Shell.HeavyHighExplosive }
+    const circle = beatenZone(point)
+    const box = beatenZone(line)
+    expect(circle).toEqual({ kind: "circle", x: 100, z: 100, radius: 10 + 20 * 2.44 })
+    expect(box).toEqual({
+      kind: "box",
+      fromX: 40 - 6 * 2.44,
+      toX: 160 + 6 * 2.44,
+      nearZ: 85 - 30 * 2.44,
+      farZ: 115 + 30 * 2.44
+    })
+    const inside = (plan: FireMissionPlan, test: (at: { x: number; z: number }) => boolean) => {
+      const landings: { x: number; z: number }[] = []
+      enqueueCommand(sim, { type: "fire-mission", plan })
+      stepFor(sim, 45, (events) => landings.push(...bursts(events).map((burst) => burst.at)))
+      return landings.filter(test).length / landings.length
+    }
+    const inCircle = (at: { x: number; z: number }) =>
+      circle.kind === "circle" && Math.hypot(at.x - circle.x, at.z - circle.z) <= circle.radius
+    const inBox = (at: { x: number; z: number }) =>
+      box.kind === "box" && at.x >= box.fromX && at.x <= box.toX && at.z >= box.nearZ && at.z <= box.farZ
+    expect(inside(point, inCircle)).toBeGreaterThan(0.85)
+    expect(inside(line, inBox)).toBeGreaterThan(0.8)
+  })
+
   it("disperse rounds around the aim, far more in range than in deflection", async () => {
     const sim = await field()
     enqueueCommand(sim, {

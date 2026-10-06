@@ -247,6 +247,12 @@ export interface FireMissionPlan {
    */
   readonly observed?: boolean
   /**
+   * Aimed at a point rather than along a line: rounds are aimed anywhere within this many metres of the target's middle
+   * (`fromX` to `toX`, at `z`), as a battery called on to one spot fires. `fromX`, `toX` and `band` then frame that
+   * circle. Absent for a line.
+   */
+  readonly radius?: number
+  /**
    * Whether its shells cut the wire they burst on. Barrages don't: a creeping barrage passes over a belt in a lift or
    * two, its shells fuzed to burst in the ground ahead of the infantry, an SOS barrage is there to catch men, and
    * wire-cutting took days of deliberate shooting by observed batteries until the instantaneous fuze of 1917. Absent for
@@ -407,16 +413,65 @@ function steadyError(id: number, axis: number): number {
  */
 const CLEAR_OF_OBJECTIVE = 80
 
-/** Fires one round of a mission: aims somewhere in the target band and adds dispersion, then sends it on its flight. */
+/** Probable errors either way that take in nine rounds in ten: a normal spread's 90% zone is 2.44 probable errors. */
+const BEATEN_ZONE_ERRORS = 2.44
+
+/**
+ * Where a mission's shells fall, nine in ten of them: the ground it aims at, grown by its guns' spread, with the
+ * target line where it is now (a creeping barrage's moves). A point's fire falls in a circle, grown by the larger,
+ * range spread; a line's in a box. What the HUD draws, so it shows where the shells will land, not only where the guns
+ * are laid. Uncorrected fire in fog or darkness can fall wide of even this.
+ */
+export type BeatenZone =
+  | { readonly kind: "circle"; readonly x: number; readonly z: number; readonly radius: number }
+  | {
+      readonly kind: "box"
+      readonly fromX: number
+      readonly toX: number
+      readonly nearZ: number
+      readonly farZ: number
+    }
+
+export function beatenZone(plan: FireMissionPlan, lineZ: number = plan.z): BeatenZone {
+  const stats = SHELLS[plan.shell]
+  const range = stats.rangeError * BEATEN_ZONE_ERRORS
+  const deflection = stats.deflectionError * BEATEN_ZONE_ERRORS
+  if (plan.radius !== undefined) {
+    return { kind: "circle", x: (plan.fromX + plan.toX) / 2, z: lineZ, radius: plan.radius + range }
+  }
+  return {
+    kind: "box",
+    fromX: plan.fromX - deflection,
+    toX: plan.toX + deflection,
+    nearZ: lineZ - plan.band / 2 - range,
+    farZ: lineZ + plan.band / 2 + range
+  }
+}
+
+/** Where a mission lays a round, before its guns' spread: anywhere along its band, or within its circle of a point. */
+function aimPoint(sim: Simulation, mission: FireMission): { x: number; z: number } {
+  if (mission.radius !== undefined) {
+    // Evenly over the circle: the square root spreads the rounds out to its edge.
+    const reach = mission.radius * Math.sqrt(sim.rng.next())
+    const bearing = 2 * Math.PI * sim.rng.next()
+    return {
+      x: (mission.fromX + mission.toX) / 2 + reach * Math.cos(bearing),
+      z: mission.lineZ + reach * Math.sin(bearing)
+    }
+  }
+  return {
+    x: mission.fromX + sim.rng.next() * (mission.toX - mission.fromX),
+    z: mission.lineZ + (sim.rng.next() - 0.5) * mission.band
+  }
+}
+
+/** Fires one round of a mission: aims somewhere in its target and adds dispersion, then sends it on its flight. */
 function fireRound(sim: Simulation, mission: FireMission): void {
   const stats = SHELLS[mission.shell]
   const blind = mission.observed ? 1 - observation(sim) : 0
-  const aimX =
-    mission.fromX +
-    sim.rng.next() * (mission.toX - mission.fromX) +
-    blind * steadyError(mission.id, 0) * UNCORRECTED.deflection
-  const aimZ =
-    mission.lineZ + (sim.rng.next() - 0.5) * mission.band + blind * steadyError(mission.id, 1) * UNCORRECTED.range
+  const aim = aimPoint(sim, mission)
+  const aimX = aim.x + blind * steadyError(mission.id, 0) * UNCORRECTED.deflection
+  const aimZ = aim.z + blind * steadyError(mission.id, 1) * UNCORRECTED.range
   // Batteries fire north or south, so range error falls along z and deflection along x.
   const x = Math.min(mapWidth(sim.map), Math.max(0, aimX + gaussian(sim, stats.deflectionError)))
   const z = Math.min(mapDepth(sim.map), Math.max(0, aimZ + gaussian(sim, stats.rangeError)))

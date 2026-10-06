@@ -98,10 +98,9 @@ describe("setupSkirmish", () => {
     stepSimulation(sim)
     const [mission] = sim.artillery.missions
 
-    expect(mission?.fromX).toBe(90)
-    expect(mission?.toX).toBe(150)
-    expect(mission?.z).toBe(140)
-    expect(mission?.delay).toBe(30)
+    // Short, targeted fire on the point: rounds laid within 10 m of it, for half a minute.
+    expect([mission?.fromX, mission?.toX, mission?.z, mission?.radius]).toEqual([110, 130, 140, 10])
+    expect([mission?.delay, mission?.duration]).toEqual([30, 30])
   })
 
   it("calls a gas shoot on a point, after the same delay as any call for fire", () => {

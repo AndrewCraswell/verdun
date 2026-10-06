@@ -5,6 +5,8 @@ export {
   DEFENSIVE_BARRAGE_DELAY,
   type FireMission,
   addAmmunition,
+  type BeatenZone,
+  beatenZone,
   type FireMissionPlan,
   frontLineSpan,
   frontLineZ,

@@ -203,8 +203,9 @@ export function setupSkirmish(
 }
 
 /**
- * A call for fire on a point, from the front line by runner or field telephone. It takes about 30 seconds to arrive
- * and lay the guns, then a battery fires for 45 seconds on a 60 m front.
+ * A call for fire on a point, from the front line by runner or field telephone: short, targeted fire on one spot. It
+ * takes about 30 seconds to arrive and lay the guns, then a battery fires a sharp half minute on a point, its rounds laid
+ * within 10 m of it; their spread carries them further (see `beatenZone`).
  */
 export function callForFire(sim: Simulation, side: Side, x: number, z: number): void {
   enqueueCommand(sim, { type: "fire-mission", plan: fireMissionAt(side, x, z) })
@@ -215,15 +216,19 @@ export function fireMissionAt(side: Side, x: number, z: number): FireMissionPlan
   return {
     side,
     shell: Shell.FieldHighExplosive,
-    fromX: x - 30,
-    toX: x + 30,
+    fromX: x - CALLED_FIRE_RADIUS,
+    toX: x + CALLED_FIRE_RADIUS,
     z,
-    band: 20,
-    roundsPerMinute: 24,
+    band: 2 * CALLED_FIRE_RADIUS,
+    radius: CALLED_FIRE_RADIUS,
+    roundsPerMinute: 36,
     delay: 30,
-    duration: 45
+    duration: 30
   }
 }
+
+/** A call for fire lays its rounds within this many metres of the point called. */
+const CALLED_FIRE_RADIUS = 10
 
 /**
  * A gas shoot on a point: field guns fire gas shells (French No. 5 phosgene, German Green Cross) into a 100 m by 40 m
