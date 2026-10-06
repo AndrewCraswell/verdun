@@ -20,6 +20,7 @@ import {
 import { type CallKind, callEndangers } from "../hud/fire-preview.ts"
 import { interfaceSettings } from "../hud/interface-settings.ts"
 import { planFires } from "../hud/operation-state.ts"
+import { actionHeading, noteActionHeading } from "./action-heading.ts"
 import { cameraRigOf } from "./camera-rig.ts"
 import { type OnScreen, PICK_RADIUS, pickOnScreen } from "./target-pick.ts"
 
@@ -126,9 +127,8 @@ function actionCommand(sim: Simulation, soldier: EntityId): "man-gun" | "vault" 
   if (gunPartner(sim, soldier) >= 0) {
     return "man-gun"
   }
-  return isCutting(sim, soldier) || (sim.soldiers.stance.value[soldier] !== Stance.Standing && canCut(sim, soldier))
-    ? "cut-wire"
-    : "vault"
+  const down = sim.soldiers.stance.value[soldier] !== Stance.Standing
+  return isCutting(sim, soldier) || (down && canCut(sim, soldier, actionHeading(sim))) ? "cut-wire" : "vault"
 }
 
 function sightsMagnify(weapon: number): number {
@@ -309,7 +309,7 @@ export function createPlayerControl(
       case "act":
         // A gun beside him (or his own, to hand back) before a fence: a man at a gun post is rarely at the wire.
         if (squad.leader >= 0) {
-          enqueueCommand(sim, { type: actionCommand(sim, squad.leader), soldier: squad.leader })
+          enqueueCommand(sim, { type: actionCommand(sim, squad.leader), soldier: squad.leader, ...actionHeading(sim) })
         }
         return
       // In an operation the plan blows the whistle and fires the bombardments: early, they'd send the side over before
@@ -417,6 +417,9 @@ export function createPlayerControl(
       }
       const steer = steerFromKeys(input.held, steerBearing)
       const moving = steer.x !== 0 || steer.z !== 0
+      // The action key climbs or cuts the way he walks, or else the way the view looks: never by his aim alone.
+      const looking = aimView ? aimView.yaw : camera.alpha
+      noteActionHeading(sim, moving ? steer : { x: -Math.cos(looking), z: -Math.sin(looking) })
       // Aiming over his shoulder, he walks.
       const run = moving && !aimView && (input.held.has("ShiftLeft") || input.held.has("ShiftRight"))
       if (run && !lastRun && sim.soldiers.stance.value[soldier] !== Stance.Standing) {

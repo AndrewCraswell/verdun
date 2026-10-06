@@ -139,10 +139,15 @@ export interface StanceCommand {
 }
 
 /** A player throws a grenade toward a ground point, as far as a throw reaches. */
-/** Climbs the wire fence ahead of the soldier, the way he's going, where no tangle of coils lies in his way. */
+/**
+ * Climbs the fence or wall ahead of the soldier, the way (x, z) points where it's given (a player's man: the way he
+ * walks or looks), or else the way he faces.
+ */
 export interface VaultCommand {
   readonly type: "vault"
   readonly soldier: EntityId
+  readonly x?: number
+  readonly z?: number
 }
 
 /**
@@ -151,6 +156,9 @@ export interface VaultCommand {
 export interface CutWireCommand {
   readonly type: "cut-wire"
   readonly soldier: EntityId
+  /** The way he cuts, as for `VaultCommand`. */
+  readonly x?: number
+  readonly z?: number
 }
 
 /** Reloads the soldier's weapon now, before it's empty: a full magazine before going over, say. */
@@ -305,6 +313,16 @@ function isSoldier(sim: Simulation, entity: EntityId): boolean {
   )
 }
 
+/** The unit direction a command gives as (x, z), or undefined where it gives none, or none that's usable. */
+function headingOf(command: { readonly x?: number; readonly z?: number }): { x: number; z: number } | undefined {
+  const { x, z } = command
+  if (x === undefined || z === undefined || !Number.isFinite(x) || !Number.isFinite(z)) {
+    return undefined
+  }
+  const length = Math.sqrt(x * x + z * z)
+  return length > 0 ? { x: x / length, z: z / length } : undefined
+}
+
 /** Applies one command. Commands that no longer make sense (a soldier who has died) are ignored. */
 export function applyCommand(sim: Simulation, command: Command): void {
   switch (command.type) {
@@ -434,13 +452,13 @@ export function applyCommand(sim: Simulation, command: Command): void {
     }
     case "vault": {
       if (isSoldier(sim, command.soldier)) {
-        startVault(sim, command.soldier, undefined, true)
+        startVault(sim, command.soldier, headingOf(command), true)
       }
       return
     }
     case "cut-wire": {
       if (isSoldier(sim, command.soldier)) {
-        toggleCutting(sim, command.soldier)
+        toggleCutting(sim, command.soldier, headingOf(command))
       }
       return
     }

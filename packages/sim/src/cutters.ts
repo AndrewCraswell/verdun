@@ -80,9 +80,13 @@ function facingOf(sim: Simulation, soldier: EntityId): { x: number; z: number } 
   return length > 0 ? { x: x / length, z: z / length } : null
 }
 
-/** Whether a soldier has wire within reach ahead of him to cut, the way he faces. */
-export function canCut(sim: Simulation, soldier: EntityId): boolean {
-  const heading = facingOf(sim, soldier)
+/** Whether a soldier has wire within reach ahead of him to cut, the way `toward` points or else the way he faces. */
+export function canCut(
+  sim: Simulation,
+  soldier: EntityId,
+  toward?: { readonly x: number; readonly z: number }
+): boolean {
+  const heading = toward ?? facingOf(sim, soldier)
   return (
     heading !== null &&
     wireAhead(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier], heading, START) !== null
@@ -95,18 +99,22 @@ export function isCutting(sim: Simulation, soldier: EntityId): boolean {
 }
 
 /**
- * Sets a soldier cutting a lane through the wire ahead of him, the way he faces, or stops him if he already is. He
- * crouches to it and keeps on, edging forward into his lane, until he's through the belt, he moves or he's hit.
- * Whether he's cutting now.
+ * Sets a soldier cutting a lane through the wire ahead of him, the way `toward` points or else the way he faces, or
+ * stops him if he already is. He crouches to it and keeps on, edging forward into his lane, until he's through the belt,
+ * he moves or he's hit. Whether he's cutting now.
  */
-export function toggleCutting(sim: Simulation, soldier: EntityId): boolean {
+export function toggleCutting(
+  sim: Simulation,
+  soldier: EntityId,
+  toward?: { readonly x: number; readonly z: number }
+): boolean {
   const { cutting, stance, vault } = sim.soldiers
   if (isCutting(sim, soldier)) {
     removeComponent(sim.world, soldier, cutting)
     return false
   }
-  const heading = facingOf(sim, soldier)
-  if (!heading || hasComponent(sim.world, soldier, vault) || !canCut(sim, soldier)) {
+  const heading = toward ?? facingOf(sim, soldier)
+  if (!heading || hasComponent(sim.world, soldier, vault) || !canCut(sim, soldier, heading)) {
     return false
   }
   addComponent(sim.world, soldier, cutting)

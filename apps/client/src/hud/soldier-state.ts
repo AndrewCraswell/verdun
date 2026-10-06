@@ -30,6 +30,7 @@ import {
   WINDED,
   wireAt
 } from "@verdun/sim"
+import { actionHeading } from "../control/action-heading.ts"
 import { type Role, roleLabel, roleOf, type SoldierName, type SquadNames, weaponName, weaponOf } from "./squad-names.ts"
 
 /** The weapon a man carries, as the HUD draws it. */
@@ -124,10 +125,11 @@ export function actionFor(sim: Simulation, soldier: EntityId): string | null {
   if (isCutting(sim, soldier)) {
     return "Stop cutting"
   }
-  if (sim.soldiers.stance.value[soldier] !== Stance.Standing && canCut(sim, soldier)) {
+  const heading = actionHeading(sim)
+  if (sim.soldiers.stance.value[soldier] !== Stance.Standing && canCut(sim, soldier, heading)) {
     return "Cut the wire"
   }
-  if (!vaultLanding(sim, soldier, undefined, true)) {
+  if (!vaultLanding(sim, soldier, heading, true)) {
     return null
   }
   const { x, z } = sim.soldiers.position
