@@ -55,13 +55,20 @@ describe("cutting wire", () => {
     expect(wireAt(sim.wire, 40.5, 48.5)).toBe(0)
     expect(wireAt(sim.wire, 40.5, 51.5)).toBeGreaterThan(0.5)
 
+    // About half way through the lane, as the HUD's ring shows it.
+    expect(sim.soldiers.cutting.progress[soldier]).toBeGreaterThan(0.3)
+    expect(sim.soldiers.cutting.progress[soldier]).toBeLessThan(0.75)
+
     let seconds = CUT_SECONDS * 2
+    let progress = 0
     while (isCutting(sim, soldier)) {
+      progress = sim.soldiers.cutting.progress[soldier]
       stepSimulation(sim)
       seconds += 1 / TICK_RATE
       expect(seconds).toBeLessThan(40)
     }
     expect(seconds).toBeGreaterThan(10)
+    expect(progress).toBeGreaterThan(0.95)
     for (let z = 48.5; z <= 51.5; z += 1) {
       expect(wireAt(sim.wire, 40.5, z)).toBe(0)
     }

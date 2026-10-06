@@ -22,6 +22,8 @@ const STEP = 0.25
 const CLEAR = 0.15
 /** A cell cut through is torn out of the wire's art this far round its middle, in metres. */
 const TEAR = 0.7
+/** The lane through a belt is looked along this far ahead of him, in metres: deeper than any belt. */
+const LANE = 8
 
 /** The first point along `heading` from (x, z), within `reach` metres, where there's wire still to cut; or null. */
 function wireAhead(
@@ -38,6 +40,34 @@ function wireAhead(
     }
   }
   return null
+}
+
+/**
+ * The cutting left to do in the lane from (x, z) along `heading` through the belt ahead, in seconds: each cell's wire,
+ * once, until the belt gives out (no wire for `LOOK` metres) or `LANE` metres on.
+ */
+function laneWork(sim: Simulation, x: number, z: number, heading: { readonly x: number; readonly z: number }): number {
+  const cells = new Set<number>()
+  let work = 0
+  let lastWire = -1
+  for (let distance = 0; distance <= LANE; distance += STEP) {
+    if (lastWire >= 0 && distance - lastWire > LOOK) {
+      break
+    }
+    const px = x + heading.x * distance
+    const pz = z + heading.z * distance
+    const density = wireAt(sim.wire, px, pz)
+    if (density <= CLEAR) {
+      continue
+    }
+    lastWire = distance
+    const cell = Math.floor(pz / WIRE_CELL) * sim.wire.columns + Math.floor(px / WIRE_CELL)
+    if (!cells.has(cell)) {
+      cells.add(cell)
+      work += (density - CLEAR) * CUT_SECONDS
+    }
+  }
+  return work
 }
 
 /** The way a soldier faces, as a unit vector, or null. */
@@ -80,6 +110,8 @@ export function toggleCutting(sim: Simulation, soldier: EntityId): boolean {
   addComponent(sim.world, soldier, cutting)
   cutting.x[soldier] = heading.x
   cutting.z[soldier] = heading.z
+  cutting.total[soldier] = laneWork(sim, sim.soldiers.position.x[soldier], sim.soldiers.position.z[soldier], heading)
+  cutting.progress[soldier] = 0
   removeComponent(sim.world, soldier, sim.soldiers.moveOrder)
   stance.value[soldier] = Stance.Crouching
   return true
@@ -113,11 +145,17 @@ export function cuttingSystem(sim: Simulation, stepSeconds: number): void {
     if (at) {
       const cell = Math.floor(at.z / WIRE_CELL) * field.columns + Math.floor(at.x / WIRE_CELL)
       const left = (field.density[cell] ?? 0) - stepSeconds / CUT_SECONDS
+      field.density[cell] = left > CLEAR ? left : 0
+      const total = cutting.total[soldier]
+      if (total > 0) {
+        cutting.progress[soldier] = Math.min(
+          1,
+          Math.max(cutting.progress[soldier], 1 - laneWork(sim, x, z, heading) / total)
+        )
+      }
       if (left > CLEAR) {
-        field.density[cell] = left
         continue
       }
-      field.density[cell] = 0
       field.cuts++
       sim.events.push({
         type: "wire-cut",

@@ -38,7 +38,12 @@ export interface SoldierState {
   /** Where he comes down from a fence he's climbing; absent when he isn't, and in snapshots from before vaulting. */
   readonly vault?: { readonly x: number; readonly z: number }
   /** The way he cuts the wire ahead of him; absent when he isn't, and in snapshots from before wire cutting. */
-  readonly cutting?: { readonly x: number; readonly z: number }
+  readonly cutting?: {
+    readonly x: number
+    readonly z: number
+    readonly total?: number
+    readonly progress?: number
+  }
   readonly health: number
   readonly dead: boolean
   readonly captured: boolean
@@ -157,7 +162,14 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
         ? { vault: { x: sim.soldiers.vault.x[id], z: sim.soldiers.vault.z[id] } }
         : {}),
       ...(hasComponent(sim.world, id, sim.soldiers.cutting)
-        ? { cutting: { x: sim.soldiers.cutting.x[id], z: sim.soldiers.cutting.z[id] } }
+        ? {
+            cutting: {
+              x: sim.soldiers.cutting.x[id],
+              z: sim.soldiers.cutting.z[id],
+              total: sim.soldiers.cutting.total[id],
+              progress: sim.soldiers.cutting.progress[id]
+            }
+          }
         : {}),
       health: health.value[id],
       dead: hasComponent(sim.world, id, dead),
@@ -277,6 +289,8 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.cutting)
       sim.soldiers.cutting.x[id] = soldier.cutting.x
       sim.soldiers.cutting.z[id] = soldier.cutting.z
+      sim.soldiers.cutting.total[id] = soldier.cutting.total ?? 0
+      sim.soldiers.cutting.progress[id] = soldier.cutting.progress ?? 0
     }
     sim.soldiers.health.value[id] = soldier.health
     sim.soldiers.weapon.cooldown[id] = soldier.cooldown

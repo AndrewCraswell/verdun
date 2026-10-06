@@ -32,8 +32,16 @@ export interface SoldierComponents {
   readonly facing: { readonly x: Float32Array; readonly z: Float32Array }
   /** Present while the soldier climbs over a wire fence (vault.ts): where he comes down. It overrides steering and orders. */
   readonly vault: { readonly x: Float32Array; readonly z: Float32Array }
-  /** Present while the soldier cuts a lane through the wire (cutters.ts): the way he cuts, a unit vector. */
-  readonly cutting: { readonly x: Float32Array; readonly z: Float32Array }
+  /**
+   * Present while the soldier cuts a lane through the wire (cutters.ts): the way he cuts, a unit vector; the work the
+   * lane through the belt took when he started, in seconds; and how far through it he is, from 0 to 1.
+   */
+  readonly cutting: {
+    readonly x: Float32Array
+    readonly z: Float32Array
+    readonly total: Float32Array
+    readonly progress: Float32Array
+  }
   /**
    * Present while a player steers the soldier directly: a direction with length up to 1, as a fraction of walking speed.
    * Steering overrides any move order. `run` is 1 while the player holds the run key.
@@ -116,7 +124,12 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     vault: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
-    cutting: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    cutting: {
+      x: new Float32Array(capacity),
+      z: new Float32Array(capacity),
+      total: new Float32Array(capacity),
+      progress: new Float32Array(capacity)
+    },
     steer: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     squad: { id: new Int32Array(capacity).fill(-1) },
     health: { value: new Float32Array(capacity) },
