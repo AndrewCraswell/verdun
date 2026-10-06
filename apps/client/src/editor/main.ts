@@ -385,8 +385,10 @@ async function start(): Promise<void> {
     scene.getMeshByName("battle-bounds")?.dispose(false, true)
     scene.getMeshByName("battle-bounds-band")?.dispose(false, true)
     scene.getMeshByName("sector-bounds")?.dispose(false, true)
-    curtain("battle-bounds", BATTLE_AREA, new Color3(0.9, 0.2, 0.15), 150)
-    band("battle-bounds-band", BATTLE_AREA, new Color3(0.9, 0.2, 0.15), 90)
+    // Violet: red and blue are the armies' colours on the maps and in the front lines.
+    const battleColour = new Color3(0.6, 0.25, 0.9)
+    curtain("battle-bounds", BATTLE_AREA, battleColour, 150)
+    band("battle-bounds-band", BATTLE_AREA, battleColour, 90)
     outline("sector-bounds", sectorBox, new Color3(1, 0.78, 0.3), 30)
     drawFrontLines()
   }
