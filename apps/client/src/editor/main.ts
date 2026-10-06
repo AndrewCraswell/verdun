@@ -34,6 +34,7 @@ const VIEW_KEY = "verdun.editor.camera"
 const OVERLAY_KEY = "verdun.editor.overlay"
 const MARKERS_KEY = "verdun.editor.markers"
 const RIVERS_KEY = "verdun.editor.rivers"
+const RELIEF_KEY = "verdun.editor.relief"
 /**
  * Where the sector lies: its south-west corner in Lambert-93, the one scripts/fetch-elevation.mjs fetched its ground for.
  * The sector files will carry their own.
@@ -245,7 +246,7 @@ async function start(): Promise<void> {
     const tz = y - THEATRE.south
     return new Vector3(
       tx + theatreFrame.position.x,
-      ground.heightAt(tx, tz) + theatreFrame.position.y + 20,
+      ground.heightAt(tx, tz) * theatreFrame.scaling.y + theatreFrame.position.y + 20,
       tz + theatreFrame.position.z
     )
   }
@@ -286,8 +287,13 @@ async function start(): Promise<void> {
     curtain.material = material
     curtain.isPickable = false
   }
-  outline("battle-bounds", BATTLE_BOUNDS, new Color3(0.9, 0.2, 0.15), 150)
-  outline("sector-bounds", sectorBox, new Color3(1, 0.78, 0.3), 30)
+  const drawOutlines = () => {
+    scene.getMeshByName("battle-bounds")?.dispose(false, true)
+    scene.getMeshByName("sector-bounds")?.dispose(false, true)
+    outline("battle-bounds", BATTLE_BOUNDS, new Color3(0.9, 0.2, 0.15), 150)
+    outline("sector-bounds", sectorBox, new Color3(1, 0.78, 0.3), 30)
+  }
+  drawOutlines()
 
   // The rivers, canals and ponds, bright over whatever map is down, when asked for.
   const riversBox = element("rivers", HTMLInputElement)
@@ -309,7 +315,46 @@ async function start(): Promise<void> {
     x: BATTLE_BOUNDS.west + 400,
     y: BATTLE_BOUNDS.north - 300
   }
-  const markers = createMarkers(scene, camera, canvas, [battleLabel, ...places()], toScene)
+  // Choosing a place from a label's list takes the camera to it, a kilometre and a half off.
+  const flyTo = (place: Place) => {
+    const at = toScene(place.x, place.y)
+    editorCamera.frame(at.x - 600, at.z - 600, at.x + 600, at.z + 600, at.y)
+  }
+  const markers = createMarkers(scene, camera, canvas, [battleLabel, ...places()], toScene, flyTo)
+
+  // Seeing the lie of the land: the hillshade multiplied into the map, the ground round the sector raised by a factor
+  // (about the sector's own height, so the sector stays where it is), and the labels thinned where they'd overlap.
+  const reliefInput = element("relief", HTMLInputElement)
+  const shadeBox = element("shade-relief", HTMLInputElement)
+  const declutterBox = element("declutter", HTMLInputElement)
+  const keptRelief = readStored(RELIEF_KEY)
+  if (isRecord(keptRelief)) {
+    reliefInput.value = isNumber(keptRelief.scale) ? String(keptRelief.scale) : reliefInput.value
+    shadeBox.checked = keptRelief.shade === true
+    declutterBox.checked = keptRelief.declutter !== false
+  }
+  const sectorHeight = groundY + elevation.base - THEATRE.base
+  const applyRelief = () => {
+    const scale = Number(reliefInput.value)
+    store(RELIEF_KEY, { scale, shade: shadeBox.checked, declutter: declutterBox.checked })
+    element("relief-value", HTMLElement).textContent = `×${scale}`
+    theatreFrame.scaling.y = scale
+    theatreFrame.position.y = groundY - scale * sectorHeight
+    markers.relocate()
+    drawOutlines()
+  }
+  reliefInput.addEventListener("input", applyRelief)
+  shadeBox.addEventListener("change", () => {
+    ground.setShading(shadeBox.checked)
+    applyRelief()
+  })
+  declutterBox.addEventListener("change", () => {
+    markers.declutter(declutterBox.checked)
+    applyRelief()
+  })
+  ground.setShading(shadeBox.checked)
+  markers.declutter(declutterBox.checked)
+  applyRelief()
   everyFrame.push(() => markers.update())
   const keptMarkers = readStored(MARKERS_KEY)
   const markerList = element("markers", HTMLElement)

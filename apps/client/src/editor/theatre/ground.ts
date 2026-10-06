@@ -67,7 +67,7 @@ const RGE_ALTI = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES"
 
 /** The coarse ground over the whole theatre, every `step` metres, and finer tiles near the camera. */
 const COARSE = { step: 50, texture: 4096 } as const
-const DETAIL = { samples: 129, texture: 1024, radius: 2600, maxLoads: 3 } as const
+const DETAIL = { samples: 257, texture: 1024, radius: 2600, maxLoads: 3 } as const
 /** A fine tile is kept until it lies this much further off than the radius it's loaded within, so tiles near the edge
  * don't come and go as the view moves a little. */
 const KEEP = 1.4
@@ -213,9 +213,18 @@ function mapMaterial(
   name: string,
   url: string,
   base: BaseMap,
-  hole: GroundBox | null
+  hole: GroundBox | null,
+  shade: string | null
 ): { material: StandardMaterial; loaded: Promise<void> } {
   const material = new StandardMaterial(name, scene)
+  // The hillshade multiplied into the map, so slopes and valleys read on any map, as on a shaded relief map.
+  if (shade) {
+    const relief = new Texture(shade, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE)
+    relief.wrapU = Texture.CLAMP_ADDRESSMODE
+    relief.wrapV = Texture.CLAMP_ADDRESSMODE
+    material.lightmapTexture = relief
+    material.useLightmapAsShadowmap = true
+  }
   if (hole) {
     // The plugin registers itself with the material; kept with it for the console's sake.
     material.metadata = { hole: new SectorHolePlugin(material, hole) }
@@ -247,6 +256,8 @@ export interface TheatreGround {
   heightAt(x: number, z: number): number
   /** Draws the ground with another map. */
   setBaseMap(map: BaseMap): void
+  /** Multiplies the hillshade into the map, or stops. */
+  setShading(shaded: boolean): void
   /** Called each frame with the point the camera looks at: loads finer tiles round it, drops those far off. */
   update(x: number, z: number): void
   /**
@@ -262,8 +273,8 @@ interface DetailTile {
   mesh: Mesh | null
   material: StandardMaterial | null
   loading: boolean
-  /** The map it was textured with. */
-  map: BaseMap
+  /** How it was drawn: its map, and whether shaded. */
+  look: string
 }
 
 /**
@@ -301,6 +312,11 @@ export async function createTheatreGround(
   }
 
   let map = initial
+  let shaded = false
+  const look = () => `${map.name}${shaded ? " shaded" : ""}`
+  /** The hillshade over a box of the theatre, when shading, to multiply into the map. */
+  const shadeUrl = (x0: number, z0: number, x1: number, z1: number, w: number, h: number) =>
+    shaded && map !== TERRAIN && map.layer !== HILLSHADE ? wmsUrl(HILLSHADE, "image/png", x0, z0, x1, z1, w, h) : null
   const whole = { x0: 0, z0: 0, x1: THEATRE.width, z1: THEATRE.depth }
   const coarseTexture = (base: BaseMap) =>
     wmsUrl(
@@ -313,7 +329,23 @@ export async function createTheatreGround(
       COARSE.texture,
       Math.round((COARSE.texture * THEATRE.depth) / THEATRE.width)
     )
-  let coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null).material
+  const coarseShade = () =>
+    shadeUrl(
+      0,
+      0,
+      THEATRE.width,
+      THEATRE.depth,
+      COARSE.texture,
+      Math.round((COARSE.texture * THEATRE.depth) / THEATRE.width)
+    )
+  let coarseMaterial = mapMaterial(
+    scene,
+    "theatre-coarse",
+    coarseTexture(map),
+    map,
+    hole ?? null,
+    coarseShade()
+  ).material
   const perTile = TILE / COARSE.step
   const tilesX = THEATRE.width / TILE
   const tilesZ = THEATRE.depth / TILE
@@ -344,6 +376,8 @@ export async function createTheatreGround(
     const box = { x0: tx * TILE, z0: tz * TILE, x1: (tx + 1) * TILE, z1: (tz + 1) * TILE }
     const samples = DETAIL.samples
     const drawn = map
+    const drawnLook = look()
+    const shade = shadeUrl(box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture)
     heightGrid(box.x0, box.z0, box.x1, box.z1, samples, samples)
       .then(async (heights) => {
         const mesh = gridMesh(
@@ -362,7 +396,8 @@ export async function createTheatreGround(
           `theatre-detail-${tx}-${tz}`,
           wmsUrl(drawn.layer, drawn.format, box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture),
           drawn,
-          hole ?? null
+          hole ?? null,
+          shade
         )
         mesh.material = material
         try {
@@ -377,7 +412,7 @@ export async function createTheatreGround(
         tile.material?.dispose(true, true)
         tile.mesh = mesh
         tile.material = material
-        tile.map = drawn
+        tile.look = drawnLook
         mesh.setEnabled(true)
         coarseTiles[tz * tilesX + tx]?.setEnabled(false)
       })
@@ -386,6 +421,13 @@ export async function createTheatreGround(
         tile.loading = false
         loading -= 1
       })
+  }
+  const redrawCoarse = () => {
+    coarseMaterial.dispose(true, true)
+    coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null, coarseShade()).material
+    for (const mesh of coarseTiles) {
+      mesh.material = coarseMaterial
+    }
   }
   const drop = (key: number, tile: DetailTile) => {
     tile.mesh?.dispose()
@@ -411,11 +453,11 @@ export async function createTheatreGround(
     },
     setBaseMap(next) {
       map = next
-      coarseMaterial.dispose(true, true)
-      coarseMaterial = mapMaterial(scene, "theatre-coarse", coarseTexture(map), map, hole ?? null).material
-      for (const mesh of coarseTiles) {
-        mesh.material = coarseMaterial
-      }
+      redrawCoarse()
+    },
+    setShading(next) {
+      shaded = next
+      redrawCoarse()
     },
     update(x, z) {
       // The tiles wanted: those within reach of the point looked at, nearest first.
@@ -443,10 +485,10 @@ export async function createTheatreGround(
         }
         const tile = details.get(key)
         if (!tile) {
-          const fresh: DetailTile = { mesh: null, material: null, loading: false, map }
+          const fresh: DetailTile = { mesh: null, material: null, loading: false, look: look() }
           details.set(key, fresh)
           load(tx, tz, fresh)
-        } else if (!tile.loading && tile.map !== map) {
+        } else if (!tile.loading && tile.look !== look()) {
           load(tx, tz, tile)
         }
       }
