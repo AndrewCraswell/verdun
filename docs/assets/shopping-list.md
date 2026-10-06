@@ -48,10 +48,12 @@ Optional: Synty
 
 - [ ] **A WW1 lorry**, one per side: a Berliet CBA (the French army's most common lorry, 25,000 in service) and a German
       Daimler or Büssing 3-tonner, canvas tilt over the bed, low poly. Replacement squads arrive by lorry and debus
-      behind the lines (the map's debus points). None of the owned packs has a lorry or truck of any period: War Map WWI
-      has tanks, guns, planes and a blimp, the Low Poly War Pack WW2 vehicles and one civilian car. Not yet found on Fab
-      or CGTrader; check the asset library on E: first, then search for one before pricing. Men get down from the
-      tailgate with the Mixamo two-footed jump already in `vendor/mixamo/`.
+      behind the lines (the map's debus points). No owned pack has a WW1 lorry (the asset library on E: checked
+      2026-10-05). Stand-ins in the same Synty style, owned: the **War Pack**'s `SM_Veh_German_Truck_01` and
+      `SM_Veh_American_Truck_01` (WW2 lorries, with destroyed variants for the American), the Military Pack's
+      `SM_Veh_Truck_01` with a separate `_Canopy` (modern), and the Farm Pack's `SM_Prop_Truck_Rusted_01`. Engine loops:
+      the Pro Sound Collection's `truck_low_engine_rattle_loop.wav`. No WW1 model found yet on Fab or CGTrader. Men get
+      down from the tailgate with the Mixamo two-footed jump already in `vendor/mixamo/`.
 
 ## Remaster: realistic kit (about $270)
 
