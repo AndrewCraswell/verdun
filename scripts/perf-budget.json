@@ -6,18 +6,18 @@
   "profiles": {
     "high": {
       "day": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 263.6,
-            "most": 264.3,
-            "limit": 294.3
+            "least": 250.7,
+            "most": 259.3,
+            "limit": 289.3
           },
           "passes": {
             "least": 16,
@@ -25,19 +25,19 @@
             "limit": 16.3
           },
           "meshes": {
-            "least": 168.1,
-            "most": 168.3,
-            "limit": 183.3
+            "least": 155,
+            "most": 170,
+            "limit": 185
           },
           "triangles": {
-            "least": 4108219.2,
-            "most": 4108430.4,
-            "limit": 4519273.5
+            "least": 3894064.1,
+            "most": 3894132.6,
+            "limit": 4283545.9
           },
           "particles": {
-            "least": 525.8,
-            "most": 534.3,
-            "limit": 1534.3
+            "least": 477.4,
+            "most": 485.4,
+            "limit": 1485.4
           },
           "bindGroups": {
             "least": 0,
@@ -45,29 +45,29 @@
             "limit": 1
           },
           "textureMB": {
-            "least": 414.4,
-            "most": 414.4,
-            "limit": 426.9
+            "least": 402.4,
+            "most": 402.4,
+            "limit": 414.5
           },
           "textures": {
-            "least": 73,
-            "most": 73,
-            "limit": 81
+            "least": 71,
+            "most": 71,
+            "limit": 79
           },
           "bufferMB": {
-            "least": 54.9,
-            "most": 56.9,
-            "limit": 64.9
+            "least": 59.2,
+            "most": 62.4,
+            "limit": 70.4
           },
           "pipelines": {
-            "least": 85,
-            "most": 87,
-            "limit": 97
+            "least": 109,
+            "most": 116,
+            "limit": 126
           },
           "effects": {
-            "least": 117,
-            "most": 117,
-            "limit": 127
+            "least": 157,
+            "most": 158,
+            "limit": 168
           },
           "materials": {
             "least": 87,
@@ -77,8 +77,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 72.3,
-          "PostProcessRTT-circleOfConfusion": 179.7,
+          "sun_CSMShadowMap": 74,
+          "PostProcessRTT-circleOfConfusion": 170.2,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -89,38 +89,38 @@
         }
       },
       "night, flare up": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 424.3,
-            "most": 426.9,
-            "limit": 491
+            "least": 352.3,
+            "most": 355.3,
+            "limit": 408.6
           },
           "passes": {
-            "least": 17,
-            "most": 17,
-            "limit": 17.3
+            "least": 16,
+            "most": 16,
+            "limit": 16.3
           },
           "meshes": {
-            "least": 184.7,
-            "most": 186,
-            "limit": 201
+            "least": 164,
+            "most": 178.7,
+            "limit": 193.7
           },
           "triangles": {
-            "least": 5230826.1,
-            "most": 5231454.8,
-            "limit": 6277745.8
+            "least": 4422233.4,
+            "most": 4422396.1,
+            "limit": 5306875.4
           },
           "particles": {
-            "least": 1544,
-            "most": 1627.1,
-            "limit": 3254.2
+            "least": 697.6,
+            "most": 952.2,
+            "limit": 1952.2
           },
           "bindGroups": {
             "least": 0,
@@ -128,19 +128,19 @@
             "limit": 1
           },
           "textureMB": {
-            "least": 414.4,
-            "most": 414.4,
-            "limit": 426.9
+            "least": 402.4,
+            "most": 402.4,
+            "limit": 414.5
           },
           "textures": {
-            "least": 73,
-            "most": 73,
-            "limit": 81
+            "least": 71,
+            "most": 71,
+            "limit": 79
           },
           "bufferMB": {
-            "least": 55.2,
-            "most": 55.3,
-            "limit": 63.3
+            "least": 56.6,
+            "most": 56.6,
+            "limit": 64.6
           },
           "pipelines": {
             "least": 114,
@@ -148,9 +148,9 @@
             "limit": 131
           },
           "effects": {
-            "least": 137,
-            "most": 138,
-            "limit": 148
+            "least": 158,
+            "most": 158,
+            "limit": 168
           },
           "materials": {
             "least": 87,
@@ -160,9 +160,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 162,
-          "flare-light-0_shadowMap": 42.8,
-          "PostProcessRTT-circleOfConfusion": 209,
+          "sun_CSMShadowMap": 162.3,
+          "PostProcessRTT-circleOfConfusion": 179.5,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -173,18 +172,18 @@
         }
       },
       "overview": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 345.7,
-            "most": 353.6,
-            "limit": 383.6
+            "least": 341.8,
+            "most": 343.8,
+            "limit": 373.8
           },
           "passes": {
             "least": 14,
@@ -192,19 +191,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 352.3,
-            "most": 372.6,
-            "limit": 402.5
+            "least": 354.4,
+            "most": 360.4,
+            "limit": 389.3
           },
           "triangles": {
-            "least": 3921758.5,
-            "most": 3921860.6,
-            "limit": 4314046.7
+            "least": 3839395.4,
+            "most": 3839461.1,
+            "limit": 4223407.3
           },
           "particles": {
-            "least": 446.5,
-            "most": 453.9,
-            "limit": 1453.9
+            "least": 391.3,
+            "most": 399.6,
+            "limit": 1399.6
           },
           "bindGroups": {
             "least": 0,
@@ -212,29 +211,29 @@
             "limit": 1
           },
           "textureMB": {
-            "least": 414.4,
-            "most": 414.4,
-            "limit": 426.9
+            "least": 402.4,
+            "most": 402.4,
+            "limit": 414.5
           },
           "textures": {
-            "least": 73,
-            "most": 73,
-            "limit": 81
+            "least": 71,
+            "most": 71,
+            "limit": 79
           },
           "bufferMB": {
-            "least": 55.5,
-            "most": 55.5,
-            "limit": 63.5
+            "least": 55.6,
+            "most": 57.1,
+            "limit": 65.1
           },
           "pipelines": {
-            "least": 100,
-            "most": 100,
-            "limit": 110
+            "least": 122,
+            "most": 126,
+            "limit": 136
           },
           "effects": {
-            "least": 119,
-            "most": 119,
-            "limit": 129
+            "least": 159,
+            "most": 160,
+            "limit": 170
           },
           "materials": {
             "least": 87,
@@ -244,7 +243,7 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "PostProcessRTT-circleOfConfusion": 336.4,
+          "PostProcessRTT-circleOfConfusion": 330.8,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -255,18 +254,18 @@
         }
       },
       "barrage, pulled back": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 338.4,
-            "most": 348.4,
-            "limit": 390.3
+            "least": 337.7,
+            "most": 350.8,
+            "limit": 392.9
           },
           "passes": {
             "least": 16,
@@ -274,19 +273,19 @@
             "limit": 16.3
           },
           "meshes": {
-            "least": 228.2,
-            "most": 251.7,
-            "limit": 275.2
+            "least": 225,
+            "most": 258,
+            "limit": 291
           },
           "triangles": {
-            "least": 3870808.3,
-            "most": 3891023.1,
-            "limit": 4280125.5
+            "least": 3738907,
+            "most": 3743963.8,
+            "limit": 4118360.2
           },
           "particles": {
-            "least": 2994,
-            "most": 3143.9,
-            "limit": 6287.8
+            "least": 3079.5,
+            "most": 3210.1,
+            "limit": 6420.2
           },
           "bindGroups": {
             "least": 0,
@@ -294,29 +293,29 @@
             "limit": 1
           },
           "textureMB": {
-            "least": 414.4,
-            "most": 414.4,
-            "limit": 426.9
+            "least": 402.4,
+            "most": 402.4,
+            "limit": 414.5
           },
           "textures": {
-            "least": 73,
-            "most": 73,
-            "limit": 81
+            "least": 71,
+            "most": 71,
+            "limit": 79
           },
           "bufferMB": {
-            "least": 55.2,
-            "most": 55.3,
-            "limit": 63.3
+            "least": 56.3,
+            "most": 56.8,
+            "limit": 64.8
           },
           "pipelines": {
-            "least": 91,
-            "most": 97,
-            "limit": 107
+            "least": 114,
+            "most": 122,
+            "limit": 132
           },
           "effects": {
-            "least": 117,
-            "most": 117,
-            "limit": 127
+            "least": 158,
+            "most": 158,
+            "limit": 168
           },
           "materials": {
             "least": 87,
@@ -326,8 +325,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 73.4,
-          "PostProcessRTT-circleOfConfusion": 258.8,
+          "sun_CSMShadowMap": 76,
+          "PostProcessRTT-circleOfConfusion": 256.7,
           "PostProcessRTT-vertical blur": 3,
           "PostProcessRTT-horizontal blur": 3,
           "PostProcessRTT-dofMerge": 1,
@@ -340,18 +339,18 @@
     },
     "low": {
       "day": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 261.2,
-            "most": 261.4,
-            "limit": 291.4
+            "least": 247.6,
+            "most": 256,
+            "limit": 286
           },
           "passes": {
             "least": 14,
@@ -359,19 +358,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 168.2,
-            "most": 168.2,
-            "limit": 183.2
+            "least": 155,
+            "most": 170,
+            "limit": 185
           },
           "triangles": {
-            "least": 4108295.5,
-            "most": 4108342.7,
-            "limit": 4519177
+            "least": 3894064.1,
+            "most": 3894114.1,
+            "limit": 4283525.6
           },
           "particles": {
-            "least": 516.6,
-            "most": 530.1,
-            "limit": 1530.1
+            "least": 475.7,
+            "most": 480.7,
+            "limit": 1480.7
           },
           "bindGroups": {
             "least": 0,
@@ -389,19 +388,19 @@
             "limit": 75
           },
           "bufferMB": {
-            "least": 55,
-            "most": 55,
-            "limit": 63
+            "least": 58,
+            "most": 58.3,
+            "limit": 66.3
           },
           "pipelines": {
-            "least": 74,
-            "most": 74,
-            "limit": 84
+            "least": 88,
+            "most": 98,
+            "limit": 108
           },
           "effects": {
-            "least": 102,
-            "most": 102,
-            "limit": 112
+            "least": 137,
+            "most": 137,
+            "limit": 147
           },
           "materials": {
             "least": 87,
@@ -411,8 +410,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 72.3,
-          "PostProcessRTT-circleOfConfusion": 179.1,
+          "sun_CSMShadowMap": 74,
+          "PostProcessRTT-circleOfConfusion": 166.8,
           "PostProcessRTT-vertical blur": 2,
           "PostProcessRTT-horizontal blur": 2,
           "PostProcessRTT-dofMerge": 1,
@@ -423,18 +422,18 @@
         }
       },
       "night, flare up": {
-        "commit": "781d5a14ade9b67cf902458659cc01278c66570d",
+        "commit": "a234b8c08c1d057bb22d636b67ac54722cd0acfc",
         "pack": "e4a38908777c",
-        "chrome": "Chrome/154.0.8037.95",
+        "chrome": "Chrome/154.0.8037.98",
         "babylon": "9.28.0",
         "adapter": "amd rdna-3 0x1114 AMD Radeon(TM) 860M Graphics",
         "features": "core-features-and-limits, timestamp-query",
         "rounds": 3,
         "counts": {
           "draws": {
-            "least": 366.7,
-            "most": 366.8,
-            "limit": 421.9
+            "least": 347.2,
+            "most": 358.8,
+            "limit": 412.7
           },
           "passes": {
             "least": 14,
@@ -442,19 +441,19 @@
             "limit": 14.3
           },
           "meshes": {
-            "least": 177.5,
-            "most": 177.5,
-            "limit": 192.5
+            "least": 162.7,
+            "most": 184.9,
+            "limit": 207.1
           },
           "triangles": {
-            "least": 4612315.8,
-            "most": 4612327.1,
-            "limit": 5073559.9
+            "least": 4422258.2,
+            "most": 4422468.5,
+            "limit": 4864715.4
           },
           "particles": {
-            "least": 992.1,
-            "most": 1018.7,
-            "limit": 2037.4
+            "least": 866.1,
+            "most": 945.2,
+            "limit": 1945.2
           },
           "bindGroups": {
             "least": 0,
@@ -472,19 +471,19 @@
             "limit": 75
           },
           "bufferMB": {
-            "least": 54.9,
-            "most": 55,
-            "limit": 63
+            "least": 56,
+            "most": 56.2,
+            "limit": 64.2
           },
           "pipelines": {
-            "least": 93,
-            "most": 93,
-            "limit": 103
+            "least": 96,
+            "most": 103,
+            "limit": 113
           },
           "effects": {
-            "least": 115,
-            "most": 115,
-            "limit": 125
+            "least": 137,
+            "most": 137,
+            "limit": 147
           },
           "materials": {
             "least": 87,
@@ -494,8 +493,8 @@
         },
         "drawsByTarget": {
           "MainRenderPass": 1,
-          "sun_CSMShadowMap": 163.1,
-          "PostProcessRTT-circleOfConfusion": 193.7,
+          "sun_CSMShadowMap": 162.3,
+          "PostProcessRTT-circleOfConfusion": 178.8,
           "PostProcessRTT-vertical blur": 2,
           "PostProcessRTT-horizontal blur": 2,
           "PostProcessRTT-dofMerge": 1,
