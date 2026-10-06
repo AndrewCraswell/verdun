@@ -248,6 +248,7 @@ function geoCache(): Plugin {
 /** Scans of dated battle maps (packages/map/data/battle-maps.json), fetched into the asset library. Git-ignored. */
 const BATTLE_MAPS_DIR = resolve(import.meta.dirname, "../../.asset-cache/battle-maps")
 const BATTLE_MAPS_ROUTE = "/battle-maps"
+const BATTLE_MAPS_CATALOGUE = resolve(import.meta.dirname, "../../packages/map/data/battle-maps.json")
 
 /** Serves the battle maps' scans at /battle-maps/ in dev only, for the sector editor to lay over the ground. */
 function battleMaps(): Plugin {
@@ -255,6 +256,50 @@ function battleMaps(): Plugin {
     name: "verdun-battle-maps",
     apply: "serve",
     configureServer(server) {
+      // The editor saves a map's control points here as they're aligned by hand.
+      server.middlewares.use(`${BATTLE_MAPS_ROUTE}/catalogue`, (request, response, next) => {
+        if (request.method !== "PUT") {
+          next()
+          return
+        }
+        let body = ""
+        request.on("data", (chunk: Buffer) => {
+          body += chunk.toString("utf8")
+        })
+        request.on("end", () => {
+          try {
+            const update: unknown = JSON.parse(body)
+            const catalogue: unknown = JSON.parse(readFileSync(BATTLE_MAPS_CATALOGUE, "utf8"))
+            if (
+              typeof update !== "object" ||
+              update === null ||
+              !("id" in update) ||
+              !("controlPoints" in update) ||
+              !Array.isArray(update.controlPoints) ||
+              typeof catalogue !== "object" ||
+              catalogue === null ||
+              !("maps" in catalogue) ||
+              !Array.isArray(catalogue.maps)
+            ) {
+              throw new Error("expected { id, controlPoints }")
+            }
+            const map: unknown = catalogue.maps.find(
+              (candidate: unknown) =>
+                typeof candidate === "object" && candidate !== null && "id" in candidate && candidate.id === update.id
+            )
+            if (typeof map !== "object" || map === null) {
+              throw new Error(`no battle map ${String(update.id)}`)
+            }
+            Object.assign(map, { controlPoints: update.controlPoints })
+            writeFileSync(BATTLE_MAPS_CATALOGUE, `${JSON.stringify(catalogue, null, 2)}\n`)
+            response.statusCode = 204
+            response.end()
+          } catch (error) {
+            response.statusCode = 400
+            response.end(String(error))
+          }
+        })
+      })
       server.middlewares.use(BATTLE_MAPS_ROUTE, (request, response, next) => {
         const file = resolve(BATTLE_MAPS_DIR, `.${decodeURIComponent(request.url?.split("?")[0] ?? "")}`)
         const contentType = SECTOR_TYPES[extname(file)]

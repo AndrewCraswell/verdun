@@ -2,11 +2,11 @@ import type { Camera } from "@babylonjs/core/Cameras/camera"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Scene } from "@babylonjs/core/scene"
 
-/** Round lengths, in metres, the ruler is marked at: ones, twos and fives of each power of ten. */
-const LENGTHS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10_000, 20_000, 50_000, 100_000]
-/** The ruler is about this many pixels long at most; marks closer together than this are left out. */
-const RULER_PIXELS = 240
-const MARK_GAP = 34
+/** The steps the ruler can be marked in, in metres: ones, twos, two and a halves and fives of each power of ten. */
+const STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10_000, 20_000, 25_000, 50_000]
+/** The ruler is about this many pixels long, its marks at least this far apart. */
+const RULER_PIXELS = 330
+const MARK_GAP = 52
 /** The ruler is worked out afresh this often, in milliseconds: often enough to follow the camera. */
 const EVERY = 150
 
@@ -16,33 +16,20 @@ export function lengthLabel(metres: number): string {
 }
 
 /**
- * The ruler at `metresPerPixel`: its whole length, the longest round length within `pixels`, and its marks, the round
- * lengths along it far enough apart to read, each with how far along it is in pixels.
+ * The ruler at `metresPerPixel`: marked every `step` metres, the smallest round step at least MARK_GAP pixels long,
+ * for as many steps as fit in `pixels`; its whole length, and each mark with how far along it is in pixels.
  */
 export function rulerFor(
   metresPerPixel: number,
   pixels = RULER_PIXELS
 ): { metres: number; pixels: number; marks: { metres: number; at: number }[] } {
-  const fits = LENGTHS.filter((length) => length / metresPerPixel <= pixels)
-  const metres = fits.at(-1) ?? LENGTHS[0] ?? 1
-  const marks: { metres: number; at: number }[] = [{ metres: 0, at: 0 }]
-  for (const length of LENGTHS.filter((candidate) => candidate <= metres)) {
-    const at = length / metresPerPixel
-    const last = marks.at(-1)
-    if (last && at - last.at >= MARK_GAP) {
-      marks.push({ metres: length, at })
-    }
-  }
-  // The ruler's end is always marked, taking the place of a mark too close to it.
-  const end = metres / metresPerPixel
-  const last = marks.at(-1)
-  if (last && last.metres !== metres) {
-    if (end - last.at < MARK_GAP && marks.length > 1) {
-      marks.pop()
-    }
-    marks.push({ metres, at: end })
-  }
-  return { metres, pixels: end, marks }
+  const step = STEPS.find((candidate) => candidate / metresPerPixel >= MARK_GAP) ?? STEPS.at(-1) ?? 1
+  const count = Math.max(2, Math.floor(pixels / (step / metresPerPixel)))
+  const marks = Array.from({ length: count + 1 }, (_, index) => ({
+    metres: index * step,
+    at: (index * step) / metresPerPixel
+  }))
+  return { metres: count * step, pixels: (count * step) / metresPerPixel, marks }
 }
 
 /**

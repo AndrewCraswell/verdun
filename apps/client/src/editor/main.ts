@@ -25,7 +25,8 @@ import { type CameraPose, createEditorCamera, initialPose } from "./editor-camer
 import { createMarkers, DEFAULT_KINDS, isPlaceKind, PLACE_KINDS, type Place } from "./markers.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
 import { createScaleBar } from "./scale-bar.ts"
-import { BATTLE_MAPS, type BattleMapDrape, drapeBattleMap } from "./theatre/battle-maps.ts"
+import { createAlignment } from "./theatre/align.ts"
+import { BATTLE_MAPS, type BattleMap, type BattleMapDrape, drapeBattleMap } from "./theatre/battle-maps.ts"
 import { BASE_MAPS, BATTLE_BOUNDS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
 import { createWaterTexture } from "./theatre/water.ts"
 
@@ -346,16 +347,70 @@ async function start(): Promise<void> {
     battleOpacity.value = isNumber(keptBattle.opacity) ? String(keptBattle.opacity) : battleOpacity.value
   }
   let battleDrape: BattleMapDrape | null = null
-  const showBattleMap = () => {
-    store(BATTLE_MAP_KEY, { id: battleSelect.value, opacity: Number(battleOpacity.value) })
+  // The maps as aligned this session, by id: control points added or deleted by hand, not yet saved.
+  const aligned = new Map<string, BattleMap>()
+  const chosenMap = () => {
+    const id = battleSelect.value
+    return aligned.get(id) ?? BATTLE_MAPS.find((battle) => battle.id === id) ?? null
+  }
+  const drawBattleMap = () => {
     battleDrape?.dispose()
     battleDrape = null
-    const chosen = BATTLE_MAPS.find((battle) => battle.id === battleSelect.value)
+    const chosen = chosenMap()
     battleNote.textContent = ""
     if (chosen) {
-      battleDrape = drapeBattleMap(scene, chosen, theatreFrame, ground.heightAt, Number(battleOpacity.value))
-      battleNote.textContent = `${chosen.source}. ${chosen.credit}. Fitted to within ${Math.round(battleDrape.rms)} m.`
+      try {
+        battleDrape = drapeBattleMap(scene, chosen, theatreFrame, ground.heightAt, Number(battleOpacity.value))
+        battleNote.textContent = `${chosen.source}. ${chosen.credit}. Fitted to within ${Math.round(battleDrape.rms)} m.`
+      } catch (error) {
+        battleNote.textContent = error instanceof Error ? error.message : String(error)
+      }
     }
+  }
+  const alignButton = element("align-battle-map", HTMLButtonElement)
+  const saveButton = element("save-battle-map", HTMLButtonElement)
+  const alignment = createAlignment({
+    scene,
+    camera,
+    canvas,
+    frame: theatreFrame,
+    list: element("align-points", HTMLElement),
+    status: element("align-status", HTMLElement),
+    heightAt: ground.heightAt,
+    onChange: (map) => {
+      aligned.set(map.id, map)
+      saveButton.disabled = false
+      drawBattleMap()
+    }
+  })
+  let aligning = false
+  alignButton.addEventListener("click", () => {
+    aligning = !aligning
+    alignButton.textContent = aligning ? "Done aligning" : "Align"
+    element("align-panel", HTMLElement).hidden = !aligning
+    alignment.setActive(aligning)
+  })
+  saveButton.addEventListener("click", () => {
+    const chosen = chosenMap()
+    if (!chosen) {
+      return
+    }
+    void fetch("/battle-maps/catalogue", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: chosen.id, controlPoints: chosen.controlPoints })
+    }).then((answer) => {
+      saveButton.disabled = answer.ok
+      element("align-status", HTMLElement).textContent = answer.ok
+        ? "Saved to packages/map/data/battle-maps.json"
+        : `Couldn't save: ${answer.status}`
+    })
+  })
+  const showBattleMap = () => {
+    store(BATTLE_MAP_KEY, { id: battleSelect.value, opacity: Number(battleOpacity.value) })
+    alignment.setMap(chosenMap())
+    alignButton.disabled = !chosenMap()
+    drawBattleMap()
   }
   battleSelect.addEventListener("change", showBattleMap)
   battleOpacity.addEventListener("input", () => {

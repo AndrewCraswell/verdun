@@ -191,6 +191,23 @@
         border-left: 3px solid var(--muted);
         margin-top: -10px;
       }
+      .buttons {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .align-point {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        margin: 2px 0;
+        font-size: 12px;
+      }
+      .align-point button {
+        padding: 0 5px;
+        font-size: 11px;
+      }
       .marker-covers {
         margin-left: 5px;
         color: var(--accent);
@@ -284,6 +301,14 @@
         ></label>
         <label>Opacity <input id="battle-map-opacity" type="range" min="0" max="1" step="0.05" value="0.85" /></label>
         <div id="battle-map-note" class="muted"></div>
+        <div class="buttons">
+          <button id="align-battle-map" type="button">Align</button>
+          <button id="save-battle-map" type="button" disabled>Save points</button>
+        </div>
+        <div id="align-panel" hidden>
+          <div id="align-status" class="muted"></div>
+          <div id="align-points"></div>
+        </div>
       </section>
       <section>
         <h2>Markers</h2>
