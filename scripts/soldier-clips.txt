@@ -83,10 +83,9 @@ reloading-rifle-while-standing.fbx
 reload-rifle-while-in-crouch-position.fbx
 reloading-rifle-in-prone.fbx
 
-# Broken, scrambling up a bank, and over a fence: the vault with both hands planted, renamed climb_over (MIXAMO_NAMES)
+# Broken, and scrambling up a bank. The climbs over fences and walls are made by the script (CLIMBS).
 being-terrified-while-standing.fbx
 climbing-up-a-slope.fbx
-male-jumping-over-an-obstacle-with-2-hands-planted.fbx
 
 # Deaths: standing, crouching, prone
 rifle-death-from-the-front.fbx

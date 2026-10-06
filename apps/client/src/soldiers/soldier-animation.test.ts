@@ -4,6 +4,7 @@ import {
   actionClip,
   AIM_WALKS,
   choosePose,
+  climbClip,
   CROUCH_AIM_WALKS,
   CROUCH_WALKS,
   deathClip,
@@ -103,12 +104,23 @@ describe("choosePose", () => {
   })
 
   it("climbs over a fence the whole time he's on it, the climb spread over however long that takes", () => {
-    expect(pose({ overFence: 3, speed: 0.4 })).toEqual({ clip: "climb_over", mode: "once", rate: 1, seconds: 3 })
+    const fence = { seconds: 3, top: 1.35 }
+    expect(pose({ overFence: fence, speed: 0.4 })).toEqual({ clip: "climb_over", mode: "once", rate: 1, seconds: 3 })
     // Not a walk, a run nor a scramble, whatever his pace or his orders.
-    expect(pose({ overFence: 4.5, speed: 2.8, running: true, climbing: true, aiming: true }).clip).toBe("climb_over")
-    expect(pose({ overFence: 3, stance: Stance.Prone }).clip).toBe("lying_down_prone_with_rifle")
-    expect(pose({ overFence: 3, status: "fallen" }).mode).toBe("once")
-    expect(pose({ overFence: 3, status: "fallen" }).clip).not.toBe("climb_over")
+    const slantwise = { ...fence, seconds: 4.5 }
+    expect(pose({ overFence: slantwise, speed: 2.8, running: true, climbing: true, aiming: true }).clip).toBe(
+      "climb_over"
+    )
+    expect(pose({ overFence: fence, stance: Stance.Prone }).clip).toBe("lying_down_prone_with_rifle")
+    expect(pose({ overFence: fence, status: "fallen" }).mode).toBe("once")
+    expect(pose({ overFence: fence, status: "fallen" }).clip).not.toBe("climb_over")
+  })
+
+  it("climbs over each height of fence and wall with the climb made for it", () => {
+    expect(climbClip(1.35)).toBe("climb_over")
+    expect(climbClip(1)).toBe("climb_over_wall")
+    expect(climbClip(0.6)).toBe("climb_over_low_wall")
+    expect(pose({ overFence: { seconds: 1.25, top: 1 } }).clip).toBe("climb_over_wall")
   })
 
   it("gets away bent double when broken, and cowers when broken and still", () => {

@@ -3,9 +3,9 @@ import { Stance, Weapon } from "@verdun/sim"
 /**
  * The soldiers' clips are Mixamo's, retargeted onto the Synty rig by scripts/retarget-animations.py from the files
  * scripts/soldier-clips.txt lists, each named after its file in snake case (docs/assets/mixamo-clips.md has them all).
- * `climb_over` is Mixamo's jump over an obstacle with both hands planted, renamed by the script. The script keys some
- * itself: `hands_up` and `hands_up_walk`, a prisoner's, since Mixamo has no one giving himself up, and the `BOLT_FIRES`,
- * Mixamo's shots with the bolt worked after them, since its rifles are self-loading.
+ * The script keys some itself: the `CLIMBS`, since Mixamo's vaults are running jumps and a man climbs from where the
+ * fence stopped him; `hands_up` and `hands_up_walk`, a prisoner's, since Mixamo has no one giving himself up; and the
+ * `BOLT_FIRES`, Mixamo's shots with the bolt worked after them, since its rifles are self-loading.
  */
 
 /** Walks clockwise from straight ahead, eighth turns apart, as `headingClip` picks them: Mixamo's Pro Rifle Pack. */
@@ -133,10 +133,19 @@ export const RIFLE_IN_LEFT_HAND: ReadonlySet<ClipName> = new Set([
   "throwing_a_grenade_while_kneeling_pulling_pin_with_teeth",
   "throw_grenade_while_in_prone_position"
 ])
+/**
+ * Climbing over a fence or low wall, one made for each height they stand (the retarget script's CLIMBS), by the lowest
+ * top each is for, in metres: the wooden fence's 1.35 m, a stone wall's metre, a broken one's 0.6 m.
+ */
+const CLIMBS = [
+  { clip: "climb_over", from: 1.2 },
+  { clip: "climb_over_wall", from: 0.8 },
+  { clip: "climb_over_low_wall", from: 0 }
+] as const
 /** Clips where both hands are busy, climbing, cowering or raised: the rifle hangs slung across his back. */
 export const RIFLE_SLUNG: ReadonlySet<ClipName> = new Set([
   "climbing_up_a_slope",
-  "climb_over",
+  ...CLIMBS.map(({ clip }) => clip),
   "being_terrified_while_standing",
   "hands_up",
   "hands_up_walk"
@@ -191,7 +200,7 @@ export const CLIPS = [
   RELOADS.prone,
   "being_terrified_while_standing",
   "climbing_up_a_slope",
-  "climb_over",
+  ...CLIMBS.map(({ clip }) => clip),
   "hands_up",
   "hands_up_walk",
   ...DEATHS_STANDING,
@@ -254,8 +263,11 @@ export interface SoldierState {
   readonly running: boolean
   /** Scrambling up ground too steep to walk: a trench wall, a crater's lip. */
   readonly climbing: boolean
-  /** Climbing over a staked fence: how many seconds getting over it takes him, or null when he isn't on one. */
-  readonly overFence: number | null
+  /**
+   * Climbing over a fence or low wall: how many seconds getting over it takes him, and how high its top stands in
+   * metres; or null when he isn't on one.
+   */
+  readonly overFence: { readonly seconds: number; readonly top: number } | null
   /** Has an enemy in their sights, or the player has him aim. */
   readonly aiming: boolean
   /** In a trench with his head over the parapet, up on the fire step: he watches over it, rifle ready. */
@@ -426,6 +438,11 @@ function prone(state: SoldierState, movement: Movement): Pose {
     : loop("lying_down_prone_with_rifle")
 }
 
+/** The climb made for a fence or wall whose top stands `top` metres high. */
+export function climbClip(top: number): ClipName {
+  return (CLIMBS.find(({ from }) => top >= from) ?? CLIMBS[CLIMBS.length - 1]).clip
+}
+
 /** What a soldier's body is doing, from their state. */
 export function choosePose(state: SoldierState): Pose {
   const movement = movementOf(state)
@@ -439,9 +456,9 @@ export function choosePose(state: SoldierState): Pose {
   if (state.stance === Stance.Prone) {
     return prone(state, movement)
   }
-  // Over a fence the whole time he's on it, from a hand on the top wire to his feet on the ground beyond.
+  // Over a fence or wall the whole time he's on it, from his hands on the top to his feet on the ground beyond.
   if (state.overFence !== null) {
-    return { clip: "climb_over", mode: "once", rate: 1, seconds: state.overFence }
+    return { clip: climbClip(state.overFence.top), mode: "once", rate: 1, seconds: state.overFence.seconds }
   }
   // A scramble is slow across the ground, but it's no standing still.
   if (state.climbing) {

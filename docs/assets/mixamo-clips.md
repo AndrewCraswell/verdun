@@ -125,13 +125,14 @@ For later: the simulation has no dodge yet, so these wait until it does (see
 | -------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | 1        | Up the trench wall, over the parapet | **Climbing**, Pulling Up To A Ledge; **Climbing Up Wall**, Climbing Up A Wall                             |
 | 1        | Up a crater's lip, a steep bank      | **Climbing**, Climbing Up A Slope                                                                         |
-| 1        | Vaulting a fence, wire or a low wall | **Jumping**, Male Jumping Over An Obstacle With 2 Hands Planted; **Jumping**, Step Up To Jump Over Object |
+| 1        | Vaulting a fence or a low wall       | **Jumping**, Male Jumping Over An Obstacle With 2 Hands Planted; **Jumping**, Step Up To Jump Over Object |
 | 2        | Over and ready to fight              | **Jumping Over Into Combat**, Jumping Over Obstacle Getting Ready To Fight                                |
 | 2        | Through a fence, dropping down       | **Climbing Down**, Climb Through Fence And Jump Down                                                      |
 | 1        | Dropping into a trench               | **Jumping Down**, Jump Down With Two Feet While Holding Rifle; pack **Jump Down**, Rifle Jump Down        |
 | 3        | Up a trench ladder                   | **Climbing To Top**, Climbing Up A Ladder To Standing                                                     |
 
-The climbs are unarmed: the game keeps the rifle in the right hand when the hands part, as it does for a throw.
+The climbs are unarmed: the game slings the rifle on his back while both hands are on the climb. The vaults are all
+running jumps from a run-up, which the simulation's standing climb over a fence can't use (see above).
 
 ## Bayonet and close fighting
 
@@ -218,8 +219,11 @@ Mixamo bone map retargets them, and
 - **Reloading**: Mixamo's reloads, standing, crouched and prone, while the simulation has him reloading, spread over its
   reload time but no slower than 1/1.6 of their own pace. They're a box magazine's, not a Lebel's tube or a Gewehr 98's
   charger clip. A machine gunner feeds his gun kneeling, as he fires it.
-- **Firing a bolt-action rifle**, **prisoners' hands up**, and the **fence vault**: Mixamo's vault with both hands
-  planted, over in the 1.25 s the simulation now takes on a fence.
+- **Firing a bolt-action rifle** and **prisoners' hands up**.
+- **Climbing a fence or low wall**: keyed by the retarget script, one for each height (the wooden fence's 1.35 m, a
+  stone wall's metre, a broken one's 0.6 m), in the 1.25 s the simulation takes. Mixamo's vaults are running jumps,
+  three or four metres over a box under a metre high, where the simulation takes a man over from a standstill where the
+  fence stopped him, a metre or so: played that way, his legs went through the fence.
 
 A scramble up a trench wall or a crater's lip plays Mixamo's climb up a slope. Its pull up onto a ledge is left out: it
 starts hanging from a ledge 2.2 m up while the simulation lifts the man as well, so it would need its own rise taken out

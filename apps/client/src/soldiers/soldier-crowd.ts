@@ -3,7 +3,7 @@ import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import "@babylonjs/core/Meshes/thinInstanceMesh"
 import type { Scene } from "@babylonjs/core/scene"
-import { heightAt } from "@verdun/map"
+import { heightAt, type Scenery, SCENERY_FOOTPRINTS } from "@verdun/map"
 import {
   acrossFence,
   astrideFence,
@@ -19,6 +19,7 @@ import {
   reloadSeconds,
   seesOverParapet,
   Side,
+  sightBlocks,
   type Simulation,
   soldierIds,
   Stance,
@@ -102,6 +103,8 @@ const CLIMB_HOLD = 0.3
  * cosine); less, and he's only working along it through the wire. Crossing it slantwise takes him longer.
  */
 const ACROSS_FENCE = 0.5
+/** How high a wooden fence stands, in metres times its scale: Synty's barricade, to the top of its posts. */
+const FENCE_TOP = 1.35
 /** A loss of health this large is a wound worth flinching at; gas wears health down more slowly. */
 const WOUND = 0.02
 /** How much of each new speed measurement goes into the smoothed speed. */
@@ -114,6 +117,13 @@ const SLOPE_STEP = 0.5
 const MAX_TILT = 0.35
 /** How far ahead of a gunner his gun's tripod stands, in metres: it stands on the ground there, not at his feet. */
 const GUN_REACH = 1
+
+/** How high a fence or low wall men climb stands: a wall as its sight shapes measure it. */
+function topOf(item: Scenery): number {
+  return item.kind === "knife-rest"
+    ? FENCE_TOP * item.scale
+    : sightBlocks(item).reduce((top, block) => Math.max(top, block.height), 0)
+}
 
 interface Track {
   status: SoldierState["status"]
@@ -143,8 +153,11 @@ interface Track {
   /** Until when the soldier is scrambling up a wall, by the clock, and which way he's going up it or over a fence. */
   climbUntil: number
   climbYaw: number
-  /** How long getting over the fence he's astride takes him, in seconds, or null when he isn't climbing one. */
-  overFence: number | null
+  /**
+   * How long getting over the fence or wall he's astride takes him, in seconds, and how high it stands; or null when
+   * he isn't climbing one.
+   */
+  overFence: { seconds: number; top: number } | null
   /** Turns a lying body from level onto the slope beneath it, or null when standing. */
   tilt: Matrix | null
   /** The step his weapon last fired on: when it changes, he's fired again. */
@@ -340,6 +353,24 @@ export function createSoldierCrowd(
     throw new Error("soldier kit: no idle clip")
   }
   const clipOf = (name: ClipName): BakedClip => kit.clips.get(name) ?? idle
+
+  // The fences and low walls men climb, and how high each stands.
+  const climbed = sim.map.scenery.flatMap((item) =>
+    SCENERY_FOOTPRINTS[item.kind].climbed ? [{ x: item.x, z: item.z, top: topOf(item) }] : []
+  )
+  /** How high the fence or low wall nearest (x, z) stands, of those men climb. */
+  function climbedTop(x: number, z: number): number {
+    let top = FENCE_TOP
+    let nearest = Number.POSITIVE_INFINITY
+    for (const item of climbed) {
+      const distance = (item.x - x) ** 2 + (item.z - z) ** 2
+      if (distance < nearest) {
+        nearest = distance
+        top = item.top
+      }
+    }
+    return top
+  }
 
   const tracks: (Track | undefined)[] = []
   const drawn: Track[] = []
@@ -555,7 +586,7 @@ export function createSoldierCrowd(
     const distance = Math.sqrt(dx * dx + dz * dz)
     const over = across ? dx * across.x + dz * across.z : 0
     if (across && distance >= MOVING_SPEED * seconds && Math.abs(over) >= distance * ACROSS_FENCE) {
-      track.overFence = (FENCE_CLIMB_SECONDS * distance) / Math.abs(over)
+      track.overFence = { seconds: (FENCE_CLIMB_SECONDS * distance) / Math.abs(over), top: climbedTop(x, z) }
       const way = Math.sign(over)
       track.climbYaw = Math.atan2(way * across.x, way * across.z)
     }

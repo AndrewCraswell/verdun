@@ -100,11 +100,8 @@ MIXAMO_SIDE = [
 ]
 TARGET_HIPS = "Hips"
 DUPLICATE_SUFFIX = re.compile(r"\.\d{3}$")
-# Mixamo clips the game plays under names of its own, by the clip their file is named after. The fence's vault takes the
-# place of the climb made here (see CLIMB).
-MIXAMO_NAMES = {
-    "male_jumping_over_an_obstacle_with_2_hands_planted": "climb_over",
-}
+# Mixamo clips the game plays under names of its own, by the clip their file is named after.
+MIXAMO_NAMES = {}
 # The soldier sent to Mixamo's auto-rigger, as build-level-kit.py names him in soldier.glb.
 MIXAMO_UPLOAD_BODY = "Soldier_French"
 
@@ -370,47 +367,73 @@ def resampled(start, end, rate):
     return [start + index * rate / FPS for index in range(count)]
 
 
-# The climb over a staked fence, made here when Mixamo's isn't given: its vault with both hands planted, renamed
-# climb_over (MIXAMO_NAMES), is what the soldiers play, and the simulation's crossing takes as long (vault.ts). None of
-# polyperfect's clips climbs over anything. This one starts and ends in the first frame of `rifle_standing_idle`,
-# standing at ease with the rifle, and takes three seconds to cross a fence, as the simulation once had it:
-# a step in and both hands on the top wire, the left foot up onto a low strand, the right leg swung over and down, the
-# left after it, the hands back to the rifle. The simulation carries him across at a steady pace the whole time, so
-# hands and feet are keyed where they stand on the ground and the wire, and the clip takes his carrying back out.
+# The climbs over a wooden fence and a low wall, made here: Mixamo's vaults are running jumps, taking three or four
+# metres over a box under a metre high, where the simulation takes a man over from a standstill where the fence or wall
+# stopped him, at a steady pace across a metre or so (vault.ts). Each starts and ends in the first frame of `from`,
+# standing at ease, and lasts as long as the simulation's crossing, FENCE_CLIMB_SECONDS: a crouch with both hands on the
+# top, a spring that takes the hips up over it with the knees tucked and the body turned side-on, the legs swung over
+# together and down, a landing on bent knees, and up. The simulation carries him across at a steady pace the whole time,
+# so hands and feet are keyed where they stand on the ground and the top, and the clip takes his carrying back out.
 CLIMB = {
-    "name": "climb_over",
     "from": "rifle_standing_idle",
-    "seconds": 3.0,
-    # Metres a second he's carried: across the 1.2 m either side of the fence's line in three seconds.
-    "carry": 0.4,
+    "seconds": 1.25,
+    # He starts this far off the near face, in metres, and comes down this much further from the far one than that: the
+    # simulation's FENCE_REACH and CLEAR_OF_FENCE.
+    "reach": 0.35,
+    "clear": 0.05,
 }
-# Keys as (seconds, value), passing smoothly through each and still at any held twice running. Places are (left, ahead,
-# up) in metres from the ground under him at the start: the fence's line is 0.6 m ahead, its top wire a metre up.
-# "hips" moves the hips from where `rifle_standing_idle` has them; "lean" tips the body forward from the hips and "bend" curls the
-# spine over it, in radians; "turn" swings the body left, side-on to the fence while the right leg goes over. Hands and
-# feet are where the wrists and ankles go, from where the body carries them (0) to their keyed place (1) as "reach"
-# says. A foot keyed "idle" stands where it stood at the start, "idle+" where it stands at the end.
-CLIMB_KEYS = {
-    "hips": [(0, (0, 0, 0)), (0.45, (0, 0.18, -0.08)), (0.95, (0, 0.34, 0.1)), (1.45, (0.02, 0.5, 0.4)),
-             (1.85, (0.02, 0.62, 0.4)), (2.3, (0, 0.8, 0.22)), (2.7, (0, 1.08, 0)), (3, (0, 1.2, 0))],
-    "lean": [(0, 0), (0.45, 0.3), (0.95, 0.35), (1.45, 0.4), (1.85, 0.3), (2.3, 0.2), (2.7, 0.05), (3, 0)],
-    "bend": [(0, 0), (0.45, 0.2), (0.95, 0.3), (1.45, 0.3), (1.85, 0.15), (2.3, 0.1), (3, 0)],
-    "turn": [(0, 0), (0.95, 0.1), (1.45, 0.45), (1.8, 0.45), (2.1, 0), (2.35, -0.3), (2.7, 0), (3, 0)],
-    "foot_L": [(0, "idle"), (0.5, "idle"), (0.95, (0.12, 0.42, 0.5)), (1.95, (0.12, 0.42, 0.5)),
-               (2.35, (0.2, 0.66, 1.12)), (2.6, (0.14, 0.98, 0.35)), (2.85, "idle+"), (3, "idle+")],
-    "foot_R": [(0, "idle"), (0.15, "idle"), (0.45, (-0.12, 0.3, 0.06)), (1.15, (-0.12, 0.3, 0.06)),
-               (1.45, (-0.22, 0.48, 0.8)), (1.7, (-0.2, 0.66, 1.12)), (1.95, (-0.15, 0.9, 0.5)),
-               (2.2, (-0.13, 1.06, 0.06)), (2.6, (-0.13, 1.06, 0.06)), (2.9, "idle+"), (3, "idle+")],
-    "hand_L": [(0, (0.3, 0.6, 1.05)), (3, (0.3, 0.6, 1.05))],
-    "hand_R": [(0, (-0.35, 0.6, 1.08)), (3, (-0.35, 0.6, 1.08))],
-    "reach_L": [(0, 0), (0.15, 0), (0.5, 1), (2.25, 1), (2.65, 0), (3, 0)],
-    "reach_R": [(0, 0), (0.2, 0), (0.55, 1), (1.95, 1), (2.5, 0), (3, 0)],
-    "reach_foot": [(0, 0), (0.12, 1), (2.88, 1), (3, 0)],
-    # Which way a knee points (left, ahead, up): ahead, but out and up as its leg swings over the wire.
-    "knee_L": [(0, (0.1, 1, 0)), (1.95, (0.1, 1, 0)), (2.3, (1, 0.6, 0.6)), (2.65, (0.1, 1, 0)), (3, (0.1, 1, 0))],
-    "knee_R": [(0, (-0.1, 1, 0)), (1.2, (-0.1, 1, 0)), (1.6, (-1, 0.8, 0.5)), (2.0, (-0.1, 1, 0)),
-               (3, (-0.1, 1, 0))],
+# What each climbs, in metres: how high its top stands, and how far its faces stand either side of its line. The
+# knife-rest fence is Synty's barricade, 1.35 m to the top of its posts and 0.1 m either side as the simulation has it;
+# the walls, the stone walls' sight shapes (sight-shapes.ts): a metre high and 0.6 m thick, or 0.6 m and 0.8 m.
+CLIMBS = {
+    "climb_over": {"top": 1.35, "half": 0.1},
+    "climb_over_wall": {"top": 1.0, "half": 0.3},
+    "climb_over_low_wall": {"top": 0.6, "half": 0.4},
 }
+
+
+def climb_keys(top, half, hips_height, square):
+    """Keys for a climb over a top `top` metres high, faces `half` either side of its line, as (fraction of the climb,
+    value), passing smoothly through each and still at any held twice running. Places are (left, ahead, up) in metres from
+    the ground under him at the start. "hips" moves the hips from where `from` has them; "lean" tips the body forward from
+    the hips and "bend" curls the spine over it, in radians; "turn" swings the body left, side-on as the legs go over.
+    Hands and feet are where the wrists and ankles go, from where the body carries them (0) to their keyed place (1) as
+    "reach" says. A foot keyed "idle" stands where it stood at the start, "idle+" where it stands at the end. `square`
+    turns the body square to the top from the way `from` stands, side-on to hold the rifle."""
+    near = CLIMB["reach"]
+    line = near + half
+    far = line + half
+    crossing = far + CLIMB["reach"] + CLIMB["clear"]
+    # The hips clear the top by this much, and the feet by this, as they pass over it.
+    over = top + 0.12 - hips_height
+    tuck = top + 0.18
+    return {
+        "crossing": crossing,
+        "hips": [(0, (0, 0, 0)), (0.22, (0, 0.06, -0.14)), (0.44, (0.04, line - 0.05, over)),
+                 (0.56, (0.04, line + 0.15, over - 0.08)), (0.76, (0, far + 0.28, -0.2)), (1, (0, crossing, 0))],
+        "lean": [(0, 0), (0.22, 0.35), (0.44, 0.5), (0.6, 0.3), (0.76, 0.25), (1, 0)],
+        "bend": [(0, 0), (0.22, 0.15), (0.44, 0.3), (0.6, 0.15), (0.8, 0.1), (1, 0)],
+        "turn": [(0, 0), (0.2, square), (0.46, square + 0.5), (0.6, square + 0.3), (0.76, square), (0.9, square),
+                 (1, 0)],
+        "foot_L": [(0, "idle"), (0.27, "idle"), (0.36, (0.14, near - 0.22, 0.85 * top)), (0.47, (0.12, line, tuck)),
+                   (0.58, (0.12, far + 0.18, 0.6 * top)), (0.74, (0.12, far + 0.3, 0)), (0.88, (0.12, far + 0.3, 0)),
+                   (1, "idle+")],
+        "foot_R": [(0, "idle"), (0.25, "idle"), (0.34, (-0.1, near - 0.22, 0.85 * top)), (0.45, (-0.06, line, tuck)),
+                   (0.56, (-0.1, far + 0.15, 0.6 * top)), (0.72, (-0.12, far + 0.28, 0)),
+                   (0.86, (-0.12, far + 0.28, 0)), (1, "idle+")],
+        "hand_L": [(0, (0.2, line, top + 0.04)), (1, (0.2, line, top + 0.04))],
+        "hand_R": [(0, (-0.2, line, top + 0.04)), (1, (-0.2, line, top + 0.04))],
+        "reach_L": [(0, 0), (0.06, 0), (0.18, 1), (0.6, 1), (0.78, 0), (1, 0)],
+        "reach_R": [(0, 0), (0.06, 0), (0.18, 1), (0.56, 1), (0.74, 0), (1, 0)],
+        "reach_foot": [(0, 0), (0.05, 1), (0.95, 1), (1, 0)],
+        # Which way a knee points (left, ahead, up): ahead, and up and out as the legs tuck and swing over.
+        "knee_L": [(0, (0.1, 1, 0)), (0.22, (0.1, 1, 0)), (0.45, (0.6, 0.8, 0.6)), (0.7, (0.1, 1, 0)),
+                   (1, (0.1, 1, 0))],
+        "knee_R": [(0, (-0.1, 1, 0)), (0.2, (-0.1, 1, 0)), (0.43, (0.2, 0.9, 0.6)), (0.7, (-0.1, 1, 0)),
+                   (1, (-0.1, 1, 0))],
+    }
+
+
 # The spine bones the bend curls through, and the share each takes.
 CLIMB_SPINE = [("Spine_01", 0.4), ("Spine_02", 0.35), ("Spine_03", 0.25)]
 # The neck tips back by this much of the lean and bend: he watches where he's going.
@@ -474,8 +497,9 @@ def two_bone_ik(root, joint, end, target, pole):
     return root + (along * cos + bend * sin) * upper, root + along * distance
 
 
-def make_climb_over(target_obj, base_action):
-    """Keys the climb over a fence (see CLIMB) onto the rig as a new action, from the base clip's first frame."""
+def make_climb_over(target_obj, base_action, name, top, half):
+    """Keys a climb over a fence or wall `top` metres high, its faces `half` either side of its line (see CLIMB), onto
+    the rig as a new action, from the base clip's first frame."""
     world = target_obj.matrix_world
     assign(target_obj, base_action)
     bpy.context.scene.frame_set(int(base_action.frame_range[0]))
@@ -484,15 +508,24 @@ def make_climb_over(target_obj, base_action):
     bones = sorted(target_obj.data.bones, key=lambda b: len(b.parent_recursive))
     local = {b.name: base[b.parent.name].inverted() @ base[b.name] for b in bones if b.parent}
     children = {b.name: [c.name for c in b.children] for b in bones}
-    # The rig's own axes in the world, and the ground under its hips.
-    left = base["UpperLeg_L"].translation - base["UpperLeg_R"].translation
+    # The rig's own axes in the world, from its rest pose: `from` stands side-on. And the ground under its hips.
+    rest = target_obj.data.bones
+    left = world.to_3x3() @ (rest["UpperLeg_L"].head_local - rest["UpperLeg_R"].head_local)
     left = Vector((left.x, left.y, 0)).normalized()
     up = Vector((0, 0, 1))
     ahead = left.cross(up)
+    # How far `from` turns him from square, to take back out.
+    stood = base["UpperLeg_L"].translation - base["UpperLeg_R"].translation
+    stood = Vector((stood.x, stood.y, 0)).normalized()
+    square = math.atan2(stood.cross(left).z, stood.dot(left))
     hips = base[TARGET_HIPS].translation
     ground = Vector((hips.x, hips.y, 0))
-    crossing = ahead * CLIMB["carry"] * CLIMB["seconds"]
-    hips_keys = [(at, Vector(value)) for at, value in CLIMB_KEYS["hips"]]
+    seconds = CLIMB["seconds"]
+    keys = climb_keys(top, half, hips.z, square)
+    crossing = ahead * keys["crossing"]
+
+    def timed(values):
+        return [(at * seconds, value if isinstance(value, (str, float, int)) else Vector(value)) for at, value in values]
 
     def offset(value):
         return left * value[0] + ahead * value[1] + up * value[2]
@@ -504,42 +537,42 @@ def make_climb_over(target_obj, base_action):
             return base[end].translation + crossing
         return ground + offset(value)
 
-    def follow(pose, name):
-        for child in children[name]:
-            pose[child] = pose[name] @ local[child]
+    def follow(pose, bone):
+        for child in children[bone]:
+            pose[child] = pose[bone] @ local[child]
             follow(pose, child)
 
-    action = bpy.data.actions.new(CLIMB["name"])
+    action = bpy.data.actions.new(name)
     action.use_fake_user = True
     assign(target_obj, action)
     for pose_bone in target_obj.pose.bones:
         pose_bone.rotation_mode = "QUATERNION"
-    frames = int(round(CLIMB["seconds"] * FPS)) + 1
+    frames = int(round(seconds * FPS)) + 1
     previous = {}
     for frame in range(frames):
         time = frame / FPS
-        carried = ahead * CLIMB["carry"] * time
-        pose = {name: matrix.copy() for name, matrix in base.items()}
+        carried = crossing * (time / seconds)
+        pose = {bone: matrix.copy() for bone, matrix in base.items()}
         # The body: the hips moved, then leaned and turned about their joint, the spine curled over them.
-        lean = keyed(CLIMB_KEYS["lean"], time)
-        bend = keyed(CLIMB_KEYS["bend"], time)
-        turn = Quaternion(up, keyed(CLIMB_KEYS["turn"], time))
-        moved = offset(keyed(hips_keys, time)) - carried
+        lean = keyed(timed(keys["lean"]), time)
+        bend = keyed(timed(keys["bend"]), time)
+        turn = Quaternion(up, keyed(timed(keys["turn"]), time))
+        moved = offset(keyed(timed(keys["hips"]), time)) - carried
         body = turn @ Quaternion(left, lean)
         pose[TARGET_HIPS] = Matrix.Translation(moved) @ rotate_about(base[TARGET_HIPS], hips, body)
         follow(pose, TARGET_HIPS)
         side = turn @ left
-        curls = [(name, bend * share) for name, share in CLIMB_SPINE] + [("Neck", -CLIMB_LOOK * (lean + bend))]
-        for name, angle in curls:
-            pose[name] = rotate_about(pose[name], pose[name].translation, Quaternion(side, angle))
-            follow(pose, name)
-        # The limbs, each reaching from where the body has carried it toward its keyed place on the ground or the wire.
+        curls = [(bone, bend * share) for bone, share in CLIMB_SPINE] + [("Neck", -CLIMB_LOOK * (lean + bend))]
+        for bone, angle in curls:
+            pose[bone] = rotate_about(pose[bone], pose[bone].translation, Quaternion(side, angle))
+            follow(pose, bone)
+        # The limbs, each reaching from where the body has carried it toward its keyed place on the ground or the top.
         for limb, (upper, lower, end, reach_key, bend_way) in CLIMB_LIMBS.items():
-            reach = keyed(CLIMB_KEYS[reach_key], time)
-            keys = [(at, spot(value, end)) for at, value in CLIMB_KEYS[limb]]
-            goal = pose[end].translation.lerp(keyed(keys, time) - carried, reach)
+            reach = keyed(timed(keys[reach_key]), time)
+            places = [(at, spot(value, end)) for at, value in timed(keys[limb])]
+            goal = pose[end].translation.lerp(keyed(places, time) - carried, reach)
             if isinstance(bend_way, str):
-                bend_way = keyed([(at, Vector(value)) for at, value in CLIMB_KEYS[bend_way]], time)
+                bend_way = keyed(timed(keys[bend_way]), time)
             pole = pose[lower].translation + turn @ offset(bend_way).normalized() * CLIMB_POLE * reach
             joint, reached = two_bone_ik(
                 pose[upper].translation, pose[lower].translation, pose[end].translation, goal, pole
@@ -555,12 +588,12 @@ def make_climb_over(target_obj, base_action):
                 pose[end] = rotate_about(base[end], base[end].translation, turn)
                 pose[end].translation = at
                 follow(pose, end)
-        armature = {name: world.inverted() @ matrix for name, matrix in pose.items()}
+        armature = {bone: world.inverted() @ matrix for bone, matrix in pose.items()}
         for bone in bones:
             parent = bone.parent
             rest = (armature[parent.name] @ parent.matrix_local.inverted() if parent else Matrix()) @ bone.matrix_local
             key_pose(target_obj.pose.bones[bone.name], rest.inverted() @ armature[bone.name], frame, previous)
-    return finish_clip(target_obj, action, CLIMB["name"]), frames
+    return finish_clip(target_obj, action, name), frames
 
 
 # Giving up: hands raised, made here because Mixamo has no hands up. Each is a clip of the game's with the arms lifted
@@ -818,10 +851,11 @@ def main():
             for block in [b for b in collection if b.users == 0]:
                 collection.remove(block)
 
-    if CLIMB["name"] not in clips and CLIMB["from"] in clips:
-        made, count = make_climb_over(target_obj, clips[CLIMB["from"]][0])
-        clips[CLIMB["name"]] = (made, "made")
-        print(f"[retarget] {CLIMB['name']}: {count} frames, made here from {CLIMB['from']}", flush=True)
+    for name, climbed in CLIMBS.items():
+        if name not in clips and CLIMB["from"] in clips:
+            made, count = make_climb_over(target_obj, clips[CLIMB["from"]][0], name, climbed["top"], climbed["half"])
+            clips[name] = (made, "made")
+            print(f"[retarget] {name}: {count} frames, made here from {CLIMB['from']}", flush=True)
     for name, base in HANDS_UP.items():
         if name not in clips and base in clips:
             made, count = make_hands_up(target_obj, clips[base][0], name)

@@ -35,8 +35,8 @@ stacking was an artefact and Game mechanics is retuning how a stretch counts as 
   rain costs 1.8 to 2.3 ms against the old 0.9 to 1.9. Splashes show on any ground near the camera, not only on
   duckboards and water.
 - **Mixamo clips**: in (`ba4345e`, `e92ce5a`, the "Mixamo animations" session): wall scrambles loop Mixamo's climb up a
-  slope, and the fence is now crossed in Mixamo's vault, its 1.25 s the climb's length (it was 3 s). A ledge pull-up for
-  trench walls is left for later.
+  slope, and fences and low walls are climbed in 1.25 s (it was 3 s), first in Mixamo's vault, then in climbs keyed for
+  each height, since the vault is a running jump. A ledge pull-up for trench walls is left for later.
 - **`clearLine` seeing walls** (section 3) and a stuck monitor with memory: not done. Men on orders climb what they head
   at within 45°, so they rarely box themselves in; when they do they sidestep (`wayOut`).
 - **Real rounds** (stage B) and the trench graph: not started, and only if playtests ask for them.

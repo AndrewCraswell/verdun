@@ -30,7 +30,7 @@ const OVER_DROP = 1.5
 const VAULT_PACE = 1.2
 /**
  * A fence or low wall takes this long to get over from where it stops him, in seconds: both hands on the top rail and
- * over in a bound, as the soldiers' vault (Mixamo's) takes it. A man astride it is a mark for every rifle in reach while
+ * over in a bound, as the soldiers' climbs take it (scripts/retarget-animations.py). A man astride it is a mark for every rifle in reach while
  * he is.
  */
 export const FENCE_CLIMB_SECONDS = 1.25

@@ -756,6 +756,29 @@ describe("createSoldierCrowd", () => {
     expect(clipAt(rows(kit.bodies[Side.French])[0])).not.toBe("climb_over")
   })
 
+  it("climbs a stone wall with the wall's climb, not the fence's", () => {
+    // A metre-high stone wall running east-west across a flat field at z = 40.
+    const wall: Scenery = { kind: "wall", x: 50, z: 40, heading: 0, variant: 0, scale: 1 }
+    const field = createFlatMap({ name: "field", cellSize: 0.5, columns: 200, rows: 160 }, 5, Surface.Grass)
+    const sim = createSimulation({ map: { ...field, scenery: [wall] }, seed: 1 })
+    const climber = spawnSoldier(sim, { side: Side.French, x: 50, z: 39.1, facing: { x: 0, z: 1 } })
+    const { crowd, kit, tick, rows } = harness(sim)
+    crowd.sync()
+    enqueueCommand(sim, { type: "vault", soldier: climber })
+    const played = new Set<ClipName | undefined>()
+    for (let index = 0; index < 4 / STEP_SECONDS; index++) {
+      step(sim, 1)
+      tick(STEP_SECONDS)
+      crowd.sync()
+      crowd.update()
+      played.add(clipAt(rows(kit.bodies[Side.French])[0]))
+    }
+
+    expect(played.has("climb_over_wall")).toBe(true)
+    expect(played.has("climb_over")).toBe(false)
+    expect(sim.soldiers.position.z[climber]).toBeGreaterThan(40.6)
+  })
+
   it("keeps watch with the rifle ready when standing with his head over the parapet", () => {
     const sim = createSimulation({ map, seed: 1 })
     const sentry = spawnSoldier(sim, { side: Side.French, x: 10, z: 10 })
