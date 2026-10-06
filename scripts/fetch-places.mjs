@@ -1,6 +1,11 @@
-// Fetches the named places round Verdun the sector editor marks: the forts and ouvrages of the fortress of Verdun, the
-// villages (the ones destroyed in 1916 among them), the town, and the hills. From Wikidata (CC0), placed in Lambert-93
-// (EPSG:2154) as the sectors and the theatre are, and written to packages/map/data/verdun-places.json.
+// Fetches the named places round Verdun the sector editor marks, in Lambert-93 (EPSG:2154) as the sectors and the
+// theatre are, and writes them to packages/map/data/verdun-places.json:
+//
+// - from Wikidata (CC0): the forts and ouvrages of the fortress of Verdun, the villages (the ones destroyed in 1916
+//   among them) and the town;
+// - from IGN's BD TOPO (Licence Ouverte 2.0), the names on the official map: the summits and slopes the battle was
+//   fought for (Cote 304, le Mort Homme, Côte de Talou, Côte du Poivre, Froideterre), the ravines (la Caillette, la
+//   Poudrière, les Vignes, Bazil) and the woods (la Caillette, Nawé, Fumin, Vaux-Chapitre, the Caures).
 //
 // Usage: pnpm map:places
 
@@ -8,14 +13,18 @@ import { writeFile } from "node:fs/promises"
 
 const print = (line) => process.stdout.write(`${line}\n`)
 
-/** The theatre round Verdun, as latitude and longitude, a little beyond its Lambert-93 box. */
-const BOX = { south: 49.07, west: 5.19, north: 49.31, east: 5.57 }
+/**
+ * The theatre round Verdun in Lambert-93 (apps/client/src/editor/theatre/ground.ts), and a box of latitude and
+ * longitude a little beyond it, for Wikidata.
+ */
+const THEATRE = { west: 852_000, south: 6_892_000, east: 890_000, north: 6_917_000 }
+const BOX = { south: 49.07, west: 5.07, north: 49.34, east: 5.6 }
 /** Wikidata classes, by the kind of place the editor marks them as. */
 const KINDS = {
   fort: ["Q1785071", "Q57821", "Q57831", "Q20202269"],
-  village: ["Q484170", "Q532", "Q19730508"],
-  hill: ["Q54050", "Q8502", "Q207326"]
+  village: ["Q484170", "Q532", "Q19730508"]
 }
+const inTheatre = (x, y) => x >= THEATRE.west && x <= THEATRE.east && y >= THEATRE.south && y <= THEATRE.north
 /** The town the battle was fought for, marked apart from the villages. */
 const TOWN = "Q154748"
 
@@ -71,11 +80,63 @@ for (const row of results.bindings) {
     continue
   }
   const [x, y] = toLambert93(Number(match[2]), Number(match[1]))
-  places.set(id, { name: row.label.value, kind, x, y, wikidata: id })
+  if (inTheatre(x, y)) {
+    places.set(id, { name: row.label.value, kind, x, y, wikidata: id })
+  }
+}
+
+/** A BD TOPO layer's named features over the theatre, from IGN's features service. */
+async function bdTopo(typeName) {
+  const service = new URL("https://data.geopf.fr/wfs/ows")
+  service.search = new URLSearchParams({
+    SERVICE: "WFS",
+    VERSION: "2.0.0",
+    REQUEST: "GetFeature",
+    TYPENAMES: `BDTOPO_V3:${typeName}`,
+    SRSNAME: "EPSG:2154",
+    BBOX: `${THEATRE.west},${THEATRE.south},${THEATRE.east},${THEATRE.north},EPSG:2154`,
+    OUTPUTFORMAT: "application/json",
+    COUNT: "10000"
+  }).toString()
+  const answer = await fetch(service)
+  if (!answer.ok) {
+    throw new Error(`BD TOPO ${typeName}: ${answer.status} ${answer.statusText}`)
+  }
+  return (await answer.json()).features.filter((feature) => feature.properties.toponyme)
+}
+/** A feature's point: a point's own, or a line's or an area's first. */
+function pointOf(geometry) {
+  let coordinates = geometry.coordinates
+  while (Array.isArray(coordinates[0])) {
+    coordinates = coordinates[0]
+  }
+  return coordinates.map((value) => Math.round(value))
+}
+function add(kind, name, [x, y]) {
+  if (inTheatre(x, y)) {
+    places.set(`${kind}:${name}:${x}:${y}`, { name, kind, x, y, source: "BD TOPO" })
+  }
+}
+// Summits and crests, and the slopes the map names as côtes; the valleys it names as ravines or fonds.
+for (const feature of await bdTopo("detail_orographique")) {
+  const { nature, toponyme } = feature.properties
+  if (nature === "Sommet" || nature === "Crête" || (nature === "Versant" && /^C[ôo]te/i.test(toponyme))) {
+    add("hill", toponyme, pointOf(feature.geometry))
+  } else if (nature === "Vallée" && /^(le )?(Ravin|Fond)/i.test(toponyme)) {
+    add("ravine", toponyme, pointOf(feature.geometry))
+  }
+}
+for (const feature of await bdTopo("lieu_dit_non_habite")) {
+  if (feature.properties.nature === "Bois") {
+    add("wood", feature.properties.toponyme, pointOf(feature.geometry))
+  }
 }
 const sorted = [...places.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))
 const file = new URL("../packages/map/data/verdun-places.json", import.meta.url)
-await writeFile(file, `${JSON.stringify({ source: "Wikidata, CC0", places: sorted }, null, 1)}\n`)
+await writeFile(
+  file,
+  `${JSON.stringify({ source: "Wikidata (CC0); IGN BD TOPO (Licence Ouverte 2.0)", places: sorted }, null, 1)}\n`
+)
 const counts = Object.groupBy(sorted, (place) => place.kind)
 print(
   `Wrote ${sorted.length} places: ${Object.entries(counts)

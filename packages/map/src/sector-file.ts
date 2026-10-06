@@ -214,6 +214,58 @@ const CLASSES: Readonly<Record<string, Readonly<Record<string, Member>>>> = {
   ...Object.fromEntries(SCENERY_KINDS.map((kind) => [kind, { heading: float(0), radius: float(3) }]))
 }
 
+/** The shape an object of a class is drawn as in a sector file. */
+export type SectorShape = "point" | "polyline" | "ellipse"
+
+/**
+ * What an editor needs to know of the sector file's form: each object layer, in the order Tiled draws them, with the
+ * classes it holds and the shape each is drawn as; every class's properties, their types and defaults; and the choices
+ * the choice properties pick from. An objective is a point of no class in the objectives layer.
+ */
+export const SECTOR_FORM: {
+  readonly layers: Readonly<Record<string, readonly { readonly className: string; readonly shape: SectorShape }[]>>
+  readonly classes: Readonly<Record<string, Readonly<Record<string, SectorClassMember>>>>
+  readonly enums: Readonly<Record<string, readonly string[]>>
+} = {
+  layers: {
+    [LAYERS.ground]: [
+      { className: "ravine", shape: "polyline" },
+      { className: "sunken-road", shape: "polyline" },
+      { className: "village", shape: "ellipse" },
+      { className: "crater", shape: "ellipse" }
+    ],
+    [LAYERS.woods]: [{ className: "wood", shape: "ellipse" }],
+    [LAYERS.roads]: [
+      { className: "road", shape: "polyline" },
+      { className: "street", shape: "polyline" },
+      { className: "crossroads", shape: "point" }
+    ],
+    [LAYERS.railways]: [
+      { className: "railway", shape: "polyline" },
+      { className: "dump", shape: "point" }
+    ],
+    [LAYERS.trenches]: [
+      { className: "line", shape: "polyline" },
+      { className: "communication", shape: "point" },
+      { className: "sap", shape: "point" }
+    ],
+    [LAYERS.positions]: [
+      { className: "battery", shape: "polyline" },
+      ...SCENERY_KINDS.map((kind) => ({ className: kind, shape: "point" as const }))
+    ],
+    [LAYERS.objectives]: [{ className: "", shape: "point" }],
+    [LAYERS.landmarks]: [
+      { className: "church", shape: "point" },
+      { className: "orchard", shape: "point" }
+    ]
+  },
+  classes: CLASSES,
+  enums: ENUMS
+}
+
+/** A property of a class of sector object: its type, default and, for a choice, which of SECTOR_FORM's enums. */
+export type SectorClassMember = Member
+
 /** An object's properties: those it has, and its class's defaults for those Tiled left out. */
 function propertiesWithDefaults(object: Record<string, unknown>, label: string): Map<string, unknown> {
   const own = propertiesOf(object, label)

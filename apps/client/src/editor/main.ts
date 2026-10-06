@@ -22,7 +22,7 @@ import { selectEnabledMeshes } from "../render/active-meshes.ts"
 import { createEngine } from "../render/create-engine.ts"
 import { createTerrainChunks } from "../terrain/terrain-chunks.ts"
 import { type CameraPose, createEditorCamera, initialPose } from "./editor-camera.ts"
-import { createMarkers, isPlaceKind, PLACE_KINDS, type Place } from "./markers.ts"
+import { createMarkers, DEFAULT_KINDS, isPlaceKind, PLACE_KINDS, type Place } from "./markers.ts"
 import { createImageOverlay, type ImageOverlay, type ImagePlacement } from "./overlay.ts"
 import { BASE_MAPS, BATTLE_BOUNDS, createTheatreGround, mapImageUrl, TERRAIN, THEATRE } from "./theatre/ground.ts"
 import { createWaterTexture } from "./theatre/water.ts"
@@ -320,7 +320,7 @@ async function start(): Promise<void> {
     const box = document.createElement("input")
     box.type = "checkbox"
     box.checked =
-      isRecord(keptMarkers) && kind in keptMarkers ? keptMarkers[kind] === true : kind !== "village" && kind !== "hill"
+      isRecord(keptMarkers) && kind in keptMarkers ? keptMarkers[kind] === true : DEFAULT_KINDS.includes(kind)
     markers.show(kind, box.checked)
     box.addEventListener("change", () => {
       markers.show(kind, box.checked)

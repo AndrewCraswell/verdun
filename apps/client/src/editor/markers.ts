@@ -6,12 +6,17 @@ import type { Scene } from "@babylonjs/core/scene"
 export const PLACE_KINDS = {
   area: { label: "Battle area", reach: 100_000 },
   town: { label: "Towns", reach: 60_000 },
-  fort: { label: "Forts and ouvrages", reach: 30_000 },
-  village: { label: "Villages", reach: 14_000 },
-  hill: { label: "Hills", reach: 20_000 }
+  fort: { label: "Forts and ouvrages", reach: 100_000 },
+  village: { label: "Villages", reach: 40_000 },
+  hill: { label: "Hills and côtes", reach: 100_000 },
+  ravine: { label: "Ravines", reach: 6000 },
+  wood: { label: "Woods", reach: 5000 }
 } as const
 
 export type PlaceKind = keyof typeof PLACE_KINDS
+
+/** The kinds labelled until the editor is told otherwise. */
+export const DEFAULT_KINDS: readonly PlaceKind[] = ["area", "town", "fort", "hill"]
 
 /** A named place, in Lambert-93 metres. */
 export interface Place {
@@ -46,7 +51,7 @@ export function createMarkers(
   const layer = document.createElement("div")
   layer.className = "markers"
   canvas.after(layer)
-  const shown = new Set<PlaceKind>(["area", "town", "fort"])
+  const shown = new Set<PlaceKind>(DEFAULT_KINDS)
   const labels = places.map((place) => {
     const label = document.createElement("div")
     label.className = `marker marker-${place.kind}`
