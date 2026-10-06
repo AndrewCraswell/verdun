@@ -1,6 +1,7 @@
 import { mapWidth } from "@verdun/map"
 import {
   DEFENSIVE_BARRAGE_DELAY,
+  frontLine,
   frontLineSpan,
   frontLineZ,
   lineSpanBetween,
@@ -13,6 +14,7 @@ import { Side } from "./components.ts"
 import { joinSquad } from "./reinforcements.ts"
 import { enqueueCommand, type Simulation, soldierIds, TICK_RATE } from "./simulation.ts"
 import { isAlive, type Squad } from "./squads.ts"
+import { placeOn, pointAlong } from "./trench-lines.ts"
 import { wireStanding } from "./wire.ts"
 import type { CasualtyKind } from "./wounds.ts"
 
@@ -455,9 +457,9 @@ function secondWave(sim: Simulation, operation: OperationState): Squad[] {
 }
 
 /**
- * The assembly: the squads of the front line nearest the stretch, outside it, move along the trench into it before zero
- * hour, packing its bays, so the first wave goes in with local superiority. Each is given its own place along the
- * stretch, between the squads already there.
+ * The assembly: the squads of the front line nearest the stretch, outside it, file along the trenches into it before
+ * zero hour, below the parapet, packing its bays, so the first wave goes in with local superiority. Each is given its
+ * own place along the stretch, between the squads already there: on the front line's centre line, at its forward bays.
  */
 function assemble(sim: Simulation, operation: OperationState): void {
   const { side, assemble: count } = operation.plan
@@ -481,11 +483,14 @@ function assemble(sim: Simulation, operation: OperationState): void {
     .sort((a, b) => outside(a) - outside(b) || a.id - b.id)
     .slice(0, count)
   const width = operation.toX - operation.fromX
+  const trench = frontLine(sim.map.trenches, side)
   chosen.forEach((squad, index) => {
     const x = operation.fromX + ((index + 0.5) * width) / chosen.length
     const line = lineSpanBetween(sim.map.trenches, side, x - ASSEMBLY_SPAN, x + ASSEMBLY_SPAN)
-    if (line !== null) {
-      squad.order = { kind: "advance", x, z: line.forward }
+    const place = line === null || trench === null ? null : placeOn(trench, x, line.forward)
+    if (place !== null && trench !== null) {
+      const at = pointAlong(trench, place.along)
+      squad.order = { kind: "advance", x: at.x, z: at.z, trench: true }
       operation.assembling.push(squad.id)
     }
   })

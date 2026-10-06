@@ -582,7 +582,7 @@ const frontLines = new WeakMap<readonly Trench[], Map<Side, Trench | null>>()
 const frontSpans = new WeakMap<readonly Trench[], Map<Side, LineSpan | null>>()
 
 /** A side's front-line fire trench, worked out once for each map. */
-function frontLine(trenches: readonly Trench[], side: Side): Trench | null {
+export function frontLine(trenches: readonly Trench[], side: Side): Trench | null {
   let lines = frontLines.get(trenches)
   if (!lines) {
     lines = new Map()

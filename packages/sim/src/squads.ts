@@ -33,8 +33,11 @@ export type SquadOrder =
    * Wait in reserve: stay put and, in a trench, down its dugouts out of harm's way, all but the sentry, until sent in.
    */
   | { readonly kind: "reserve" }
-  /** Move to a point and spread out in a line there. */
-  | { readonly kind: "advance"; readonly x: number; readonly z: number }
+  /**
+   * Move to a point and spread out in a line there; or, `trench`, file there along the trenches, below the parapet, and
+   * take places along the trench at it, as men moved up behind their own line.
+   */
+  | { readonly kind: "advance"; readonly x: number; readonly z: number; readonly trench?: boolean }
   /** Get to a point fast: everyone runs while his breath lasts, no bounds, and spreads out in a line there. */
   | { readonly kind: "run-to"; readonly x: number; readonly z: number }
   /**
@@ -279,6 +282,24 @@ function advanceSlot(
 }
 
 /**
+ * Where a member should be after an advance by the trenches: his place in a file along the trench at the target, a man
+ * every `FILE_SPACING`, up on the fire step of a fire trench; or, with no trench there, his place in a line.
+ */
+function trenchSlot(
+  sim: Simulation,
+  order: { x: number; z: number },
+  slot: number,
+  count: number
+): { x: number; z: number } {
+  const trench = nearestTrench(sim.map, order.x, order.z)
+  if (!trench) {
+    return advanceSlot(sim, order, slot, count)
+  }
+  const point = pointAlong(trench.trench, trench.along + (slot - (count - 1) / 2) * FILE_SPACING)
+  return { x: point.x + point.frontX * FIRE_STEP_MIDDLE, z: point.z + point.frontZ * FIRE_STEP_MIDDLE }
+}
+
+/**
  * Where a member should be while following a creeping barrage: in a line `standoff` metres behind the barrage, or on the
  * objective once the barrage has lifted past it.
  */
@@ -455,6 +476,7 @@ export function squadSystem(sim: Simulation): void {
     const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
     const bounding =
       order.kind === "advance" &&
+      order.trench !== true &&
       squad.controller === "ai" &&
       followers.some((member) => sim.soldiers.suppression.value[member] >= UNDER_FIRE)
     // Which half is on the move: they change about every bound, by the clock, so every squad keeps the same rhythm.
@@ -529,8 +551,11 @@ export function squadSystem(sim: Simulation): void {
         return
       }
       const goal = order.kind === "raid" ? raidGoal(order) : order
-      const navGoal: NavGoal = { kind: "point", x: goal.x, z: goal.z, radius: ADVANCE_GOAL_RADIUS }
-      const place = advanceSlot(sim, goal, slot, followers.length)
+      const byTrench = order.kind === "advance" && order.trench === true
+      const navGoal: NavGoal = { kind: "point", x: goal.x, z: goal.z, radius: ADVANCE_GOAL_RADIUS, trench: byTrench }
+      const place = byTrench
+        ? trenchSlot(sim, goal, slot, followers.length)
+        : advanceSlot(sim, goal, slot, followers.length)
       if (order.kind === "run-to" || order.kind === "withdraw") {
         orderMoveTo(sim, member, place, navGoal, true)
         return

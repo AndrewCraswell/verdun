@@ -1,4 +1,4 @@
-import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
+import { carveTrenches, createFlatMap, heightAt, Surface, type Trench } from "@verdun/map"
 import { afterEach, describe, expect, it } from "vitest"
 import { Side, Stance } from "./components.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
@@ -74,6 +74,47 @@ describe("run-to", () => {
     stepFor(running, 10)
 
     expect(meanZ(running, runners.members)).toBeGreaterThan(meanZ(walking, walkers.members) + 5)
+  })
+})
+
+describe("advance by the trenches", () => {
+  /** A trench in a U: up from (40, 30) to z = 80, across to x = 120, and back down to (120, 30). */
+  const loop: Trench = {
+    kind: "communication",
+    points: [
+      [40, 30],
+      [40, 80],
+      [120, 80],
+      [120, 30]
+    ]
+  }
+
+  function inLoop(trench: boolean) {
+    const map = createFlatMap({ name: "loop", cellSize: 0.5, columns: 400, rows: 400 }, 5, Surface.Grass)
+    carveTrenches(map, [loop])
+    const sim = createSimulation({ map: { ...map, trenches: [loop] }, seed: 1 })
+    const members = [32, 35, 38, 41].map((z) => spawnSoldier(sim, { side: Side.French, x: 40, z }))
+    const squad = createSquad(sim, Side.French, members)
+    order(sim, squad.id, { kind: "advance", x: 120, z: 36, trench })
+    let outside = 0
+    for (let second = 0; second < 240; second++) {
+      stepFor(sim, 1)
+      const { x, z } = sim.soldiers.position
+      // Down in it: the field lies at 5 m, and a trench's floor a man's height and more below.
+      outside += members.filter((member) => heightAt(sim.map, x[member], z[member]) > 4).length
+    }
+    const arrived = members.every((member) => Math.abs(sim.soldiers.position.x[member] - 120) < 3)
+    return { outside, arrived }
+  }
+
+  it("files the long way round below the parapet, where an advance cuts across the open", () => {
+    const filed = inLoop(true)
+    const crossed = inLoop(false)
+
+    expect(filed.arrived).toBe(true)
+    // A man-second or two each on the wall where the U turns its inner corner, against minutes up in the open.
+    expect(filed.outside).toBeLessThan(10)
+    expect(crossed.outside).toBeGreaterThan(200)
   })
 })
 

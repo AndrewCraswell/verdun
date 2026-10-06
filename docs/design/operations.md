@@ -110,7 +110,10 @@ planning map, with the AI's scores shown as advice.
 - **The assembly**: the six front-line squads nearest the stretch, outside it, move along the trench into its bays
   during the preparation, each to its own place between the squads already there. Packing the jump-off trench is what
   gives a local attack its superiority: without it the first wave goes in man for man against the garrison and is ground
-  down by the counter-attack. They count as first wave from the plan.
+  down by the counter-attack. They count as first wave from the plan. They file there by the trenches, below the
+  parapet, however far round that is: their route makes every step over open ground cost ten times its walk, and no
+  straight walk leaves the trench, so nobody climbs out to cut a corner in the enemy's view. At their place they stand
+  in file along the fire step, a man every 2 m.
 - **The second wave** is the two reserve squads nearest the stretch. Three minutes after zero hour they leave the
   support line and make for the enemy's front line on the stretch, to help hold what the first wave took.
 - **Everyone else holds** and fires on what they can see. The rest of the reserves stay back for the enemy's

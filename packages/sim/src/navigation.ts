@@ -11,7 +11,9 @@ import type { EntityId } from "bitecs"
 import { sodden } from "./climate.ts"
 import { snowDepth, weatherPace } from "./ground.ts"
 import type { Simulation } from "./simulation.ts"
+import { isInTrench } from "./stance.ts"
 import { slopeCost, surfacePace } from "./terrain.ts"
+import { nearestTrench, pointAlong } from "./trench-lines.ts"
 import { WIRE_CELL, wireAt, wirePace } from "./wire.ts"
 
 /** Navigation grid cell size, in metres: fine enough for gaps in the wire and lanes between ruins. */
@@ -40,16 +42,31 @@ const LOOKAHEAD = 12
 const MAX_FIELDS = 256
 
 /**
+ * Going to a point by the trenches (see `NavGoal`), a step over open ground takes this many times as long: men file the
+ * long way round by the communication trenches rather than cross a few metres of ground in the enemy's view.
+ */
+const OPEN_GROUND = 10
+
+/**
  * Cells a step's route searches may settle, all told. A mass order (thirty squads sent at once, each to its own point)
  * would otherwise search the whole map thirty times in one step, a hitch of half a second; within the budget the work
  * spreads over a second or two, and squads set off as their routes come in, the way an order passes down a line.
  */
 const SEARCH_BUDGET = 40_000
 
-/** Where soldiers are heading: across a line (an objective, a place behind a barrage), or to a point. */
+/**
+ * Where soldiers are heading: across a line (an objective, a place behind a barrage), or to a point; to a point
+ * `trench`-bound, they keep to the trenches on the way, below the parapet.
+ */
 export type NavGoal =
   | { readonly kind: "line"; readonly z: number; readonly direction: number }
-  | { readonly kind: "point"; readonly x: number; readonly z: number; readonly radius: number }
+  | {
+      readonly kind: "point"
+      readonly x: number
+      readonly z: number
+      readonly radius: number
+      readonly trench?: boolean
+    }
 
 interface NavState {
   readonly columns: number
@@ -62,6 +79,8 @@ interface NavState {
   readonly obstacles: Float32Array
   /** 1 where a cell has any wire in it, so straight walks only check the wire closely where there is some. */
   readonly wired: Uint8Array
+  /** 1 where any of a cell lies in a trench, laid once per map: trenches don't move. */
+  readonly trench: Uint8Array
   /**
    * The time to walk into each cell from its neighbour in each of the eight `NEIGHBOURS` directions, one grid of cells
    * after another; Infinity where that can't be walked, or the neighbour is off the map. Worked out with the costs, so a
@@ -97,6 +116,8 @@ interface NavState {
  */
 interface FlowField {
   readonly distance: Float32Array
+  /** Whether steps over open ground cost `OPEN_GROUND` times as long: a route by the trenches. */
+  readonly trench: boolean
   /** The search's frontier, or null once it has covered every cell it can reach. */
   heap: Heap | null
 }
@@ -111,7 +132,7 @@ function read(grid: Float32Array, cell: number): number {
 function goalKey(goal: NavGoal): string {
   return goal.kind === "line"
     ? `line ${goal.direction > 0 ? 1 : -1} ${Math.round(goal.z / NAV_CELL)}`
-    : `point ${Math.round(goal.x / NAV_CELL)} ${Math.round(goal.z / NAV_CELL)} ${Math.round(goal.radius)}`
+    : `point ${Math.round(goal.x / NAV_CELL)} ${Math.round(goal.z / NAV_CELL)} ${Math.round(goal.radius)}${goal.trench === true ? " trench" : ""}`
 }
 
 /**
@@ -330,6 +351,27 @@ function layStepsInto(state: NavState, at: number): void {
   }
 }
 
+/** Marks the cells any of which lies in a trench: its middle or a point a quarter of the way in from a corner. */
+function layTrenches(sim: Simulation, columns: number, rows: number): Uint8Array {
+  const trench = new Uint8Array(columns * rows)
+  const quarter = NAV_CELL / 4
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      const x = (column + 0.5) * NAV_CELL
+      const z = (row + 0.5) * NAV_CELL
+      const inside = [
+        [0, 0],
+        [-quarter, -quarter],
+        [quarter, -quarter],
+        [-quarter, quarter],
+        [quarter, quarter]
+      ].some(([dx = 0, dz = 0]) => isInTrench(sim.map, x + dx, z + dz))
+      trench[row * columns + column] = inside ? 1 : 0
+    }
+  }
+  return trench
+}
+
 function navState(sim: Simulation): NavState {
   let state = states.get(sim)
   if (!state) {
@@ -342,6 +384,7 @@ function navState(sim: Simulation): NavState {
       height: new Float32Array(columns * rows),
       obstacles: layObstacles(sim.map, columns, rows),
       wired: new Uint8Array(columns * rows),
+      trench: layTrenches(sim, columns, rows),
       steps: new Float64Array(columns * rows * NEIGHBOURS.length),
       wireSeen: new Float32Array(sim.wire.density.length),
       cratered: new Uint8Array(columns * rows),
@@ -479,7 +522,7 @@ function startField(state: NavState, goal: NavGoal): FlowField {
         }
       }
     }
-    return { distance, heap }
+    return { distance, heap, trench: false }
   }
   const reached = (column: number, row: number) => {
     const x = (column + 0.5) * NAV_CELL
@@ -509,7 +552,7 @@ function startField(state: NavState, goal: NavGoal): FlowField {
       }
     }
   }
-  return { distance, heap }
+  return { distance, heap, trench: goal.trench === true }
 }
 
 /**
@@ -539,12 +582,14 @@ function settle(state: NavState, field: FlowField, cell: number): boolean {
     }
     for (let direction = 0; direction < NEIGHBOURS.length; direction++) {
       // The field runs from the goal outward, so the walk is from the neighbour into `at`.
-      const time = steps[direction * cells + at] ?? Infinity
-      if (time === Infinity) {
+      const walk = steps[direction * cells + at] ?? Infinity
+      if (walk === Infinity) {
         continue
       }
       const [dc, dr] = NEIGHBOURS[direction] ?? [0, 0]
       const next = at + dr * columns + dc
+      const open = field.trench && (state.trench[at] === 0 || state.trench[next] === 0)
+      const time = open ? walk * OPEN_GROUND : walk
       // Rounded to the field's own precision first: comparing an unrounded total against a rounded-up stored one
       // would keep "improving" cells by nothing, and push them again and again.
       const total = Math.fround(here + time)
@@ -632,9 +677,18 @@ const LINE_MARGIN = 0.4
 /**
  * Whether a straight walk between two points crosses nothing dear: no ruins or pools in the way, and no wire within a
  * body's width of it. Wire is checked at its own finer grain, so a walk past the edge of a gap doesn't clip the tangles.
- * The walker's own spot isn't checked: a man already in the wire can always walk straight out of it.
+ * The walker's own spot isn't checked: a man already in the wire can always walk straight out of it. Kept `low`, the walk
+ * stays in the trench all the way, never over a traverse or out across the open.
  */
-function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+function clearLine(
+  sim: Simulation,
+  state: NavState,
+  fromX: number,
+  fromZ: number,
+  toX: number,
+  toZ: number,
+  low = false
+): boolean {
   const dx = toX - fromX
   const dz = toZ - fromZ
   const length = Math.sqrt(dx * dx + dz * dz)
@@ -647,7 +701,7 @@ function clearLine(sim: Simulation, state: NavState, fromX: number, fromZ: numbe
     const x = fromX + dx * along
     const z = fromZ + dz * along
     const cell = cellAt(state, x, z)
-    if (!(read(state.obstacles, cell) < CLEAR_COST)) {
+    if (!(read(state.obstacles, cell) < CLEAR_COST) || (low && !isInTrench(sim.map, x, z))) {
       return false
     }
     for (const side of [0, 1, -1]) {
@@ -693,6 +747,16 @@ function clearOfWire(sim: Simulation, point: { x: number; z: number }): { x: num
   return point
 }
 
+/** The nearest point on a trench's centre line to a point within a trench's reach of one, or the point itself. */
+function onCentreLine(sim: Simulation, point: { x: number; z: number }): { x: number; z: number } {
+  const place = nearestTrench(sim.map, point.x, point.z)
+  if (!place) {
+    return point
+  }
+  const { x, z } = pointAlong(place.trench, place.along)
+  return { x, z }
+}
+
 /**
  * Where a soldier should walk next to reach `target`, which lies in `goal`: straight there when the way is clear,
  * otherwise to the furthest point along the cheapest route that he can walk to in a straight line, round ruins and
@@ -708,7 +772,9 @@ export function nextWaypoint(
   const state = navState(sim)
   const x = sim.soldiers.position.x[soldier]
   const z = sim.soldiers.position.z[soldier]
-  if (clearLine(sim, state, x, z, target.x, target.z)) {
+  // By the trenches: every straight walk stays in one. Out of one, he goes cell by cell down the route, into the nearest.
+  const low = goal.kind === "point" && goal.trench === true
+  if (clearLine(sim, state, x, z, target.x, target.z, low)) {
     return { x: target.x, z: target.z }
   }
   let cell = cellAt(state, x, z)
@@ -722,10 +788,12 @@ export function nextWaypoint(
   }
   // Start from the middle of his own cell, which lies on the cheap route; step on along it while he can still walk
   // there in a straight line. Each cell's middle is taken clear of the wire, so a narrow gap is walked down its middle.
-  const centre = (of: number) => ({
+  const middle = (of: number) => ({
     x: ((of % state.columns) + 0.5) * NAV_CELL,
     z: (Math.floor(of / state.columns) + 0.5) * NAV_CELL
   })
+  // Kept low, the trench's centre line beside the cell's middle, which can lie up on the lip.
+  const centre = (of: number) => (low ? onCentreLine(sim, middle(of)) : middle(of))
   const start = clearOfWire(sim, centre(cell))
   let best = start
   let firstStep: { x: number; z: number } | null = null
@@ -750,7 +818,7 @@ export function nextWaypoint(
     cell = next
     const point = clearOfWire(sim, centre(cell))
     firstStep ??= point
-    if (!clearLine(sim, state, x, z, point.x, point.z)) {
+    if (!clearLine(sim, state, x, z, point.x, point.z, low)) {
       break
     }
     best = point
@@ -758,7 +826,7 @@ export function nextWaypoint(
   if (
     best === start &&
     firstStep &&
-    !clearLine(sim, state, start.x, start.z, firstStep.x, firstStep.z) &&
+    !clearLine(sim, state, start.x, start.z, firstStep.x, firstStep.z, low) &&
     distanceToSegment(x, z, start, firstStep) < ON_THE_WAY
   ) {
     // The route's next step is through what a straight walk shies from (uncut wire, a flooded crater) even from the
