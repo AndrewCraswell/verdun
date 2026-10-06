@@ -1,4 +1,6 @@
 import {
+  type BeatenZone,
+  beatenZone,
   type FireMissionPlan,
   fireMissionAt,
   gasShootAt,
@@ -8,22 +10,21 @@ import {
   type Simulation,
   soldierIds
 } from "@verdun/sim"
+import { grownZone, inZone, shiftedZone } from "./beaten-zone.ts"
 
 /**
  * A call for fire before it's made (H10 in docs/design/interface.md): while V or X is held, where the shells would fall
  * round the pointer, how long they'd take to come and how long they'd fire, and whether any of our men are in the
- * beaten zone. The plan is the simulation's own (fireMissionAt, gasShootAt), so the preview is where they will fall.
+ * beaten zone. The plan is the simulation's own (fireMissionAt, gasShootAt), and the ground drawn is its beaten zone,
+ * spread and all, so the preview is where they will fall.
  */
 
 export type CallKind = "fire" | "gas"
 
 export interface CallPreview {
   readonly kind: CallKind
-  /** The ground the rounds fall on, as its corners: west and east, near and far. */
-  readonly fromX: number
-  readonly toX: number
-  readonly nearZ: number
-  readonly farZ: number
+  /** The ground nine rounds in ten fall on: a circle for a call for fire on a point, a box for a gas shoot. */
+  readonly zone: BeatenZone
   /** How far beyond that ground a burst can still kill a man in the open, in metres. */
   readonly reach: number
   /** Seconds until the first rounds land, and seconds of fire after. */
@@ -51,29 +52,32 @@ function reachOf(plan: FireMissionPlan, kind: CallKind): number {
   return kind === "gas" ? GAS_DRIFT : SHELLS[plan.shell].lethalExposed
 }
 
+/** Steps along the drift at which gas's swept ground is looked at for our men. */
+const DRIFT_STEPS = 8
+
 /**
- * The men of a side alive inside a plan's beaten zone, its reach included, and for gas anywhere along its drift: the
- * zone swept downwind by `drift`.
+ * The men of a side alive inside a beaten zone, its reach included, and for gas anywhere along its drift: the zone swept
+ * downwind by `drift`.
  */
 export function menInBeatenZone(
   sim: Simulation,
   side: Side,
-  plan: FireMissionPlan,
+  zone: BeatenZone,
   reach: number,
   drift: { readonly x: number; readonly z: number } = { x: 0, z: 0 }
 ): number {
   const { x, z } = sim.soldiers.position
-  const half = plan.band / 2
-  const west = plan.fromX - reach + Math.min(0, drift.x)
-  const east = plan.toX + reach + Math.max(0, drift.x)
-  const south = plan.z - half - reach + Math.min(0, drift.z)
-  const north = plan.z + half + reach + Math.max(0, drift.z)
+  const grown = grownZone(zone, reach)
+  const steps = drift.x === 0 && drift.z === 0 ? 0 : DRIFT_STEPS
+  const swept = Array.from({ length: steps + 1 }, (_, step) =>
+    shiftedZone(grown, (drift.x * step) / Math.max(1, steps), (drift.z * step) / Math.max(1, steps))
+  )
   let count = 0
   for (const soldier of soldierIds(sim)) {
     if (sim.soldiers.side.value[soldier] !== side || !isAlive(sim, soldier)) {
       continue
     }
-    if (x[soldier] >= west && x[soldier] <= east && z[soldier] >= south && z[soldier] <= north) {
+    if (swept.some((part) => inZone(part, x[soldier], z[soldier]))) {
       count++
     }
   }
@@ -87,16 +91,14 @@ export function callPreview(sim: Simulation, side: Side, kind: CallKind, at: { x
   // Gas goes where the wind takes it: the first shells' cloud has travelled this far by the time the last burst.
   const carried = kind === "gas" ? plan.duration : 0
   const drift = { x: sim.wind.x * carried, z: sim.wind.z * carried }
+  const zone = beatenZone(plan)
   return {
     kind,
-    fromX: plan.fromX,
-    toX: plan.toX,
-    nearZ: plan.z - plan.band / 2,
-    farZ: plan.z + plan.band / 2,
+    zone,
     reach,
     delay: plan.delay,
     duration: plan.duration,
-    ourMen: menInBeatenZone(sim, side, plan, reach, drift),
+    ourMen: menInBeatenZone(sim, side, zone, reach, drift),
     drift
   }
 }

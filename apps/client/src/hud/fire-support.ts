@@ -1,5 +1,13 @@
 import { mapWidth } from "@verdun/map"
-import { type FireMission, Shell, type Side, type Simulation, UNLIMITED } from "@verdun/sim"
+import {
+  type BeatenZone,
+  beatenZone,
+  type FireMission,
+  Shell,
+  type Side,
+  type Simulation,
+  UNLIMITED
+} from "@verdun/sim"
 import { keyOf } from "./keys.ts"
 import { planFires } from "./operation-state.ts"
 
@@ -26,14 +34,6 @@ export interface CallView {
 /** What a group of missions ordered together amounts to. */
 export type MissionKind = "bombardment" | "creeping" | "gas" | "fire"
 
-/** Where one mission's rounds fall: a band `band` metres deep around `z`, from `fromX` to `toX`. */
-export interface Footprint {
-  readonly fromX: number
-  readonly toX: number
-  readonly z: number
-  readonly band: number
-}
-
 export interface MissionView {
   /** The first mission's id: stable for the life of the group. */
   readonly id: number
@@ -48,7 +48,8 @@ export interface MissionView {
   /** How far through the wait or the fire it is, from 0 to 1. */
   readonly progress: number
   readonly shells: readonly Shell[]
-  readonly footprints: readonly Footprint[]
+  /** Where each mission's rounds fall, nine in ten of them, spread and all: the simulation's beaten zones. */
+  readonly footprints: readonly BeatenZone[]
   /** A creeping barrage's line now, x across and z, and the way it creeps (+1 north, -1 south); null otherwise. */
   readonly creep: { readonly z: number; readonly direction: number } | null
 }
@@ -177,12 +178,7 @@ function missionView(
     seconds,
     progress: Math.min(1, Math.max(0, progress)),
     shells: [...new Set(missions.map((mission) => mission.shell))],
-    footprints: missions.map((mission) => ({
-      fromX: mission.fromX,
-      toX: mission.toX,
-      z: mission.lineZ,
-      band: mission.band
-    })),
+    footprints: missions.map((mission) => beatenZone(mission, mission.lineZ)),
     creep: creeping ? { z: creeping.lineZ, direction } : null
   }
 }

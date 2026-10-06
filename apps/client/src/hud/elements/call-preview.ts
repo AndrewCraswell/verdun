@@ -1,5 +1,7 @@
+import type { BeatenZone } from "@verdun/sim"
 import { CALL_KEYS } from "../../control/browser-input.ts"
 import { canonicalCode, keymap } from "../../ui/keymap.ts"
+import { grownZone, shiftedZone, zoneEdge, zoneSpan } from "../beaten-zone.ts"
 import type { HudElementFactory, ScreenPoint } from "../element.ts"
 import { type CallKind, type CallPreview, callPreview } from "../fire-preview.ts"
 import type { HudState } from "../hud-state.ts"
@@ -7,7 +9,8 @@ import "./call-preview.css"
 
 /**
  * H10 and W6: a call for fire before it's made. While V (or X) is held, the ground the shells would fall on shows at the
- * pointer, with the margin a burst still kills in (or gas drifts over), the delay and how long they'd fire. Our own men
+ * pointer (a circle for a fire mission on a point, a box for a gas shoot, each the simulation's beaten zone), with the
+ * margin a burst still kills in (or gas drifts over), the delay and how long they'd fire. Our own men
  * inside turn it red and say so: the call then goes only on a second press. Let go to call; right-click puts it away.
  */
 
@@ -72,26 +75,11 @@ export const callPreviewMarks: HudElementFactory = (context) => {
   window.addEventListener("pointerdown", putAway)
   window.addEventListener("blur", onBlur)
 
-  /** A rectangle on the ground, its edges following the ground's rise and fall. */
-  function outline(fromX: number, toX: number, nearZ: number, farZ: number): string {
-    const corners: (readonly [number, number])[] = [
-      [fromX, nearZ],
-      [toX, nearZ],
-      [toX, farZ],
-      [fromX, farZ],
-      [fromX, nearZ]
-    ]
-    const points: (ScreenPoint | null)[] = []
-    for (let index = 0; index < corners.length - 1; index++) {
-      const [ax, az] = corners[index] ?? [0, 0]
-      const [bx, bz] = corners[index + 1] ?? [0, 0]
-      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / STEP))
-      for (let step = 0; step < steps; step++) {
-        const x = ax + ((bx - ax) * step) / steps
-        const z = az + ((bz - az) * step) / steps
-        points.push(context.project(x, context.heightAt(x, z) + 0.3, z))
-      }
-    }
+  /** A zone on the ground, its edge following the ground's rise and fall. */
+  function outline(zone: BeatenZone): string {
+    const points: (ScreenPoint | null)[] = zoneEdge(zone, STEP).map(([x, z]) =>
+      context.project(x, context.heightAt(x, z) + 0.3, z)
+    )
     let path = ""
     let open = false
     for (const point of points) {
@@ -108,12 +96,12 @@ export const callPreviewMarks: HudElementFactory = (context) => {
   function draw(preview: CallPreview, at: { x: number; z: number }): void {
     root.dataset.kind = preview.kind
     root.dataset.danger = String(preview.ourMen > 0)
-    const { fromX, toX, nearZ, farZ, reach } = preview
-    area.setAttribute("d", outline(fromX, toX, nearZ, farZ))
-    margin.setAttribute("d", outline(fromX - reach, toX + reach, nearZ - reach, farZ + reach))
+    const { zone, reach } = preview
+    area.setAttribute("d", outline(zone))
+    margin.setAttribute("d", outline(grownZone(zone, reach)))
     const { drift } = preview
     const drifting = Math.hypot(drift.x, drift.z) > 2
-    drifted.setAttribute("d", drifting ? outline(fromX + drift.x, toX + drift.x, nearZ + drift.z, farZ + drift.z) : "")
+    drifted.setAttribute("d", drifting ? outline(shiftedZone(zone, drift.x, drift.z)) : "")
     const downwind = drifting
       ? context.project(at.x + drift.x, context.heightAt(at.x + drift.x, at.z + drift.z) + 0.3, at.z + drift.z)
       : null
@@ -134,6 +122,7 @@ export const callPreviewMarks: HudElementFactory = (context) => {
       driftArrow.setAttribute("d", "")
     }
     // The words go under whichever edge of the footprint is nearer the camera, where they stay on the screen.
+    const { nearZ, farZ } = zoneSpan(zone)
     const edges = [nearZ - reach, farZ + reach].map((z) => context.project(at.x, context.heightAt(at.x, z) + 0.3, z))
     const bottom = edges.reduce<ScreenPoint | null>(
       (low, point) => (point && (!low || point.y > low.y) ? point : low),

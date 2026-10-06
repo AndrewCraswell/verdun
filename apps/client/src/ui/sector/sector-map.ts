@@ -1,5 +1,6 @@
 import { mapDepth, mapWidth } from "@verdun/map"
 import { enqueueCommand, isAlive, soldierIds } from "@verdun/sim"
+import { zoneEdge } from "../../hud/beaten-zone.ts"
 import { h, setText } from "../../hud/dom.ts"
 import { clockSeconds, metres } from "../../hud/format.ts"
 import type { HudState } from "../../hud/hud-state.ts"
@@ -130,12 +131,21 @@ export function createSectorMapPage({
     drawing.clearRect(0, 0, live.width, live.height)
 
     for (const mission of state?.fire.missions ?? []) {
-      for (const footprint of mission.footprints) {
-        const a = at(footprint.fromX, footprint.z + footprint.band / 2)
-        const b = at(footprint.toX, footprint.z - footprint.band / 2)
+      for (const zone of mission.footprints) {
+        // Where its shells fall, spread and all: a circle for fire on a point, a box for a line.
+        drawing.beginPath()
+        zoneEdge(zone, 4).forEach(([x, z], index) => {
+          const point = at(x, z)
+          if (index === 0) {
+            drawing.moveTo(point.x, point.y)
+          } else {
+            drawing.lineTo(point.x, point.y)
+          }
+        })
+        drawing.closePath()
         if (mission.phase === "firing") {
           drawing.fillStyle = "rgb(176 52 31 / 18%)"
-          drawing.fillRect(a.x, a.y, b.x - a.x, b.y - a.y)
+          drawing.fill()
           drawing.setLineDash([])
           drawing.strokeStyle = colours.theirs
         } else {
@@ -143,7 +153,7 @@ export function createSectorMapPage({
           drawing.strokeStyle = colours.caution
         }
         drawing.lineWidth = 1.5
-        drawing.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y)
+        drawing.stroke()
       }
     }
     drawing.setLineDash([])

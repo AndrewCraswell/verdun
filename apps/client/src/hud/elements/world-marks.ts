@@ -1,6 +1,7 @@
-import type { EntityId } from "@verdun/sim"
+import type { BeatenZone, EntityId } from "@verdun/sim"
+import { zoneEdge, zoneSpan } from "../beaten-zone.ts"
 import type { HudElementFactory, ScreenPoint } from "../element.ts"
-import { countdownWord, type Footprint, type MissionView } from "../fire-support.ts"
+import { countdownWord, type MissionView } from "../fire-support.ts"
 import { clockSeconds, metres } from "../format.ts"
 import type { HudState } from "../hud-state.ts"
 import type { IconName } from "../icons.ts"
@@ -162,35 +163,18 @@ export const worldMarks: HudElementFactory = (context) => {
     return visible
   }
 
-  /** A path round a footprint, following the ground along its edges. */
-  function outline(footprint: Footprint): string {
-    const x0 = Math.min(footprint.fromX, footprint.toX)
-    const x1 = Math.max(footprint.fromX, footprint.toX)
-    const z0 = footprint.z - footprint.band / 2
-    const z1 = footprint.z + footprint.band / 2
-    const corners: (readonly [number, number])[] = [
-      [x0, z0],
-      [x1, z0],
-      [x1, z1],
-      [x0, z1],
-      [x0, z0]
-    ]
+  /** A path round where a mission's shells fall (its beaten zone), following the ground along its edge. */
+  function outline(zone: BeatenZone): string {
     let path = ""
     let drawing = false
-    for (let corner = 0; corner < corners.length - 1; corner++) {
-      const [ax, az] = corners[corner] ?? [0, 0]
-      const [bx, bz] = corners[corner + 1] ?? [0, 0]
-      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / EDGE_STEP))
-      for (let step = 0; step < steps; step++) {
-        const t = step / steps
-        const point = project(ax + (bx - ax) * t, az + (bz - az) * t, 0.2)
-        if (!point) {
-          drawing = false
-          continue
-        }
-        path += `${drawing ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
-        drawing = true
+    for (const [x, z] of zoneEdge(zone, EDGE_STEP)) {
+      const point = project(x, z, 0.2)
+      if (!point) {
+        drawing = false
+        continue
       }
+      path += `${drawing ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+      drawing = true
     }
     return drawing ? `${path}Z` : path
   }
@@ -373,14 +357,15 @@ export const worldMarks: HudElementFactory = (context) => {
             setAttribute(band, "d", outline(footprint))
           }
         })
-        const [first] = mission.footprints
-        if (!first) {
+        const [zone] = mission.footprints
+        if (!zone) {
           continue
         }
+        const first = zoneSpan(zone)
         // The label sits on the footprint at the point nearest the man under control.
-        const lowX = Math.min(first.fromX, first.toX) + 8
-        const highX = Math.max(first.fromX, first.toX) - 8
-        const x = Math.min(highX, Math.max(lowX, soldier?.x ?? (lowX + highX) / 2))
+        const lowX = Math.min(first.fromX + 8, first.x)
+        const highX = Math.max(first.toX - 8, first.x)
+        const x = Math.min(highX, Math.max(lowX, soldier?.x ?? first.x))
         place(mark.label, project(x, first.z, 1))
         if (mission.creep) {
           // How far back to keep from a creeping barrage: the infantry walk 70 m behind its line.
