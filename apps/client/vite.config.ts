@@ -203,7 +203,50 @@ const GEO_SERVICES: Record<string, string> = {
  * Serves IGN's services to the sector editor's theatre view under /geo/ in dev, keeping each answer on disk so it is
  * fetched from IGN once, and the theatre opens offline after that. Data © IGN, Licence Ouverte 2.0.
  */
+/** IGN is asked this many things at once at most, and asked again this many times when it turns a request away. */
+const GEO_AT_ONCE = 6
+const GEO_TRIES = 4
+
+/**
+ * Asks IGN, waiting for a turn among GEO_AT_ONCE requests, and asking again after a pause, longer each time, when IGN
+ * turns the request away or answers with an error instead of a map: it does both now and then when asked for many
+ * tiles at once.
+ */
+function geoFetcher(): (url: string) => Promise<{ status: number; contentType: string; body: Buffer }> {
+  let running = 0
+  const waiting: (() => void)[] = []
+  const turn = async () => {
+    if (running >= GEO_AT_ONCE) {
+      await new Promise<void>((resolve) => waiting.push(resolve))
+    }
+    running += 1
+  }
+  const done = () => {
+    running -= 1
+    waiting.shift()?.()
+  }
+  return async (url) => {
+    await turn()
+    try {
+      let last = { status: 502, contentType: "text/plain", body: Buffer.from("IGN didn't answer") }
+      for (let attempt = 1; attempt <= GEO_TRIES; attempt++) {
+        const answer = await fetch(url)
+        const contentType = answer.headers.get("content-type") ?? "application/octet-stream"
+        last = { status: answer.status, contentType, body: Buffer.from(await answer.arrayBuffer()) }
+        if (answer.ok && !contentType.includes("xml")) {
+          return last
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1500 * attempt))
+      }
+      return last
+    } finally {
+      done()
+    }
+  }
+}
+
 function geoCache(): Plugin {
+  const fetchGeo = geoFetcher()
   return {
     name: "verdun-geo-cache",
     apply: "serve",
@@ -222,17 +265,15 @@ function geoCache(): Plugin {
             send(readFileSync(file), readFileSync(`${file}.type`, "utf8"))
             return
           }
-          fetch(`${service}?${query}`)
-            .then(async (answer) => {
-              const contentType = answer.headers.get("content-type") ?? "application/octet-stream"
-              const body = Buffer.from(await answer.arrayBuffer())
+          fetchGeo(`${service}?${query}`)
+            .then(({ status, contentType, body }) => {
               // Only maps and grids are kept: IGN answers a bad request with an XML exception.
-              if (answer.ok && !contentType.includes("xml")) {
+              if (status === 200 && !contentType.includes("xml")) {
                 mkdirSync(resolve(GEO_CACHE_DIR, key.slice(0, 2)), { recursive: true })
                 writeFileSync(file, body)
                 writeFileSync(`${file}.type`, contentType)
               }
-              response.statusCode = answer.status
+              response.statusCode = status
               send(body, contentType)
             })
             .catch((error: unknown) => {

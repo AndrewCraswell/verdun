@@ -73,6 +73,8 @@ const DETAIL = { samples: 257, texture: 1024, radius: 2600, maxLoads: 3 } as con
  * at, its map at half a metre a pixel: shown whole once every tile has come, in place of the ground under it.
  */
 const FINE = { size: 250, samples: 251, texture: 512, span: 5, maxLoads: 4 } as const
+/** A tile or square that failed to load is asked for again after this many milliseconds. */
+const RETRY_AFTER = 8000
 /** A fine tile is kept until it lies this much further off than the radius it's loaded within, so tiles near the edge
  * don't come and go as the view moves a little. */
 const KEEP = 1.4
@@ -278,6 +280,8 @@ interface DetailTile {
   mesh: Mesh | null
   material: StandardMaterial | null
   loading: boolean
+  /** When it last failed to load, by performance.now(), or 0: it's tried again RETRY_AFTER milliseconds later. */
+  failedAt: number
   /** How it was drawn: its map, and whether shaded. */
   look: string
 }
@@ -425,10 +429,14 @@ export async function createTheatreGround(
         tile.mesh = mesh
         tile.material = material
         tile.look = drawnLook
+        tile.failedAt = 0
         mesh.setEnabled(true)
         coarseTiles[tz * tilesX + tx]?.setEnabled(false)
       })
-      .catch((error: unknown) => console.warn(`Theatre tile ${tx},${tz}:`, error))
+      .catch((error: unknown) => {
+        tile.failedAt = performance.now()
+        console.warn(`Theatre tile ${tx},${tz}, trying again shortly:`, error)
+      })
       .finally(() => {
         tile.loading = false
         loading -= 1
@@ -450,6 +458,8 @@ export async function createTheatreGround(
   }
   let fineShown: FineSquare | null = null
   let fineLoading: FineSquare | null = null
+  /** The square that last failed, and when, so it isn't asked for again straight away. */
+  let fineFailed = { key: "", at: 0 }
   const disposeSquare = (square: FineSquare) => {
     for (const mesh of square.meshes) {
       mesh.dispose()
@@ -533,7 +543,8 @@ export async function createTheatreGround(
         }
       })
       .catch((error: unknown) => {
-        console.warn("The 1 m ground:", error)
+        console.warn("The 1 m ground, trying again shortly:", error)
+        fineFailed = { key: square.key, at: performance.now() }
         disposeSquare(square)
         if (fineLoading === square) {
           fineLoading = null
@@ -547,6 +558,9 @@ export async function createTheatreGround(
     const z0 = Math.min(THEATRE.depth - 2 * half, Math.max(0, Math.round((z - half) / FINE.size) * FINE.size))
     const key = `${x0},${z0},${look()}`
     if (fineShown?.key === key || fineLoading?.key === key) {
+      return
+    }
+    if (fineFailed.key === key && performance.now() - fineFailed.at < RETRY_AFTER) {
       return
     }
     if (fineLoading) {
@@ -611,10 +625,13 @@ export async function createTheatreGround(
         }
         const tile = details.get(key)
         if (!tile) {
-          const fresh: DetailTile = { mesh: null, material: null, loading: false, look: look() }
+          const fresh: DetailTile = { mesh: null, material: null, loading: false, look: look(), failedAt: 0 }
           details.set(key, fresh)
           load(tx, tz, fresh)
-        } else if (!tile.loading && tile.look !== look()) {
+        } else if (
+          !tile.loading &&
+          (tile.look !== look() || (!tile.mesh && tile.failedAt > 0 && performance.now() - tile.failedAt > RETRY_AFTER))
+        ) {
           load(tx, tz, tile)
         }
       }
