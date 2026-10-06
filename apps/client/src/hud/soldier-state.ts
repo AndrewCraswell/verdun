@@ -11,7 +11,7 @@ import {
   RIFLE_GRENADES_CARRIED,
   isAlive,
   isDark,
-  gunPartner,
+  gunAction,
   isInTrench,
   canCut,
   isCutting,
@@ -115,14 +115,19 @@ export interface SoldierView {
   readonly cutting: number | null
 }
 
+/** The action key's prompt for each thing it does about a machine gun. */
+const GUN_ACTIONS = { man: "Man the gun", "hand-back": "Hand back the gun", leave: "Leave the gun" } as const
+
 /**
  * What the action key would do for a man now, as the player control decides it (control/player-control.ts): take over
- * a comrade's machine gun beside him, or hand his own back; stop cutting wire; down at the wire, crouched or prone, cut
- * it; else climb what's ahead of him, a trench wall, a wooden fence or a low wall. Null with nothing to do.
+ * a comrade's machine gun beside him or a nest's with nobody on it, hand his own back, or leave his nest's gun; stop
+ * cutting wire; down at the wire, crouched or prone, cut it; else climb what's ahead of him, a trench wall, a wooden
+ * fence or a low wall. Null with nothing to do.
  */
 export function actionFor(sim: Simulation, soldier: EntityId): string | null {
-  if (gunPartner(sim, soldier) >= 0) {
-    return sim.soldiers.weapon.kind[soldier] === Weapon.MachineGun ? "Hand back the gun" : "Man the gun"
+  const gun = gunAction(sim, soldier)
+  if (gun !== null) {
+    return GUN_ACTIONS[gun]
   }
   if (isCutting(sim, soldier)) {
     return "Stop cutting"

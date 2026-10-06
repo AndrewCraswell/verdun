@@ -5,7 +5,7 @@ import {
   canCut,
   enqueueCommand,
   type EntityId,
-  gunPartner,
+  gunAction,
   isAlive,
   isCutting,
   nextLivingMember,
@@ -120,11 +120,11 @@ const STEER_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD"] as const
 /** How many times a weapon's sights magnify in the aim view: a scoped rifle's five, a machine gun's one and a half. */
 /**
  * What the action key does for a man, as the HUD's prompt says it (hud/soldier-state.ts): take over or hand back a
- * machine gun beside him; stop cutting wire; down at the wire, crouched or prone, cut a lane through it, as wire
+ * machine gun beside him, or a nest's with nobody on it, or leave his nest's gun; stop cutting wire; down at the wire, crouched or prone, cut a lane through it, as wire
  * cutters went up to it; else climb the fence or wall ahead.
  */
 function actionCommand(sim: Simulation, soldier: EntityId): "man-gun" | "vault" | "cut-wire" {
-  if (gunPartner(sim, soldier) >= 0) {
+  if (gunAction(sim, soldier) !== null) {
     return "man-gun"
   }
   const down = sim.soldiers.stance.value[soldier] !== Stance.Standing

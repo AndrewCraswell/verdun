@@ -3,6 +3,7 @@ import type { EntityId } from "bitecs"
 import { type FireMissionPlan, Shell } from "./artillery.ts"
 import { Weapon } from "./combat.ts"
 import { Side } from "./components.ts"
+import { nestsOf, postAt, postOf } from "./man-gun.ts"
 import { allotReinforcements } from "./reinforcements.ts"
 import { enqueueCommand, type Simulation, spawnSoldier } from "./simulation.ts"
 import { createSquad, type Squad } from "./squads.ts"
@@ -119,6 +120,36 @@ export const SHELL_ALLOTMENT: Readonly<Record<Side, readonly (readonly [Shell, n
   ]
 }
 
+/**
+ * Puts a gunner in every machine-gun nest: the nearest rifleman of its side, not a squad's leader nor one of the
+ * player's, kneeling at its gun. His squad leaves him there (squads.ts).
+ */
+function crewNests(sim: Simulation, squads: readonly Squad[]): void {
+  const { position, weapon } = sim.soldiers
+  nestsOf(sim.map).forEach((nest, index) => {
+    let best = -1
+    let bestDistance = Infinity
+    for (const squad of squads) {
+      if (squad.side !== nest.side || squad.controller !== "ai") {
+        continue
+      }
+      for (const member of squad.members) {
+        if (member === squad.leader || weapon.kind[member] !== Weapon.Rifle || postOf(sim, member) >= 0) {
+          continue
+        }
+        const distance = (position.x[member] - nest.x) ** 2 + (position.z[member] - nest.z) ** 2
+        if (distance < bestDistance) {
+          best = member
+          bestDistance = distance
+        }
+      }
+    }
+    if (best >= 0) {
+      postAt(sim, best, index, true)
+    }
+  })
+}
+
 export function setupSkirmish(
   sim: Simulation,
   soldiersPerSide = 200,
@@ -162,6 +193,7 @@ export function setupSkirmish(
   if (!playerSquad) {
     throw new Error("The player's line has no squads to command")
   }
+  crewNests(sim, [...frenchSquads, ...germanSquads, ...reserves])
   return {
     french: frenchSquads.flatMap((squad) => squad.members),
     german: germanSquads.flatMap((squad) => squad.members),

@@ -37,6 +37,8 @@ export interface SoldierState {
   readonly steer: { readonly x: number; readonly z: number; readonly run: boolean } | null
   /** Where he comes down from a fence he's climbing; absent when he isn't, and in snapshots from before vaulting. */
   readonly vault?: { readonly x: number; readonly z: number }
+  /** The nest whose gun he mans and the weapon he put down for it; absent when he's on none, and in older snapshots. */
+  readonly post?: { readonly nest: number; readonly weapon: number }
   /** The way he cuts the wire ahead of him; absent when he isn't, and in snapshots from before wire cutting. */
   readonly cutting?: {
     readonly x: number
@@ -163,6 +165,9 @@ export function takeSnapshot(sim: Simulation): SimulationSnapshot {
       ...(hasComponent(sim.world, id, sim.soldiers.vault)
         ? { vault: { x: sim.soldiers.vault.x[id], z: sim.soldiers.vault.z[id] } }
         : {}),
+      ...(hasComponent(sim.world, id, sim.soldiers.post)
+        ? { post: { nest: sim.soldiers.post.nest[id], weapon: sim.soldiers.post.weapon[id] } }
+        : {}),
       ...(hasComponent(sim.world, id, sim.soldiers.cutting)
         ? {
             cutting: {
@@ -287,6 +292,11 @@ export function restoreSimulation(map: BattlefieldMap, snapshot: SimulationSnaps
       addComponent(sim.world, id, sim.soldiers.vault)
       sim.soldiers.vault.x[id] = soldier.vault.x
       sim.soldiers.vault.z[id] = soldier.vault.z
+    }
+    if (soldier.post) {
+      addComponent(sim.world, id, sim.soldiers.post)
+      sim.soldiers.post.nest[id] = soldier.post.nest
+      sim.soldiers.post.weapon[id] = soldier.post.weapon
     }
     if (soldier.cutting) {
       addComponent(sim.world, id, sim.soldiers.cutting)

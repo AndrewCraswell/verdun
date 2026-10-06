@@ -487,7 +487,13 @@ export function squadSystem(sim: Simulation): void {
     // In an advance an AI squad's leader goes too; a player's leader goes where the player steers. Rallying, the others
     // close on him where he stands.
     const leaderMoves = order.kind !== "follow" && order.kind !== "rally" && squad.controller === "ai"
-    const followers = squad.members.filter((member) => (leaderMoves || member !== squad.leader) && isAlive(sim, member))
+    // A man on a nest's gun stays at it, whatever his squad does.
+    const followers = squad.members.filter(
+      (member) =>
+        (leaderMoves || member !== squad.leader) &&
+        isAlive(sim, member) &&
+        !hasComponent(sim.world, member, sim.soldiers.post)
+    )
     const bounding =
       order.kind === "advance" &&
       order.trench !== true &&

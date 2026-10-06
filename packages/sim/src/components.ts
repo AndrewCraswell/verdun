@@ -33,6 +33,11 @@ export interface SoldierComponents {
   /** Present while the soldier climbs over a wire fence (vault.ts): where he comes down. It overrides steering and orders. */
   readonly vault: { readonly x: Float32Array; readonly z: Float32Array }
   /**
+   * Present while the soldier mans a machine-gun nest's gun (nests.ts): which nest, by its index among the map's nests,
+   * and the weapon he put down to take it up. His squad leaves him at it.
+   */
+  readonly post: { readonly nest: Int32Array; readonly weapon: Uint8Array }
+  /**
    * Present while the soldier cuts a lane through the wire (cutters.ts): the way he cuts, a unit vector; the work the
    * lane through the belt took when he started, in seconds; and how far through it he is, from 0 to 1.
    */
@@ -124,6 +129,7 @@ export function createSoldierComponents(capacity: number): SoldierComponents {
     moveOrder: { x: new Float32Array(capacity), z: new Float32Array(capacity), run: new Uint8Array(capacity) },
     facing: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
     vault: { x: new Float32Array(capacity), z: new Float32Array(capacity) },
+    post: { nest: new Int32Array(capacity), weapon: new Uint8Array(capacity) },
     cutting: {
       x: new Float32Array(capacity),
       z: new Float32Array(capacity),

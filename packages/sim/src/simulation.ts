@@ -37,6 +37,7 @@ import { type Flare, type FlareEvent, flareSystem } from "./flares.ts"
 import { createGasField, type GasField, gasSystem } from "./gas.ts"
 import { createGunCrews, type GunCrewState, type GunMannedEvent, gunCrewSystem } from "./gun-crews.ts"
 import type { LineOfSight } from "./line-of-sight.ts"
+import { nestSystem } from "./man-gun.ts"
 import { navigationSystem } from "./navigation.ts"
 import { createObjectives, type ObjectiveState, objectiveSystem, type ObjectiveTakenEvent } from "./objectives.ts"
 import {
@@ -393,6 +394,7 @@ const SYSTEMS: readonly (readonly [string, (sim: Simulation) => void])[] = [
   ["sim: wounds", woundSystem],
   ["sim: spotting", spottingSystem],
   ["sim: gun crews", gunCrewSystem],
+  ["sim: nests", nestSystem],
   ["sim: wire cutting", (sim) => cuttingSystem(sim, STEP_SECONDS)],
   ["sim: movement", (sim) => movementSystem(sim, STEP_SECONDS)],
   ["sim: objectives", objectiveSystem],

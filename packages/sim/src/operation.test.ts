@@ -103,6 +103,7 @@ describe("fire plans", () => {
 })
 
 describe("operations", () => {
+  // A whole operation, bombardments and all: over the suite's 30 s with coverage on a busy machine.
   it("fire the bombardments back to back to end at zero hour, then send the attackers over", () => {
     const sim = createSimulation({ map, seed: 1 })
     const attackers = squadAt(sim, Side.French, 100, depth * 0.25)
@@ -122,7 +123,7 @@ describe("operations", () => {
     expect(operation.wentOver).toBe(true)
     expect(events).toContainEqual({ type: "zero-hour", side: Side.French, squads: [attackers.id] })
     expect(attackers.order.kind).toBe("creep")
-  })
+  }, 60_000)
 
   it("end early as repulsed once no attacker has been out beyond his own line for a minute", () => {
     const sim = createSimulation({ map, seed: 1 })

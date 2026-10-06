@@ -1,6 +1,7 @@
 import type { EntityId } from "bitecs"
 import { loadWeapon, Weapon } from "./combat.ts"
 import { applyCommand } from "./commands.ts"
+import { postAt, postOf } from "./man-gun.ts"
 import type { Simulation } from "./simulation.ts"
 import { TICK_RATE } from "./simulation.ts"
 import { isAlive } from "./squads.ts"
@@ -24,6 +25,8 @@ export interface GunPickup {
   readonly startedAt: number
   /** The step he reached the gun, or -1 while he's on his way. */
   reachedAt: number
+  /** The nest the gun stands in, which he holds once he has it (nests: man-gun.ts); -1 for a gun carried. */
+  readonly nest?: number
 }
 
 export interface GunCrewState {
@@ -78,7 +81,7 @@ export function gunCrewSystem(sim: Simulation): void {
     const by = nextCrewman(sim, event.soldier, taken)
     if (by >= 0) {
       taken.add(by)
-      pickups.push({ gunner: event.soldier, by, startedAt: sim.tick, reachedAt: -1 })
+      pickups.push({ gunner: event.soldier, by, startedAt: sim.tick, reachedAt: -1, nest: postOf(sim, event.soldier) })
       const { x, z } = sim.soldiers.position
       applyCommand(sim, { type: "move-to", soldier: by, x: x[event.soldier], z: z[event.soldier] })
     }
@@ -100,10 +103,14 @@ export function gunCrewSystem(sim: Simulation): void {
       continue
     }
     if (sim.tick - pickup.reachedAt >= TAKE_UP_SECONDS * TICK_RATE) {
-      // The gun changes hands: the man lying beside it no longer has it.
+      // The gun changes hands: the man lying beside it no longer has it. A nest's gun stays in the nest, with him on it.
       weapon.kind[pickup.gunner] = Weapon.Rifle
-      weapon.kind[pickup.by] = Weapon.MachineGun
-      loadWeapon(sim, pickup.by)
+      if ((pickup.nest ?? -1) >= 0) {
+        postAt(sim, pickup.by, pickup.nest ?? -1)
+      } else {
+        weapon.kind[pickup.by] = Weapon.MachineGun
+        loadWeapon(sim, pickup.by)
+      }
       pickups.splice(index, 1)
       sim.events.push({ type: "gun-manned", squad: sim.soldiers.squad.id[pickup.by], soldier: pickup.by })
     }
