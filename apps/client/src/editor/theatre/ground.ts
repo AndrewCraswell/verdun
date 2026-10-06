@@ -7,6 +7,8 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData"
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode"
 import type { Scene } from "@babylonjs/core/scene"
 import { type GroundBox, NO_BOX, SectorHolePlugin } from "./sector-hole.ts"
+import type { TileBox } from "./tile-mesh.ts"
+import { createTileThread } from "./tile-thread.ts"
 
 /**
  * The theatre: the ground round Verdun the editor's theatre view draws, in Lambert-93 (EPSG:2154) metres. Its local
@@ -127,11 +129,8 @@ export function mapImageUrl(
  * Samples sit on the box's corners, so the request reaches half a step beyond each edge.
  */
 async function heightGrid(x0: number, z0: number, x1: number, z1: number, columns: number, rows: number) {
-  const halfX = (x1 - x0) / (columns - 1) / 2
-  const halfZ = (z1 - z0) / (rows - 1) / 2
   const fetchGrid = async (layer: string) => {
-    const url = wmsUrl(layer, "image/x-bil;bits=32", x0 - halfX, z0 - halfZ, x1 + halfX, z1 + halfZ, columns, rows)
-    const response = await fetch(url)
+    const response = await fetch(elevationUrl(layer, { x0, z0, x1, z1 }, columns, rows))
     if (!response.ok) {
       throw new Error(`Elevation ${response.status}`)
     }
@@ -154,6 +153,14 @@ async function heightGrid(x0: number, z0: number, x1: number, z1: number, column
     }
   }
   return heights
+}
+
+/** A request for `columns` by `rows` heights on a box's corners: it reaches half a step beyond each edge. */
+function elevationUrl(layer: string, box: TileBox, columns: number, rows: number) {
+  const halfX = (box.x1 - box.x0) / (columns - 1) / 2
+  const halfZ = (box.z1 - box.z0) / (rows - 1) / 2
+  const { x0, z0, x1, z1 } = box
+  return wmsUrl(layer, "image/x-bil;bits=32", x0 - halfX, z0 - halfZ, x1 + halfX, z1 + halfZ, columns, rows)
 }
 
 /** A grid mesh over a box, with skirts, its UVs spanning `uvBox` (the box of its texture). */
@@ -320,6 +327,18 @@ export async function createTheatreGround(
     return near * (1 - fz) + far * fz
   }
 
+  // The detail and 1 m tiles are fetched and built in a worker, so the page keeps drawing while they come.
+  const tileThread = createTileThread()
+  const tileMesh = (name: string, box: TileBox, samples: number) =>
+    tileThread.build(scene, name, {
+      box,
+      samples,
+      lidarUrl: elevationUrl(LIDAR, box, samples, samples),
+      fallbackUrl: elevationUrl(RGE_ALTI, box, samples, samples),
+      base: THEATRE.base,
+      skirt: SKIRT
+    })
+
   /** The 1 m square, in the scene's metres, while it's shown. */
   let fineBox: GroundBox = NO_BOX
   const offsetX = () => parent?.position.x ?? 0
@@ -394,17 +413,8 @@ export async function createTheatreGround(
     const drawn = map
     const drawnLook = look()
     const shade = shadeUrl(box.x0, box.z0, box.x1, box.z1, DETAIL.texture, DETAIL.texture)
-    heightGrid(box.x0, box.z0, box.x1, box.z1, samples, samples)
-      .then(async (heights) => {
-        const mesh = gridMesh(
-          scene,
-          `theatre-detail-${tx}-${tz}`,
-          (column, row) => heights[row * samples + column] ?? 0,
-          box,
-          samples,
-          samples,
-          box
-        )
+    tileMesh(`theatre-detail-${tx}-${tz}`, box, samples)
+      .then(async (mesh) => {
         mesh.setEnabled(false)
         mesh.parent = parent ?? null
         const { material, loaded } = mapMaterial(
@@ -487,16 +497,7 @@ export async function createTheatreGround(
     }
     const loadTile = async (tile: { x0: number; z0: number }) => {
       const box = { x0: tile.x0, z0: tile.z0, x1: tile.x0 + FINE.size, z1: tile.z0 + FINE.size }
-      const heights = await heightGrid(box.x0, box.z0, box.x1, box.z1, FINE.samples, FINE.samples)
-      const mesh = gridMesh(
-        scene,
-        `theatre-fine-${box.x0}-${box.z0}`,
-        (column, row) => heights[row * FINE.samples + column] ?? 0,
-        box,
-        FINE.samples,
-        FINE.samples,
-        box
-      )
+      const mesh = await tileMesh(`theatre-fine-${box.x0}-${box.z0}`, box, FINE.samples)
       mesh.setEnabled(false)
       mesh.parent = parent ?? null
       const { material, loaded } = mapMaterial(
