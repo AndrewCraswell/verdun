@@ -63,72 +63,51 @@ export function createMarkers(
   const shown = new Set<PlaceKind>(DEFAULT_KINDS)
   const rank = (kind: PlaceKind) => Object.keys(PLACE_KINDS).indexOf(kind)
   const ordered = [...places].sort((a, b) => rank(a.kind) - rank(b.kind))
-  const labels: {
+  interface Entry {
     place: Place
     label: HTMLDivElement
     covers: HTMLSpanElement
     at: Vector3
     wide: number
-    hiding: number
-    /** The places this label hides, as of the last frame. */
-    hidden: Place[]
-  }[] = ordered.map((place) => {
+    /** Where the label was put this frame, in the page's pixels. */
+    left: number
+    top: number
+    /** The labels this one hides this frame, where they'd overlap it. */
+    hidden: Entry[]
+  }
+  const labels: Entry[] = ordered.map((place) => {
     const label = document.createElement("div")
     label.className = `marker marker-${place.kind}`
     label.textContent = place.name
-    // How many labels this one hides where they'd overlap: zoom in to see them.
+    // Clicking a label takes the camera to its place.
+    label.addEventListener("click", () => onPick(place))
+    // How many labels this one hides where they'd overlap; clicking it spreads them out under it, and again folds them.
     const covers = document.createElement("span")
     covers.className = "marker-covers"
     label.append(covers)
     layer.append(label)
     // How much of the page the label takes, roughly: its text at the labels' size, and a margin.
     const wide = place.name.length * (place.kind === "town" ? 9 : 7) + 16
-    return { place, label, covers, at: toScene(place.x, place.y), wide, hiding: 0, hidden: [] }
+    return { place, label, covers, at: toScene(place.x, place.y), wide, left: 0, top: 0, hidden: [] }
   })
-  /** The page in cells this many pixels wide and high, marked as labels take them. */
-  const CELL = { wide: 24, high: 20 } as const
-  const projected = new Vector3()
-  let decluttered = true
-
-  // The list a label's count opens: the places it hides, each a button that takes the camera there.
-  const list = document.createElement("div")
-  list.className = "marker-list"
-  list.hidden = true
-  layer.append(list)
-  let listOwner: (typeof labels)[number] | null = null
-  const closeList = () => {
-    list.hidden = true
-    listOwner = null
-  }
+  /** The labels spread out, by their place. */
+  const spread = new Set<Place>()
   for (const entry of labels) {
     entry.covers.addEventListener("click", (event) => {
       event.stopPropagation()
-      if (listOwner === entry) {
-        closeList()
-        return
+      if (spread.has(entry.place)) {
+        spread.delete(entry.place)
+      } else {
+        spread.add(entry.place)
       }
-      listOwner = entry
-      list.replaceChildren(
-        ...entry.hidden.map((place) => {
-          const item = document.createElement("button")
-          item.type = "button"
-          item.className = `marker-list-item marker-${place.kind}`
-          item.textContent = place.name
-          item.addEventListener("click", () => {
-            closeList()
-            onPick(place)
-          })
-          return item
-        })
-      )
-      list.hidden = false
     })
   }
-  addEventListener("pointerdown", (event) => {
-    if (listOwner && event.target instanceof Node && !list.contains(event.target)) {
-      closeList()
-    }
-  })
+  /** The page in cells this many pixels wide and high, marked as labels take them. */
+  const CELL = { wide: 24, high: 20 } as const
+  /** Labels spread out under another stand this many pixels apart. */
+  const STACK = 19
+  const projected = new Vector3()
+  let decluttered = true
   return {
     declutter(on) {
       decluttered = on
@@ -156,30 +135,28 @@ export function createMarkers(
       /** Which label took each cell of the page, by its index. */
       const taken = new Map<number, number>()
       for (const entry of labels) {
-        entry.hiding = 0
         entry.hidden = []
       }
       labels.forEach((entry, index) => {
-        const { place, label, at, wide } = entry
+        const { place, at, wide } = entry
         const distance = Vector3.Distance(camera.globalPosition, at)
         let visible = shown.has(place.kind) && distance < PLACE_KINDS[place.kind].reach
-        let left = 0
-        let top = 0
         if (visible) {
           Vector3.ProjectToRef(at, Matrix.IdentityReadOnly, transform, viewport, projected)
-          left = projected.x * scaleX
-          top = projected.y * scaleY
+          entry.left = projected.x * scaleX
+          entry.top = projected.y * scaleY
           visible =
             projected.z > 0 &&
             projected.z < 1 &&
-            left > -wide &&
-            top > -20 &&
-            left < canvas.clientWidth &&
-            top < canvas.clientHeight
+            entry.left > -wide &&
+            entry.top > -20 &&
+            entry.left < canvas.clientWidth &&
+            entry.top < canvas.clientHeight
         }
         if (visible && decluttered) {
           // The cells the label would cover: shown only if none is taken by a label placed before it.
           const cells: number[] = []
+          const { left, top } = entry
           for (let row = Math.floor((top - 10) / CELL.high); row <= Math.floor((top + 10) / CELL.high); row++) {
             for (let column = Math.floor(left / CELL.wide); column <= Math.floor((left + wide) / CELL.wide); column++) {
               cells.push(row * 4096 + column)
@@ -192,31 +169,31 @@ export function createMarkers(
               taken.set(cell, index)
             }
           } else {
-            const covering = labels[owner]
-            if (covering) {
-              covering.hiding += 1
-              covering.hidden.push(place)
-            }
+            labels[owner]?.hidden.push(entry)
           }
         }
-        label.hidden = !visible
+        entry.label.hidden = !visible
         if (visible) {
-          label.style.transform = `translate(${left}px, ${top}px)`
+          entry.label.style.transform = `translate(${entry.left}px, ${entry.top}px)`
         }
       })
-      // The open list follows its label, and closes when the label goes.
-      if (listOwner) {
-        if (listOwner.label.hidden) {
-          closeList()
-        } else {
-          list.style.transform = `${listOwner.label.style.transform} translate(0, 14px)`
+      // A label spread out shows those it hides in a column under it.
+      for (const entry of labels) {
+        const open = spread.has(entry.place) && !entry.label.hidden && entry.hidden.length > 0
+        entry.hidden.forEach((covered, index) => {
+          covered.label.hidden = !open
+          if (open) {
+            covered.label.style.transform = `translate(${entry.left + 10}px, ${entry.top + STACK * (index + 1)}px)`
+          }
+        })
+        let text = ""
+        if (entry.hidden.length > 0) {
+          text = open ? "−" : `+${entry.hidden.length}`
         }
-      }
-      for (const { covers, hiding } of labels) {
-        const text = hiding > 0 ? `+${hiding}` : ""
-        if (covers.textContent !== text) {
-          covers.textContent = text
+        if (entry.covers.textContent !== text) {
+          entry.covers.textContent = text
         }
+        entry.label.classList.toggle("marker-spread", open)
       }
     }
   }

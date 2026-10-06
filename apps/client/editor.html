@@ -169,31 +169,13 @@
       .marker-covers:hover {
         background: rgba(217, 181, 108, 0.25);
       }
-      .marker-list {
-        position: absolute;
-        left: 0;
-        top: 0;
+      .marker {
         pointer-events: auto;
-        display: flex;
-        flex-direction: column;
-        max-height: 260px;
-        overflow-y: auto;
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 3px;
-        z-index: 2;
+        cursor: pointer;
       }
-      .marker-list-item {
-        text-align: left;
-        border: none;
-        border-left: 3px solid var(--muted);
-        background: none;
-        padding: 2px 8px;
-        font-size: 12px;
-      }
-      .marker-list-item:hover {
-        background: rgba(217, 181, 108, 0.18);
+      .marker-spread {
+        z-index: 1;
+        outline: 1px solid var(--accent);
       }
       .marker-covers:empty {
         display: none;
