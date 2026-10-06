@@ -195,6 +195,8 @@ describe("climbing out of a shell hole", () => {
     const out = walk(map, { x: 50, z: 80 }, 90, 15)
     expect(out.z).toBeGreaterThan(84)
     expect(out.height).toBeGreaterThan(-0.5)
+  })
+})
 
 describe("fences and low walls", () => {
   // A wooden fence at (50, 50) whose rails run east-west, and a low wall at (50, 80) turned a quarter, running north-south.

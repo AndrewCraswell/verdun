@@ -180,7 +180,7 @@ export function cuttingSystem(sim: Simulation, stepSeconds: number): void {
       continue
     }
     const stride = EDGE * stepSeconds
-    const clear = clearOfScenery(sim.map, x + heading.x * stride, z + heading.z * stride)
+    const clear = clearOfScenery(sim.map, x + heading.x * stride, z + heading.z * stride, sim.fencesDown)
     position.x[soldier] = Math.min(mapWidth(sim.map), Math.max(0, clear.x))
     position.z[soldier] = Math.min(mapDepth(sim.map), Math.max(0, clear.z))
   }

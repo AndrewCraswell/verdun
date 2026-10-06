@@ -4,7 +4,7 @@ import { NullEngine } from "@babylonjs/core/Engines/nullEngine"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { RenderingGroup } from "@babylonjs/core/Rendering/renderingGroup"
 import { Scene } from "@babylonjs/core/scene"
-import { createFlatMap, Surface } from "@verdun/map"
+import { createFlatMap, type Scenery, Surface } from "@verdun/map"
 import {
   createSimulation,
   createSquad,
@@ -650,12 +650,12 @@ describe("createSquadMarkers", () => {
 
 describe("the action key and the trigger", () => {
   /** The player's leader beside a comrade's machine gun, both of a squad facing a field. */
-  function atTheGun() {
+  function atTheGun(scenery: readonly Scenery[] = []) {
     const engine = new NullEngine()
     engines.push(engine)
     const scene = new Scene(engine)
     const sim = createSimulation({
-      map: createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3, Surface.Grass),
+      map: { ...createFlatMap({ name: "test", cellSize: 1, columns: 100, rows: 100 }, 3, Surface.Grass), scenery },
       seed: 1
     })
     const leader = spawnSoldier(sim, { side: Side.French, x: 50, z: 50 })
@@ -711,19 +711,20 @@ describe("the action key and the trigger", () => {
   })
 
   it("climbs the fence he's walked up to, the way the view looks, whichever way he's aiming", () => {
-    const { sim, leader, gunner, actions, input, frame } = atTheGun()
+    // A wooden fence across his way north, its rails running east-west.
+    const { sim, leader, gunner, actions, input, frame } = atTheGun([
+      { kind: "knife-rest", x: 50, z: 47, heading: 0, variant: 0, scale: 1 }
+    ])
     sim.soldiers.position.x[gunner] = 80
     sim.soldiers.position.z[leader] = 46
-    for (let column = 40; column < 60; column++) {
-      for (let row = 48; row < 52; row++) {
-        sim.wire.density[row * sim.wire.columns + column] = 1
-      }
-    }
     input.held.add("KeyW")
-    frame()
+    for (let step = 0; step < 20; step++) {
+      frame()
+    }
     input.held.delete("KeyW")
     frame()
-    // Stopped at the wire, the camera looking on over it, and aiming off to the east as the pointer may leave him.
+    expect(sim.soldiers.position.z[leader]).toBeCloseTo(46.6, 1)
+    // Stopped at the fence, the camera looking on over it, and aiming off to the east as the pointer may leave him.
     sim.soldiers.facing.x[leader] = 1
     sim.soldiers.facing.z[leader] = 0
     actions.push({ kind: "act" })
