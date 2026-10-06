@@ -1,8 +1,11 @@
 import { carveTrenches, createFlatMap, Surface, type Trench } from "@verdun/map"
 import { describe, expect, it } from "vitest"
+import { Shell } from "./artillery.ts"
 import { Side } from "./components.ts"
+import { copyDefence, createDefence, restoreDefence } from "./defence.ts"
 import {
   createSimulation,
+  enqueueCommand,
   type SimEvent,
   type Simulation,
   spawnSoldier,
@@ -128,5 +131,71 @@ describe("counter-thrusts", () => {
     const events = stepFor(empty, 2.1)
     expect(events.some((event) => event.type === "reserves-up")).toBe(false)
     expect(empty.defence.alarmedAt[Side.German]).toBe(0)
+  })
+})
+
+describe("warning of an attack", () => {
+  /** French guns on the German front line's western stretch, x 20 to 80: a bombardment, or a barrage passing over. */
+  function shell(sim: Simulation, cutsWire?: boolean) {
+    enqueueCommand(sim, {
+      type: "fire-mission",
+      plan: {
+        side: Side.French,
+        shell: Shell.FieldHighExplosive,
+        fromX: 20,
+        toX: 80,
+        z: 150,
+        band: 20,
+        roundsPerMinute: 1,
+        delay: 0,
+        duration: 600,
+        ...(cutsWire === undefined ? {} : { cutsWire })
+      }
+    })
+  }
+
+  it("gathers reserves from along the line behind the stretch a bombardment falls on, by the trenches", () => {
+    const sim = sector()
+    const { near, far } = reserves(sim)
+    shell(sim)
+    const events = stepFor(sim, 5.1)
+
+    expect(events).toContainEqual({ type: "warned", side: Side.German, fromX: 20, toX: 80, squads: 2 })
+    expect(sim.defence.threatened[Side.German]).toEqual({ fromX: 20, toX: 80 })
+    expect(near.order).toMatchObject({ kind: "advance", trench: true })
+    expect(far.order).toMatchObject({ kind: "advance", trench: true })
+    stepFor(sim, 90)
+    // There, they go back below to wait, behind the stretch.
+    expect(near.order).toEqual({ kind: "reserve" })
+    expect(far.order).toEqual({ kind: "reserve" })
+    expect(sim.defence.shifting[Side.German]).toEqual([])
+    for (const squad of [near, far]) {
+      expect(sim.soldiers.position.x[squad.leader]).toBeLessThan(90)
+      expect(Math.abs(sim.soldiers.position.z[squad.leader] - 190)).toBeLessThan(3)
+    }
+  })
+
+  it("is not given by a barrage passing over", () => {
+    const sim = sector()
+    const { near } = reserves(sim)
+    shell(sim, false)
+    const events = stepFor(sim, 5.1)
+
+    expect(events.some((event) => event.type === "warned")).toBe(false)
+    expect(near.order).toEqual({ kind: "reserve" })
+  })
+
+  it("sends up on the alarm only the reserves behind the stretch, by the trenches, and keeps the state in snapshots", () => {
+    const sim = sector()
+    const { near, far } = reserves(sim)
+    sim.defence.threatened[Side.German] = { fromX: 140, toX: 180 }
+    sim.artillery.sosCalledAt[Side.German] = 0
+    stepFor(sim, 5.1)
+
+    expect(far.order).toMatchObject({ kind: "advance", trench: true })
+    expect(near.order).toEqual({ kind: "reserve" })
+    const restored = createDefence()
+    restoreDefence(restored, copyDefence(sim.defence))
+    expect(restored).toEqual(sim.defence)
   })
 })

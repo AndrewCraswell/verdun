@@ -67,6 +67,9 @@ function battle() {
     }
   )
   sim.defence.alarmedAt[Side.German] = 5
+  sim.defence.warnedAt[Side.German] = 4
+  sim.defence.threatened[Side.German] = { fromX: 40, toX: 240 }
+  sim.defence.shifting[Side.German].push(1)
   return { sim, french, german }
 }
 
@@ -88,7 +91,11 @@ describe("what a side is told of the battle", () => {
     expect(recordOf(artillery["ammunition"])[Side.German]).toEqual(sim.artillery.ammunition[Side.German].map(() => 0))
     expect(listOf(artillery["shells"]).length).toBe(sim.artillery.shells.length)
     expect(recordOf(recordOf(told["reinforcements"])["pool"])).toEqual({ [Side.French]: 20, [Side.German]: 0 })
-    expect(recordOf(recordOf(told["defence"])["alarmedAt"])[Side.German]).toBe(-1)
+    const defence = recordOf(told["defence"])
+    expect(recordOf(defence["alarmedAt"])[Side.German]).toBe(-1)
+    expect(recordOf(defence["warnedAt"])[Side.German]).toBe(-1)
+    expect(recordOf(defence["threatened"])[Side.German]).toBeNull()
+    expect(recordOf(defence["shifting"])[Side.German]).toEqual([])
     // Its own gun, which it knows of, but not the enemy's until it's placed.
     const sightings = () => listOf(recordOf(sideState(state, Side.French, sideOf)["spotting"])["sightings"])
     expect(sightings().map((sighting) => recordOf(sighting)["soldier"])).toEqual([french0])

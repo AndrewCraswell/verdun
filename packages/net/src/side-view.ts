@@ -86,7 +86,13 @@ export function sideState(
   }
   const defence = state["defence"]
   if (isRecord(defence)) {
-    sent["defence"] = { ...defence, alarmedAt: blankEnemy(defence["alarmedAt"], side, () => -1) }
+    sent["defence"] = {
+      ...defence,
+      alarmedAt: blankEnemy(defence["alarmedAt"], side, () => -1),
+      warnedAt: blankEnemy(defence["warnedAt"], side, () => -1),
+      threatened: blankEnemy(defence["threatened"], side, () => null),
+      shifting: blankEnemy(defence["shifting"], side, () => [])
+    }
   }
   return sent
 }
@@ -122,6 +128,7 @@ function hears(event: SimEvent, side: Side, knows: (soldier: number) => boolean)
     case "gun-spotted":
     case "counter-thrust":
     case "reserves-up":
+    case "warned":
     case "out-of-shells":
     case "zero-hour":
     case "second-wave":

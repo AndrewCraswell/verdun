@@ -30,7 +30,8 @@ import {
   createDefence,
   type DefenceState,
   defenceSystem,
-  type StandToEvent
+  type StandToEvent,
+  type WarnedEvent
 } from "./defence.ts"
 import { createEnvironment, type Environment, environmentSystem, type EnvironmentOptions } from "./environment.ts"
 import { type Flare, type FlareEvent, flareSystem } from "./flares.ts"
@@ -146,6 +147,7 @@ export type SimEvent =
   | GunMannedEvent
   | CounterThrustEvent
   | StandToEvent
+  | WarnedEvent
   | RifleGrenadeEvent
   | FlareEvent
   | OutOfShellsEvent

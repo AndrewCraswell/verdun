@@ -228,12 +228,22 @@ matters most. A human commander can post, edit and remove orders, and sees the A
 Each side in each sector has one commander.
 
 - **The commander AI** is always there. Built: every 5 s it checks its front line, and when the line is lost it shells
-  it and sends the reserves in behind a creeping barrage. Before that, two faster reactions (built,
-  [defence.ts](../../packages/sim/src/defence.ts)): when the side calls its SOS barrage, half its reserves go up to man
-  the front line; and wherever the enemy breaks into a stretch of the line without being outnumbered there, the nearest
-  reserves go straight up to throw them out, the German Gegenstoß. Planned: it runs quiet war (harassing fire, wire
-  repair), plans its own operations from the budget, answers enemy bombardments by reinforcing, and orders bot squads to
-  support where human squads are fighting.
+  it and sends the reserves in behind a creeping barrage. Before that, three faster reactions (built,
+  [defence.ts](../../packages/sim/src/defence.ts)):
+  - **Warning.** A deliberate bombardment of its front line (fire that falls on the line and cuts wire, not a barrage
+    passing over or SOS fire) tells it where an attack is coming. Up to four reserve squads from elsewhere along the
+    front, within 300 m, file through the trenches, each along the trench it waits in, to wait below behind the shelled
+    stretch. A long preparation cuts the wire and shakes the garrison, but it gives the defender time to gather; a
+    barrage alone gives him none.
+  - **The alarm.** When the side calls its SOS barrage, half its reserves go up to man the front line. Warned, they are
+    the reserves behind the shelled stretch (out to 50 m either side), going up by the trenches, and the rest stay below
+    for the counter-thrust; unwarned, every other squad along the front goes straight up.
+  - **The counter-thrust.** Wherever the enemy breaks into a stretch of the line without being outnumbered there, the
+    nearest reserves go straight up to throw them out, the German Gegenstoß.
+
+  Planned: it runs quiet war (harassing fire, wire repair), plans its own operations from the budget, and orders bot
+  squads to support where human squads are fighting.
+
 - **A human commander** can take over in stage 2: a player of the right [rank](progression-and-community.md#ranks)
   volunteers, and the AI hands over planning, the budget and the bot squads. They command from the map, not as a
   soldier. If they leave or the side votes them out, the AI takes over again with no gap.
