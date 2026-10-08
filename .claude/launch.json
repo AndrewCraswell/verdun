@@ -2,6 +2,20 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "sector-editor",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "C:/Users/andcra/AppData/Local/Temp/claude/D--verdun/91c8564b-a854-4efe-b29a-55f20a9995ba/scratchpad/editor-tree/apps/client",
+        "exec",
+        "vite",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
+    },
+    {
       "name": "client",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@verdun/client", "dev"],
