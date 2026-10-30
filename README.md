@@ -31,8 +31,9 @@ pnpm verify
 `pnpm dev` serves the game at http://localhost:5173. `pnpm verify` runs the format check, lint, type check, knip, tests
 with coverage, and the production build.
 
-Every push to `main` that passes CI deploys itself: CI packs the level kit, builds the client and uploads it with
-`deploy/` (Caddy) to the `client` service of the `verdun` project on Railway, at
+CI verifies through the shared pipelines' `ci-verify` template (betterapps-hq/pipelines), with the level kit fetched
+from Git LFS. Every push to `main` that passes CI deploys itself: CI packs the level kit, builds the client and uploads
+it with `deploy/` (Caddy) to the `client` service of the `verdun` project on Railway, at
 https://client-production-d977.up.railway.app. It needs the repository secret `RAILWAY_TOKEN`, a project token for that
 project's production environment; without it CI skips the deploy.
 
