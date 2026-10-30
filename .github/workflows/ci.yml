@@ -18,7 +18,7 @@ jobs:
   # (ubuntu-latest)". The level kit and the soundtrack are in Git LFS (.gitattributes); it fetches them, cached until one
   # changes. Pnpm is package.json's packageManager and Node is .nvmrc's.
   verify:
-    uses: betterapps-hq/pipelines/.github/workflows/ci-verify.yml@ee2dce3e338d7684c9a8ec2a733d37d1bd5cf7dc # v1.3.0
+    uses: betterapps-hq/pipelines/.github/workflows/ci-verify.yml@e10deb3e5365865c3616f7c2081d74d8fb646366 # v1.3.2
     with:
       lfs: true
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -38,7 +38,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: betterapps-hq/pipelines/github/actions/setup@ee2dce3e338d7684c9a8ec2a733d37d1bd5cf7dc # v1.3.0
+      - uses: betterapps-hq/pipelines/github/actions/setup@0b0ed2e646a72e6db61a303cee36127aa5e17a48 # v1.3.1
         with:
           lfs: true
       - name: Pack the level kit
