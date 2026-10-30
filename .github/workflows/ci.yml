@@ -5,54 +5,49 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # On main, runs queue rather than cancel each other: one at a time, the newest waiting, so a busy day still deploys.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # The shared pipelines' verify (betterapps-hq/pipelines, github/README.md), whose check is "verify / Verify
+  # (ubuntu-latest)". The level kit and the soundtrack are in Git LFS (.gitattributes); it fetches them, cached until one
+  # changes. Pnpm is package.json's packageManager and Node is .nvmrc's.
   verify:
-    name: Verify
+    uses: betterapps-hq/pipelines/.github/workflows/ci-verify.yml@ee2dce3e338d7684c9a8ec2a733d37d1bd5cf7dc # v1.3.0
+    with:
+      lfs: true
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+      # Builds with the real level, not the greybox: an encrypted pack under a fresh key, as a deploy would.
+      prepare: pnpm assets:pack
+      # The live game is built to play multiplayer on the sector server deployed beside it (settings/mode.ts).
+      env: |
+        VERDUN_SERVER=wss://server-production-ff62.up.railway.app
+
+  # Every push to main that passes goes live: the client, served by Caddy (deploy/), and the sector server
+  # (deploy/server/), on Railway. It builds the client again, as verify's build stays in its own job, from the same
+  # commit and settings. Needs the RAILWAY_TOKEN secret, a project token for the verdun project's production
+  # environment.
+  deploy:
+    name: Deploy to Railway
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      # The level kit and the soundtrack are in Git LFS (.gitattributes). The cache keeps their objects, so they're
-      # downloaded only when they change.
-      - name: List the LFS objects
-        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-objects
-      - uses: actions/cache@v6
+      - uses: betterapps-hq/pipelines/github/actions/setup@ee2dce3e338d7684c9a8ec2a733d37d1bd5cf7dc # v1.3.0
         with:
-          path: .git/lfs
-          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-objects') }}
-          restore-keys: ${{ runner.os }}-lfs-
-      - name: Fetch the level kit and the soundtrack
-        run: git lfs pull
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-      - name: Install pnpm
-        run: npm install --global pnpm@11.9.0
-      - name: Resolve pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
-      - run: pnpm install --frozen-lockfile
-      # Builds with the real level, not the greybox: an encrypted pack under a fresh key, as a deploy would.
+          lfs: true
       - name: Pack the level kit
         run: pnpm assets:pack
-      # The live game is built to play multiplayer on the sector server deployed beside it (settings/mode.ts).
-      - run: pnpm verify
+      - name: Build the client
+        run: pnpm build
         env:
           VERDUN_SERVER: wss://server-production-ff62.up.railway.app
-      # Every push to main that passes goes live: the client just built, served by Caddy (deploy/), and the sector
-      # server (deploy/server/), on Railway. Needs the RAILWAY_TOKEN secret, a project token for the verdun project's
-      # production environment.
       - name: Deploy to Railway
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
