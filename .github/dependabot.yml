@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # Node's types follow the Node that runs Verdun (.nvmrc), so a new major comes with moving Node, not before.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       # One PR for routine minor/patch bumps to keep noise down.
       dependencies:
