@@ -65,8 +65,7 @@ Optional: Synty
       on **CGTrader** ($60). Realistic Poilu used as a benchmark and hero soldier. Not the TurboSquid copy.
 - [ ] [Davicolt Stahlhelm M16](https://www.fab.com/listings/52834819-8a4e-4bfd-a8de-6b66cffe2c23) ($9.99). 1916 German
       helmet swap.
-- [ ] Manuel Rivas [Lebel 1886](https://www.fab.com/listings/ffc71f49-5603-40ca-b6dc-b1a8bcdf414c)
-      ($9.99),
+- [ ] Manuel Rivas [Lebel 1886](https://www.fab.com/listings/ffc71f49-5603-40ca-b6dc-b1a8bcdf414c) ($9.99),
       [Gewehr 98](https://www.fab.com/listings/19c0dcc1-8677-43a9-8f94-eac930bbd934) ($9.99),
       [Hotchkiss M1914](https://www.fab.com/listings/47ebb6b5-eb2d-40db-82a4-445d8d6e2360) ($12.99).
 - [ ] [Ovidiu Barat WW1-era grenades](https://www.fab.com/listings/4c0067d0-0ac8-4881-b131-2f692e160cc1) ($3.99). Ships
@@ -91,10 +90,8 @@ Optional: Synty
       1916 Poilu with 4 LODs, as an experiment.
 - [ ] [FieriaGold Weapon WW1 (pack 2)](https://www.fab.com/listings/aa39b43e-daa1-4096-a00d-b9245fa03922) ($51.99).
       Chauchat, MG 08/15.
-- [ ] Karamai [Sandbag Walls](https://www.fab.com/listings/d11a4ff5-41f9-4d7e-9e62-8df679791de2)
-      ($24.99) and
-      [Barbed Wire Pack](https://www.fab.com/listings/196d56d3-9b8a-453f-9243-c568a95b07ab) ($19.99).
-      With LODs.
+- [ ] Karamai [Sandbag Walls](https://www.fab.com/listings/d11a4ff5-41f9-4d7e-9e62-8df679791de2) ($24.99) and
+      [Barbed Wire Pack](https://www.fab.com/listings/196d56d3-9b8a-453f-9243-c568a95b07ab) ($19.99). With LODs.
 - [ ] [Red Blue Pixel World War 1, Warzone](https://www.fab.com/listings/4a92e959-e5d6-438c-b9a8-e739b5efd927) ($69.99).
       Ruined village, craters, wire.
 - [ ] [Substance 3D Painter](https://store.steampowered.com/search/?term=substance%203d%20painter) (about $200 on
@@ -158,9 +155,8 @@ impulse responses from BOOM content; its EULA bans it.
 - [ ] [The Recordist Vickers Gun HD Pro](https://therecordist.com/product/vickers-gun/) ($89). Real Maxim-family gun,
       the MG08 source and the base for a re-sequenced Hotchkiss. Mics from inches to 150 m.
 - [ ] [Superthump Weapons of WWII](https://www.asoundeffect.com/product-tag/mg42/) ($40 on A Sound Effect,
-      [$55 on
-      Sonniss](https://sonniss.com/sound-effects/weapons-world-war-ii-designed/)). 14 guns including Kar98, Springfield,
-      M1919 and BAR: placeholder rifles and the Hotchkiss and Chauchat proxies.
+      [$55 on Sonniss](https://sonniss.com/sound-effects/weapons-world-war-ii-designed/)). 14 guns including Kar98,
+      Springfield, M1919 and BAR: placeholder rifles and the Hotchkiss and Chauchat proxies.
 - [ ] [Krampfstadt Distant Gunshots and Explosions](https://sonniss.com/category/sound-libraries/guns/) ($35, find it on
       the category page). 40 files of distant reports and terrain tails for the battle bed.
 
@@ -171,12 +167,10 @@ impulse responses from BOOM content; its EULA bans it.
       Lebel, Gewehr 98 or machine guns. BOOM says it sells only to commercial customers; check at checkout.
 - [ ] [Pole Position Kar98k](https://sonniss.com/sound-effects/mauser-karabiner-98-kurz-k98k-bolt-action-rifle/) ($149).
       Gewehr 98 stand-in: same action and round, 24 perspectives, long and short tails.
-- [ ] [Pole Position Warfare Library 1–3 bundle](https://sonniss.com/sound-effects-tag/howitzer/)
-      ($399), or
+- [ ] [Pole Position Warfare Library 1–3 bundle](https://sonniss.com/sound-effects-tag/howitzer/) ($399), or
       [Vol. 3 Heavy Bombardment](https://sonniss.com/sound-effects/the-warfare-library-3-heavy-bombardment/) alone
-      ($199).
-      Real 70/105/155 mm artillery recorded at gun and impact, incoming whines; the bundle adds mines and a bunker
-      interior ([Vol. 2](https://sonniss.com/sound-effects/the-warfare-2-library/)).
+      ($199). Real 70/105/155 mm artillery recorded at gun and impact, incoming whines; the bundle adds mines and a
+      bunker interior ([Vol. 2](https://sonniss.com/sound-effects/the-warfare-2-library/)).
 - [ ] [BOOM Crowds: War & Battle](https://www.boomlibrary.com/sound-effects/crowds-war-battle/) ($329). Charge walla,
       war cries, pain and death, in several group sizes and distances.
 
@@ -185,8 +179,7 @@ impulse responses from BOOM content; its EULA bans it.
 - [ ] [BOOM Cannons](https://www.boomlibrary.com/sound-effects/cannons/) (from $139). Black-powder mortars for the
       Minenwerfer thump, flybys, impacts on six materials.
 - [ ] [Krotos Explosions](https://www.krotosaudio.com/?p=1020473) ($199). Real charges miked from 20 m to 300 m.
-- [ ] [GCRadix Firearm Foley & Mechanics: WW2](https://sonniss.com/sound-effects/firearm-foley-mechanics-ww2/)
-      ($199,
+- [ ] [GCRadix Firearm Foley & Mechanics: WW2](https://sonniss.com/sound-effects/firearm-foley-mechanics-ww2/) ($199,
       often $109–119 on sale). Mauser and Luger bolt handling, cloth foley.
 - [ ] [The Recordist Gunfire HD Pro](https://therecordist.com/product/gunfire-hd-pro/) ($249). Massed distant fire from
       25 m to a mile.
