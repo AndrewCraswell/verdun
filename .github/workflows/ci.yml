@@ -38,7 +38,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: betterapps-hq/pipelines/github/actions/setup@0b0ed2e646a72e6db61a303cee36127aa5e17a48 # v1.3.1
+      - uses: betterapps-hq/pipelines/github/actions/setup@ed34ffcba2ef6748b0210c763582e8995c81501b # v1.6.0
         with:
           lfs: true
       - name: Pack the level kit
