@@ -18,7 +18,7 @@ jobs:
   # (ubuntu-latest)". The level kit and the soundtrack are in Git LFS (.gitattributes); it fetches them, cached until one
   # changes. Pnpm is package.json's packageManager and Node is .nvmrc's.
   verify:
-    uses: betterapps-hq/pipelines/.github/workflows/ci-verify.yml@e10deb3e5365865c3616f7c2081d74d8fb646366 # v1.3.2
+    uses: betterapps-hq/pipelines/.github/workflows/ci-verify.yml@main
     with:
       lfs: true
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -27,26 +27,29 @@ jobs:
       # The live game is built to play multiplayer on the sector server deployed beside it (settings/mode.ts).
       env: |
         VERDUN_SERVER=wss://server-production-ff62.up.railway.app
+      # pnpm verify builds the client into apps/client/dist; on a push to main, deploy ships that build.
+      artifact-path: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'apps/client/dist' || '' }}
+      artifact-name: client
 
   # Every push to main that passes goes live: the client, served by Caddy (deploy/), and the sector server
-  # (deploy/server/), on Railway. It builds the client again, as verify's build stays in its own job, from the same
-  # commit and settings. Needs the RAILWAY_TOKEN secret, a project token for the verdun project's production
-  # environment.
+  # (deploy/server/), on Railway. The client is the one verify built and tested, downloaded rather than built again, and
+  # the server's sources come from the checkout, with their Git LFS data. Needs the RAILWAY_TOKEN secret, a project
+  # token for the verdun project's production environment.
   deploy:
     name: Deploy to Railway
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: betterapps-hq/pipelines/github/actions/setup@0b0ed2e646a72e6db61a303cee36127aa5e17a48 # v1.3.1
+      # Node for Railway's CLI, and no install: nothing here builds.
+      - uses: betterapps-hq/pipelines/github/actions/setup@main
         with:
           lfs: true
-      - name: Pack the level kit
-        run: pnpm assets:pack
-      - name: Build the client
-        run: pnpm build
-        env:
-          VERDUN_SERVER: wss://server-production-ff62.up.railway.app
+          install: "false"
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.verify.outputs.artifact-name }}
+          path: apps/client/dist
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
